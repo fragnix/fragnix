@@ -16,7 +16,7 @@ import Data.Text (Text,pack,unpack)
 import System.FilePath ((</>),(<.>))
 import System.Process (rawSystem)
 
-import Control.Category ((>>>))
+import Control.Monad (forM_)
 
 data Fragment = Fragment FragmentID SourceCode [Usage]
 
@@ -32,8 +32,11 @@ type OriginalModule = Text
 type SymbolName = Text
 
 get :: FragmentID -> IO Fragment
-get 0 = return (Fragment 0 "main = putStrLn \"Hello Fragnix!\"" [putStrLnUsage]) where
+get 0 = return (Fragment 0 "main = putHello \"Fragnix!\""  [putHelloUsage]) where
+    putHelloUsage = Usage Nothing (Symbol "putHello" 1)
+get 1 = return (Fragment 1 "putHello x = putStrLn (\"Hello \" ++ x)" [putStrLnUsage,appendUsage]) where
     putStrLnUsage = Usage Nothing (Primitive "putStrLn" "System.IO")
+    appendUsage = Usage Nothing (Primitive "(++)" "Data.List")
 
 assemble :: Fragment -> Module
 assemble (Fragment fragmentID sourceCode usages) =
@@ -65,14 +68,17 @@ fragmentModuleName :: FragmentID -> String
 fragmentModuleName fragmentID = "F" ++ show fragmentID
 
 compile :: FragmentID -> IO ()
-compile fragmentID =
-    get fragmentID >>=
-    (assemble >>> prettyPrint >>> pack >>> return) >>=
-    writeFile (fragmentPath fragmentID)
+compile fragmentID = do
+    fragment <- get fragmentID
+    forM_ (usedFragments fragment) compile
+    writeFile (fragmentPath fragmentID) (pack (prettyPrint (assemble fragment)))
+
+usedFragments :: Fragment -> [FragmentID]
+usedFragments (Fragment _ _ usages) = [fragmentID | Usage _ (Symbol _ fragmentID) <- usages]
 
 main :: IO ()
 main = do
     compile 0
-    rawSystem "ghc" [fragmentPath 0,"-main-is",fragmentModuleName 0] >>= print
+    rawSystem "ghc" ["-ifragnix","-main-is",fragmentModuleName 0,fragmentPath 0] >>= print
 
 
