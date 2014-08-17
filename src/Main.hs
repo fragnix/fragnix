@@ -14,6 +14,7 @@ import Data.Text.IO (writeFile)
 import Data.Text (Text,pack,unpack)
 
 import System.FilePath ((</>),(<.>))
+import System.Process (rawSystem)
 
 import Control.Category ((>>>))
 
@@ -64,9 +65,14 @@ fragmentModuleName :: FragmentID -> String
 fragmentModuleName fragmentID = "F" ++ show fragmentID
 
 compile :: FragmentID -> IO ()
-compile fragmentID = get fragmentID >>= (assemble >>> prettyPrint >>> pack >>> return) >>= writeFile (fragmentPath fragmentID)
+compile fragmentID =
+    get fragmentID >>=
+    (assemble >>> prettyPrint >>> pack >>> return) >>=
+    writeFile (fragmentPath fragmentID)
 
 main :: IO ()
-main = compile 0
+main = do
+    compile 0
+    rawSystem "ghc" [fragmentPath 0,"-main-is",fragmentModuleName 0] >>= print
 
 
