@@ -4,8 +4,9 @@ module Main where
 import Prelude hiding (writeFile)
 
 import Language.Haskell.Exts.Syntax (
-    Module(Module),SrcLoc(SrcLoc),ModuleName(ModuleName),ModulePragma(LanguagePragma),
-    Name(Ident),ImportDecl(ImportDecl))
+    Module(Module),ModuleName(ModuleName),ModulePragma(LanguagePragma),
+    Name(Ident),ImportDecl(ImportDecl),ImportSpec(IVar))
+import Language.Haskell.Exts.SrcLoc (noLoc)
 import Language.Haskell.Exts.Parser (parseDecl,fromParseResult)
 import Language.Haskell.Exts.Pretty (prettyPrint)
 
@@ -36,20 +37,22 @@ get 0 = return (Fragment 0 "main = putStrLn \"Hello Fragnix!\"" [putStrLnUsage])
 assemble :: Fragment -> Module
 assemble (Fragment fragmentID sourceCode usages) =
     let decl = fromParseResult (parseDecl (unpack sourceCode))
-        srcLoc = SrcLoc (fragmentFileName fragmentID) 0 0
-        moduleName = ModuleName (fragmentModuleName fragmentID)
-        pragmas = [LanguagePragma srcLoc [Ident "NoImplicitPrelude"]]
+        modulName = ModuleName (fragmentModuleName fragmentID)
+        pragmas = [LanguagePragma noLoc [Ident "NoImplicitPrelude"]]
         imports = map usageImport usages
-    in Module srcLoc moduleName pragmas Nothing Nothing imports [decl]
+    in Module noLoc modulName pragmas Nothing Nothing imports [decl]
 
 usageImport :: Usage -> ImportDecl
 usageImport (Usage maybeQualification symbol) =
-    let srcLoc = undefined
-        moduleName = undefined
-        qualified = undefined
-        maybeAlias = undefined
-        importSpec = undefined
-    in ImportDecl srcLoc moduleName qualified False Nothing maybeAlias (Just (False,[importSpec]))
+    let modulName = case symbol of
+            Primitive _ originalModule -> ModuleName (unpack originalModule)
+            Symbol _ fragmentID -> ModuleName (fragmentModuleName fragmentID)
+        qualified = maybe False (const True) maybeQualification
+        maybeAlias = fmap (ModuleName . unpack) maybeQualification
+        importSpec = case symbol of
+            Primitive symbolName _ -> IVar (Ident (unpack symbolName))
+            Symbol symbolName _ -> IVar (Ident (unpack symbolName))
+    in ImportDecl noLoc modulName qualified False Nothing maybeAlias (Just (False,[importSpec]))
 
 fragmentPath :: FragmentID -> FilePath
 fragmentPath fragmentID = "fragnix" </> fragmentFileName fragmentID
