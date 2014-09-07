@@ -19,7 +19,8 @@ executable fragnix
   main-is:             Main.hs
   other-modules:       Fragnix.Slice,
                        Fragnix.Nest,
-                       Fragnix.Compiler
+                       Fragnix.Compiler,
+                       Fragnix.Resolver
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.7,
                        text >=1.1 && < 1.2,

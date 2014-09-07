@@ -1,8 +1,8 @@
 module Main where
 
-import Fragnix.Compiler (compile)
+import Fragnix.Resolver (extractSlices)
 
 main :: IO ()
-main = compile 0 >>= print
+main = extractSlices "tests/examples/HelloFragnix.hs" >>= print
 
 
