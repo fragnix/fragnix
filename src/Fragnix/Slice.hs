@@ -60,6 +60,8 @@ data UsedName =
     ConSym Text
 
 deriving instance Show UsedName
+deriving instance Eq UsedName
+deriving instance Ord UsedName
 
 instance ToJSON UsedName  where
     toJSON (VarId name) = object ["varId" .= name]
