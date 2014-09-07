@@ -44,7 +44,7 @@ usageImport (Usage maybeQualification usedName symbolSource) =
     in ImportDecl noLoc modulName qualified False Nothing maybeAlias (Just (False,[importSpec]))
 
 slicePath :: SliceID -> FilePath
-slicePath sliceID = "fragnix" </> sliceFileName sliceID
+slicePath sliceID = "fragnix" </> "modules" </> sliceFileName sliceID
 
 sliceFileName :: SliceID -> FilePath
 sliceFileName sliceID = sliceModuleName sliceID <.> "hs"
@@ -60,9 +60,9 @@ assembleTransitive sliceID = do
 
 compile :: SliceID -> IO ()
 compile sliceID = do
-    createDirectoryIfMissing True "fragnix"
+    createDirectoryIfMissing True ("fragnix" </> "modules")
     assembleTransitive sliceID
-    rawSystem "ghc" ["-o","main","-ifragnix","-main-is",sliceModuleName 0,slicePath 0] >>= print
+    rawSystem "ghc" ["-o","main","-ifragnix/modules","-main-is",sliceModuleName 0,slicePath 0] >>= print
 
 usedSlices :: Slice -> [SliceID]
 usedSlices (Slice _ _ usages) = [sliceID | Usage _ _ (OtherSlice sliceID) <- usages]
