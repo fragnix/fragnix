@@ -1,7 +1,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-module F0 where
-import F1 (putHello)
+module F1 where
+import System.IO (putStrLn)
+import Data.List ((++))
+import Data.String (String)
 import System.IO (IO)
  
-main :: IO ()
-main = putHello "Fragnix!"
+putHello :: String -> IO ()
+putHello x = putStrLn ("Hello " ++ x)
