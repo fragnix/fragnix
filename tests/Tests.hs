@@ -10,12 +10,17 @@ import Test.Tasty.Golden.Manage (defaultMain)
 
 main :: IO ()
 main = do
-    defaultMain $ testGroup "Tests" [
+    defaultMain $ testGroup "writeSlice" [
         goldenVsFile
             "writeSlice putHelloSlice"
             "tests/writeSliceputHelloSlice.golden"
             "fragnix/slices/0"
-            (writeSlice putHelloSlice)]
+            (writeSlice putHelloSlice),
+        goldenVsFile
+            "writeSlice mainSlice"
+            "tests/writeSlicemainSlice.golden"
+            "fragnix/slices/1"
+            (writeSlice mainSlice)]
 
 putHelloSlice :: Slice
 putHelloSlice = Slice 0 (Binding "main :: IO ()" "main = putHello \"Fragnix!\"")  [putHelloUsage,ioUsage] where
