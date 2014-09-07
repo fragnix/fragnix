@@ -2,25 +2,43 @@
 module Main where
 
 import Fragnix.Slice
-import Fragnix.Nest (writeSlice)
+import Fragnix.Nest (writeSlice,readSlice)
 
-import Test.Tasty (testGroup)
+import Test.Tasty (testGroup,TestTree)
 import Test.Tasty.Golden (goldenVsFile)
 import Test.Tasty.Golden.Manage (defaultMain)
 
 main :: IO ()
 main = do
-    defaultMain $ testGroup "writeSlice" [
-        goldenVsFile
-            "writeSlice putHelloSlice"
-            "tests/writeSliceputHelloSlice.golden"
-            "fragnix/slices/0"
-            (writeSlice putHelloSlice),
-        goldenVsFile
-            "writeSlice mainSlice"
-            "tests/writeSlicemainSlice.golden"
-            "fragnix/slices/1"
-            (writeSlice mainSlice)]
+    defaultMain (testGroup "Tests" [
+        writeSliceTests,
+        readSliceTests])
+
+writeSliceTests :: TestTree
+writeSliceTests = testGroup "writeSlice" [
+    goldenVsFile
+        "putHelloSlice"
+        "tests/writeSliceputHelloSlice.golden"
+        "fragnix/slices/0"
+        (writeSlice putHelloSlice),
+    goldenVsFile
+        "mainSlice"
+        "tests/writeSlicemainSlice.golden"
+        "fragnix/slices/1"
+        (writeSlice mainSlice)]
+
+readSliceTests :: TestTree
+readSliceTests = testGroup "readSlice" [
+    goldenVsFile
+        "putHelloSlice"
+        "tests/readSliceputHelloSlice.golden"
+        "tests/readSliceputHelloSlice.out"
+        (readSlice 0 >>= writeFile "tests/readSliceputHelloSlice.out" . show),
+    goldenVsFile
+        "mainSlice"
+        "tests/readSlicemainSlice.golden"
+        "tests/readSlicemainSlice.out"
+        (readSlice 1 >>= writeFile "tests/readSlicemainSlice.out" . show)]
 
 putHelloSlice :: Slice
 putHelloSlice = Slice 0 (Binding "main :: IO ()" "main = putHello \"Fragnix!\"")  [putHelloUsage,ioUsage] where

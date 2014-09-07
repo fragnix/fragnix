@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings,StandaloneDeriving #-}
 module Fragnix.Slice where
 
 import Data.Aeson (
@@ -12,6 +12,8 @@ import Control.Applicative ((<$>),(<*>),(<|>))
 
 data Slice = Slice SliceID Fragment [Usage]
 
+deriving instance Show Slice
+
 instance ToJSON Slice where
     toJSON (Slice sliceID fragment usages) = object [
         "sliceID" .= sliceID,
@@ -24,9 +26,11 @@ instance FromJSON Slice where
 
 data Fragment = Binding Signature SourceCode
 
+deriving instance Show Fragment
+
 instance ToJSON Fragment where
     toJSON (Binding signature sourceCode) = object [
-        "binding" .= [
+        "binding" .= object [
             "signature" .= signature,
             "sourceCode" .= sourceCode]]
 
@@ -36,6 +40,8 @@ instance FromJSON Fragment where
         Binding <$> binding .: "signature" <*> binding .: "sourceCode")
 
 data Usage = Usage (Maybe Qualification) UsedName Reference
+
+deriving instance Show Usage
 
 instance ToJSON Usage where
     toJSON (Usage qualification usedName reference) = object [
@@ -53,6 +59,8 @@ data UsedName =
     VarSym Text |
     ConSym Text
 
+deriving instance Show UsedName
+
 instance ToJSON UsedName  where
     toJSON (VarId name) = object ["varId" .= name]
     toJSON (ConId name) = object ["conId" .= name]
@@ -67,6 +75,8 @@ instance FromJSON UsedName where
         ConSym <$> o .: "conSym")
 
 data Reference = OtherSlice SliceID | Primitive OriginalModule
+
+deriving instance Show Reference
 
 instance ToJSON Reference where
     toJSON (OtherSlice sliceID) = object ["otherSlice" .= sliceID]
