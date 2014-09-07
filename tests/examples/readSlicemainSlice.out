@@ -1,0 +1,1 @@
+Slice 1 (Binding "putHello :: String -> IO ()" "putHello x = putStrLn (\"Hello \" ++ x)") [Usage Nothing (VarId "putStrLn") (Primitive "System.IO"),Usage Nothing (VarSym "++") (Primitive "Data.List"),Usage Nothing (ConId "String") (Primitive "Data.String"),Usage Nothing (ConId "IO") (Primitive "System.IO")]

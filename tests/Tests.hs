@@ -21,12 +21,12 @@ writeSliceTests :: TestTree
 writeSliceTests = testGroup "writeSlice" [
     goldenVsFile
         "putHelloSlice"
-        "tests/writeSliceputHelloSlice.golden"
+        "tests/examples/writeSliceputHelloSlice.golden"
         "fragnix/slices/0"
         (writeSlice putHelloSlice),
     goldenVsFile
         "mainSlice"
-        "tests/writeSlicemainSlice.golden"
+        "tests/examples/writeSlicemainSlice.golden"
         "fragnix/slices/1"
         (writeSlice mainSlice)]
 
@@ -34,25 +34,25 @@ readSliceTests :: TestTree
 readSliceTests = testGroup "readSlice" [
     goldenVsFile
         "putHelloSlice"
-        "tests/readSliceputHelloSlice.golden"
-        "tests/readSliceputHelloSlice.out"
-        (readSlice 0 >>= writeFile "tests/readSliceputHelloSlice.out" . show),
+        "tests/examples/readSliceputHelloSlice.golden"
+        "tests/examples/readSliceputHelloSlice.out"
+        (readSlice 0 >>= writeFile "tests/examples/readSliceputHelloSlice.out" . show),
     goldenVsFile
         "mainSlice"
-        "tests/readSlicemainSlice.golden"
-        "tests/readSlicemainSlice.out"
-        (readSlice 1 >>= writeFile "tests/readSlicemainSlice.out" . show)]
+        "tests/examples/readSlicemainSlice.golden"
+        "tests/examples/readSlicemainSlice.out"
+        (readSlice 1 >>= writeFile "tests/examples/readSlicemainSlice.out" . show)]
 
 writeSliceModuleTests :: TestTree
 writeSliceModuleTests = testGroup "writeSliceModule" [
     goldenVsFile
         "putHelloSlice"
-        "tests/writeSliceModuleputHelloSlice.golden"
+        "tests/examples/writeSliceModuleputHelloSlice.golden"
         "fragnix/modules/F0.hs"
         (writeSliceModule putHelloSlice),
     goldenVsFile
         "mainSlice"
-        "tests/writeSliceModulemainSlice.golden"
+        "tests/examples/writeSliceModulemainSlice.golden"
         "fragnix/modules/F1.hs"
         (writeSliceModule mainSlice)]
 
@@ -60,9 +60,9 @@ compileTest :: TestTree
 compileTest = testGroup "compile" [
     goldenVsFile
         "compile"
-        "tests/compile.golden"
-        "tests/compile.out"
-        (compile 0 >>= writeFile "tests/compile.out" . show)]
+        "tests/examples/compile.golden"
+        "tests/examples/compile.out"
+        (compile 0 >>= writeFile "tests/examples/compile.out" . show)]
 
 putHelloSlice :: Slice
 putHelloSlice = Slice 0 (Binding "main :: IO ()" "main = putHello \"Fragnix!\"")  [putHelloUsage,ioUsage] where
