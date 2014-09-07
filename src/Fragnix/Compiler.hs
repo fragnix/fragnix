@@ -62,16 +62,16 @@ sliceModuleName sliceID = "F" ++ show sliceID
 writeSliceModule :: Slice -> IO ()
 writeSliceModule slice@(Slice sliceID _ _) = writeFile (sliceModulePath sliceID) (pack (prettyPrint (assemble slice)))
 
-assembleTransitive :: SliceID -> IO ()
-assembleTransitive sliceID = do
+writeSliceModuleTransitive :: SliceID -> IO ()
+writeSliceModuleTransitive sliceID = do
     slice <- readSlice sliceID
     writeSliceModule slice
-    forM_ (usedSlices slice) assembleTransitive
+    forM_ (usedSlices slice) writeSliceModuleTransitive
 
 compile :: SliceID -> IO ExitCode
 compile sliceID = do
     createDirectoryIfMissing True sliceModuleDirectory
-    assembleTransitive sliceID
+    writeSliceModuleTransitive sliceID
     rawSystem "ghc" ["-o","main","-ifragnix/modules","-main-is",sliceModuleName 0,sliceModulePath 0]
 
 usedSlices :: Slice -> [SliceID]
