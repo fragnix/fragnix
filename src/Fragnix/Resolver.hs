@@ -1,4 +1,4 @@
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE StandaloneDeriving,DeriveDataTypeable #-}
 module Fragnix.Resolver where
 
 import Fragnix.Slice
@@ -7,32 +7,48 @@ import Language.Haskell.Exts.Annotated (
     parseFile,fromParseResult,Language(Haskell2010),prettyPrint,
     Module(Module),SrcSpanInfo,Decl,ModuleName)
 import Language.Haskell.Names (
-    annotateModule,Scoped(Scoped),NameInfo(GlobalValue,GlobalType),
-    OrigName(OrigName),GName(GName),SymValueInfo(SymValue),SymTypeInfo)
+    annotateModule,Scoped(Scoped),NameInfo(GlobalValue,GlobalType,ScopeError),
+    OrigName(OrigName),GName(GName),SymValueInfo(SymValue),SymTypeInfo(SymType),
+    Error)
 import Language.Haskell.Names.Interfaces (evalNamesModuleT)
 import Language.Haskell.Names.SyntaxUtils (getModuleDecls,getModuleName)
 import Language.Haskell.Names.ModuleSymbols (getTopDeclSymbols)
 import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (empty)
 
+import Control.Exception (Exception,throwIO)
+import Data.Typeable (Typeable)
+
 import Data.Text (pack)
 import Data.Functor ((<$>))
-import Data.Foldable (foldMap)
-import Control.Monad (void)
+import Data.Foldable (foldMap,toList)
+import Control.Monad (when,void)
 
+data NameErrors = NameErrors [Error ()]
+
+deriving instance Show NameErrors
+deriving instance Typeable NameErrors
+
+instance Exception NameErrors
 
 extractSlices :: FilePath -> IO [Slice]
 extractSlices filePath = do
     originalModule <- fromParseResult <$> parseFile filePath
     scopedModule <- evalNamesModuleT (annotateModule Haskell2010 [] originalModule) []
     let nameInfoModule = fmap (\(Scoped nameInfo _) -> void nameInfo) scopedModule
-    print (map (boundSymbols (getModuleName nameInfoModule)) (getModuleDecls nameInfoModule))
+        modulName = getModuleName nameInfoModule
+        decls = getModuleDecls nameInfoModule
+        errors = concatMap scopeErrors decls
+    when (not (null errors)) (throwIO (NameErrors errors))
+    print (map (boundSymbols modulName) decls)
+    print (map prettyPrint (getModuleDecls scopedModule))
+    print (map extractMentionedSymbols decls)
     return []
 
-data BoundSymbol = BoundSymbol Entity OriginalModule UsedName
+data Symbol = Symbol Entity OriginalModule UsedName
 
-deriving instance Show BoundSymbol
-deriving instance Eq BoundSymbol
-deriving instance Ord BoundSymbol
+deriving instance Show Symbol
+deriving instance Eq Symbol
+deriving instance Ord Symbol
 
 data Entity = ValueEntity | TypeEntity
 
@@ -40,23 +56,22 @@ deriving instance Show Entity
 deriving instance Eq Entity
 deriving instance Ord Entity
 
-boundSymbols :: ModuleName (NameInfo ()) -> Decl (NameInfo ()) -> [BoundSymbol]
-boundSymbols modulName = map infoToBoundSymbol . getTopDeclSymbols GlobalTable.empty modulName
+boundSymbols :: ModuleName (NameInfo ()) -> Decl (NameInfo ()) -> [Symbol]
+boundSymbols modulName = map infoToSymbol . getTopDeclSymbols GlobalTable.empty modulName
 
-infoToBoundSymbol :: Either (SymValueInfo OrigName) (SymTypeInfo OrigName) -> BoundSymbol
-infoToBoundSymbol (Left (SymValue (OrigName _ (GName originalModule boundName)) _)) =
-    BoundSymbol ValueEntity (pack originalModule) (VarId (pack boundName))
+infoToSymbol :: Either (SymValueInfo OrigName) (SymTypeInfo OrigName) -> Symbol
+infoToSymbol (Left (SymValue (OrigName _ (GName originalModule boundName)) _)) =
+    Symbol ValueEntity (pack originalModule) (VarId (pack boundName))
 
-extractDeclarations :: Module (Scoped SrcSpanInfo) -> [String]
-extractDeclarations modul = map (show . fmap (\(Scoped ni _) -> fmap (const ()) ni)) (getModuleDecls modul)
+scopeErrors :: Decl (NameInfo ()) -> [Error ()]
+scopeErrors decl = [scopeError | ScopeError scopeError <- toList decl]
 
-extractMentionedSymbols :: Module (Scoped SrcSpanInfo) -> [[String]]
-extractMentionedSymbols modul = map (foldMap externalSymbol) (getModuleDecls modul)
-    
+extractMentionedSymbols :: Decl (NameInfo ()) -> [Symbol]
+extractMentionedSymbols = foldMap externalSymbol
 
- --   show . getTopDeclSymbols GlobalTable.empty (getModuleName modul)) (getModuleDecls modul)
-
-externalSymbol :: Scoped l -> [String]
-externalSymbol (Scoped (GlobalValue symvalueinfo) _) = [show symvalueinfo]
-externalSymbol (Scoped (GlobalType symtypeinfo) _) = [show symtypeinfo]
+externalSymbol :: NameInfo () -> [Symbol]
+externalSymbol (GlobalValue (SymValue (OrigName _ (GName originalModule mentionedName)) _)) =
+    [Symbol ValueEntity (pack originalModule) (VarId (pack mentionedName))]
+externalSymbol (GlobalType (SymType (OrigName _ (GName originalModule mentionedName)) _)) =
+    [Symbol TypeEntity (pack originalModule) (ConId (pack mentionedName))]
 externalSymbol _ = []
