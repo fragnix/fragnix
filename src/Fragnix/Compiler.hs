@@ -46,11 +46,11 @@ usageImport (Usage maybeQualification usedName symbolSource) =
 
     in ImportDecl noLoc modulName qualified False Nothing maybeAlias (Just (False,[importSpec]))
 
-slicePath :: SliceID -> FilePath
-slicePath sliceID = "fragnix" </> "modules" </> sliceFileName sliceID
+sliceModulePath :: SliceID -> FilePath
+sliceModulePath sliceID = "fragnix" </> "modules" </> sliceModuleFileName sliceID
 
-sliceFileName :: SliceID -> FilePath
-sliceFileName sliceID = sliceModuleName sliceID <.> "hs"
+sliceModuleFileName :: SliceID -> FilePath
+sliceModuleFileName sliceID = sliceModuleName sliceID <.> "hs"
 
 sliceModuleName :: SliceID -> String
 sliceModuleName sliceID = "F" ++ show sliceID

@@ -1,17 +1,42 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE StandaloneDeriving #-}
 module Fragnix.Nest where
 
-import Fragnix.Slice
+import Prelude hiding (writeFile,readFile)
 
-data NestError = SliceNotFound SliceID
+import Fragnix.Slice (Slice(Slice),SliceID)
+
+import Control.Error (EitherT,runEitherT,tryIO,hoistEither,fmapLT)
+import Control.Exception (IOException)
+
+import Data.Aeson (encode,eitherDecode)
+import Data.ByteString.Lazy (writeFile,readFile)
+import System.FilePath ((</>))
+import System.Directory (createDirectoryIfMissing)
+
+data NestError =
+    SliceFileError SliceID IOException |
+    SliceParseError SliceID String
+
+deriving instance Show NestError
 
 get :: SliceID -> IO Slice
-get 0 = return (Slice 0 (Binding "main :: IO ()" "main = putHello \"Fragnix!\"")  [putHelloUsage,ioUsage]) where
-    putHelloUsage = Usage Nothing (VarId "putHello") (OtherSlice 1)
-    ioUsage = Usage Nothing (ConId "IO") (Primitive "System.IO")
-get 1 = return (Slice 1 (Binding "putHello :: String -> IO ()" "putHello x = putStrLn (\"Hello \" ++ x)") usages) where
-    usages = [putStrLnUsage,appendUsage,stringUsage,ioUsage]
-    putStrLnUsage = Usage Nothing (VarId "putStrLn") (Primitive "System.IO")
-    appendUsage = Usage Nothing (VarSym "++") (Primitive "Data.List")
-    stringUsage = Usage Nothing (ConId "String") (Primitive "Data.String")
-    ioUsage = Usage Nothing (ConId "IO") (Primitive "System.IO")
+get sliceID = runEitherT (readSlice sliceID) >>= either (error . show) return
+
+writeSlice :: Slice -> IO ()
+writeSlice slice@(Slice sliceID _ _) = do
+    createDirectoryIfMissing True sliceDirectory
+    writeFile (slicePath sliceID) (encode slice)
+
+readSlice :: SliceID -> EitherT NestError IO Slice
+readSlice sliceID = do
+    sliceFile <- tryIO (readFile (slicePath sliceID)) `onFailure` SliceFileError sliceID
+    hoistEither (eitherDecode sliceFile) `onFailure` SliceParseError sliceID
+
+slicePath :: SliceID -> FilePath
+slicePath sliceID = sliceDirectory </> show sliceID
+
+sliceDirectory :: FilePath
+sliceDirectory = "fragnix" </> "slices"
+
+onFailure :: (Monad m) => EitherT e m a -> (e -> u) -> EitherT u m a
+onFailure = flip fmapLT
