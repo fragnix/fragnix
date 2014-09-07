@@ -57,7 +57,7 @@ sliceModuleName sliceID = "F" ++ show sliceID
 
 assembleTransitive :: SliceID -> IO ()
 assembleTransitive sliceID = do
-    slice <- get sliceID
+    slice <- readSlice sliceID
     forM_ (usedSlices slice) compile
     writeFile (slicePath sliceID) (pack (prettyPrint (assemble slice)))
 

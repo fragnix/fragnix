@@ -1,42 +1,37 @@
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE StandaloneDeriving,DeriveDataTypeable #-}
 module Fragnix.Nest where
 
 import Prelude hiding (writeFile,readFile)
 
 import Fragnix.Slice (Slice(Slice),SliceID)
 
-import Control.Error (EitherT,runEitherT,tryIO,hoistEither,fmapLT)
-import Control.Exception (IOException)
+import Control.Exception (Exception,throwIO)
+import Data.Typeable(Typeable)
 
 import Data.Aeson (encode,eitherDecode)
 import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>))
 import System.Directory (createDirectoryIfMissing)
 
-data NestError =
-    SliceFileError SliceID IOException |
-    SliceParseError SliceID String
+data SliceParseError = SliceParseError SliceID String
 
-deriving instance Show NestError
+deriving instance Typeable SliceParseError
+deriving instance Show SliceParseError
 
-get :: SliceID -> IO Slice
-get sliceID = runEitherT (readSlice sliceID) >>= either (error . show) return
+instance Exception SliceParseError
 
 writeSlice :: Slice -> IO ()
 writeSlice slice@(Slice sliceID _ _) = do
     createDirectoryIfMissing True sliceDirectory
     writeFile (slicePath sliceID) (encode slice)
 
-readSlice :: SliceID -> EitherT NestError IO Slice
+readSlice :: SliceID -> IO Slice
 readSlice sliceID = do
-    sliceFile <- tryIO (readFile (slicePath sliceID)) `onFailure` SliceFileError sliceID
-    hoistEither (eitherDecode sliceFile) `onFailure` SliceParseError sliceID
+    sliceFile <- readFile (slicePath sliceID)
+    either (throwIO . SliceParseError sliceID) return (eitherDecode sliceFile)
 
 slicePath :: SliceID -> FilePath
 slicePath sliceID = sliceDirectory </> show sliceID
 
 sliceDirectory :: FilePath
 sliceDirectory = "fragnix" </> "slices"
-
-onFailure :: (Monad m) => EitherT e m a -> (e -> u) -> EitherT u m a
-onFailure = flip fmapLT
