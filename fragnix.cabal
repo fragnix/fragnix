@@ -29,6 +29,9 @@ executable fragnix
                        process >=1.1 && <1.2,
                        haskell-src-exts >=1.15 && <1.16,
                        haskell-names >=0.4 && <0.5,
+                       haskell-packages >=0.2.4.1 && <0.3,
+                       Cabal >=1.20.0.2 && <1.21,
+                       tagged >=0.7.2 && <0.8,
                        aeson >=0.8.0.0 && <0.9,
                        bytestring >=0.10.4.0 && <0.11
   hs-source-dirs:      src
@@ -47,6 +50,9 @@ test-suite test
                        process >=1.1 && <1.2,
                        haskell-src-exts >=1.15 && <1.16,
                        haskell-names >=0.4 && <0.5,
+                       haskell-packages >=0.2.4.1 && <0.3,
+                       Cabal >=1.20.0.2 && <1.21,
+                       tagged >=0.7.2 && <0.8,
                        aeson >=0.8.0.0 && <0.9,
                        bytestring >=0.10.4.0 && <0.11,
                        tasty >= 0.8.1.3 && <0.9,

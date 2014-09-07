@@ -10,10 +10,14 @@ import Language.Haskell.Names (
     annotateModule,Scoped(Scoped),NameInfo(GlobalValue,GlobalType,ScopeError),
     OrigName(OrigName),GName(GName),SymValueInfo(SymValue),SymTypeInfo(SymType),
     Error)
-import Language.Haskell.Names.Interfaces (evalNamesModuleT)
+import Language.Haskell.Names.Interfaces (evalNamesModuleT,NamesDB)
 import Language.Haskell.Names.SyntaxUtils (getModuleDecls,getModuleName)
 import Language.Haskell.Names.ModuleSymbols (getTopDeclSymbols)
 import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (empty)
+
+import Distribution.HaskellSuite.Packages (getInstalledPackages)
+import Distribution.Simple.Compiler (PackageDB(GlobalPackageDB))
+import Data.Proxy (Proxy(Proxy))
 
 import Control.Exception (Exception,throwIO)
 import Data.Typeable (Typeable)
@@ -32,13 +36,15 @@ instance Exception NameErrors
 
 extractSlices :: FilePath -> IO [Slice]
 extractSlices filePath = do
+    packages <- getInstalledPackages (Proxy :: Proxy NamesDB) GlobalPackageDB
     originalModule <- fromParseResult <$> parseFile filePath
-    scopedModule <- evalNamesModuleT (annotateModule Haskell2010 [] originalModule) []
+    scopedModule <- evalNamesModuleT (annotateModule Haskell2010 [] originalModule) packages
     let nameInfoModule = fmap (\(Scoped nameInfo _) -> void nameInfo) scopedModule
         modulName = getModuleName nameInfoModule
         decls = getModuleDecls nameInfoModule
         errors = concatMap scopeErrors decls
-    when (not (null errors)) (throwIO (NameErrors errors))
+--    when (not (null errors)) (throwIO (NameErrors errors))
+    print errors
     print (map (boundSymbols modulName) decls)
     print (map prettyPrint (getModuleDecls scopedModule))
     print (map extractMentionedSymbols decls)
