@@ -1,7 +1,7 @@
 module Fragnix.Compiler where
 
 import Fragnix.Slice
-import Fragnix.Nest 
+import Fragnix.Nest (readSlice)
 
 import Prelude hiding (writeFile)
 
@@ -18,6 +18,7 @@ import Data.Text (pack,unpack)
 import System.FilePath ((</>),(<.>))
 import System.Directory (createDirectoryIfMissing)
 import System.Process (rawSystem)
+import System.Exit (ExitCode)
 
 import Control.Monad (forM_)
 
@@ -46,8 +47,11 @@ usageImport (Usage maybeQualification usedName symbolSource) =
 
     in ImportDecl noLoc modulName qualified False Nothing maybeAlias (Just (False,[importSpec]))
 
+sliceModuleDirectory :: FilePath
+sliceModuleDirectory = "fragnix" </> "modules"
+
 sliceModulePath :: SliceID -> FilePath
-sliceModulePath sliceID = "fragnix" </> "modules" </> sliceModuleFileName sliceID
+sliceModulePath sliceID = sliceModuleDirectory </> sliceModuleFileName sliceID
 
 sliceModuleFileName :: SliceID -> FilePath
 sliceModuleFileName sliceID = sliceModuleName sliceID <.> "hs"
@@ -55,17 +59,20 @@ sliceModuleFileName sliceID = sliceModuleName sliceID <.> "hs"
 sliceModuleName :: SliceID -> String
 sliceModuleName sliceID = "F" ++ show sliceID
 
+writeSliceModule :: Slice -> IO ()
+writeSliceModule slice@(Slice sliceID _ _) = writeFile (sliceModulePath sliceID) (pack (prettyPrint (assemble slice)))
+
 assembleTransitive :: SliceID -> IO ()
 assembleTransitive sliceID = do
     slice <- readSlice sliceID
-    forM_ (usedSlices slice) compile
-    writeFile (slicePath sliceID) (pack (prettyPrint (assemble slice)))
+    writeSliceModule slice
+    forM_ (usedSlices slice) assembleTransitive
 
-compile :: SliceID -> IO ()
+compile :: SliceID -> IO ExitCode
 compile sliceID = do
-    createDirectoryIfMissing True ("fragnix" </> "modules")
+    createDirectoryIfMissing True sliceModuleDirectory
     assembleTransitive sliceID
-    rawSystem "ghc" ["-o","main","-ifragnix/modules","-main-is",sliceModuleName 0,slicePath 0] >>= print
+    rawSystem "ghc" ["-o","main","-ifragnix/modules","-main-is",sliceModuleName 0,sliceModulePath 0]
 
 usedSlices :: Slice -> [SliceID]
 usedSlices (Slice _ _ usages) = [sliceID | Usage _ _ (OtherSlice sliceID) <- usages]

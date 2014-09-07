@@ -3,6 +3,7 @@ module Main where
 
 import Fragnix.Slice
 import Fragnix.Nest (writeSlice,readSlice)
+import Fragnix.Compiler (writeSliceModule)
 
 import Test.Tasty (testGroup,TestTree)
 import Test.Tasty.Golden (goldenVsFile)
@@ -12,7 +13,8 @@ main :: IO ()
 main = do
     defaultMain (testGroup "Tests" [
         writeSliceTests,
-        readSliceTests])
+        readSliceTests,
+        writeSliceModuleTests])
 
 writeSliceTests :: TestTree
 writeSliceTests = testGroup "writeSlice" [
@@ -39,6 +41,19 @@ readSliceTests = testGroup "readSlice" [
         "tests/readSlicemainSlice.golden"
         "tests/readSlicemainSlice.out"
         (readSlice 1 >>= writeFile "tests/readSlicemainSlice.out" . show)]
+
+writeSliceModuleTests :: TestTree
+writeSliceModuleTests = testGroup "writeSliceModule" [
+    goldenVsFile
+        "putHelloSlice"
+        "tests/writeSliceModuleputHelloSlice.golden"
+        "fragnix/modules/F0.hs"
+        (writeSliceModule putHelloSlice),
+    goldenVsFile
+        "mainSlice"
+        "tests/writeSliceModulemainSlice.golden"
+        "fragnix/modules/F1.hs"
+        (writeSliceModule mainSlice)]
 
 putHelloSlice :: Slice
 putHelloSlice = Slice 0 (Binding "main :: IO ()" "main = putHello \"Fragnix!\"")  [putHelloUsage,ioUsage] where
