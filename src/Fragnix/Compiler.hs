@@ -16,6 +16,8 @@ import Data.Text.IO (writeFile)
 import Data.Text (pack,unpack)
 
 import System.FilePath ((</>),(<.>))
+import System.Directory (createDirectoryIfMissing)
+import System.Process (rawSystem)
 
 import Control.Monad (forM_)
 
@@ -50,11 +52,17 @@ sliceFileName sliceID = sliceModuleName sliceID <.> "hs"
 sliceModuleName :: SliceID -> String
 sliceModuleName sliceID = "F" ++ show sliceID
 
-compile :: SliceID -> IO ()
-compile sliceID = do
+assembleTransitive :: SliceID -> IO ()
+assembleTransitive sliceID = do
     slice <- get sliceID
     forM_ (usedSlices slice) compile
     writeFile (slicePath sliceID) (pack (prettyPrint (assemble slice)))
+
+compile :: SliceID -> IO ()
+compile sliceID = do
+    createDirectoryIfMissing True "fragnix"
+    assembleTransitive sliceID
+    rawSystem "ghc" ["-o","main","-ifragnix","-main-is",sliceModuleName 0,slicePath 0] >>= print
 
 usedSlices :: Slice -> [SliceID]
 usedSlices (Slice _ _ usages) = [sliceID | Usage _ _ (OtherSlice sliceID) <- usages]

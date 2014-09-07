@@ -1,14 +1,8 @@
 module Main where
 
-import Fragnix.Compiler (compile,sliceModuleName,slicePath)
-
-import System.Process (rawSystem)
-
-
+import Fragnix.Compiler (compile)
 
 main :: IO ()
-main = do
-    compile 0
-    rawSystem "ghc" ["-ifragnix","-main-is",sliceModuleName 0,slicePath 0] >>= print
+main = compile 0
 
 
