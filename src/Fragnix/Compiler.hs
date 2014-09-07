@@ -7,7 +7,7 @@ import Prelude hiding (writeFile)
 
 import Language.Haskell.Exts.Syntax (
     Module(Module),ModuleName(ModuleName),ModulePragma(LanguagePragma),
-    Name(Ident),ImportDecl(ImportDecl),ImportSpec(IVar,IAbs))
+    Name(Ident,Symbol),ImportDecl(ImportDecl),ImportSpec(IVar,IAbs))
 import Language.Haskell.Exts.SrcLoc (noLoc)
 import Language.Haskell.Exts.Parser (parseDecl,fromParseResult)
 import Language.Haskell.Exts.Pretty (prettyPrint)
@@ -39,8 +39,11 @@ usageImport (Usage maybeQualification usedName symbolSource) =
         qualified = maybe False (const True) maybeQualification
         maybeAlias = fmap (ModuleName . unpack) maybeQualification
         importSpec = case usedName of
-            Variable name -> IVar name
-            Abstract name -> IAbs name
+            VarId name -> IVar (Ident (unpack name))
+            VarSym name -> IVar (Symbol (unpack name))
+            ConId name -> IAbs (Ident (unpack name))
+            ConSym name -> IAbs (Symbol (unpack name))
+
     in ImportDecl noLoc modulName qualified False Nothing maybeAlias (Just (False,[importSpec]))
 
 slicePath :: SliceID -> FilePath
