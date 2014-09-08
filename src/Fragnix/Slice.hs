@@ -12,6 +12,23 @@ import Control.Applicative ((<$>),(<*>),(<|>))
 
 data Slice = Slice SliceID Fragment [Usage]
 
+data Fragment = Fragment [SourceCode]
+
+data Usage = Usage (Maybe Qualification) UsedName Reference
+
+data Reference = OtherSlice SliceID | Primitive OriginalModule
+
+data UsedName =
+    VarId Text |
+    ConId Text |
+    VarSym Text |
+    ConSym Text
+
+type SliceID = Integer
+type SourceCode = Text
+type Qualification = Text
+type OriginalModule = Text
+
 deriving instance Show Slice
 
 instance ToJSON Slice where
@@ -24,22 +41,15 @@ instance FromJSON Slice where
     parseJSON = withObject "slice" (\o ->
         Slice <$> o .: "sliceID" <*> o .: "fragment" <*> o .: "usages")
 
-data Fragment = Binding Signature SourceCode
 
 deriving instance Show Fragment
 
 instance ToJSON Fragment where
-    toJSON (Binding signature sourceCode) = object [
-        "binding" .= object [
-            "signature" .= signature,
-            "sourceCode" .= sourceCode]]
+    toJSON (Fragment declarations) = toJSON declarations
 
 instance FromJSON Fragment where
-    parseJSON = withObject "fragment" (\o -> do
-        binding <- o .: "binding"
-        Binding <$> binding .: "signature" <*> binding .: "sourceCode")
+    parseJSON = fmap Fragment . parseJSON
 
-data Usage = Usage (Maybe Qualification) UsedName Reference
 
 deriving instance Show Usage
 
@@ -53,11 +63,6 @@ instance FromJSON Usage where
     parseJSON = withObject "usage" (\o ->
         Usage <$> o .: "qualification" <*> o .: "usedName" <*> o .: "reference")
 
-data UsedName =
-    VarId Text |
-    ConId Text |
-    VarSym Text |
-    ConSym Text
 
 deriving instance Show UsedName
 deriving instance Eq UsedName
@@ -76,7 +81,6 @@ instance FromJSON UsedName where
         VarSym <$> o .: "varSym" <|>
         ConSym <$> o .: "conSym")
 
-data Reference = OtherSlice SliceID | Primitive OriginalModule
 
 deriving instance Show Reference
 
@@ -89,10 +93,5 @@ instance FromJSON Reference where
         OtherSlice <$> o .: "otherSlice" <|>
         Primitive <$> o .: "originalModule")
 
-type SliceID = Integer
-type SourceCode = Text
-type Signature = SourceCode
-type Qualification = Text
-type OriginalModule = Text
 
 

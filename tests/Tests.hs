@@ -65,12 +65,12 @@ compileTest = testGroup "compile" [
         (compile 0 >>= writeFile "tests/examples/compile.out" . show)]
 
 mainSlice :: Slice
-mainSlice = Slice 0 (Binding "main :: IO ()" "main = putHello \"Fragnix!\"")  [putHelloUsage,ioUsage] where
+mainSlice = Slice 0 (Fragment ["main :: IO ()","main = putHello \"Fragnix!\""])  [putHelloUsage,ioUsage] where
     putHelloUsage = Usage Nothing (VarId "putHello") (OtherSlice 1)
     ioUsage = Usage Nothing (ConId "IO") (Primitive "System.IO")
 
 putHelloSlice :: Slice
-putHelloSlice = Slice 1 (Binding "putHello :: String -> IO ()" "putHello x = putStrLn (\"Hello \" ++ x)") usages where
+putHelloSlice = Slice 1 (Fragment ["putHello :: String -> IO ()","putHello x = putStrLn (\"Hello \" ++ x)"]) usages where
     usages = [putStrLnUsage,appendUsage,stringUsage,ioUsage]
     putStrLnUsage = Usage Nothing (VarId "putStrLn") (Primitive "System.IO")
     appendUsage = Usage Nothing (VarSym "++") (Primitive "Data.List")

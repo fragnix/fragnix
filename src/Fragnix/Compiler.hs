@@ -26,7 +26,7 @@ assemble :: Slice -> Module
 assemble (Slice sliceID slice usages) =
     let decl = fromParseResult . parseDecl . unpack
         decls = case slice of
-            Binding signature body -> [decl signature,decl body]
+            Fragment declarations -> map decl declarations
         modulName = ModuleName (sliceModuleName sliceID)
         pragmas = [LanguagePragma noLoc [Ident "NoImplicitPrelude"]]
         imports = map usageImport usages

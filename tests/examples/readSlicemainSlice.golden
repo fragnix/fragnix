@@ -1,1 +1,1 @@
-Slice 0 (Binding "main :: IO ()" "main = putHello \"Fragnix!\"") [Usage Nothing (VarId "putHello") (OtherSlice 1),Usage Nothing (ConId "IO") (Primitive "System.IO")]
+Slice 0 (Fragment ["main :: IO ()","main = putHello \"Fragnix!\""]) [Usage Nothing (VarId "putHello") (OtherSlice 1),Usage Nothing (ConId "IO") (Primitive "System.IO")]

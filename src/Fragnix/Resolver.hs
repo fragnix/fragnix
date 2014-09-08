@@ -55,7 +55,7 @@ extractSlices filePath = do
     when (not (null errors)) (throwIO (NameErrors errors))
     return (do
         key <- Map.keys fragments
-        fragment <- maybe [] (return . (Binding "") . pack) (Map.lookup key fragments)
+        fragment <- maybe [] (return . Fragment . return . pack) (Map.lookup key fragments)
         usages <- maybe [] return (Map.lookup key usagess)
         return (Slice key fragment usages))
 
