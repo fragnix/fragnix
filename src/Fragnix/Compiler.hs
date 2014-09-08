@@ -22,6 +22,12 @@ import System.Exit (ExitCode)
 
 import Control.Monad (forM_)
 
+compile :: SliceID -> IO ExitCode
+compile sliceID = do
+    createDirectoryIfMissing True sliceModuleDirectory
+    writeSliceModuleTransitive sliceID
+    rawSystem "ghc" ["-o","main","-ifragnix/modules","-main-is",sliceModuleName sliceID,sliceModulePath sliceID]
+
 assemble :: Slice -> Module
 assemble (Slice sliceID slice usages) =
     let decl = fromParseResult . parseDecl . unpack
@@ -67,12 +73,6 @@ writeSliceModuleTransitive sliceID = do
     slice <- readSlice sliceID
     writeSliceModule slice
     forM_ (usedSlices slice) writeSliceModuleTransitive
-
-compile :: SliceID -> IO ExitCode
-compile sliceID = do
-    createDirectoryIfMissing True sliceModuleDirectory
-    writeSliceModuleTransitive sliceID
-    rawSystem "ghc" ["-o","main","-ifragnix/modules","-main-is",sliceModuleName 0,sliceModulePath 0]
 
 usedSlices :: Slice -> [SliceID]
 usedSlices (Slice _ _ usages) = [sliceID | Usage _ _ (OtherSlice sliceID) <- usages]

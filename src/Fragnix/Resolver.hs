@@ -6,12 +6,13 @@ import Fragnix.Slice
 import Language.Haskell.Exts.Annotated (
     parseFile,fromParseResult,Language(Haskell2010),prettyPrint,
     SrcSpanInfo,Decl(FunBind,PatBind),ModuleName)
+import qualified Language.Haskell.Exts.Annotated as Name (Name(Ident,Symbol))
 import Language.Haskell.Names (
     annotateModule,Scoped(Scoped),NameInfo(GlobalValue,GlobalType,ScopeError),
     OrigName(OrigName),GName(GName),SymValueInfo(SymValue),SymTypeInfo(SymType),
     Error)
 import Language.Haskell.Names.Interfaces (evalNamesModuleT,NamesDB)
-import Language.Haskell.Names.SyntaxUtils (getModuleDecls,getModuleName)
+import Language.Haskell.Names.SyntaxUtils (getModuleDecls,getModuleName,stringToName)
 import Language.Haskell.Names.ModuleSymbols (getTopDeclSymbols)
 import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (empty)
 
@@ -30,6 +31,7 @@ import Data.Text (pack)
 import Data.Functor ((<$>))
 import Data.Foldable (foldMap,toList)
 import Control.Monad (when)
+import Data.List (nub)
 
 data NameErrors = NameErrors [Error SrcSpanInfo]
 
@@ -91,17 +93,25 @@ boundSymbols modulName = map infoToSymbol . getTopDeclSymbols GlobalTable.empty 
 
 infoToSymbol :: Either (SymValueInfo OrigName) (SymTypeInfo OrigName) -> Symbol
 infoToSymbol (Left (SymValue (OrigName _ (GName originalModule boundName)) _)) =
-    Symbol ValueEntity (pack originalModule) (VarId (pack boundName))
+    Symbol ValueEntity (pack originalModule) (symbolName ValueEntity boundName)
 
 scopeErrors :: Decl (Scoped l) -> [Error l]
 scopeErrors decl = [scopeError | Scoped (ScopeError scopeError) _ <- toList decl]
 
 mentionedSymbols :: Decl (Scoped l) -> [Symbol]
-mentionedSymbols = foldMap (externalSymbol . (\(Scoped nameInfo _) -> nameInfo))
+mentionedSymbols = nub . foldMap (externalSymbol . (\(Scoped nameInfo _) -> nameInfo))
 
 externalSymbol :: NameInfo l -> [Symbol]
 externalSymbol (GlobalValue (SymValue (OrigName _ (GName originalModule mentionedName)) _)) =
-    [Symbol ValueEntity (pack originalModule) (VarId (pack mentionedName))]
+    [Symbol ValueEntity (pack originalModule) (symbolName ValueEntity mentionedName)]
 externalSymbol (GlobalType (SymType (OrigName _ (GName originalModule mentionedName)) _)) =
-    [Symbol TypeEntity (pack originalModule) (ConId (pack mentionedName))]
+    [Symbol TypeEntity (pack originalModule) (symbolName TypeEntity mentionedName)]
 externalSymbol _ = []
+
+symbolName :: Entity -> String -> UsedName
+symbolName ValueEntity s = case stringToName s of
+    Name.Ident _ name -> VarId (pack name)
+    Name.Symbol _ name -> VarSym (pack name)
+symbolName TypeEntity s = case stringToName s of
+    Name.Ident _ name -> ConId (pack name)
+    Name.Symbol _ name -> ConSym (pack name)
