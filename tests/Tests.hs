@@ -2,6 +2,7 @@
 module Main where
 
 import Fragnix.Slice
+import Fragnix.Resolver (resolve)
 import Fragnix.Nest (writeSlice,readSlice)
 import Fragnix.Compiler (writeSliceModule,compile)
 
@@ -15,7 +16,29 @@ main = do
         writeSliceTests,
         readSliceTests,
         writeSliceModuleTests,
-        compileTest])
+        compileTest,
+        pipelineTests])
+
+pipelineTests :: TestTree
+pipelineTests = testGroup "pipelineTests" (map pipelineTest [
+    "HelloFragnix.hs",
+    "HiFragnix.hs"])
+
+pipelineTest :: FilePath -> TestTree
+pipelineTest fileName = testGroup fileName [
+    goldenVsFile
+        fileName
+        (filePath ++ ".golden")
+        (filePath ++ ".out")
+        (fragnix filePath)] where
+            filePath = "tests/examples/"++fileName
+
+fragnix :: FilePath -> IO ()
+fragnix filePath = do
+    (slices,mainID) <- resolve filePath
+    mapM writeSlice slices
+    exitCode <- compile mainID
+    writeFile (filePath ++ ".out") (show exitCode)
 
 writeSliceTests :: TestTree
 writeSliceTests = testGroup "writeSlice" [

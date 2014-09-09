@@ -4,10 +4,13 @@ import Fragnix.Resolver (resolve)
 import Fragnix.Nest (writeSlice)
 import Fragnix.Compiler (compile)
 
-main :: IO ()
-main = do
-    (slices,mainID) <- resolve "tests/examples/HelloFragnix.hs"
+import System.Exit (ExitCode)
+
+fragnix :: FilePath -> IO ExitCode
+fragnix filePath = do
+    (slices,mainID) <- resolve filePath
     mapM writeSlice slices
-    compile mainID >>= print
+    compile mainID
 
-
+main :: IO ()
+main = fragnix "tests/examples/HelloFragnix.hs" >>= print
