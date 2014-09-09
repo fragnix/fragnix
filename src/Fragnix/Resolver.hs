@@ -27,13 +27,14 @@ import Data.Typeable (Typeable)
 import Data.Data (Data)
 
 import Data.Map (Map)
-import qualified Data.Map as Map (fromList,map,toList,lookup,keys)
+import qualified Data.Map as Map (fromList,toList,lookup)
 
 import Data.Text (pack)
 import Data.Functor ((<$>))
 import Data.Foldable (foldMap,toList)
 import Control.Monad (when,guard)
 import Data.List (nub)
+import Data.Maybe (maybeToList)
 
 data NameErrors = NameErrors [Error SrcSpanInfo]
 
@@ -63,17 +64,18 @@ resolveNames filePath = do
 extractSlices :: Module (Scoped SrcSpanInfo) -> ([Slice],Map Symbol TempID)
 extractSlices scopedModule = (tempSlices,boundByMap) where
     modulName = getModuleName scopedModule
-    declarationMap = declarations (getModuleDecls scopedModule)
-    boundMap = Map.map (boundSymbols modulName) declarationMap
-    boundByMap = transposeMap boundMap
-    mentionedMap = Map.map mentionedSymbols declarationMap
-    fragmentMap = Map.map prettyPrint declarationMap
-    usagesMap = Map.map (map (findSymbol boundByMap)) mentionedMap
+    declarations = zip [0..] (getModuleDecls scopedModule)
+    boundByMap = Map.fromList (do
+        (tempID,declaration) <- declarations
+        symbol <- boundSymbols modulName declaration
+        return (symbol,tempID))
     tempSlices = do
-        key <- Map.keys fragmentMap
-        let Just source = Map.lookup key fragmentMap
-            Just usages = Map.lookup key usagesMap
-        return (Slice key (Fragment [pack source]) usages)
+        (tempID,declaration) <- declarations
+        fragment <- maybeToList (declarationFragment declaration)
+        let usages = do
+                mentioned <- mentionedSymbols declaration
+                return (findSymbol boundByMap mentioned)
+        return (Slice tempID fragment usages)
 
 sliceMap :: [Slice] -> Map TempID Slice
 sliceMap tempSlices = Map.fromList (do
@@ -89,12 +91,6 @@ computeHash tempSliceMap (Slice _ fragment tempUsages) = Slice sliceID fragment 
         Slice otherSliceID _ _ = computeHash tempSliceMap tempSlice
     f usage = usage
 
-replaceUsageID :: Map TempID SliceID -> Usage -> Maybe Usage
-replaceUsageID sliceIDMap (Usage qualification usedName (OtherSlice tempID)) = do
-    sliceID <- Map.lookup tempID sliceIDMap
-    return (Usage qualification usedName (OtherSlice sliceID))
-replaceUsageID _ usage = Just usage
-
 findMainSliceID :: Map TempID Slice -> Map Symbol TempID -> SliceID
 findMainSliceID tempSliceMap boundByMap = head (do
     (Symbol _ _ (VarId name),tempMainSliceID) <- Map.toList boundByMap
@@ -102,6 +98,14 @@ findMainSliceID tempSliceMap boundByMap = head (do
     let Just tempMainSlice = Map.lookup tempMainSliceID tempSliceMap
         Slice mainSliceID _ _ = computeHash tempSliceMap tempMainSlice
     return mainSliceID)
+
+replaceUsageID :: Map TempID SliceID -> Usage -> Maybe Usage
+replaceUsageID sliceIDMap (Usage qualification usedName (OtherSlice tempID)) = do
+    sliceID <- Map.lookup tempID sliceIDMap
+    return (Usage qualification usedName (OtherSlice sliceID))
+replaceUsageID _ usage = Just usage
+
+
         
 
 type TempID = Integer
@@ -118,18 +122,19 @@ deriving instance Show Entity
 deriving instance Eq Entity
 deriving instance Ord Entity
 
-declarations :: [Decl l] -> Map TempID (Decl l)
-declarations = Map.fromList . zip [0..] . concatMap binding
+declarationFragment :: Decl (Scoped SrcSpanInfo) -> Maybe Fragment
+declarationFragment decl@(FunBind _ _) = Just (Fragment [pack (prettyPrint decl)])
+declarationFragment decl@(PatBind _ _ _ _ _) = Just (Fragment [pack (prettyPrint decl)])
+declarationFragment _ = Nothing
 
-binding :: Decl l -> [Decl l]
-binding decl@(FunBind _ _) = [decl]
-binding decl@(PatBind _ _ _ _ _) = [decl]
-binding _ = []
+
 
 findSymbol :: Map Symbol TempID -> Symbol -> Usage
 findSymbol boundBy symbol@(Symbol _ originalModule usedName) = case Map.lookup symbol boundBy of
     Nothing -> Usage Nothing usedName (Primitive originalModule)
     Just tempID -> Usage Nothing usedName (OtherSlice tempID)
+
+
 
 boundSymbols :: (Data l,Eq l) => ModuleName l -> Decl l -> [Symbol]
 boundSymbols modulName = map infoToSymbol . getTopDeclSymbols GlobalTable.empty modulName
@@ -138,8 +143,7 @@ infoToSymbol :: Either (SymValueInfo OrigName) (SymTypeInfo OrigName) -> Symbol
 infoToSymbol (Left (SymValue (OrigName _ (GName originalModule boundName)) _)) =
     Symbol ValueEntity (pack originalModule) (symbolName ValueEntity boundName)
 
-transposeMap :: (Ord v) => Map k [v] -> Map v k
-transposeMap = Map.fromList . concatMap (\(k,vs) -> [(v,k) | v <- vs]) . Map.toList
+
 
 mentionedSymbols :: Decl (Scoped l) -> [Symbol]
 mentionedSymbols = nub . foldMap (externalSymbol . (\(Scoped nameInfo _) -> nameInfo))
