@@ -9,7 +9,8 @@ import Language.Haskell.Exts.Syntax (
     Module(Module),ModuleName(ModuleName),ModulePragma(LanguagePragma),
     Name(Ident,Symbol),ImportDecl(ImportDecl),ImportSpec(IVar,IAbs))
 import Language.Haskell.Exts.SrcLoc (noLoc)
-import Language.Haskell.Exts.Parser (parseDecl,fromParseResult)
+import Language.Haskell.Exts.Parser (
+    parseDeclWithMode,ParseMode(parseFilename),defaultParseMode,fromParseResult)
 import Language.Haskell.Exts.Pretty (prettyPrint)
 
 import Data.Text.IO (writeFile)
@@ -30,9 +31,9 @@ compile sliceID = do
 
 assemble :: Slice -> Module
 assemble (Slice sliceID slice usages) =
-    let decl = fromParseResult . parseDecl . unpack
+    let parseMode = defaultParseMode { parseFilename = show sliceID }
         decls = case slice of
-            Fragment declarations -> map decl declarations
+            Fragment declarations -> map (fromParseResult . parseDeclWithMode parseMode . unpack) declarations
         modulName = ModuleName (sliceModuleName sliceID)
         pragmas = [LanguagePragma noLoc [Ident "NoImplicitPrelude"]]
         imports = map usageImport usages
