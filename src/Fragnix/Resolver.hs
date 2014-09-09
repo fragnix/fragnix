@@ -5,7 +5,8 @@ import Fragnix.Slice
 
 import Language.Haskell.Exts.Annotated (
     parseFile,fromParseResult,Language(Haskell2010),prettyPrint,
-    Module,SrcSpanInfo,Decl(FunBind,PatBind),ModuleName)
+    Module,SrcSpanInfo,ModuleName,
+    Decl(FunBind,PatBind,TypeDecl,DataDecl))
 import qualified Language.Haskell.Exts.Annotated as Name (Name(Ident,Symbol))
 import Language.Haskell.Names (
     annotateModule,Scoped(Scoped),NameInfo(GlobalValue,GlobalType,ScopeError),
@@ -105,6 +106,8 @@ replaceUsageID _ usage = usage
 declarationFragment :: Decl (Scoped SrcSpanInfo) -> Maybe Fragment
 declarationFragment decl@(FunBind _ _) = Just (Fragment [pack (prettyPrint decl)])
 declarationFragment decl@(PatBind _ _ _ _ _) = Just (Fragment [pack (prettyPrint decl)])
+declarationFragment decl@(TypeDecl _ _ _) = Just (Fragment [pack (prettyPrint decl)])
+declarationFragment decl@(DataDecl _ _ _ _ _ _) = Just (Fragment [pack (prettyPrint decl)])
 declarationFragment _ = Nothing
 
 findSymbol :: Map Symbol TempID -> Symbol -> Usage
