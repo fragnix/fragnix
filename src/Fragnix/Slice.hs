@@ -1,9 +1,12 @@
-{-# LANGUAGE OverloadedStrings,StandaloneDeriving #-}
+{-# LANGUAGE OverloadedStrings,StandaloneDeriving,DeriveGeneric #-}
 module Fragnix.Slice where
 
 import Data.Aeson (
     ToJSON(toJSON),object,(.=),
     FromJSON(parseJSON),withObject,(.:))
+
+import GHC.Generics (Generic)
+import Data.Hashable (Hashable)
 
 import Data.Text (Text)
 
@@ -43,6 +46,7 @@ instance FromJSON Slice where
 
 
 deriving instance Show Fragment
+deriving instance Generic Fragment
 
 instance ToJSON Fragment where
     toJSON (Fragment declarations) = toJSON declarations
@@ -50,8 +54,11 @@ instance ToJSON Fragment where
 instance FromJSON Fragment where
     parseJSON = fmap Fragment . parseJSON
 
+instance Hashable Fragment
+
 
 deriving instance Show Usage
+deriving instance Generic Usage
 
 instance ToJSON Usage where
     toJSON (Usage qualification usedName reference) = object [
@@ -63,10 +70,13 @@ instance FromJSON Usage where
     parseJSON = withObject "usage" (\o ->
         Usage <$> o .: "qualification" <*> o .: "usedName" <*> o .: "reference")
 
+instance Hashable Usage
+
 
 deriving instance Show UsedName
 deriving instance Eq UsedName
 deriving instance Ord UsedName
+deriving instance Generic UsedName
 
 instance ToJSON UsedName  where
     toJSON (VarId name) = object ["varId" .= name]
@@ -81,8 +91,11 @@ instance FromJSON UsedName where
         VarSym <$> o .: "varSym" <|>
         ConSym <$> o .: "conSym")
 
+instance Hashable UsedName
+
 
 deriving instance Show Reference
+deriving instance Generic Reference
 
 instance ToJSON Reference where
     toJSON (OtherSlice sliceID) = object ["otherSlice" .= sliceID]
@@ -93,5 +106,5 @@ instance FromJSON Reference where
         OtherSlice <$> o .: "otherSlice" <|>
         Primitive <$> o .: "originalModule")
 
-
+instance Hashable Reference
 

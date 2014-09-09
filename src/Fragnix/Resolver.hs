@@ -20,6 +20,8 @@ import Distribution.HaskellSuite.Packages (getInstalledPackages)
 import Distribution.Simple.Compiler (PackageDB(GlobalPackageDB))
 import Data.Proxy (Proxy(Proxy))
 
+import Data.Hashable (hash)
+
 import Control.Exception (Exception,throwIO)
 import Data.Typeable (Typeable)
 import Data.Data (Data)
@@ -70,8 +72,23 @@ extractSlices scopedModule = do
         return (Slice key (Fragment [pack source]) usages))
 
 computeHashes :: [Slice] -> IO [Slice]
-computeHashes slices = forM slices (\slice -> do
-    return slice)
+computeHashes tempSlices = return (map (computeHash tempSliceMap) tempSlices) where
+    tempSliceMap = Map.fromList [(tempSliceID,tempSlice) | tempSlice@(Slice tempSliceID _ _) <- tempSlices]
+
+computeHash :: Map TempID Slice -> Slice -> Slice
+computeHash tempSliceMap (Slice _ fragment tempUsages) = Slice sliceID fragment usages where
+    sliceID = fromIntegral (hash (fragment,usages))
+    usages = map f tempUsages
+    f (Usage qualification usedName (OtherSlice tempID)) = (Usage qualification usedName (OtherSlice otherSliceID)) where
+        Just tempSlice = Map.lookup tempID tempSliceMap
+        Slice otherSliceID _ _ = computeHash tempSliceMap tempSlice
+    f usage = usage
+
+replaceUsageID :: Map TempID SliceID -> Usage -> Maybe Usage
+replaceUsageID sliceIDMap (Usage qualification usedName (OtherSlice tempID)) = do
+    sliceID <- Map.lookup tempID sliceIDMap
+    return (Usage qualification usedName (OtherSlice sliceID))
+replaceUsageID _ usage = Just usage
 
 type TempID = Integer
 

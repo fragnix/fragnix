@@ -35,7 +35,8 @@ executable fragnix
                        tagged >=0.7.2 && <0.8,
                        aeson >=0.8.0.0 && <0.9,
                        bytestring >=0.10.4.0 && <0.11,
-                       hashable >=1.2.2.0 && <1.3
+                       hashable >=1.2.2.0 && <1.3,
+                       transformers >=0.3.0.0 && <0.4
   hs-source-dirs:      src
   default-language:    Haskell2010
 
@@ -59,5 +60,6 @@ test-suite test
                        aeson >=0.8.0.0 && <0.9,
                        bytestring >=0.10.4.0 && <0.11,
                        hashable >=1.2.2.0 && <1.3,
+                       transformers >=0.3.0.0 && <0.4,
                        tasty >= 0.8.1.3 && <0.9,
                        tasty-golden >= 2.2.2.4 && <2.3

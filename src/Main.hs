@@ -5,6 +5,6 @@ import Fragnix.Nest (writeSlice)
 import Fragnix.Compiler (compile)
 
 main :: IO ()
-main = resolve "tests/examples/HelloFragnix.hs" >>= mapM writeSlice >> compile 1 >>= print
+main = resolve "tests/examples/HelloFragnix.hs" >>= mapM writeSlice >> compile 5980034736339281833 >>= print
 
 
