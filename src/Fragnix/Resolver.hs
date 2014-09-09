@@ -5,7 +5,7 @@ import Fragnix.Slice
 
 import Language.Haskell.Exts.Annotated (
     parseFile,fromParseResult,Language(Haskell2010),prettyPrint,
-    SrcSpanInfo,Decl(FunBind,PatBind),ModuleName)
+    Module,SrcSpanInfo,Decl(FunBind,PatBind),ModuleName)
 import qualified Language.Haskell.Exts.Annotated as Name (Name(Ident,Symbol))
 import Language.Haskell.Names (
     annotateModule,Scoped(Scoped),NameInfo(GlobalValue,GlobalType,ScopeError),
@@ -40,39 +40,33 @@ deriving instance Typeable NameErrors
 
 instance Exception NameErrors
 
-extractSlices :: FilePath -> IO [Slice]
-extractSlices filePath = do
+resolve :: FilePath -> IO [Slice]
+resolve filePath = do
+    scopedModule <- resolveNames filePath
+    return (extractSlices scopedModule)
+
+resolveNames :: FilePath -> IO (Module (Scoped SrcSpanInfo))
+resolveNames filePath = do
     packages <- getInstalledPackages (Proxy :: Proxy NamesDB) GlobalPackageDB
     originalModule <- fromParseResult <$> parseFile filePath
     scopedModule <- evalNamesModuleT (annotateModule Haskell2010 [] originalModule) packages
-    let decls = getModuleDecls scopedModule
-        errors = concatMap scopeErrors decls
-        modulName = getModuleName scopedModule
-        declarations = declarationMap decls
-        bound = Map.map (boundSymbols modulName) declarations
-        boundBy = Map.fromList (concatMap (\(tempID,symbols) -> [(symbol,tempID) | symbol <- symbols]) (Map.toList bound))
-        mentioned = Map.map mentionedSymbols declarations
-        fragments = Map.map prettyPrint declarations
-        usagess = Map.map (map (resolve boundBy)) mentioned
+    let errors = [scopeError | Scoped (ScopeError scopeError) _ <- concatMap toList (getModuleDecls scopedModule)]
     when (not (null errors)) (throwIO (NameErrors errors))
-    return (do
-        key <- Map.keys fragments
-        fragment <- maybe [] (return . Fragment . return . pack) (Map.lookup key fragments)
-        usages <- maybe [] return (Map.lookup key usagess)
-        return (Slice key fragment usages))
+    return scopedModule   
 
-declarationMap :: [Decl l] -> Map TempID (Decl l)
-declarationMap = Map.fromList . zip [0..] . concatMap binding
-
-binding :: Decl l -> [Decl l]
-binding decl@(FunBind _ _) = [decl]
-binding decl@(PatBind _ _ _ _ _) = [decl]
-binding _ = []
-
-resolve :: Map Symbol TempID -> Symbol -> Usage
-resolve boundBy symbol@(Symbol _ originalModule usedName) = case Map.lookup symbol boundBy of
-    Nothing -> Usage Nothing usedName (Primitive originalModule)
-    Just tempID -> Usage Nothing usedName (OtherSlice tempID)
+extractSlices :: Module (Scoped SrcSpanInfo) -> [Slice]
+extractSlices scopedModule = do
+    let modulName = getModuleName scopedModule
+        declarationMap = declarations (getModuleDecls scopedModule)
+        boundMap = Map.map (boundSymbols modulName) declarationMap
+        boundByMap = transposeMap boundMap
+        mentionedMap = Map.map mentionedSymbols declarationMap
+        fragmentMap = Map.map prettyPrint declarationMap
+        usagesMap = Map.map (map (findSymbol boundByMap)) mentionedMap
+    key <- Map.keys fragmentMap
+    Just source <- [Map.lookup key fragmentMap]
+    Just usages <- [Map.lookup key usagesMap]
+    return (Slice key (Fragment [pack source]) usages)
 
 type TempID = Integer
 
@@ -88,6 +82,19 @@ deriving instance Show Entity
 deriving instance Eq Entity
 deriving instance Ord Entity
 
+declarations :: [Decl l] -> Map TempID (Decl l)
+declarations = Map.fromList . zip [0..] . concatMap binding
+
+binding :: Decl l -> [Decl l]
+binding decl@(FunBind _ _) = [decl]
+binding decl@(PatBind _ _ _ _ _) = [decl]
+binding _ = []
+
+findSymbol :: Map Symbol TempID -> Symbol -> Usage
+findSymbol boundBy symbol@(Symbol _ originalModule usedName) = case Map.lookup symbol boundBy of
+    Nothing -> Usage Nothing usedName (Primitive originalModule)
+    Just tempID -> Usage Nothing usedName (OtherSlice tempID)
+
 boundSymbols :: (Data l,Eq l) => ModuleName l -> Decl l -> [Symbol]
 boundSymbols modulName = map infoToSymbol . getTopDeclSymbols GlobalTable.empty modulName
 
@@ -95,8 +102,8 @@ infoToSymbol :: Either (SymValueInfo OrigName) (SymTypeInfo OrigName) -> Symbol
 infoToSymbol (Left (SymValue (OrigName _ (GName originalModule boundName)) _)) =
     Symbol ValueEntity (pack originalModule) (symbolName ValueEntity boundName)
 
-scopeErrors :: Decl (Scoped l) -> [Error l]
-scopeErrors decl = [scopeError | Scoped (ScopeError scopeError) _ <- toList decl]
+transposeMap :: (Ord v) => Map k [v] -> Map v k
+transposeMap = Map.fromList . concatMap (\(k,vs) -> [(v,k) | v <- vs]) . Map.toList
 
 mentionedSymbols :: Decl (Scoped l) -> [Symbol]
 mentionedSymbols = nub . foldMap (externalSymbol . (\(Scoped nameInfo _) -> nameInfo))
