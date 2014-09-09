@@ -30,7 +30,7 @@ import qualified Data.Map as Map (fromList,map,toList,lookup,keys)
 import Data.Text (pack)
 import Data.Functor ((<$>))
 import Data.Foldable (foldMap,toList)
-import Control.Monad (when)
+import Control.Monad (when,forM)
 import Data.List (nub)
 
 data NameErrors = NameErrors [Error SrcSpanInfo]
@@ -43,7 +43,8 @@ instance Exception NameErrors
 resolve :: FilePath -> IO [Slice]
 resolve filePath = do
     scopedModule <- resolveNames filePath
-    return (extractSlices scopedModule)
+    slices <- extractSlices scopedModule
+    computeHashes slices
 
 resolveNames :: FilePath -> IO (Module (Scoped SrcSpanInfo))
 resolveNames filePath = do
@@ -54,7 +55,7 @@ resolveNames filePath = do
     when (not (null errors)) (throwIO (NameErrors errors))
     return scopedModule   
 
-extractSlices :: Module (Scoped SrcSpanInfo) -> [Slice]
+extractSlices :: Module (Scoped SrcSpanInfo) -> IO [Slice]
 extractSlices scopedModule = do
     let modulName = getModuleName scopedModule
         declarationMap = declarations (getModuleDecls scopedModule)
@@ -63,10 +64,14 @@ extractSlices scopedModule = do
         mentionedMap = Map.map mentionedSymbols declarationMap
         fragmentMap = Map.map prettyPrint declarationMap
         usagesMap = Map.map (map (findSymbol boundByMap)) mentionedMap
-    key <- Map.keys fragmentMap
-    Just source <- [Map.lookup key fragmentMap]
-    Just usages <- [Map.lookup key usagesMap]
-    return (Slice key (Fragment [pack source]) usages)
+    forM (Map.keys fragmentMap) (\key -> do
+        let Just source = Map.lookup key fragmentMap
+            Just usages = Map.lookup key usagesMap
+        return (Slice key (Fragment [pack source]) usages))
+
+computeHashes :: [Slice] -> IO [Slice]
+computeHashes slices = forM slices (\slice -> do
+    return slice)
 
 type TempID = Integer
 
