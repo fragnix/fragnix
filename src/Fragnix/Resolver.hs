@@ -82,7 +82,7 @@ sliceMap tempSlices = Map.fromList (do
 
 computeHash :: Map TempID Slice -> Slice -> Slice
 computeHash tempSliceMap (Slice _ fragment tempUsages) = Slice sliceID fragment usages where
-    sliceID = fromIntegral (hash (fragment,usages))
+    sliceID = abs (fromIntegral (hash (fragment,usages)))
     usages = map f tempUsages
     f (Usage qualification usedName (OtherSlice tempID)) = (Usage qualification usedName (OtherSlice otherSliceID)) where
         Just tempSlice = Map.lookup tempID tempSliceMap
