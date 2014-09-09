@@ -38,17 +38,18 @@ import Data.Maybe (maybeToList)
 
 data NameErrors = NameErrors [Error SrcSpanInfo]
 
-deriving instance Show NameErrors
-deriving instance Typeable NameErrors
+type TempID = Integer
 
-instance Exception NameErrors
+data Symbol = Symbol Entity OriginalModule UsedName
+
+data Entity = ValueEntity | TypeEntity
 
 resolve :: FilePath -> IO ([Slice],SliceID)
 resolve filePath = do
     scopedModule <- resolveNames filePath
     let (tempSlices,boundByMap) = extractSlices scopedModule
         tempSliceMap = sliceMap tempSlices
-        slices = map (computeHash tempSliceMap) tempSlices
+        slices = map (replaceSliceID (computeHash tempSliceMap)) tempSlices
         mainSliceID = findMainSliceID tempSliceMap boundByMap
     return (slices,mainSliceID)
 
@@ -82,59 +83,34 @@ sliceMap tempSlices = Map.fromList (do
      tempSlice@(Slice tempSliceID _ _) <- tempSlices
      return (tempSliceID,tempSlice))
 
-computeHash :: Map TempID Slice -> Slice -> Slice
-computeHash tempSliceMap (Slice _ fragment tempUsages) = Slice sliceID fragment usages where
-    sliceID = abs (fromIntegral (hash (fragment,usages)))
-    usages = map f tempUsages
-    f (Usage qualification usedName (OtherSlice tempID)) = (Usage qualification usedName (OtherSlice otherSliceID)) where
-        Just tempSlice = Map.lookup tempID tempSliceMap
-        Slice otherSliceID _ _ = computeHash tempSliceMap tempSlice
-    f usage = usage
+replaceSliceID :: (TempID -> SliceID) -> Slice -> Slice
+replaceSliceID f (Slice tempID fragment usages) = Slice (f tempID) fragment (map (replaceUsageID f) usages)
+
+computeHash :: Map TempID Slice -> TempID -> SliceID
+computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,usages))) where
+    Just (Slice _ fragment tempUsages) = Map.lookup tempID tempSliceMap
+    usages = map (replaceUsageID (computeHash tempSliceMap)) tempUsages
 
 findMainSliceID :: Map TempID Slice -> Map Symbol TempID -> SliceID
 findMainSliceID tempSliceMap boundByMap = head (do
     (Symbol _ _ (VarId name),tempMainSliceID) <- Map.toList boundByMap
     guard (name == "main")
-    let Just tempMainSlice = Map.lookup tempMainSliceID tempSliceMap
-        Slice mainSliceID _ _ = computeHash tempSliceMap tempMainSlice
-    return mainSliceID)
+    return (computeHash tempSliceMap tempMainSliceID))
 
-replaceUsageID :: Map TempID SliceID -> Usage -> Maybe Usage
-replaceUsageID sliceIDMap (Usage qualification usedName (OtherSlice tempID)) = do
-    sliceID <- Map.lookup tempID sliceIDMap
-    return (Usage qualification usedName (OtherSlice sliceID))
-replaceUsageID _ usage = Just usage
-
-
-        
-
-type TempID = Integer
-
-data Symbol = Symbol Entity OriginalModule UsedName
-
-deriving instance Show Symbol
-deriving instance Eq Symbol
-deriving instance Ord Symbol
-
-data Entity = ValueEntity | TypeEntity
-
-deriving instance Show Entity
-deriving instance Eq Entity
-deriving instance Ord Entity
+replaceUsageID :: (TempID -> SliceID) -> Usage -> Usage
+replaceUsageID f (Usage qualification usedName (OtherSlice tempID)) =
+    (Usage qualification usedName (OtherSlice (f tempID)))
+replaceUsageID _ usage = usage
 
 declarationFragment :: Decl (Scoped SrcSpanInfo) -> Maybe Fragment
 declarationFragment decl@(FunBind _ _) = Just (Fragment [pack (prettyPrint decl)])
 declarationFragment decl@(PatBind _ _ _ _ _) = Just (Fragment [pack (prettyPrint decl)])
 declarationFragment _ = Nothing
 
-
-
 findSymbol :: Map Symbol TempID -> Symbol -> Usage
 findSymbol boundBy symbol@(Symbol _ originalModule usedName) = case Map.lookup symbol boundBy of
     Nothing -> Usage Nothing usedName (Primitive originalModule)
     Just tempID -> Usage Nothing usedName (OtherSlice tempID)
-
-
 
 boundSymbols :: (Data l,Eq l) => ModuleName l -> Decl l -> [Symbol]
 boundSymbols modulName = map infoToSymbol . getTopDeclSymbols GlobalTable.empty modulName
@@ -142,8 +118,6 @@ boundSymbols modulName = map infoToSymbol . getTopDeclSymbols GlobalTable.empty 
 infoToSymbol :: Either (SymValueInfo OrigName) (SymTypeInfo OrigName) -> Symbol
 infoToSymbol (Left (SymValue (OrigName _ (GName originalModule boundName)) _)) =
     Symbol ValueEntity (pack originalModule) (symbolName ValueEntity boundName)
-
-
 
 mentionedSymbols :: Decl (Scoped l) -> [Symbol]
 mentionedSymbols = nub . foldMap (externalSymbol . (\(Scoped nameInfo _) -> nameInfo))
@@ -162,3 +136,16 @@ symbolName ValueEntity s = case stringToName s of
 symbolName TypeEntity s = case stringToName s of
     Name.Ident _ name -> ConId (pack name)
     Name.Symbol _ name -> ConSym (pack name)
+
+deriving instance Show Symbol
+deriving instance Eq Symbol
+deriving instance Ord Symbol
+
+deriving instance Show Entity
+deriving instance Eq Entity
+deriving instance Ord Entity
+
+deriving instance Show NameErrors
+deriving instance Typeable NameErrors
+
+instance Exception NameErrors
