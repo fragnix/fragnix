@@ -10,7 +10,9 @@ import Language.Haskell.Exts.Annotated (
 import qualified Language.Haskell.Exts.Annotated as Name (Name(Ident,Symbol))
 import Language.Haskell.Names (
     annotateModule,Scoped(Scoped),NameInfo(GlobalValue,GlobalType,ScopeError),
-    OrigName(OrigName),GName(GName),SymValueInfo(SymValue),SymTypeInfo(SymType),
+    OrigName(OrigName),GName(GName),
+    SymValueInfo(SymValue,SymMethod,SymSelector,SymConstructor),
+    SymTypeInfo(SymType,SymData,SymNewType,SymTypeFam,SymDataFam,SymClass),
     Error)
 import Language.Haskell.Names.Interfaces (evalNamesModuleT,NamesDB)
 import Language.Haskell.Names.SyntaxUtils (getModuleDecls,getModuleName,stringToName)
@@ -43,7 +45,7 @@ type TempID = Integer
 
 data Symbol = Symbol Entity OriginalModule UsedName
 
-data Entity = ValueEntity | TypeEntity
+data Entity = ValueEntity | TypeEntity | ClassEntity
 
 resolve :: FilePath -> IO ([Slice],SliceID)
 resolve filePath = do
@@ -119,8 +121,39 @@ boundSymbols :: (Data l,Eq l) => ModuleName l -> Decl l -> [Symbol]
 boundSymbols modulName = map infoToSymbol . getTopDeclSymbols GlobalTable.empty modulName
 
 infoToSymbol :: Either (SymValueInfo OrigName) (SymTypeInfo OrigName) -> Symbol
-infoToSymbol (Left (SymValue (OrigName _ (GName originalModule boundName)) _)) =
+infoToSymbol (Left (SymValue  origName _)) = valueSymbol origName
+infoToSymbol (Left (SymMethod origName _ _)) = valueSymbol origName
+infoToSymbol (Left (SymSelector origName _ _ _)) = valueSymbol origName
+infoToSymbol (Left (SymConstructor origName _ _)) = valueSymbol origName
+infoToSymbol (Right (SymType origName _ )) = typeSymbol origName
+infoToSymbol (Right (SymData origName _ )) = typeSymbol origName
+infoToSymbol (Right (SymNewType origName _ )) = typeSymbol origName
+infoToSymbol (Right (SymTypeFam origName _ )) = typeSymbol origName
+infoToSymbol (Right (SymDataFam origName _ )) = typeSymbol origName
+infoToSymbol (Right (SymClass origName _ )) = classSymbol origName
+
+valueSymbol :: OrigName -> Symbol
+valueSymbol (OrigName _ (GName originalModule boundName)) =
     Symbol ValueEntity (pack originalModule) (symbolName ValueEntity boundName)
+
+typeSymbol :: OrigName -> Symbol
+typeSymbol (OrigName _ (GName originalModule boundName)) =
+    Symbol TypeEntity (pack originalModule) (symbolName TypeEntity boundName)
+
+classSymbol :: OrigName -> Symbol
+classSymbol (OrigName _ (GName originalModule boundName)) =
+    Symbol ClassEntity (pack originalModule) (symbolName ClassEntity boundName)
+
+symbolName :: Entity -> String -> UsedName
+symbolName ValueEntity s = case stringToName s of
+    Name.Ident _ name -> VarId (pack name)
+    Name.Symbol _ name -> VarSym (pack name)
+symbolName TypeEntity s = case stringToName s of
+    Name.Ident _ name -> ConId (pack name)
+    Name.Symbol _ name -> ConSym (pack name)
+symbolName ClassEntity s = case stringToName s of
+    Name.Ident _ name -> ConId (pack name)
+    Name.Symbol _ name -> ConSym (pack name)
 
 mentionedSymbols :: Decl (Scoped l) -> [Symbol]
 mentionedSymbols = nub . foldMap (externalSymbol . (\(Scoped nameInfo _) -> nameInfo))
@@ -131,14 +164,6 @@ externalSymbol (GlobalValue (SymValue (OrigName _ (GName originalModule mentione
 externalSymbol (GlobalType (SymType (OrigName _ (GName originalModule mentionedName)) _)) =
     [Symbol TypeEntity (pack originalModule) (symbolName TypeEntity mentionedName)]
 externalSymbol _ = []
-
-symbolName :: Entity -> String -> UsedName
-symbolName ValueEntity s = case stringToName s of
-    Name.Ident _ name -> VarId (pack name)
-    Name.Symbol _ name -> VarSym (pack name)
-symbolName TypeEntity s = case stringToName s of
-    Name.Ident _ name -> ConId (pack name)
-    Name.Symbol _ name -> ConSym (pack name)
 
 deriving instance Show Symbol
 deriving instance Eq Symbol
