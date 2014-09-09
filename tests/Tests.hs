@@ -22,7 +22,8 @@ main = do
 pipelineTests :: TestTree
 pipelineTests = testGroup "pipelineTests" (map pipelineTest [
     "HelloFragnix.hs",
-    "HiFragnix.hs"])
+    "HiFragnix.hs",
+    "DataTypeNewtype.hs"])
 
 pipelineTest :: FilePath -> TestTree
 pipelineTest fileName = testGroup fileName [
