@@ -32,7 +32,7 @@ import qualified Data.Map as Map (fromList,map,toList,lookup,keys)
 import Data.Text (pack)
 import Data.Functor ((<$>))
 import Data.Foldable (foldMap,toList)
-import Control.Monad (when,forM)
+import Control.Monad (when,guard)
 import Data.List (nub)
 
 data NameErrors = NameErrors [Error SrcSpanInfo]
@@ -42,11 +42,14 @@ deriving instance Typeable NameErrors
 
 instance Exception NameErrors
 
-resolve :: FilePath -> IO [Slice]
+resolve :: FilePath -> IO ([Slice],SliceID)
 resolve filePath = do
     scopedModule <- resolveNames filePath
-    slices <- extractSlices scopedModule
-    computeHashes slices
+    let (tempSlices,boundByMap) = extractSlices scopedModule
+        tempSliceMap = sliceMap tempSlices
+        slices = map (computeHash tempSliceMap) tempSlices
+        mainSliceID = findMainSliceID tempSliceMap boundByMap
+    return (slices,mainSliceID)
 
 resolveNames :: FilePath -> IO (Module (Scoped SrcSpanInfo))
 resolveNames filePath = do
@@ -57,23 +60,25 @@ resolveNames filePath = do
     when (not (null errors)) (throwIO (NameErrors errors))
     return scopedModule   
 
-extractSlices :: Module (Scoped SrcSpanInfo) -> IO [Slice]
-extractSlices scopedModule = do
-    let modulName = getModuleName scopedModule
-        declarationMap = declarations (getModuleDecls scopedModule)
-        boundMap = Map.map (boundSymbols modulName) declarationMap
-        boundByMap = transposeMap boundMap
-        mentionedMap = Map.map mentionedSymbols declarationMap
-        fragmentMap = Map.map prettyPrint declarationMap
-        usagesMap = Map.map (map (findSymbol boundByMap)) mentionedMap
-    forM (Map.keys fragmentMap) (\key -> do
+extractSlices :: Module (Scoped SrcSpanInfo) -> ([Slice],Map Symbol TempID)
+extractSlices scopedModule = (tempSlices,boundByMap) where
+    modulName = getModuleName scopedModule
+    declarationMap = declarations (getModuleDecls scopedModule)
+    boundMap = Map.map (boundSymbols modulName) declarationMap
+    boundByMap = transposeMap boundMap
+    mentionedMap = Map.map mentionedSymbols declarationMap
+    fragmentMap = Map.map prettyPrint declarationMap
+    usagesMap = Map.map (map (findSymbol boundByMap)) mentionedMap
+    tempSlices = do
+        key <- Map.keys fragmentMap
         let Just source = Map.lookup key fragmentMap
             Just usages = Map.lookup key usagesMap
-        return (Slice key (Fragment [pack source]) usages))
+        return (Slice key (Fragment [pack source]) usages)
 
-computeHashes :: [Slice] -> IO [Slice]
-computeHashes tempSlices = return (map (computeHash tempSliceMap) tempSlices) where
-    tempSliceMap = Map.fromList [(tempSliceID,tempSlice) | tempSlice@(Slice tempSliceID _ _) <- tempSlices]
+sliceMap :: [Slice] -> Map TempID Slice
+sliceMap tempSlices = Map.fromList (do
+     tempSlice@(Slice tempSliceID _ _) <- tempSlices
+     return (tempSliceID,tempSlice))
 
 computeHash :: Map TempID Slice -> Slice -> Slice
 computeHash tempSliceMap (Slice _ fragment tempUsages) = Slice sliceID fragment usages where
@@ -89,6 +94,15 @@ replaceUsageID sliceIDMap (Usage qualification usedName (OtherSlice tempID)) = d
     sliceID <- Map.lookup tempID sliceIDMap
     return (Usage qualification usedName (OtherSlice sliceID))
 replaceUsageID _ usage = Just usage
+
+findMainSliceID :: Map TempID Slice -> Map Symbol TempID -> SliceID
+findMainSliceID tempSliceMap boundByMap = head (do
+    (Symbol _ _ (VarId name),tempMainSliceID) <- Map.toList boundByMap
+    guard (name == "main")
+    let Just tempMainSlice = Map.lookup tempMainSliceID tempSliceMap
+        Slice mainSliceID _ _ = computeHash tempSliceMap tempMainSlice
+    return mainSliceID)
+        
 
 type TempID = Integer
 
