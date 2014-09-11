@@ -122,16 +122,29 @@ boundSymbols :: (Data l,Eq l) => ModuleName l -> Decl l -> [Symbol]
 boundSymbols modulName = map infoToSymbol . getTopDeclSymbols GlobalTable.empty modulName
 
 infoToSymbol :: Either (SymValueInfo OrigName) (SymTypeInfo OrigName) -> Symbol
-infoToSymbol (Left (SymValue  origName _)) = valueSymbol origName
-infoToSymbol (Left (SymMethod origName _ _)) = valueSymbol origName
-infoToSymbol (Left (SymSelector origName _ _ _)) = valueSymbol origName
-infoToSymbol (Left (SymConstructor origName _ _)) = valueSymbol origName
-infoToSymbol (Right (SymType origName _ )) = typeSymbol origName
-infoToSymbol (Right (SymData origName _ )) = typeSymbol origName
-infoToSymbol (Right (SymNewType origName _ )) = typeSymbol origName
-infoToSymbol (Right (SymTypeFam origName _ )) = typeSymbol origName
-infoToSymbol (Right (SymDataFam origName _ )) = typeSymbol origName
-infoToSymbol (Right (SymClass origName _ )) = typeSymbol origName
+infoToSymbol = either symValueInfoSymbol symTypeInfoSymbol
+
+mentionedSymbols :: Decl (Scoped l) -> [Symbol]
+mentionedSymbols = nub . foldMap (externalSymbol . (\(Scoped nameInfo _) -> nameInfo))
+
+externalSymbol :: NameInfo l -> [Symbol]
+externalSymbol (GlobalValue symValueInfo) = [symValueInfoSymbol symValueInfo]
+externalSymbol (GlobalType symTypeInfo) = [symTypeInfoSymbol symTypeInfo]
+externalSymbol _ = []
+
+symValueInfoSymbol :: SymValueInfo OrigName -> Symbol
+symValueInfoSymbol (SymValue  origName _) = valueSymbol origName
+symValueInfoSymbol (SymMethod origName _ _) = valueSymbol origName
+symValueInfoSymbol (SymSelector origName _ _ _) = valueSymbol origName
+symValueInfoSymbol (SymConstructor origName _ _) = valueSymbol origName
+
+symTypeInfoSymbol :: SymTypeInfo OrigName -> Symbol
+symTypeInfoSymbol (SymType origName _ ) = typeSymbol origName
+symTypeInfoSymbol (SymData origName _ ) = typeSymbol origName
+symTypeInfoSymbol (SymNewType origName _ ) = typeSymbol origName
+symTypeInfoSymbol (SymTypeFam origName _ ) = typeSymbol origName
+symTypeInfoSymbol (SymDataFam origName _ ) = typeSymbol origName
+symTypeInfoSymbol (SymClass origName _ ) = typeSymbol origName
 
 valueSymbol :: OrigName -> Symbol
 valueSymbol (OrigName _ (GName originalModule boundName)) =
@@ -148,16 +161,6 @@ symbolName ValueSpace s = case stringToName s of
 symbolName TypeSpace s = case stringToName s of
     Name.Ident _ name -> ConId (pack name)
     Name.Symbol _ name -> ConSym (pack name)
-
-mentionedSymbols :: Decl (Scoped l) -> [Symbol]
-mentionedSymbols = nub . foldMap (externalSymbol . (\(Scoped nameInfo _) -> nameInfo))
-
-externalSymbol :: NameInfo l -> [Symbol]
-externalSymbol (GlobalValue (SymValue (OrigName _ (GName originalModule mentionedName)) _)) =
-    [Symbol ValueSpace (pack originalModule) (symbolName ValueSpace mentionedName)]
-externalSymbol (GlobalType (SymType (OrigName _ (GName originalModule mentionedName)) _)) =
-    [Symbol TypeSpace (pack originalModule) (symbolName TypeSpace mentionedName)]
-externalSymbol _ = []
 
 deriving instance Show Symbol
 deriving instance Eq Symbol
