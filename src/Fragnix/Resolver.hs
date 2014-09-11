@@ -43,9 +43,9 @@ data NameErrors = NameErrors [Error SrcSpanInfo]
 
 type TempID = Integer
 
-data Symbol = Symbol Entity OriginalModule UsedName
+data Symbol = Symbol NameSpace OriginalModule UsedName
 
-data Entity = ValueEntity | TypeEntity | ClassEntity
+data NameSpace = ValueSpace | TypeSpace
 
 resolve :: FilePath -> IO ([Slice],SliceID)
 resolve filePath = do
@@ -131,28 +131,21 @@ infoToSymbol (Right (SymData origName _ )) = typeSymbol origName
 infoToSymbol (Right (SymNewType origName _ )) = typeSymbol origName
 infoToSymbol (Right (SymTypeFam origName _ )) = typeSymbol origName
 infoToSymbol (Right (SymDataFam origName _ )) = typeSymbol origName
-infoToSymbol (Right (SymClass origName _ )) = classSymbol origName
+infoToSymbol (Right (SymClass origName _ )) = typeSymbol origName
 
 valueSymbol :: OrigName -> Symbol
 valueSymbol (OrigName _ (GName originalModule boundName)) =
-    Symbol ValueEntity (pack originalModule) (symbolName ValueEntity boundName)
+    Symbol ValueSpace (pack originalModule) (symbolName ValueSpace boundName)
 
 typeSymbol :: OrigName -> Symbol
 typeSymbol (OrigName _ (GName originalModule boundName)) =
-    Symbol TypeEntity (pack originalModule) (symbolName TypeEntity boundName)
+    Symbol TypeSpace (pack originalModule) (symbolName TypeSpace boundName)
 
-classSymbol :: OrigName -> Symbol
-classSymbol (OrigName _ (GName originalModule boundName)) =
-    Symbol ClassEntity (pack originalModule) (symbolName ClassEntity boundName)
-
-symbolName :: Entity -> String -> UsedName
-symbolName ValueEntity s = case stringToName s of
+symbolName :: NameSpace -> String -> UsedName
+symbolName ValueSpace s = case stringToName s of
     Name.Ident _ name -> VarId (pack name)
     Name.Symbol _ name -> VarSym (pack name)
-symbolName TypeEntity s = case stringToName s of
-    Name.Ident _ name -> ConId (pack name)
-    Name.Symbol _ name -> ConSym (pack name)
-symbolName ClassEntity s = case stringToName s of
+symbolName TypeSpace s = case stringToName s of
     Name.Ident _ name -> ConId (pack name)
     Name.Symbol _ name -> ConSym (pack name)
 
@@ -161,18 +154,18 @@ mentionedSymbols = nub . foldMap (externalSymbol . (\(Scoped nameInfo _) -> name
 
 externalSymbol :: NameInfo l -> [Symbol]
 externalSymbol (GlobalValue (SymValue (OrigName _ (GName originalModule mentionedName)) _)) =
-    [Symbol ValueEntity (pack originalModule) (symbolName ValueEntity mentionedName)]
+    [Symbol ValueSpace (pack originalModule) (symbolName ValueSpace mentionedName)]
 externalSymbol (GlobalType (SymType (OrigName _ (GName originalModule mentionedName)) _)) =
-    [Symbol TypeEntity (pack originalModule) (symbolName TypeEntity mentionedName)]
+    [Symbol TypeSpace (pack originalModule) (symbolName TypeSpace mentionedName)]
 externalSymbol _ = []
 
 deriving instance Show Symbol
 deriving instance Eq Symbol
 deriving instance Ord Symbol
 
-deriving instance Show Entity
-deriving instance Eq Entity
-deriving instance Ord Entity
+deriving instance Show NameSpace
+deriving instance Eq NameSpace
+deriving instance Ord NameSpace
 
 deriving instance Show NameErrors
 deriving instance Typeable NameErrors
