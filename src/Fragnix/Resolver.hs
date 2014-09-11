@@ -50,7 +50,6 @@ data NameSpace = ValueSpace | TypeSpace
 resolve :: FilePath -> IO ([Slice],SliceID)
 resolve filePath = do
     scopedModule <- resolveNames filePath
-    writeFile "scopedmodule" (show scopedModule)
     let (tempSlices,boundByMap) = extractSlices scopedModule
         tempSliceMap = sliceMap tempSlices
         slices = map (replaceSliceID (computeHash tempSliceMap)) tempSlices
