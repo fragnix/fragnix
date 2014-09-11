@@ -75,23 +75,13 @@ extractSlices scopedModule = (tempSlices,boundByMap) where
     tempSlices = do
         (tempID,declaration) <- declarations
         guard (relevantDecl declaration)
-        let usages = do
-                mentioned <- mentionedSymbols declaration
+        let signatures = findSignatures (boundSymbols modulName declaration) (map snd declarations)
+            fragmentDeclarations = signatures ++ [declaration]
+            usages = do
+                fragmentDeclaration <- fragmentDeclarations
+                mentioned <- mentionedSymbols fragmentDeclaration
                 return (findSymbol boundByMap mentioned)
-            signatures = do
-                (_,TypeSig annotation signatureNames signatureType) <- declarations
-                signatureName <- signatureNames
-                guard (or (do
-                    Symbol _ _ usedName <- boundSymbols modulName declaration
-                    case signatureName of
-                        Name.Ident _ name -> case usedName of
-                            ValueIdentifier boundName -> return (pack name == boundName)
-                            _ -> return False
-                        Name.Symbol _ name -> case usedName of
-                            ValueOperator boundName -> return (pack name == boundName)
-                            _ -> return False))
-                return (TypeSig annotation [signatureName] signatureType)
-            fragment = Fragment (map (pack . prettyPrint) (signatures ++ [declaration]))
+            fragment = Fragment (map (pack . prettyPrint) fragmentDeclarations)
         return (Slice tempID fragment usages)
 
 sliceMap :: [Slice] -> Map TempID Slice
@@ -179,6 +169,22 @@ symbolName ValueSpace s = case stringToName s of
 symbolName TypeSpace s = case stringToName s of
     Name.Ident _ name -> TypeIdentifier (pack name)
     Name.Symbol _ name -> TypeOperator (pack name)
+
+findSignatures :: [Symbol] -> [Decl (Scoped SrcSpanInfo)] -> [Decl (Scoped SrcSpanInfo)]
+findSignatures symbols declarations = do
+    TypeSig annotation signatureNames signatureType <- declarations
+    signatureName <- signatureNames
+    guard (or (do
+        Symbol _ _ usedName <- symbols
+        case signatureName of
+            Name.Ident _ name -> case usedName of
+                ValueIdentifier boundName -> return (pack name == boundName)
+                _ -> return False
+            Name.Symbol _ name -> case usedName of
+                ValueOperator boundName -> return (pack name == boundName)
+                _ -> return False))
+    return (TypeSig annotation [signatureName] signatureType)
+
 
 deriving instance Show Symbol
 deriving instance Eq Symbol
