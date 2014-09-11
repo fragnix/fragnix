@@ -6,7 +6,7 @@ import Fragnix.Slice
 import Language.Haskell.Exts.Annotated (
     parseFile,fromParseResult,Language(Haskell2010),prettyPrint,
     Module,SrcSpanInfo,ModuleName,
-    Decl(FunBind,PatBind,TypeDecl,DataDecl))
+    Decl(FunBind,PatBind,TypeDecl,DataDecl,TypeSig))
 import qualified Language.Haskell.Exts.Annotated as Name (Name(Ident,Symbol))
 import Language.Haskell.Names (
     annotateModule,Scoped(Scoped),NameInfo(GlobalValue,GlobalType,ScopeError),
@@ -78,7 +78,19 @@ extractSlices scopedModule = (tempSlices,boundByMap) where
         let usages = do
                 mentioned <- mentionedSymbols declaration
                 return (findSymbol boundByMap mentioned)
-            signatures = []
+            signatures = do
+                (_,TypeSig annotation signatureNames signatureType) <- declarations
+                signatureName <- signatureNames
+                guard (or (do
+                    Symbol _ _ usedName <- boundSymbols modulName declaration
+                    case signatureName of
+                        Name.Ident _ name -> case usedName of
+                            ValueIdentifier boundName -> return (pack name == boundName)
+                            _ -> return False
+                        Name.Symbol _ name -> case usedName of
+                            ValueOperator boundName -> return (pack name == boundName)
+                            _ -> return False))
+                return (TypeSig annotation [signatureName] signatureType)
             fragment = Fragment (map (pack . prettyPrint) (signatures ++ [declaration]))
         return (Slice tempID fragment usages)
 
