@@ -11,7 +11,7 @@ import Data.Typeable(Typeable)
 import Data.Aeson (encode,eitherDecode)
 import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>))
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing,doesFileExist)
 
 data SliceParseError = SliceParseError SliceID String
 
@@ -29,6 +29,9 @@ readSlice :: SliceID -> IO Slice
 readSlice sliceID = do
     sliceFile <- readFile (slicePath sliceID)
     either (throwIO . SliceParseError sliceID) return (eitherDecode sliceFile)
+
+doesSliceExist :: SliceID -> IO Bool
+doesSliceExist sliceID = doesFileExist (slicePath sliceID)
 
 slicePath :: SliceID -> FilePath
 slicePath sliceID = sliceDirectory </> show sliceID

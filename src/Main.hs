@@ -1,9 +1,11 @@
 module Main where
 
+import Fragnix.Slice (Slice(Slice))
 import Fragnix.Resolver (resolve)
-import Fragnix.Nest (writeSlice)
+import Fragnix.Nest (writeSlice,doesSliceExist)
 import Fragnix.Compiler (compile)
 
+import Control.Monad (forM,forM_)
 import System.Environment (getArgs)
 import System.Exit (ExitCode)
 
@@ -13,8 +15,9 @@ fragnix filePath = do
     (slices,mainID) <- resolve filePath
     putStrLn (show (length slices) ++ " slices!")
     putStr "Inserting ... "
-    mapM writeSlice slices
-    putStrLn "done"
+    existingSlices <- forM slices (\(Slice sliceID _ _) -> doesSliceExist sliceID)
+    forM_ slices writeSlice
+    putStrLn (show (length (filter not existingSlices)) ++ " new!")
     compile mainID
 
 main :: IO ()
