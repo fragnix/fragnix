@@ -4,6 +4,7 @@ import Fragnix.Resolver (resolve)
 import Fragnix.Nest (writeSlice)
 import Fragnix.Compiler (compile)
 
+import System.Environment (getArgs)
 import System.Exit (ExitCode)
 
 fragnix :: FilePath -> IO ExitCode
@@ -18,4 +19,8 @@ fragnix filePath = do
     compile mainID
 
 main :: IO ()
-main = fragnix "tests/examples/DataTypeNewtype.hs" >>= print
+main = do
+    args <- getArgs
+    case args of
+        [path] -> fragnix path >>= print
+        _ -> putStrLn "Usage: fragnix [path]"
