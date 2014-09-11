@@ -6,15 +6,15 @@ import Fragnix.Nest (readSlice)
 import Prelude hiding (writeFile)
 
 import Language.Haskell.Exts.Syntax (
-    Module(Module),ModuleName(ModuleName),ModulePragma(LanguagePragma),
+    Module(Module),Decl,ModuleName(ModuleName),ModulePragma(LanguagePragma),
     Name(Ident,Symbol),ImportDecl(ImportDecl),ImportSpec(IVar,IAbs))
 import Language.Haskell.Exts.SrcLoc (noLoc)
 import Language.Haskell.Exts.Parser (
-    parseDeclWithMode,ParseMode(parseFilename),defaultParseMode,fromParseResult)
+    parseModuleWithMode,ParseMode(parseFilename),defaultParseMode,fromParseResult)
 import Language.Haskell.Exts.Pretty (prettyPrint)
 
 import Data.Text.IO (writeFile)
-import Data.Text (pack,unpack)
+import Data.Text (Text,pack,unpack)
 
 import System.FilePath ((</>),(<.>))
 import System.Directory (createDirectoryIfMissing)
@@ -31,13 +31,17 @@ compile sliceID = do
 
 assemble :: Slice -> Module
 assemble (Slice sliceID slice usages) =
-    let parseMode = defaultParseMode { parseFilename = show sliceID }
-        decls = case slice of
-            Fragment declarations -> map (fromParseResult . parseDeclWithMode parseMode . unpack) declarations
+    let decls = case slice of
+            Fragment declarations -> map (parseDeclaration sliceID) declarations
         modulName = ModuleName (sliceModuleName sliceID)
         pragmas = [LanguagePragma noLoc [Ident "NoImplicitPrelude"]]
         imports = map usageImport usages
     in Module noLoc modulName pragmas Nothing Nothing imports decls
+
+parseDeclaration :: SliceID -> Text -> Decl
+parseDeclaration sliceID declaration = decl where
+    Module _ _ _ _ _ _ [decl] = fromParseResult (parseModuleWithMode parseMode (unpack declaration))
+    parseMode = defaultParseMode { parseFilename = show sliceID }
 
 usageImport :: Usage -> ImportDecl
 usageImport (Usage maybeQualification usedName symbolSource) =
