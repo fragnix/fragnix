@@ -37,7 +37,6 @@ import Data.Functor ((<$>))
 import Data.Foldable (foldMap,toList)
 import Control.Monad (when,guard)
 import Data.List (nub)
-import Data.Maybe (maybeToList)
 
 data NameErrors = NameErrors [Error SrcSpanInfo]
 
@@ -75,10 +74,12 @@ extractSlices scopedModule = (tempSlices,boundByMap) where
         return (symbol,tempID))
     tempSlices = do
         (tempID,declaration) <- declarations
-        fragment <- maybeToList (declarationFragment declaration)
+        guard (relevantDecl declaration)
         let usages = do
                 mentioned <- mentionedSymbols declaration
                 return (findSymbol boundByMap mentioned)
+            signatures = []
+            fragment = Fragment (map (pack . prettyPrint) (signatures ++ [declaration]))
         return (Slice tempID fragment usages)
 
 sliceMap :: [Slice] -> Map TempID Slice
@@ -105,12 +106,12 @@ replaceUsageID f (Usage qualification usedName (OtherSlice tempID)) =
     (Usage qualification usedName (OtherSlice (f tempID)))
 replaceUsageID _ usage = usage
 
-declarationFragment :: Decl (Scoped SrcSpanInfo) -> Maybe Fragment
-declarationFragment decl@(FunBind _ _) = Just (Fragment [pack (prettyPrint decl)])
-declarationFragment decl@(PatBind _ _ _ _ _) = Just (Fragment [pack (prettyPrint decl)])
-declarationFragment decl@(TypeDecl _ _ _) = Just (Fragment [pack (prettyPrint decl)])
-declarationFragment decl@(DataDecl _ _ _ _ _ _) = Just (Fragment [pack (prettyPrint decl)])
-declarationFragment _ = Nothing
+relevantDecl :: Decl (Scoped SrcSpanInfo) -> Bool
+relevantDecl (FunBind _ _) = True
+relevantDecl (PatBind _ _ _ _ _) = True
+relevantDecl (TypeDecl _ _ _) = True
+relevantDecl (DataDecl _ _ _ _ _ _) = True
+relevantDecl _ = False
 
 findSymbol :: Map Symbol TempID -> Symbol -> Usage
 findSymbol boundBy symbol@(Symbol _ originalModule usedName) = case Map.lookup symbol boundBy of
