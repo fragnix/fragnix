@@ -15,12 +15,11 @@ fragnix filePath = do
     putStr "Inserting ... "
     mapM writeSlice slices
     putStrLn "done"
-    putStr ("Compiling " ++ show mainID ++ " ... ")
     compile mainID
 
 main :: IO ()
 main = do
     args <- getArgs
     case args of
-        [path] -> fragnix path >>= print
-        _ -> putStrLn "Usage: fragnix [path]"
+        [path] -> fragnix path >> return ()
+        _ -> putStrLn "Usage: fragnix Main.hs"
