@@ -90,13 +90,13 @@ compileTest = testGroup "compile" [
 
 mainSlice :: Slice
 mainSlice = Slice 0 (Fragment ["main :: IO ()","main = putHello \"Fragnix!\""])  [putHelloUsage,ioUsage] where
-    putHelloUsage = Usage Nothing (VarId "putHello") (OtherSlice 1)
-    ioUsage = Usage Nothing (ConId "IO") (Primitive "System.IO")
+    putHelloUsage = Usage Nothing (ValueIdentifier "putHello") (OtherSlice 1)
+    ioUsage = Usage Nothing (TypeIdentifier "IO") (Primitive "System.IO")
 
 putHelloSlice :: Slice
 putHelloSlice = Slice 1 (Fragment ["putHello :: String -> IO ()","putHello x = putStrLn (\"Hello \" ++ x)"]) usages where
     usages = [putStrLnUsage,appendUsage,stringUsage,ioUsage]
-    putStrLnUsage = Usage Nothing (VarId "putStrLn") (Primitive "System.IO")
-    appendUsage = Usage Nothing (VarSym "++") (Primitive "Data.List")
-    stringUsage = Usage Nothing (ConId "String") (Primitive "Data.String")
-    ioUsage = Usage Nothing (ConId "IO") (Primitive "System.IO")
+    putStrLnUsage = Usage Nothing (ValueIdentifier "putStrLn") (Primitive "System.IO")
+    appendUsage = Usage Nothing (ValueOperator "++") (Primitive "Data.List")
+    stringUsage = Usage Nothing (TypeIdentifier "String") (Primitive "Data.String")
+    ioUsage = Usage Nothing (TypeIdentifier "IO") (Primitive "System.IO")

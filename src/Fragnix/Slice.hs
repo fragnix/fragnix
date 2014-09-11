@@ -22,10 +22,12 @@ data Usage = Usage (Maybe Qualification) UsedName Reference
 data Reference = OtherSlice SliceID | Primitive OriginalModule
 
 data UsedName =
-    VarId Text |
-    ConId Text |
-    VarSym Text |
-    ConSym Text
+    ValueIdentifier Text |
+    ValueOperator Text |
+    TypeIdentifier Text |
+    TypeOperator Text |
+    ConstructorIdentifier Text Text |
+    ConstructorOperator Text Text
 
 type SliceID = Integer
 type SourceCode = Text
@@ -79,17 +81,25 @@ deriving instance Ord UsedName
 deriving instance Generic UsedName
 
 instance ToJSON UsedName  where
-    toJSON (VarId name) = object ["varId" .= name]
-    toJSON (ConId name) = object ["conId" .= name]
-    toJSON (VarSym name) = object ["varSym" .= name]
-    toJSON (ConSym name) = object ["conSym" .= name]
+    toJSON (ValueIdentifier name) = object ["valueIdentifier" .= name]
+    toJSON (ValueOperator name) = object ["valueOperator" .= name]
+    toJSON (TypeIdentifier name) = object ["typeIdentifier" .= name]
+    toJSON (TypeOperator name) = object ["typeOperator" .= name]
+    toJSON (ConstructorIdentifier typeName name) = object [
+        "typeName" .= typeName,
+        "constructorIdentifier" .= name]
+    toJSON (ConstructorOperator typeName name) = object [
+        "typeName" .= typeName,
+        "constructorOperator" .= name]
 
 instance FromJSON UsedName where
     parseJSON = withObject "used name" (\o ->
-        VarId <$> o .: "varId" <|>
-        ConId <$> o .: "conId" <|>
-        VarSym <$> o .: "varSym" <|>
-        ConSym <$> o .: "conSym")
+        ValueIdentifier <$> o .: "valueIdentifier" <|>
+        ValueOperator <$> o .: "valueOperator" <|>
+        TypeIdentifier <$> o .: "typeIdentifier" <|>
+        TypeOperator <$> o .: "typeOperator" <|>
+        ConstructorIdentifier <$> o .: "typeName" <*> o .: "constructorIdentifier" <|>
+        ConstructorOperator <$> o .: "typeName" <*> o .: "constructorOperator")
 
 instance Hashable UsedName
 

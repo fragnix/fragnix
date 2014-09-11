@@ -97,7 +97,7 @@ computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,usages))) wh
 
 findMainSliceID :: Map TempID Slice -> Map Symbol TempID -> SliceID
 findMainSliceID tempSliceMap boundByMap = head (do
-    (Symbol _ _ (VarId name),tempMainSliceID) <- Map.toList boundByMap
+    (Symbol _ _ (ValueIdentifier name),tempMainSliceID) <- Map.toList boundByMap
     guard (name == "main")
     return (computeHash tempSliceMap tempMainSliceID))
 
@@ -136,7 +136,13 @@ symValueInfoSymbol :: SymValueInfo OrigName -> Symbol
 symValueInfoSymbol (SymValue  origName _) = valueSymbol origName
 symValueInfoSymbol (SymMethod origName _ _) = valueSymbol origName
 symValueInfoSymbol (SymSelector origName _ _ _) = valueSymbol origName
-symValueInfoSymbol (SymConstructor origName _ _) = valueSymbol origName
+symValueInfoSymbol (SymConstructor origName _ origTypeName) =
+    Symbol ValueSpace (pack originalModule) constructorName where
+        OrigName _ (GName originalModule s) = origName
+        OrigName _ (GName _ typeName) = origTypeName
+        constructorName = case stringToName s of
+            Name.Ident _ name -> ConstructorIdentifier (pack typeName) (pack name)
+            Name.Symbol _ name -> ConstructorOperator (pack typeName) (pack name)
 
 symTypeInfoSymbol :: SymTypeInfo OrigName -> Symbol
 symTypeInfoSymbol (SymType origName _ ) = typeSymbol origName
@@ -147,20 +153,20 @@ symTypeInfoSymbol (SymDataFam origName _ ) = typeSymbol origName
 symTypeInfoSymbol (SymClass origName _ ) = typeSymbol origName
 
 valueSymbol :: OrigName -> Symbol
-valueSymbol (OrigName _ (GName originalModule boundName)) =
-    Symbol ValueSpace (pack originalModule) (symbolName ValueSpace boundName)
+valueSymbol (OrigName _ (GName originalModule name)) =
+    Symbol ValueSpace (pack originalModule) (symbolName ValueSpace name)
 
 typeSymbol :: OrigName -> Symbol
-typeSymbol (OrigName _ (GName originalModule boundName)) =
-    Symbol TypeSpace (pack originalModule) (symbolName TypeSpace boundName)
+typeSymbol (OrigName _ (GName originalModule name)) =
+    Symbol TypeSpace (pack originalModule) (symbolName TypeSpace name)
 
 symbolName :: NameSpace -> String -> UsedName
 symbolName ValueSpace s = case stringToName s of
-    Name.Ident _ name -> VarId (pack name)
-    Name.Symbol _ name -> VarSym (pack name)
+    Name.Ident _ name -> ValueIdentifier (pack name)
+    Name.Symbol _ name -> ValueOperator (pack name)
 symbolName TypeSpace s = case stringToName s of
-    Name.Ident _ name -> ConId (pack name)
-    Name.Symbol _ name -> ConSym (pack name)
+    Name.Ident _ name -> TypeIdentifier (pack name)
+    Name.Symbol _ name -> TypeOperator (pack name)
 
 deriving instance Show Symbol
 deriving instance Eq Symbol
