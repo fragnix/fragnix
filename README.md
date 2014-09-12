@@ -4,38 +4,6 @@ Fragnix
 
 Immutable, fragment-based dependencies!
 
-Manifest
---------
-
-Dependency resolution is NP-complete and therefore must be avoided.
-
-Dependencies have to be immutable.
-
-Dependencies have to be between the smallest possible units.
-
-All updates have to be explicit.
-
-Explicit does not mean manual.
-
-Advantages
-----------
-
-No “works for me”.
-
-No “download the internet”.
-
-No “compile the internet”.
-
-No “bit rot”.
-
-Easy distribution.
-
-Easy contribution.
-
-Easy collaboration.
-
-Easy reuse.
-
 Installation
 ------------
 
