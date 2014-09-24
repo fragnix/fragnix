@@ -18,11 +18,11 @@ import Data.Text.IO (writeFile)
 import Data.Text (Text,pack,unpack)
 
 import System.FilePath ((</>),(<.>))
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing,doesFileExist)
 import System.Process (rawSystem)
 import System.Exit (ExitCode)
 
-import Control.Monad (forM_)
+import Control.Monad (forM_,unless)
 
 compile :: SliceID -> IO ExitCode
 compile sliceID = do
@@ -80,10 +80,14 @@ writeSliceModule slice@(Slice sliceID _ _) = writeFile (sliceModulePath sliceID)
 
 writeSliceModuleTransitive :: SliceID -> IO ()
 writeSliceModuleTransitive sliceID = do
-    slice <- readSlice sliceID
-    writeSliceModule slice
-    forM_ (usedSlices slice) writeSliceModuleTransitive
+    exists <- doesSliceModuleExist sliceID
+    unless exists (do
+        slice <- readSlice sliceID
+        writeSliceModule slice
+        forM_ (usedSlices slice) writeSliceModuleTransitive)
 
 usedSlices :: Slice -> [SliceID]
 usedSlices (Slice _ _ usages) = [sliceID | Usage _ _ (OtherSlice sliceID) <- usages]
 
+doesSliceModuleExist :: SliceID -> IO Bool
+doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)
