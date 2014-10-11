@@ -20,7 +20,8 @@ executable fragnix
   other-modules:       Fragnix.Slice,
                        Fragnix.Nest,
                        Fragnix.Compiler,
-                       Fragnix.Resolver
+                       Fragnix.Resolver,
+                       Fragnix.ModuleDeclarations
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.7,
                        text >=1.1 && < 1.2,
