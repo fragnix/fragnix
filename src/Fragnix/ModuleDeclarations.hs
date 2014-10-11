@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies,GeneralizedNewtypeDeriving #-}
 module Fragnix.ModuleDeclarations where
 
 import Fragnix.Declaration (
@@ -10,18 +11,25 @@ import Language.Haskell.Exts.Annotated (
 import Language.Haskell.Names (
     Symbols(Symbols),Error,Scoped(Scoped),SymValueInfo,SymTypeInfo,OrigName,
     NameInfo(GlobalValue,GlobalType))
+import Language.Haskell.Names.Interfaces (readInterface,writeInterface)
 import Language.Haskell.Names.SyntaxUtils (
     getModuleDecls,getModuleName)
 import Language.Haskell.Names.ModuleSymbols (
     getTopDeclSymbols)
 import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (
     empty)
+import Distribution.HaskellSuite.Modules (
+    MonadModule(..),ModuleInfo,modToString)
+import Distribution.ModuleName (
+    fromString,toFilePath)
 
 import Data.Set (Set)
 import qualified Data.Set as Set (fromList)
 import Control.Monad (forM)
 import Data.Either (partitionEithers)
 import Data.Foldable (foldMap)
+import System.FilePath ((</>),(<.>),dropFileName)
+import System.Directory (doesFileExist,createDirectoryIfMissing)
 
 type NamesPath = FilePath
 
@@ -84,38 +92,34 @@ externalSymbol :: Scoped SrcSpan -> [Either (SymValueInfo OrigName) (SymTypeInfo
 externalSymbol (Scoped (GlobalValue symvalueinfo) _) = [Left symvalueinfo]
 externalSymbol (Scoped (GlobalType symtypeinfo) _) = [Right symtypeinfo]
 externalSymbol _ = []
-{-
 
 type ModuleNameString = String
 
-modulePath :: ModuleNameString -> FilePath
-modulePath modulename = "/home/pschuster/Projects/fragnix/fragnix" </> "names" </> modulename
+namesPath :: ModuleNameString -> FilePath
+namesPath modulname = "/home/pschuster/Projects/fragnix/fragnix" </> "names" </> modulname
 
 builtinPath :: ModuleNameString -> FilePath
-builtinPath modulename = "/home/pschuster/Projects/fragnix/fragnix" </> "builtin" </> modulename
+builtinPath modulname = "/home/pschuster/Projects/fragnix/fragnix" </> "builtin" </> modulname
 
 newtype FragnixModule a = FragnixModule {runFragnixModule :: IO a}
     deriving (Functor,Monad)
 
 instance MonadModule FragnixModule where
     type ModuleInfo FragnixModule = Symbols
-    lookupInCache modulename = FragnixModule (do
-        let builtinpath = builtinPath (toFilePath (fromString (modToString modulename)) <.> "names")
-            modulepath = modulePath (modToString modulename)
+    lookupInCache name = FragnixModule (do
+        let builtinpath = builtinPath (toFilePath (fromString (modToString name)) <.> "names")
+            namespath = namesPath (modToString name)
         builtinExists <- doesFileExist builtinpath
-        moduleExists <- doesFileExist modulepath
+        namesExists <- doesFileExist namespath
         if builtinExists
             then readInterface builtinpath >>= return . Just
             else (do
-                if moduleExists
-                    then readInterface modulepath >>= return . Just
+                if namesExists
+                    then fmap Just (readInterface namespath)
                     else return Nothing))
-    insertInCache modulename symbols = FragnixModule (do
-        let modulepath = modulePath (modToString modulename)
-        createDirectoryIfMissing True (dropFileName modulepath)
-        writeInterface modulepath symbols)
+    insertInCache name symbols = FragnixModule (do
+        let namespath = namesPath (modToString name)
+        createDirectoryIfMissing True (dropFileName namespath)
+        writeInterface namespath symbols)
     getPackages = return []
     readModuleInfo = error "Not implemented: readModuleInfo"
-
-
--}
