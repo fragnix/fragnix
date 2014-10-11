@@ -3,11 +3,12 @@ module Main where
 import Fragnix.ModuleDeclarations (modulDeclarations)
 import Fragnix.Declaration (writeDeclarations)
 
-import System.Directory (getDirectoryContents)
+import System.Directory (getDirectoryContents,createDirectoryIfMissing)
 
 main :: IO ()
 main = do
     modulepaths <- getDirectoryContents "fragnix/modules"
-    declarations <- moduleDeclarations modulepaths
+    declarations <- modulDeclarations "fragnix/names" modulepaths
+    createDirectoryIfMissing True "fragnix/declarations"
     writeDeclarations "fragnix/declarations/declarations.json" declarations
 

@@ -2,9 +2,33 @@ module Fragnix.ModuleDeclarations where
 
 import Fragnix.Declaration (Declaration)
 
-modulDeclarations :: [FilePath] -> IO [Declaration]
-modulDeclarations = undefined
+import Language.Haskell.Exts.Annotated (Module,SrcSpan)
+import Language.Haskell.Names (Error,Scoped)
 
+import Data.Set (Set)
+import Control.Monad (forM)
+
+type NamesPath = FilePath
+
+modulDeclarations :: NamesPath -> [FilePath] -> IO [Declaration]
+modulDeclarations namespath modulpaths = do
+    asts          <- forM modulpaths parse
+    _        <- resolve namespath asts
+    annotatedasts <- forM asts (annotate namespath)
+    let declarations = concatMap extractDeclarations annotatedasts
+    return declarations
+
+parse :: FilePath -> IO (Module SrcSpan)
+parse = undefined
+
+resolve :: NamesPath -> [Module l] -> IO (Set (Error l))
+resolve = undefined
+
+annotate :: NamesPath -> Module l -> IO (Module (Scoped l))
+annotate = undefined
+
+extractDeclarations :: Module (Scoped l) -> [Declaration]
+extractDeclarations = undefined
 
 {-
 extractDeclarations :: ModuleName (Scoped SrcSpan) -> Module (Scoped SrcSpan) -> [Declaration]
@@ -48,12 +72,6 @@ externalSymbol :: Scoped SrcSpan -> [Either (SymValueInfo OrigName) (SymTypeInfo
 externalSymbol (Scoped (GlobalValue symvalueinfo) _) = [Left symvalueinfo]
 externalSymbol (Scoped (GlobalType symtypeinfo) _) = [Right symtypeinfo]
 externalSymbol _ = []
-
-data Declaration = Declaration Genre DeclarationAST DeclaredSymbols UsedSymbols deriving (Show,Eq)
-data Genre = Value | TypeSignature | Type | TypeClass | ClassInstance | Other deriving (Show,Eq)
-type DeclarationAST = String
-type DeclaredSymbols = Symbols
-type UsedSymbols = Symbols
 
 instance ToJSON Declaration where
     toJSON (Declaration genre declarationast declaredsymbols usedsymbols) = object [
