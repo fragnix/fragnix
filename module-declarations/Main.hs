@@ -1,14 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Franix.ModuleDeclarations where
+module Main where
 
 import qualified Language.Haskell.Exts.Annotated as HSE
 import qualified Language.Haskell.Exts as UnAnn
 import Language.Haskell.Exts (defaultParseMode, ParseMode(..))
-import Language.Haskell.Names
-import Language.Haskell.Names.Interfaces
 import Language.Haskell.Exts.Extension
 import Language.Haskell.Exts.SrcLoc
-import Control.Monad
+import Language.Haskell.Exts.Annotated.CPP
+import Language.Haskell.Names.SyntaxUtils
+import Language.Haskell.Names
+import Language.Haskell.Names.Interfaces
+import Language.Haskell.Names.ModuleSymbols (getTopDeclSymbols)
+import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (empty)
 import Data.Version
 import Data.Proxy
 import Data.Tagged
@@ -32,16 +35,12 @@ import Distribution.ModuleName hiding (main)
 import Distribution.Simple.Utils
 import Distribution.Verbosity
 
-import Language.Haskell.Names.ModuleSymbols (getTopDeclSymbols)
-import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (empty)
-
 import Data.Aeson (object,(.=))
 
 import Data.Either (partitionEithers)
+import Control.Monad
 import Data.Foldable (foldMap)
 
-import Language.Haskell.Exts.Annotated.CPP
-import Language.Haskell.Names.SyntaxUtils
 
 main :: IO ()
 main =
@@ -209,4 +208,5 @@ instance ToJSON Declaration where
         "declarationast" .= declarationast,
         "declaredsymbols" .= declaredsymbols,
         "mentionedsymbols" .= usedsymbols]
+
 
