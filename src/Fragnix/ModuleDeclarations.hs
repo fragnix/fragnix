@@ -1,12 +1,27 @@
 module Fragnix.ModuleDeclarations where
 
-import Fragnix.Declaration (Declaration)
+import Fragnix.Declaration (
+    Declaration(Declaration),Genre(..))
 
-import Language.Haskell.Exts.Annotated (Module,SrcSpan)
-import Language.Haskell.Names (Error,Scoped)
+import Language.Haskell.Exts.Annotated (
+    Module,ModuleName,Decl(..),
+    SrcSpan,
+    prettyPrint)
+import Language.Haskell.Names (
+    Symbols(Symbols),Error,Scoped(Scoped),SymValueInfo,SymTypeInfo,OrigName,
+    NameInfo(GlobalValue,GlobalType))
+import Language.Haskell.Names.SyntaxUtils (
+    getModuleDecls,getModuleName)
+import Language.Haskell.Names.ModuleSymbols (
+    getTopDeclSymbols)
+import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (
+    empty)
 
 import Data.Set (Set)
+import qualified Data.Set as Set (fromList)
 import Control.Monad (forM)
+import Data.Either (partitionEithers)
+import Data.Foldable (foldMap)
 
 type NamesPath = FilePath
 
@@ -27,20 +42,17 @@ resolve = undefined
 annotate :: NamesPath -> Module l -> IO (Module (Scoped l))
 annotate = undefined
 
-extractDeclarations :: Module (Scoped l) -> [Declaration]
-extractDeclarations = undefined
-
-{-
-extractDeclarations :: ModuleName (Scoped SrcSpan) -> Module (Scoped SrcSpan) -> [Declaration]
-extractDeclarations modulenameast annotatedmoduleast =
-  map (declToDeclaration modulenameast) (getModuleDecls annotatedmoduleast)
+extractDeclarations :: Module (Scoped SrcSpan) -> [Declaration]
+extractDeclarations annotatedast =
+    map (declToDeclaration modulnameast) (getModuleDecls annotatedast) where
+        modulnameast = getModuleName annotatedast
 
 declToDeclaration :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> Declaration
-declToDeclaration modulenameast annotatedmoduleast = Declaration
-    (declGenre annotatedmoduleast)
-    (prettyPrint annotatedmoduleast)
-    (declaredSymbols modulenameast annotatedmoduleast)
-    (usedSymbols annotatedmoduleast)
+declToDeclaration modulnameast annotatedast = Declaration
+    (declGenre annotatedast)
+    (prettyPrint annotatedast)
+    (declaredSymbols modulnameast annotatedast)
+    (usedSymbols annotatedast)
 
 declGenre :: Decl (Scoped SrcSpan) -> Genre
 declGenre (TypeDecl _ _ _) = Type
@@ -61,24 +73,18 @@ declGenre (ForImp _ _ _ _ _ _) = Value
 declGenre _ = Other
 
 declaredSymbols :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> Symbols
-declaredSymbols modulenameast annotatedmoduleast = Symbols (Set.fromList valuesymbols) (Set.fromList typesymbols) where
-    (valuesymbols,typesymbols) = partitionEithers (getTopDeclSymbols GlobalTable.empty modulenameast annotatedmoduleast)
+declaredSymbols modulnameast annotatedast = Symbols (Set.fromList valuesymbols) (Set.fromList typesymbols) where
+    (valuesymbols,typesymbols) = partitionEithers (getTopDeclSymbols GlobalTable.empty modulnameast annotatedast)
 
 usedSymbols :: Decl (Scoped SrcSpan) -> Symbols
-usedSymbols annotatedmoduleast = Symbols (Set.fromList valuesymbols) (Set.fromList typesymbols) where
-    (valuesymbols,typesymbols) = partitionEithers (foldMap externalSymbol annotatedmoduleast)
+usedSymbols annotatedast = Symbols (Set.fromList valuesymbols) (Set.fromList typesymbols) where
+    (valuesymbols,typesymbols) = partitionEithers (foldMap externalSymbol annotatedast)
 
 externalSymbol :: Scoped SrcSpan -> [Either (SymValueInfo OrigName) (SymTypeInfo OrigName)]
 externalSymbol (Scoped (GlobalValue symvalueinfo) _) = [Left symvalueinfo]
 externalSymbol (Scoped (GlobalType symtypeinfo) _) = [Right symtypeinfo]
 externalSymbol _ = []
-
-instance ToJSON Declaration where
-    toJSON (Declaration genre declarationast declaredsymbols usedsymbols) = object [
-        "declarationgenre" .= show genre,
-        "declarationast" .= declarationast,
-        "declaredsymbols" .= declaredsymbols,
-        "mentionedsymbols" .= usedsymbols]
+{-
 
 type ModuleNameString = String
 
