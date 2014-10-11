@@ -29,7 +29,7 @@ compile :: SliceID -> IO ExitCode
 compile sliceID = do
     createDirectoryIfMissing True sliceModuleDirectory
     writeSliceModuleTransitive sliceID
-    rawSystem "ghc" ["-o","main","-ifragnix/modules","-main-is",sliceModuleName sliceID,sliceModulePath sliceID]
+    rawSystem "ghc" ["-o","main","-ifragnix/compilationunits","-main-is",sliceModuleName sliceID,sliceModulePath sliceID]
 
 assemble :: Slice -> Module
 assemble (Slice sliceID slice usages) =
