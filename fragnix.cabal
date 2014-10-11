@@ -42,8 +42,6 @@ executable fragnix
 
 executable module-declarations
   main-is:             module-declarations.hs
-  -- other-modules:       
-  -- other-extensions:    
   build-depends:       base >=4.6 && <4.7,
                        haskell-names >=0.4 && <0.5,
                        haskell-src-exts >=1.15 && <1.16,
@@ -59,6 +57,19 @@ executable module-declarations
                        directory >=1.2.0.1 && < 1.3
   hs-source-dirs:      src
   default-language:    Haskell2010
+
+executable package-declarations
+  main-is:             package-declarations.hs
+  build-depends:       base >=4.6 && <4.7,
+                       containers >=0.5.5.1 && <0.6,
+                       process >=1.2.0.0 && <1.3,
+                       directory >=1.2.0.1 && < 1.3,
+                       Cabal >=1.20.0.2 && <1.21,
+                       aeson,
+                       bytestring >=0.10.4.0 && <0.11
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  ghc-options:         -threaded -rtsopts
 
 test-suite test
   type:                exitcode-stdio-1.0
