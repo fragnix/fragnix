@@ -8,7 +8,7 @@ import System.Directory (getDirectoryContents,createDirectoryIfMissing)
 main :: IO ()
 main = do
     modulepaths <- getDirectoryContents "fragnix/modules"
-    declarations <- modulDeclarations "fragnix/names" modulepaths
+    declarations <- modulDeclarations modulepaths
     createDirectoryIfMissing True "fragnix/declarations"
     writeDeclarations "fragnix/declarations/declarations.json" declarations
 

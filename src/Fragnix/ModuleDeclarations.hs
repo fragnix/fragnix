@@ -7,9 +7,10 @@ import Fragnix.Declaration (
 import Language.Haskell.Exts.Annotated (
     Module,ModuleName,Decl(..),
     SrcSpan,
-    prettyPrint)
+    prettyPrint,Language(Haskell2010))
 import Language.Haskell.Names (
-    Symbols(Symbols),Error,Scoped(Scoped),SymValueInfo,SymTypeInfo,OrigName,
+    Symbols(Symbols),Error,Scoped(Scoped),computeInterfaces,
+    SymValueInfo,SymTypeInfo,OrigName,
     NameInfo(GlobalValue,GlobalType))
 import Language.Haskell.Names.Interfaces (readInterface,writeInterface)
 import Language.Haskell.Names.SyntaxUtils (
@@ -33,21 +34,23 @@ import System.Directory (doesFileExist,createDirectoryIfMissing)
 
 type NamesPath = FilePath
 
-modulDeclarations :: NamesPath -> [FilePath] -> IO [Declaration]
-modulDeclarations namespath modulpaths = do
-    asts          <- forM modulpaths parse
-    _        <- resolve namespath asts
-    annotatedasts <- forM asts (annotate namespath)
+modulDeclarations :: [FilePath] -> IO [Declaration]
+modulDeclarations modulpaths = do
+    asts <- forM modulpaths parse
+    _ <- resolve asts
+    annotatedasts <- forM asts annotate
     let declarations = concatMap extractDeclarations annotatedasts
     return declarations
 
 parse :: FilePath -> IO (Module SrcSpan)
 parse = undefined
 
-resolve :: NamesPath -> [Module l] -> IO (Set (Error l))
-resolve = undefined
+resolve :: [Module SrcSpan] -> IO (Set (Error SrcSpan))
+resolve asts = runFragnixModule (computeInterfaces language extensions asts) where
+    language = Haskell2010
+    extensions = []
 
-annotate :: NamesPath -> Module l -> IO (Module (Scoped l))
+annotate :: Module l -> IO (Module (Scoped l))
 annotate = undefined
 
 extractDeclarations :: Module (Scoped SrcSpan) -> [Declaration]
