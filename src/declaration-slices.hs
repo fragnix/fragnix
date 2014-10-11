@@ -1,5 +1,6 @@
 module Main where
 
+import Fragnix.Declaration (readDeclarations)
 import Fragnix.Nest (writeSlice)
 
 import System.Directory (getDirectoryContents)
@@ -8,11 +9,8 @@ import Control.Monad (forM,forM_)
 
 main :: IO ()
 main = do
-    declarationpaths <- getDirectoryContents "fragnix/declarations"
-    declarations <- forM declarationpaths readDeclarations
-    slices <- declarationSlices (concat declarations)
+    declarations <- readDeclarations "fragnix/declarations/declarations.json"
+    slices <- declarationSlices declarations
     forM_ slices writeSlice
-
-readDeclarations = undefined
 
 declarationSlices = undefined
