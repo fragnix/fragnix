@@ -5,8 +5,8 @@ import Fragnix.Declaration (
     Declaration(Declaration),Genre(..))
 
 import Language.Haskell.Exts.Annotated (
-    Module,ModuleName,Decl(..),
-    SrcSpan,
+    Module,ModuleName,Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
+    SrcSpan,srcInfoSpan,
     prettyPrint,Language(Haskell2010),Extension)
 import Language.Haskell.Names (
     Symbols(Symbols),Error,Scoped(Scoped),computeInterfaces,annotateModule,
@@ -43,7 +43,11 @@ modulDeclarations modulpaths = do
     return declarations
 
 parse :: FilePath -> IO (Module SrcSpan)
-parse = undefined
+parse path = do
+    parseresult <- parseFile path
+    case parseresult of
+        ParseOk ast -> return (fmap srcInfoSpan ast)
+        ParseFailed location message -> error ("PARSE FAILED: " ++ path ++ show location ++ message)
 
 resolve :: [Module SrcSpan] -> IO (Set (Error SrcSpan))
 resolve asts = runFragnixModule (computeInterfaces language extensions asts)
