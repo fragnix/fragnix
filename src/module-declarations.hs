@@ -14,13 +14,14 @@ import Language.Haskell.Names
 import Language.Haskell.Names.Interfaces
 import Language.Haskell.Names.ModuleSymbols (getTopDeclSymbols)
 import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (empty)
+import Distribution.ModuleName (fromString,toFilePath)
 import Data.Version
 import Data.Tagged
 import Data.Maybe
 import qualified Data.Foldable as F
 import System.FilePath
 import Text.Printf
-import Data.Aeson (encode,ToJSON(toJSON))
+import Data.Aeson (encode,ToJSON(toJSON),object,(.=))
 import qualified Data.ByteString.Lazy as ByteString (writeFile)
 
 import Language.Haskell.Exts.Annotated (Decl(..))
@@ -32,12 +33,8 @@ import Distribution.HaskellSuite
 import qualified Distribution.HaskellSuite.Compiler as Compiler
 
 import Distribution.Package (PackageIdentifier(pkgName),PackageName(PackageName))
-import Distribution.Simple.Utils
-import Distribution.Verbosity
 
-import Data.Aeson (object,(.=))
-
-import System.Directory (doesFileExist)
+import System.Directory (doesFileExist,createDirectoryIfMissing)
 
 import Data.Either (partitionEithers)
 import Control.Monad
@@ -146,8 +143,8 @@ compile _ maybelanguage exts cppoptions packagename _ _ files = do
             interfacefilename = modulePath modulename
             declarationsfilename = "/home/pschuster/Projects/fragnix/fragnix" </> "declarations" </> modulename
 
-        createDirectoryIfMissingVerbose silent True (dropFileName interfacefilename)
-        createDirectoryIfMissingVerbose silent True (dropFileName declarationsfilename)
+        createDirectoryIfMissing True (dropFileName interfacefilename)
+        createDirectoryIfMissing True (dropFileName declarationsfilename)
 
         writeInterface interfacefilename $ qualifySymbols packagename symbols
         ByteString.writeFile declarationsfilename (encode declarations))
@@ -221,7 +218,7 @@ newtype FragnixModule a = FragnixModule {runFragnixModule :: IO a}
 instance MonadModule FragnixModule where
     type ModuleInfo FragnixModule = Symbols
     lookupInCache modulename = FragnixModule (do
-        let builtinpath = builtinPath (modToString modulename)
+        let builtinpath = builtinPath (toFilePath (fromString (modToString modulename)) <.> "names")
             modulepath = modulePath (modToString modulename)
         builtinExists <- doesFileExist builtinpath
         moduleExists <- doesFileExist modulepath
@@ -232,6 +229,8 @@ instance MonadModule FragnixModule where
                     then readInterface modulepath >>= return . Just
                     else return Nothing))
     insertInCache modulename symbols = FragnixModule (do
-        writeInterface (modulePath (modToString modulename)) symbols)
+        let modulepath = modulePath (modToString modulename)
+        createDirectoryIfMissing True (dropFileName modulepath)
+        writeInterface modulepath symbols)
     getPackages = return []
     readModuleInfo = error "Not implemented: readModuleInfo"
