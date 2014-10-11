@@ -1,0 +1,1 @@
+[{"origin":{"name":"addForeignPtrFinalizer","module":"Foreign.Concurrent","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"newForeignPtr","module":"Foreign.Concurrent","package":"base-4.7.0.0"},"fixity":null,"entity":"value"}]

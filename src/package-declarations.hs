@@ -12,6 +12,6 @@ main = do
         "--package-db=fragnix/names/packages.db",
         "--prefix=fragnix/names/",
         "--gcc-option=-I/usr/lib/ghc/include",
-        "--haskell-suite","-w",".cabal-sandbox/bin/haskell-declarations",
+        "--haskell-suite","-w",".cabal-sandbox/bin/module-declarations",
         packagequalifier]
     print exitCode
