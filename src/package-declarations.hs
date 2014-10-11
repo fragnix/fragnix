@@ -9,6 +9,6 @@ main = do
     exitCode <- rawSystem "cabal" [
         "install","--force-reinstalls",
         "--gcc-option=-I/usr/lib/ghc/include",
-        "--haskell-suite","-w","module-declarations",
+        "--haskell-suite","-w","package-modules",
         packagequalifier]
     print exitCode

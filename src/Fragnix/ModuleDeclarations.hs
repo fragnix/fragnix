@@ -2,8 +2,8 @@ module Fragnix.ModuleDeclarations where
 
 import Fragnix.Declaration (Declaration)
 
-moduleDeclarations :: [FilePath] -> IO [Declaration]
-moduleDeclarations = undefined
+modulDeclarations :: [FilePath] -> IO [Declaration]
+modulDeclarations = undefined
 
 
 {-

@@ -1,6 +1,6 @@
 module Main where
 
-import Fragnix.ModuleDeclarations (moduleDeclarations)
+import Fragnix.ModuleDeclarations (modulDeclarations)
 import Fragnix.Declaration (writeDeclarations)
 
 import System.Directory (getDirectoryContents)
