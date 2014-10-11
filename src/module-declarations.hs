@@ -212,18 +212,25 @@ type ModuleNameString = String
 modulePath :: ModuleNameString -> FilePath
 modulePath modulename = "/home/pschuster/Projects/fragnix/fragnix" </> "names" </> modulename
 
+builtinPath :: ModuleNameString -> FilePath
+builtinPath modulename = "/home/pschuster/Projects/fragnix/fragnix" </> "builtin" </> modulename
+
 newtype FragnixModule a = FragnixModule {runFragnixModule :: IO a}
     deriving (Functor,Monad)
 
 instance MonadModule FragnixModule where
     type ModuleInfo FragnixModule = Symbols
     lookupInCache modulename = FragnixModule (do
-        exists <- doesFileExist (modulePath (modToString modulename))
-        if exists
-            then (do
-                symbols <- readInterface (modulePath (modToString modulename))
-                return (Just symbols))
-            else return Nothing)
+        let builtinpath = builtinPath (modToString modulename)
+            modulepath = modulePath (modToString modulename)
+        builtinExists <- doesFileExist builtinpath
+        moduleExists <- doesFileExist modulepath
+        if builtinExists
+            then readInterface builtinpath >>= return . Just
+            else (do
+                if moduleExists
+                    then readInterface modulepath >>= return . Just
+                    else return Nothing))
     insertInCache modulename symbols = FragnixModule (do
         writeInterface (modulePath (modToString modulename)) symbols)
     getPackages = return []
