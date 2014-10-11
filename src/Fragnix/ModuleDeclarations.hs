@@ -107,10 +107,10 @@ externalSymbol _ = []
 type ModuleNameString = String
 
 namesPath :: ModuleNameString -> FilePath
-namesPath modulname = "/home/pschuster/Projects/fragnix/fragnix" </> "names" </> modulname
+namesPath modulname = "fragnix" </> "names" </> modulname
 
 builtinPath :: ModuleNameString -> FilePath
-builtinPath modulname = "/home/pschuster/Projects/fragnix/fragnix" </> "builtin" </> modulname
+builtinPath modulname = "fragnix" </> "builtin" </> modulname
 
 newtype FragnixModule a = FragnixModule {runFragnixModule :: IO a}
     deriving (Functor,Monad)
