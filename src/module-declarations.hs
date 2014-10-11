@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings,GeneralizedNewtypeDeriving,TypeFamilies #-}
 module Main where
 
 import qualified Language.Haskell.Exts.Annotated as HSE
@@ -13,7 +13,6 @@ import Language.Haskell.Names.Interfaces
 import Language.Haskell.Names.ModuleSymbols (getTopDeclSymbols)
 import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (empty)
 import Data.Version
-import Data.Proxy
 import Data.Tagged
 import Data.Maybe
 import qualified Data.Foldable as F
@@ -31,16 +30,16 @@ import Distribution.HaskellSuite
 import qualified Distribution.HaskellSuite.Compiler as Compiler
 
 import Distribution.Package (PackageIdentifier(pkgName),PackageName(PackageName))
-import Distribution.ModuleName hiding (main)
 import Distribution.Simple.Utils
 import Distribution.Verbosity
 
 import Data.Aeson (object,(.=))
 
+import System.Directory (doesFileExist)
+
 import Data.Either (partitionEithers)
 import Control.Monad
 import Data.Foldable (foldMap)
-
 
 main :: IO ()
 main =
@@ -62,7 +61,7 @@ theTool =
     knownLanguages
     knownExtensions
     compile
-    ["names","declarations"]
+    []
 
 fixCppOpts :: CpphsOptions -> CpphsOptions
 fixCppOpts opts =
@@ -132,22 +131,20 @@ compile builddirectory maybelanguage extensions cppoptions packagename packagedb
     let isParsec = pkgName packagename == PackageName "parsec"
         cppoptions' = if isParsec then fixCppOptsForParsec cppoptions else fixCppOpts cppoptions
 
-    moduleasts <- mapM (parse language extensions cppoptions') files
+    moduleasts <- mapM (parse language extensions cppoptions') files  
 
-    packages <- readPackagesInfo (Proxy :: Proxy (StandardDB DeclarationsDB)) packagedbs dependencies   
-
-    (interfaces, errors) <- evalModuleT (getInterfaces language extensions moduleasts) packages "names" readInterface
+    (interfaces, errors) <- runFragnixModule (getInterfaces language extensions moduleasts)
 
     F.for_ errors $ \e -> printf "Warning: %s" (ppError e)
 
     forM_ (zip moduleasts interfaces) (\(moduleast, symbols) -> do
 
-        annotatedmoduleast <- evalNamesModuleT (annotateModule language extensions moduleast) packages
+        annotatedmoduleast <- runFragnixModule (annotateModule language extensions moduleast)
 
         let declarations = extractDeclarations (getModuleName annotatedmoduleast) annotatedmoduleast
             HSE.ModuleName _ modulename = getModuleName moduleast
-            interfacefilename = builddirectory </> toFilePath (fromString modulename) <.> "names"
-            declarationsfilename = builddirectory </> toFilePath (fromString modulename) <.> "declarations"
+            interfacefilename = modulePath modulename
+            declarationsfilename = "/home/pschuster/Projects/fragnix/fragnix" </> "declarations" </> modulename
 
         createDirectoryIfMissingVerbose silent True (dropFileName interfacefilename)
         createDirectoryIfMissingVerbose silent True (dropFileName declarationsfilename)
@@ -203,10 +200,30 @@ type DeclaredSymbols = Symbols
 type UsedSymbols = Symbols
 
 instance ToJSON Declaration where
-  toJSON (Declaration genre declarationast declaredsymbols usedsymbols) = object [
+    toJSON (Declaration genre declarationast declaredsymbols usedsymbols) = object [
         "declarationgenre" .= show genre,
         "declarationast" .= declarationast,
         "declaredsymbols" .= declaredsymbols,
         "mentionedsymbols" .= usedsymbols]
 
+type ModuleName = String
 
+modulePath :: ModuleName -> FilePath
+modulePath modulename = "/home/pschuster/Projects/fragnix/fragnix" </> "names" </> modulename
+
+newtype FragnixModule a = FragnixModule {runFragnixModule :: IO a}
+    deriving (Functor,Monad)
+
+instance MonadModule FragnixModule where
+    type ModuleInfo FragnixModule = Symbols
+    lookupInCache modulename = FragnixModule (do
+        exists <- doesFileExist (modulePath (modToString modulename))
+        if exists
+            then (do
+                symbols <- readInterface (modulePath (modToString modulename))
+                return (Just symbols))
+            else return Nothing)
+    insertInCache modulename symbols = FragnixModule (do
+        writeInterface (modulePath (modToString modulename)) symbols)
+    getPackages = return []
+    readModuleInfo = error "Not implemented: readModuleInfo"
