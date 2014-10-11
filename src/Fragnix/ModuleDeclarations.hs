@@ -7,9 +7,9 @@ import Fragnix.Declaration (
 import Language.Haskell.Exts.Annotated (
     Module,ModuleName,Decl(..),
     SrcSpan,
-    prettyPrint,Language(Haskell2010))
+    prettyPrint,Language(Haskell2010),Extension)
 import Language.Haskell.Names (
-    Symbols(Symbols),Error,Scoped(Scoped),computeInterfaces,
+    Symbols(Symbols),Error,Scoped(Scoped),computeInterfaces,annotateModule,
     SymValueInfo,SymTypeInfo,OrigName,
     NameInfo(GlobalValue,GlobalType))
 import Language.Haskell.Names.Interfaces (readInterface,writeInterface)
@@ -46,12 +46,16 @@ parse :: FilePath -> IO (Module SrcSpan)
 parse = undefined
 
 resolve :: [Module SrcSpan] -> IO (Set (Error SrcSpan))
-resolve asts = runFragnixModule (computeInterfaces language extensions asts) where
-    language = Haskell2010
-    extensions = []
+resolve asts = runFragnixModule (computeInterfaces language extensions asts)
 
-annotate :: Module l -> IO (Module (Scoped l))
-annotate = undefined
+annotate :: Module SrcSpan -> IO (Module (Scoped SrcSpan))
+annotate ast = runFragnixModule (annotateModule language extensions ast)
+
+language :: Language
+language = Haskell2010
+
+extensions :: [Extension]
+extensions = []
 
 extractDeclarations :: Module (Scoped SrcSpan) -> [Declaration]
 extractDeclarations annotatedast =
