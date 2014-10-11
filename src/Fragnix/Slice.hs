@@ -1,9 +1,12 @@
-{-# LANGUAGE OverloadedStrings,StandaloneDeriving,DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings,StandaloneDeriving,DeriveGeneric,DeriveDataTypeable #-}
 module Fragnix.Slice where
+
+import Prelude hiding (writeFile,readFile)
 
 import Data.Aeson (
     ToJSON(toJSON),object,(.=),
-    FromJSON(parseJSON),withObject,(.:))
+    FromJSON(parseJSON),withObject,(.:),
+    encode,eitherDecode)
 
 import GHC.Generics (Generic)
 import Data.Hashable (Hashable)
@@ -12,6 +15,12 @@ import Data.Text (Text)
 
 import Control.Applicative ((<$>),(<*>),(<|>))
 
+import Control.Exception (Exception,throwIO)
+import Data.Typeable(Typeable)
+
+import Data.ByteString.Lazy (writeFile,readFile)
+import System.FilePath ((</>))
+import System.Directory (createDirectoryIfMissing,doesFileExist)
 
 data Slice = Slice SliceID Fragment [Usage]
 
@@ -118,3 +127,28 @@ instance FromJSON Reference where
 
 instance Hashable Reference
 
+data SliceParseError = SliceParseError SliceID String
+
+deriving instance Typeable SliceParseError
+deriving instance Show SliceParseError
+
+instance Exception SliceParseError
+
+writeSlice :: Slice -> IO ()
+writeSlice slice@(Slice sliceID _ _) = do
+    createDirectoryIfMissing True sliceDirectory
+    writeFile (slicePath sliceID) (encode slice)
+
+readSlice :: SliceID -> IO Slice
+readSlice sliceID = do
+    sliceFile <- readFile (slicePath sliceID)
+    either (throwIO . SliceParseError sliceID) return (eitherDecode sliceFile)
+
+doesSliceExist :: SliceID -> IO Bool
+doesSliceExist sliceID = doesFileExist (slicePath sliceID)
+
+slicePath :: SliceID -> FilePath
+slicePath sliceID = sliceDirectory </> show sliceID
+
+sliceDirectory :: FilePath
+sliceDirectory = "fragnix" </> "slices"

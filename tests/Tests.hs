@@ -3,7 +3,6 @@ module Main where
 
 import Fragnix.Slice
 import Fragnix.Resolver (resolve)
-import Fragnix.Nest (writeSlice,readSlice)
 import Fragnix.Compiler (writeSliceModule,compile)
 
 import Test.Tasty (testGroup,TestTree)

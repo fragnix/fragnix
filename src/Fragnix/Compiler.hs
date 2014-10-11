@@ -1,7 +1,8 @@
 module Fragnix.Compiler where
 
-import Fragnix.Slice
-import Fragnix.Nest (readSlice)
+import Fragnix.Slice (
+    Slice(Slice),SliceID,Fragment(Fragment),Usage(Usage),
+    Reference(OtherSlice,Primitive),UsedName(..),readSlice)
 
 import Prelude hiding (writeFile)
 

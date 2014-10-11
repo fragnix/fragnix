@@ -18,9 +18,8 @@ cabal-version:       >=1.10
 executable fragnix
   main-is:             fragnix.hs
   other-modules:       Fragnix.Slice,
-                       Fragnix.Nest,
-                       Fragnix.Compiler,
-                       Fragnix.Resolver
+                       Fragnix.Declaration,
+                       Fragnix.ModuleDeclarations
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.7,
                        text >=1.1 && < 1.2,
