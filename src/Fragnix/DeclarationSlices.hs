@@ -1,6 +1,6 @@
 module Fragnix.DeclarationSlices where
 
-import Fragnix.Declaration (Declaration(Declaration))
+import Fragnix.Declaration (Declaration(Declaration),Genre(TypeSignature))
 import Fragnix.Slice (
     Slice(Slice),Fragment(Fragment),Usage(Usage),UsedName(..),
     Reference(Primitive,OtherSlice),OriginalModule)
@@ -26,13 +26,13 @@ declarationSlices declarations = buildSlices (sccGraph declarationgraph (scc dec
 
 declarationGraph :: [Declaration] -> Gr Declaration Dependency
 declarationGraph declarations = buildGr (usagecontexts ++ signaturecontexts) where
+    declarationnodes = zip [0..] declarations
+    boundmap = Map.fromList (do
+        (node,declaration) <- declarationnodes
+        let Declaration _ _ boundsymbols _ = declaration
+        boundsymbol <- listSymbols boundsymbols
+        return (boundsymbol,node))
     usagecontexts = do
-        let declarationnodes = zip [0..] declarations
-            boundmap = Map.fromList (do
-                (node,declaration) <- declarationnodes
-                let Declaration _ _ boundsymbols _ = declaration
-                boundsymbol <- listSymbols boundsymbols
-                return (boundsymbol,node))
         (node,declaration) <- declarationnodes
         let useddeclarations = do
                 let Declaration _ _ _ mentionedsymbols = declaration
@@ -41,7 +41,10 @@ declarationGraph declarations = buildGr (usagecontexts ++ signaturecontexts) whe
                 return (UsesSymbol mentionedsymbol,useddeclaration)
         return ([],node,declaration,useddeclarations)
     signaturecontexts = do
-        return undefined
+        (node,declaration@(Declaration TypeSignature _ _ mentionedsymbols)) <- declarationnodes
+        mentionedsymbol <- listSymbols mentionedsymbols
+        signaturenode <- maybeToList (Map.lookup mentionedsymbol boundmap)
+        return ([(Signature,signaturenode)],node,declaration,[(Signature,signaturenode)])
 
 sccGraph :: Gr Declaration Dependency -> [[Node]] -> Gr [Declaration] Dependency
 sccGraph declarationgraph sccs = buildGr (do
@@ -118,6 +121,5 @@ data Symbol =
 
 data Dependency =
     UsesSymbol Symbol |
-    GivesSignature |
-    IsGivenSignature
+    Signature
         deriving (Eq,Ord,Show)
