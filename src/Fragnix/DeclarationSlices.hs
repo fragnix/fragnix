@@ -2,17 +2,22 @@ module Fragnix.DeclarationSlices where
 
 import Fragnix.Declaration (Declaration(Declaration))
 import Fragnix.Slice (
-    Slice(Slice),Fragment(Fragment),Usage(Usage),UsedName,
+    Slice(Slice),Fragment(Fragment),Usage(Usage),UsedName(..),
     Reference(Primitive,OtherSlice),OriginalModule)
 
 import Language.Haskell.Names (
-    SymValueInfo,SymTypeInfo,OrigName,Symbols)
+    SymValueInfo(SymConstructor),SymTypeInfo,OrigName,Symbols(Symbols),
+    sv_origName,st_origName,origGName,gName)
+import qualified Language.Haskell.Exts.Annotated as Name (
+    Name(Ident,Symbol))
+import Language.Haskell.Names.SyntaxUtils (stringToName)
 
 import Data.Graph.Inductive (Node,buildGr,scc,lab,lsuc,labNodes)
 import Data.Graph.Inductive.PatriciaTree (Gr)
 
 import Data.Text (pack)
 import qualified Data.Map as Map (lookup,fromList)
+import qualified Data.Set as Set (toList)
 import Data.Maybe (maybeToList,fromJust)
 
 declarationSlices :: [Declaration] -> [Slice]
@@ -72,10 +77,32 @@ hashSlices :: [Slice] -> [Slice]
 hashSlices = id
 
 listSymbols :: Symbols -> [Symbol]
-listSymbols = undefined
+listSymbols (Symbols valueSymbolSet typeSymbolSet) = valueSymbols ++ typeSymbols where
+    valueSymbols = map ValueSymbol (Set.toList valueSymbolSet)
+    typeSymbols = map TypeSymbol (Set.toList typeSymbolSet)
 
 symbolName :: Symbol -> UsedName
-symbolName = undefined
+symbolName (ValueSymbol (SymConstructor origname _ typename)) =
+    constructorNameUsed (gName (origGName typename)) (gName (origGName origname))
+symbolName (ValueSymbol valueSymbol) =
+    valueNameUsed (gName (origGName (sv_origName valueSymbol)))
+symbolName (TypeSymbol typeSymbol) =
+    typeNameUsed (gName (origGName (st_origName typeSymbol)))
+
+valueNameUsed :: String -> UsedName
+valueNameUsed valuename = case stringToName valuename of
+    Name.Ident _ name -> ValueIdentifier (pack name)
+    Name.Symbol _ name -> ValueOperator (pack name)
+
+typeNameUsed :: String -> UsedName
+typeNameUsed typename = case stringToName typename of
+    Name.Ident _ name -> TypeIdentifier (pack name)
+    Name.Symbol _ name -> TypeOperator (pack name)
+
+constructorNameUsed :: String -> String -> UsedName
+constructorNameUsed typename constructorname = case stringToName constructorname of
+    Name.Ident _ name -> ConstructorIdentifier (pack typename) (pack name)
+    Name.Symbol _ name -> ConstructorOperator (pack typename) (pack name)
 
 originalModule :: Symbol -> OriginalModule
 originalModule = undefined
