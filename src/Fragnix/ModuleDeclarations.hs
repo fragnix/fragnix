@@ -31,6 +31,7 @@ import Data.Either (partitionEithers)
 import Data.Foldable (foldMap)
 import System.FilePath ((</>),(<.>),dropFileName)
 import System.Directory (doesFileExist,createDirectoryIfMissing)
+import Data.Text (pack)
 
 type NamesPath = FilePath
 
@@ -69,7 +70,7 @@ extractDeclarations annotatedast =
 declToDeclaration :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> Declaration
 declToDeclaration modulnameast annotatedast = Declaration
     (declGenre annotatedast)
-    (prettyPrint annotatedast)
+    (pack (prettyPrint annotatedast))
     (declaredSymbols modulnameast annotatedast)
     (usedSymbols annotatedast)
 

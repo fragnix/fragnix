@@ -62,7 +62,7 @@ buildSlices sccgraph = do
     let tempID = fromIntegral node
         fragments = Fragment (do
             Declaration _ ast _ _ <- declarations
-            return (pack ast))
+            return ast)
         usages = do
             Declaration _ _ _ mentionedsymbols <- declarations
             symbol <- listSymbols mentionedsymbols
