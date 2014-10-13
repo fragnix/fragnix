@@ -8,34 +8,48 @@ import Fragnix.Slice (
 import Language.Haskell.Names (
     SymValueInfo,SymTypeInfo,OrigName,Symbols)
 
-import Data.Graph.Inductive (Node,Context,buildGr,scc,lsuc,labNodes)
+import Data.Graph.Inductive (Node,buildGr,scc,lab,lsuc,labNodes)
 import Data.Graph.Inductive.PatriciaTree (Gr)
 
 import Data.Text (pack)
 import qualified Data.Map as Map (lookup,fromList)
-import Data.Maybe (maybeToList)
+import Data.Maybe (maybeToList,fromJust)
 
 declarationSlices :: [Declaration] -> [Slice]
 declarationSlices declarations = buildSlices (sccGraph declarationgraph (scc declarationgraph)) where
-    declarationgraph = buildGr (contexts (zip [0..] declarations)) :: Gr Declaration Symbol
+    declarationgraph = declarationGraph declarations
 
-contexts :: [(Node,Declaration)] -> [Context Declaration Symbol]
-contexts declarationnodes = do
-    (node,declaration) <- declarationnodes
-    let useddeclarations = do
-            let Declaration _ _ _ mentionedsymbols = declaration
-            mentionedsymbol <- listSymbols mentionedsymbols
-            useddeclaration <- maybeToList (Map.lookup mentionedsymbol boundMap)
-            return (mentionedsymbol,useddeclaration)
-    return ([],node,declaration,useddeclarations) where
-        boundMap = Map.fromList (do
+declarationGraph :: [Declaration] -> Gr Declaration Symbol
+declarationGraph declarations = buildGr (do
+    let declarationnodes = zip [0..] declarations
+        boundmap = Map.fromList (do
             (node,declaration) <- declarationnodes
             let Declaration _ _ boundsymbols _ = declaration
             boundsymbol <- listSymbols boundsymbols
             return (boundsymbol,node))
+    (node,declaration) <- declarationnodes
+    let useddeclarations = do
+            let Declaration _ _ _ mentionedsymbols = declaration
+            mentionedsymbol <- listSymbols mentionedsymbols
+            useddeclaration <- maybeToList (Map.lookup mentionedsymbol boundmap)
+            return (mentionedsymbol,useddeclaration)
+    return ([],node,declaration,useddeclarations))
 
 sccGraph :: Gr Declaration Symbol -> [[Node]] -> Gr [Declaration] Symbol
-sccGraph = undefined
+sccGraph declarationgraph sccs = buildGr (do
+    let sccnodes = zip [0..] sccs
+        sccmap = Map.fromList (do
+            (sccnode,declarationnodes) <- sccnodes
+            declarationnode <- declarationnodes
+            return (declarationnode,sccnode))
+    (sccnode,declarationnodes) <- sccnodes
+    let declarations = map (fromJust . lab declarationgraph) declarationnodes
+        usedsccs = do
+            declarationnode <- declarationnodes
+            (useddeclaration,symbol) <- lsuc declarationgraph declarationnode
+            let usedscc = fromJust (Map.lookup useddeclaration sccmap)
+            return (symbol,usedscc)
+    return ([],sccnode,declarations,usedsccs))
 
 buildSlices :: Gr [Declaration] Symbol -> [Slice]
 buildSlices sccgraph = do
