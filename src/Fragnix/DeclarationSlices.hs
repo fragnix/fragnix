@@ -24,23 +24,26 @@ declarationSlices :: [Declaration] -> [Slice]
 declarationSlices declarations = buildSlices (sccGraph declarationgraph (scc declarationgraph)) where
     declarationgraph = declarationGraph declarations
 
-declarationGraph :: [Declaration] -> Gr Declaration Symbol
-declarationGraph declarations = buildGr (do
-    let declarationnodes = zip [0..] declarations
-        boundmap = Map.fromList (do
-            (node,declaration) <- declarationnodes
-            let Declaration _ _ boundsymbols _ = declaration
-            boundsymbol <- listSymbols boundsymbols
-            return (boundsymbol,node))
-    (node,declaration) <- declarationnodes
-    let useddeclarations = do
-            let Declaration _ _ _ mentionedsymbols = declaration
-            mentionedsymbol <- listSymbols mentionedsymbols
-            useddeclaration <- maybeToList (Map.lookup mentionedsymbol boundmap)
-            return (mentionedsymbol,useddeclaration)
-    return ([],node,declaration,useddeclarations))
+declarationGraph :: [Declaration] -> Gr Declaration Dependency
+declarationGraph declarations = buildGr (usagecontexts ++ signaturecontexts) where
+    usagecontexts = do
+        let declarationnodes = zip [0..] declarations
+            boundmap = Map.fromList (do
+                (node,declaration) <- declarationnodes
+                let Declaration _ _ boundsymbols _ = declaration
+                boundsymbol <- listSymbols boundsymbols
+                return (boundsymbol,node))
+        (node,declaration) <- declarationnodes
+        let useddeclarations = do
+                let Declaration _ _ _ mentionedsymbols = declaration
+                mentionedsymbol <- listSymbols mentionedsymbols
+                useddeclaration <- maybeToList (Map.lookup mentionedsymbol boundmap)
+                return (UsesSymbol mentionedsymbol,useddeclaration)
+        return ([],node,declaration,useddeclarations)
+    signaturecontexts = do
+        return undefined
 
-sccGraph :: Gr Declaration Symbol -> [[Node]] -> Gr [Declaration] Symbol
+sccGraph :: Gr Declaration Dependency -> [[Node]] -> Gr [Declaration] Dependency
 sccGraph declarationgraph sccs = buildGr (do
     let sccnodes = zip [0..] sccs
         sccmap = Map.fromList (do
@@ -56,7 +59,7 @@ sccGraph declarationgraph sccs = buildGr (do
             return (symbol,usedscc)
     return ([],sccnode,declarations,usedsccs))
 
-buildSlices :: Gr [Declaration] Symbol -> [Slice]
+buildSlices :: Gr [Declaration] Dependency -> [Slice]
 buildSlices sccgraph = do
     (node,declarations) <- labNodes sccgraph
     let tempID = fromIntegral node
@@ -67,7 +70,7 @@ buildSlices sccgraph = do
             Declaration _ _ _ mentionedsymbols <- declarations
             symbol <- listSymbols mentionedsymbols
             let usedname = symbolName symbol
-                reference = case lookup symbol (map (\(x,y) -> (y,x)) (lsuc sccgraph node)) of
+                reference = case lookup (UsesSymbol symbol) (map (\(x,y) -> (y,x)) (lsuc sccgraph node)) of
                     Nothing -> Primitive (originalModule symbol)
                     Just othernode -> OtherSlice (fromIntegral othernode)
             return (Usage Nothing usedname reference)
@@ -111,4 +114,10 @@ originalModule (TypeSymbol typesymbol) = pack (gModule (origGName (st_origName t
 data Symbol =
     ValueSymbol (SymValueInfo OrigName) |
     TypeSymbol (SymTypeInfo OrigName)
+        deriving (Eq,Ord,Show)
+
+data Dependency =
+    UsesSymbol Symbol |
+    GivesSignature |
+    IsGivenSignature
         deriving (Eq,Ord,Show)
