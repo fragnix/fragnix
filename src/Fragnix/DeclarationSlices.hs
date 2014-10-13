@@ -3,7 +3,7 @@ module Fragnix.DeclarationSlices where
 import Fragnix.Declaration (Declaration(Declaration))
 import Fragnix.Slice (
     Slice(Slice),Fragment(Fragment),Usage(Usage),UsedName,
-    Reference(Primitive,OtherSlice))
+    Reference(Primitive,OtherSlice),OriginalModule)
 
 import Language.Haskell.Names (
     SymValueInfo,SymTypeInfo,OrigName,Symbols)
@@ -23,11 +23,16 @@ contexts :: [(Node,Declaration)] -> [Context Declaration Symbol]
 contexts declarationnodes = do
     (node,declaration) <- declarationnodes
     let useddeclarations = do
-            mentionedsymbol <- undefined
+            let Declaration _ _ _ mentionedsymbols = declaration
+            mentionedsymbol <- listSymbols mentionedsymbols
             useddeclaration <- maybeToList (Map.lookup mentionedsymbol boundMap)
             return (mentionedsymbol,useddeclaration)
     return ([],node,declaration,useddeclarations) where
-        boundMap = Map.fromList undefined
+        boundMap = Map.fromList (do
+            (node,declaration) <- declarationnodes
+            let Declaration _ _ boundsymbols _ = declaration
+            boundsymbol <- listSymbols boundsymbols
+            return (boundsymbol,node))
 
 sccGraph :: Gr Declaration Symbol -> [[Node]] -> Gr [Declaration] Symbol
 sccGraph = undefined
@@ -40,11 +45,11 @@ buildSlices sccgraph = do
             Declaration _ ast _ _ <- declarations
             return (pack ast))
         usages = do
-            Declaration _ _ _ symbols <- declarations
-            symbol <- listSymbols symbols
+            Declaration _ _ _ mentionedsymbols <- declarations
+            symbol <- listSymbols mentionedsymbols
             let usedname = symbolName symbol
                 reference = case lookup symbol (map (\(x,y) -> (y,x)) (lsuc sccgraph node)) of
-                    Nothing -> Primitive undefined
+                    Nothing -> Primitive (originalModule symbol)
                     Just othernode -> OtherSlice (fromIntegral othernode)
             return (Usage Nothing usedname reference)
     return (Slice tempID fragments usages)
@@ -57,6 +62,9 @@ listSymbols = undefined
 
 symbolName :: Symbol -> UsedName
 symbolName = undefined
+
+originalModule :: Symbol -> OriginalModule
+originalModule = undefined
 
 data Symbol =
     ValueSymbol (SymValueInfo OrigName) |
