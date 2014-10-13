@@ -7,7 +7,7 @@ import Fragnix.Slice (
 
 import Language.Haskell.Names (
     SymValueInfo(SymConstructor),SymTypeInfo,OrigName,Symbols(Symbols),
-    sv_origName,st_origName,origGName,gName)
+    sv_origName,st_origName,origGName,gName,gModule)
 import qualified Language.Haskell.Exts.Annotated as Name (
     Name(Ident,Symbol))
 import Language.Haskell.Names.SyntaxUtils (stringToName)
@@ -105,7 +105,8 @@ constructorNameUsed typename constructorname = case stringToName constructorname
     Name.Symbol _ name -> ConstructorOperator (pack typename) (pack name)
 
 originalModule :: Symbol -> OriginalModule
-originalModule = undefined
+originalModule (ValueSymbol valuesymbol) = pack (gModule (origGName (sv_origName valuesymbol)))
+originalModule (TypeSymbol typesymbol) = pack (gModule (origGName (st_origName typesymbol)))
 
 data Symbol =
     ValueSymbol (SymValueInfo OrigName) |
