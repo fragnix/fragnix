@@ -12,7 +12,7 @@ import qualified Language.Haskell.Exts.Annotated as Name (
     Name(Ident,Symbol))
 import Language.Haskell.Names.SyntaxUtils (stringToName)
 
-import Data.Graph.Inductive (Node,buildGr,scc,lab,lsuc,labNodes)
+import Data.Graph.Inductive (Node,buildGr,scc,lab,lsuc,labNodes,insEdges)
 import Data.Graph.Inductive.PatriciaTree (Gr)
 
 import Control.Monad (guard)
@@ -26,7 +26,7 @@ declarationSlices declarations = buildSlices (sccGraph declarationgraph (scc dec
     declarationgraph = declarationGraph declarations
 
 declarationGraph :: [Declaration] -> Gr Declaration Dependency
-declarationGraph declarations = buildGr (usagecontexts ++ signaturecontexts) where
+declarationGraph declarations = insEdges signatureedges (buildGr usagecontexts) where
     declarationnodes = zip [0..] declarations
     boundmap = Map.fromList (do
         (node,declaration) <- declarationnodes
@@ -41,11 +41,11 @@ declarationGraph declarations = buildGr (usagecontexts ++ signaturecontexts) whe
                 useddeclaration <- maybeToList (Map.lookup mentionedsymbol boundmap)
                 return (UsesSymbol mentionedsymbol,useddeclaration)
         return ([],node,declaration,useddeclarations)
-    signaturecontexts = do
-        (signaturenode,signature@(Declaration TypeSignature _ _ mentionedsymbols)) <- declarationnodes
+    signatureedges = do
+        (signaturenode,Declaration TypeSignature _ _ mentionedsymbols) <- declarationnodes
         mentionedsymbol <- listSymbols mentionedsymbols
         declarationnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
-        return ([(Signature,declarationnode)],signaturenode,signature,[])
+        return (declarationnode,signaturenode,Signature)
 
 sccGraph :: Gr Declaration Dependency -> [[Node]] -> Gr [Declaration] Dependency
 sccGraph declarationgraph sccs = buildGr (do
