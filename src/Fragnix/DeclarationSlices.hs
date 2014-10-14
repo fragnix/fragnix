@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Fragnix.DeclarationSlices where
 
 import Fragnix.Declaration (Declaration(Declaration),Genre(TypeSignature))
@@ -16,7 +17,7 @@ import Data.Graph.Inductive (Node,buildGr,scc,lab,lsuc,labNodes,insEdges)
 import Data.Graph.Inductive.PatriciaTree (Gr)
 
 import Control.Monad (guard)
-import Data.Text (pack)
+import Data.Text (pack,isPrefixOf)
 import qualified Data.Map as Map (lookup,fromList)
 import qualified Data.Set as Set (toList)
 import Data.Maybe (maybeToList,fromJust)
@@ -75,14 +76,20 @@ buildSlices sccgraph = do
             Declaration _ _ _ mentionedsymbols <- declarations
             symbol <- listSymbols mentionedsymbols
             let usedname = symbolName symbol
-                reference = case lookup (UsesSymbol symbol) (map (\(x,y) -> (y,x)) (lsuc sccgraph node)) of
-                    Nothing -> Primitive (originalModule symbol)
-                    Just othernode -> OtherSlice (fromIntegral othernode)
+            reference <- do
+                if isPrimitive symbol
+                    then return (Primitive (originalModule symbol))
+                    else case lookup (UsesSymbol symbol) (map (\(x,y) -> (y,x)) (lsuc sccgraph node)) of
+                        Nothing -> []
+                        Just othernode -> return (OtherSlice (fromIntegral othernode))
             return (Usage Nothing usedname reference)
     return (Slice tempID fragments usages)
 
 hashSlices :: [Slice] -> [Slice]
 hashSlices = id
+
+isPrimitive :: Symbol -> Bool
+isPrimitive symbol = any (`isPrefixOf` (originalModule symbol)) ["GHC","System"]
 
 listSymbols :: Symbols -> [Symbol]
 listSymbols (Symbols valueSymbolSet typeSymbolSet) = valueSymbols ++ typeSymbols where

@@ -9,6 +9,8 @@ import Data.Aeson (
     FromJSON(parseJSON),withObject,(.:),decode)
 import qualified Data.ByteString.Lazy as ByteString (readFile,writeFile)
 import Data.Text (Text)
+import System.Directory (createDirectoryIfMissing)
+import System.FilePath (dropFileName)
 
 import Data.Maybe (fromMaybe)
 
@@ -27,7 +29,8 @@ readDeclarations declarationspath = do
     return (fromMaybe (error "Failed to parse declarations") (decode declarationsfile))
 
 writeDeclarations :: FilePath -> [Declaration] -> IO ()
-writeDeclarations declarationspath declarations =
+writeDeclarations declarationspath declarations = do
+    createDirectoryIfMissing True (dropFileName declarationspath)
     ByteString.writeFile declarationspath (encode declarations)
 
 instance ToJSON Declaration where
