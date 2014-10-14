@@ -41,10 +41,10 @@ declarationGraph declarations = buildGr (usagecontexts ++ signaturecontexts) whe
                 return (UsesSymbol mentionedsymbol,useddeclaration)
         return ([],node,declaration,useddeclarations)
     signaturecontexts = do
-        (node,declaration@(Declaration TypeSignature _ _ mentionedsymbols)) <- declarationnodes
+        (signaturenode,signature@(Declaration TypeSignature _ _ mentionedsymbols)) <- declarationnodes
         mentionedsymbol <- listSymbols mentionedsymbols
-        signaturenode <- maybeToList (Map.lookup mentionedsymbol boundmap)
-        return ([(Signature,signaturenode)],node,declaration,[(Signature,signaturenode)])
+        declarationnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
+        return ([(Signature,declarationnode)],signaturenode,signature,[])
 
 sccGraph :: Gr Declaration Dependency -> [[Node]] -> Gr [Declaration] Dependency
 sccGraph declarationgraph sccs = buildGr (do
