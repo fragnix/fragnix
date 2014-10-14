@@ -19,7 +19,9 @@ executable fragnix
   main-is:             fragnix.hs
   other-modules:       Fragnix.Slice,
                        Fragnix.Declaration,
-                       Fragnix.ModuleDeclarations
+                       Fragnix.ModuleDeclarations,
+                       Fragnix.DeclarationSlices,
+                       Fragnix.SliceCompiler
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.7,
                        text >=1.1 && < 1.2,
@@ -35,7 +37,8 @@ executable fragnix
                        aeson >=0.8.0.0 && <0.9,
                        bytestring >=0.10.4.0 && <0.11,
                        hashable >=1.2.2.0 && <1.3,
-                       transformers >=0.3.0.0 && <0.4
+                       transformers >=0.3.0.0 && <0.4,
+                       fgl >=5.4.2.4 && <5.5
   hs-source-dirs:      src
   default-language:    Haskell2010
 
@@ -59,34 +62,6 @@ executable module-declarations
   hs-source-dirs:      src
   default-language:    Haskell2010
 
-executable package-modules
-  main-is:             package-modules.hs
-  build-depends:       base >=4.6 && <4.7,
-                       haskell-names >=0.4 && <0.5,
-                       haskell-src-exts >=1.16 && <1.17,
-                       haskell-packages >=0.2.4.1 && <0.3,
-                       containers >=0.5.0.0 && <0.6,
-                       filepath >=1.3 && < 1.4,
-                       Cabal >=1.20.0.2 && <1.21,
-                       hse-cpp,
-                       tagged,
-                       aeson >=0.8.0.0 && <0.9,
-                       bytestring >=0.10.4.0 && <0.11,
-                       cpphs,
-                       directory >=1.2.0.1 && < 1.3,
-                       transformers >=0.3.0.0 && <0.4
-  hs-source-dirs:      src
-  default-language:    Haskell2010
-
-executable package-declarations
-  main-is:             package-declarations.hs
-  build-depends:       base >=4.6 && <4.7,
-                       process >=1.1 && <1.2,
-                       directory >=1.2.0.1 && < 1.3
-  hs-source-dirs:      src
-  default-language:    Haskell2010
-  ghc-options:         -threaded -rtsopts
-
 executable declaration-slices
   main-is:             declaration-slices.hs
   build-depends:       base >=4.6 && <4.7,
@@ -105,6 +80,26 @@ executable declaration-slices
                        hashable >=1.2.2.0 && <1.3,
                        transformers >=0.3.0.0 && <0.4,
                        fgl
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+
+executable slice-compiler
+  main-is:             slice-compiler.hs
+  build-depends:       base >=4.6 && <4.7,
+                       text >=1.1 && < 1.2,
+                       filepath >=1.3 && < 1.4,
+                       directory >=1.2.0.1 && < 1.3,
+                       process >=1.1 && <1.2,
+                       containers >=0.5.0.0 && <0.6,
+                       haskell-src-exts >=1.16 && <1.17,
+                       haskell-names >=0.4 && <0.5,
+                       haskell-packages >=0.2.4.1 && <0.3,
+                       Cabal >=1.20.0.2 && <1.21,
+                       tagged >=0.7.2 && <0.8,
+                       aeson >=0.8.0.0 && <0.9,
+                       bytestring >=0.10.4.0 && <0.11,
+                       hashable >=1.2.2.0 && <1.3,
+                       transformers >=0.3.0.0 && <0.4
   hs-source-dirs:      src
   default-language:    Haskell2010
 

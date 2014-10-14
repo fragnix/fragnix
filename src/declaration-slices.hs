@@ -1,8 +1,8 @@
 module Main where
 
+import Fragnix.Slice (writeSlice)
 import Fragnix.Declaration (readDeclarations)
 import Fragnix.DeclarationSlices (declarationSlices)
-import Fragnix.Nest (writeSlice)
 
 import Control.Monad (forM_)
 
