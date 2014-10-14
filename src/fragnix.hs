@@ -16,4 +16,4 @@ main = do
     writeDeclarations "fragnix/declarations/declarations.json" declarations
     let slices = declarationSlices declarations
     forM_ slices writeSlice
-    sliceCompiler 0 >>= print
+    sliceCompiler 7942675488051212534 >>= print

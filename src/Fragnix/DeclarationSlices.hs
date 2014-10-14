@@ -3,7 +3,7 @@ module Fragnix.DeclarationSlices where
 
 import Fragnix.Declaration (Declaration(Declaration),Genre(TypeSignature))
 import Fragnix.Slice (
-    Slice(Slice),Fragment(Fragment),Usage(Usage),UsedName(..),
+    Slice(Slice),SliceID,Fragment(Fragment),Usage(Usage),UsedName(..),
     Reference(Primitive,OtherSlice),OriginalModule)
 
 import Language.Haskell.Names (
@@ -18,12 +18,14 @@ import Data.Graph.Inductive.PatriciaTree (Gr)
 
 import Control.Monad (guard)
 import Data.Text (pack,isPrefixOf)
+import Data.Map (Map)
 import qualified Data.Map as Map (lookup,fromList)
 import qualified Data.Set as Set (toList)
 import Data.Maybe (maybeToList,fromJust)
+import Data.Hashable (hash)
 
 declarationSlices :: [Declaration] -> [Slice]
-declarationSlices declarations = buildSlices (sccGraph declarationgraph (scc declarationgraph)) where
+declarationSlices declarations = hashSlices (buildSlices (sccGraph declarationgraph (scc declarationgraph))) where
     declarationgraph = declarationGraph declarations
 
 declarationGraph :: [Declaration] -> Gr Declaration Dependency
@@ -85,8 +87,29 @@ buildSlices sccgraph = do
             return (Usage Nothing usedname reference)
     return (Slice tempID fragments usages)
 
+type TempID = Integer
+
 hashSlices :: [Slice] -> [Slice]
-hashSlices = id
+hashSlices tempSlices = map (replaceSliceID (computeHash tempSliceMap)) tempSlices where
+    tempSliceMap = sliceMap tempSlices
+
+sliceMap :: [Slice] -> Map TempID Slice
+sliceMap tempSlices = Map.fromList (do
+    tempSlice@(Slice tempSliceID _ _) <- tempSlices
+    return (tempSliceID,tempSlice))
+
+replaceSliceID :: (TempID -> SliceID) -> Slice -> Slice
+replaceSliceID f (Slice tempID fragment usages) = Slice (f tempID) fragment (map (replaceUsageID f) usages)
+
+computeHash :: Map TempID Slice -> TempID -> SliceID
+computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,usages))) where
+    Just (Slice _ fragment tempUsages) = Map.lookup tempID tempSliceMap
+    usages = map (replaceUsageID (computeHash tempSliceMap)) tempUsages
+
+replaceUsageID :: (TempID -> SliceID) -> Usage -> Usage
+replaceUsageID f (Usage qualification usedName (OtherSlice tempID)) =
+    (Usage qualification usedName (OtherSlice (f tempID)))
+replaceUsageID _ usage = usage
 
 isPrimitive :: Symbol -> Bool
 isPrimitive symbol = any (`isPrefixOf` (originalModule symbol)) ["GHC","System"]
