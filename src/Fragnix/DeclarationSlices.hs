@@ -24,8 +24,15 @@ import qualified Data.Set as Set (toList)
 import Data.Maybe (maybeToList,fromJust)
 import Data.Hashable (hash)
 
-declarationSlices :: [Declaration] -> [Slice]
-declarationSlices declarations = hashSlices (buildSlices (sccGraph declarationgraph (scc declarationgraph))) where
+declarationSlices :: [Declaration] -> ([Slice],SliceID)
+declarationSlices declarations = (hashedSlices,mainSliceID) where
+    (slices,slicebindings) = unzip (buildSlices (sccGraph declarationgraph (scc declarationgraph)))
+    hashedSlices = hashSlices slices
+    mainSliceID = head (do
+        (Slice sliceID _ _,boundsymbols) <- zip hashedSlices slicebindings
+        boundsymbol <- boundsymbols
+        guard (symbolName boundsymbol == ValueIdentifier "main")
+        return sliceID)
     declarationgraph = declarationGraph declarations
 
 declarationGraph :: [Declaration] -> Gr Declaration Dependency
@@ -67,7 +74,7 @@ sccGraph declarationgraph sccs = buildGr (do
             return (symbol,usedscc)
     return ([],sccnode,declarations,usedsccs))
 
-buildSlices :: Gr [Declaration] Dependency -> [Slice]
+buildSlices :: Gr [Declaration] Dependency -> [(Slice,[Symbol])]
 buildSlices sccgraph = do
     (node,declarations) <- labNodes sccgraph
     let tempID = fromIntegral node
@@ -85,7 +92,10 @@ buildSlices sccgraph = do
                         Nothing -> []
                         Just othernode -> return (OtherSlice (fromIntegral othernode))
             return (Usage Nothing usedname reference)
-    return (Slice tempID fragments usages)
+        allboundsymbols = do
+            Declaration _ _ boundsymbols _ <- declarations
+            listSymbols boundsymbols
+    return (Slice tempID fragments usages,allboundsymbols)
 
 type TempID = Integer
 

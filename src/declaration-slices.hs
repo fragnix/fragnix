@@ -9,5 +9,5 @@ import Control.Monad (forM_)
 main :: IO ()
 main = do
     declarations <- readDeclarations "fragnix/declarations/declarations.json"
-    let slices = declarationSlices declarations
+    let (slices,_) = declarationSlices declarations
     forM_ slices writeSlice

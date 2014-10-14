@@ -14,6 +14,6 @@ main = do
     args <- getArgs
     declarations <- modulDeclarations args
     writeDeclarations "fragnix/declarations/declarations.json" declarations
-    let slices = declarationSlices declarations
+    let (slices,mainSliceID) = declarationSlices declarations
     forM_ slices writeSlice
-    sliceCompiler 7942675488051212534 >>= print
+    sliceCompiler mainSliceID >>= print
