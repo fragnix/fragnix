@@ -9,7 +9,7 @@ import Prelude hiding (writeFile)
 import Language.Haskell.Exts.Syntax (
     Module(Module),Decl,ModuleName(ModuleName),ModulePragma(LanguagePragma),
     Name(Ident,Symbol),ImportDecl(ImportDecl),ImportSpec(IVar,IAbs,IThingWith),
-    CName(ConName))
+    CName(ConName),Namespace(NoNamespace))
 import Language.Haskell.Exts.SrcLoc (noLoc)
 import Language.Haskell.Exts.Parser (
     parseModuleWithMode,ParseMode(parseFilename),defaultParseMode,fromParseResult)
@@ -53,8 +53,8 @@ usageImport (Usage maybeQualification usedName symbolSource) =
         qualified = maybe False (const True) maybeQualification
         maybeAlias = fmap (ModuleName . unpack) maybeQualification
         importSpec = case usedName of
-            ValueIdentifier name -> IVar (Ident (unpack name))
-            ValueOperator name -> IVar (Symbol (unpack name))
+            ValueIdentifier name -> IVar NoNamespace (Ident (unpack name))
+            ValueOperator name -> IVar NoNamespace (Symbol (unpack name))
             TypeIdentifier name -> IAbs (Ident (unpack name))
             TypeOperator name -> IAbs (Symbol (unpack name))
             ConstructorIdentifier typeName name ->
@@ -62,7 +62,7 @@ usageImport (Usage maybeQualification usedName symbolSource) =
             ConstructorOperator typeName name ->
                 IThingWith (Ident (unpack typeName)) [(ConName (Symbol (unpack name)))]
 
-    in ImportDecl noLoc modulName qualified False Nothing maybeAlias (Just (False,[importSpec]))
+    in ImportDecl noLoc modulName qualified False False Nothing maybeAlias (Just (False,[importSpec]))
 
 sliceModuleDirectory :: FilePath
 sliceModuleDirectory = "fragnix" </> "modules"

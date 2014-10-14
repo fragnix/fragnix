@@ -15,6 +15,7 @@ import Language.Haskell.Names.SyntaxUtils (stringToName)
 import Data.Graph.Inductive (Node,buildGr,scc,lab,lsuc,labNodes)
 import Data.Graph.Inductive.PatriciaTree (Gr)
 
+import Control.Monad (guard)
 import Data.Text (pack)
 import qualified Data.Map as Map (lookup,fromList)
 import qualified Data.Set as Set (toList)
@@ -59,6 +60,7 @@ sccGraph declarationgraph sccs = buildGr (do
             declarationnode <- declarationnodes
             (useddeclaration,symbol) <- lsuc declarationgraph declarationnode
             let usedscc = fromJust (Map.lookup useddeclaration sccmap)
+            guard (not (usedscc == sccnode))
             return (symbol,usedscc)
     return ([],sccnode,declarations,usedsccs))
 

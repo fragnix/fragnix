@@ -88,7 +88,7 @@ declGenre (InstDecl _ _ _ _) = ClassInstance
 declGenre (DerivDecl _ _ _) = ClassInstance
 declGenre (TypeSig _ _ _) = TypeSignature
 declGenre (FunBind _ _) = Value
-declGenre (PatBind _ _ _ _ _) = Value
+declGenre (PatBind _ _ _ _) = Value
 declGenre (ForImp _ _ _ _ _ _) = Value
 declGenre _ = Other
 

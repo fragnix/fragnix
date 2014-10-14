@@ -110,7 +110,7 @@ replaceUsageID _ usage = usage
 
 relevantDecl :: Decl (Scoped SrcSpanInfo) -> Bool
 relevantDecl (FunBind _ _) = True
-relevantDecl (PatBind _ _ _ _ _) = True
+relevantDecl (PatBind _ _ _ _) = True
 relevantDecl (TypeDecl _ _ _) = True
 relevantDecl (DataDecl _ _ _ _ _ _) = True
 relevantDecl _ = False
