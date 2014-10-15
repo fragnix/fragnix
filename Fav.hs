@@ -1,9 +1,8 @@
 module Fav where
 
 color :: String
-color = "lightblue"
+color = "cornflowerblue"
 
-main :: IO ()
-main = putStrLn color
-
+number :: String
+number = "forty"
 

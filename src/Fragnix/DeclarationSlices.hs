@@ -13,7 +13,7 @@ import qualified Language.Haskell.Exts.Annotated as Name (
     Name(Ident,Symbol))
 import Language.Haskell.Names.SyntaxUtils (stringToName)
 
-import Data.Graph.Inductive (Node,buildGr,scc,lab,lsuc,labNodes,insEdges)
+import Data.Graph.Inductive (buildGr,scc,lab,lsuc,labNodes,insEdges)
 import Data.Graph.Inductive.PatriciaTree (Gr)
 
 import Control.Monad (guard)
@@ -25,15 +25,14 @@ import Data.Maybe (maybeToList,fromJust)
 import Data.Hashable (hash)
 
 declarationSlices :: [Declaration] -> ([Slice],SliceID)
-declarationSlices declarations = (hashedSlices,mainSliceID) where
-    (slices,slicebindings) = unzip (buildSlices (sccGraph declarationgraph (scc declarationgraph)))
-    hashedSlices = hashSlices slices
+declarationSlices declarations = (slices,mainSliceID) where
+    (tempslices,slicebindings) = unzip (buildTempSlices (sccGraph (declarationGraph declarations)))
+    slices = hashSlices tempslices
     mainSliceID = head (do
-        (Slice sliceID _ _,boundsymbols) <- zip hashedSlices slicebindings
+        (Slice sliceID _ _,boundsymbols) <- zip slices slicebindings
         boundsymbol <- boundsymbols
         guard (symbolName boundsymbol == ValueIdentifier "main")
         return sliceID)
-    declarationgraph = declarationGraph declarations
 
 declarationGraph :: [Declaration] -> Gr Declaration Dependency
 declarationGraph declarations = insEdges signatureedges (buildGr usagecontexts) where
@@ -57,41 +56,39 @@ declarationGraph declarations = insEdges signatureedges (buildGr usagecontexts) 
         declarationnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (declarationnode,signaturenode,Signature)
 
-sccGraph :: Gr Declaration Dependency -> [[Node]] -> Gr [Declaration] Dependency
-sccGraph declarationgraph sccs = buildGr (do
-    let sccnodes = zip [0..] sccs
+sccGraph :: Gr a b -> Gr [a] b
+sccGraph graph = buildGr (do
+    let sccnodes = zip [0..] (scc graph)
         sccmap = Map.fromList (do
-            (sccnode,declarationnodes) <- sccnodes
-            declarationnode <- declarationnodes
-            return (declarationnode,sccnode))
-    (sccnode,declarationnodes) <- sccnodes
-    let declarations = map (fromJust . lab declarationgraph) declarationnodes
-        usedsccs = do
-            declarationnode <- declarationnodes
-            (useddeclaration,symbol) <- lsuc declarationgraph declarationnode
-            let usedscc = fromJust (Map.lookup useddeclaration sccmap)
-            guard (not (usedscc == sccnode))
-            return (symbol,usedscc)
-    return ([],sccnode,declarations,usedsccs))
+            (sccnode,graphnodes) <- sccnodes
+            graphnode <- graphnodes
+            return (graphnode,sccnode))
+    (sccnode,graphnodes) <- sccnodes
+    let scclabels = map (fromJust . lab graph) graphnodes
+        sccsucs = do
+            graphnode <- graphnodes
+            (graphsuc,label) <- lsuc graph graphnode
+            let sccsuc = fromJust (Map.lookup graphsuc sccmap)
+            guard (not (sccsuc == sccnode))
+            return (label,sccsuc)
+    return ([],sccnode,scclabels,sccsucs))
 
-buildSlices :: Gr [Declaration] Dependency -> [(Slice,[Symbol])]
-buildSlices sccgraph = do
-    (node,declarations) <- labNodes sccgraph
+buildTempSlices :: Gr [Declaration] Dependency -> [(Slice,[Symbol])]
+buildTempSlices tempslicegraph = do
+    (node,declarations) <- labNodes tempslicegraph
     let tempID = fromIntegral node
         fragments = Fragment (do
             Declaration _ ast _ _ <- declarations
             return ast)
-        usages = do
+        usages = primitiveUsages ++ otherSliceUsages
+        primitiveUsages = do
             Declaration _ _ _ mentionedsymbols <- declarations
             symbol <- listSymbols mentionedsymbols
-            let usedname = symbolName symbol
-            reference <- do
-                if isPrimitive symbol
-                    then return (Primitive (originalModule symbol))
-                    else case lookup (UsesSymbol symbol) (map (\(x,y) -> (y,x)) (lsuc sccgraph node)) of
-                        Nothing -> []
-                        Just othernode -> return (OtherSlice (fromIntegral othernode))
-            return (Usage Nothing usedname reference)
+            guard (isPrimitive symbol)
+            return (Usage Nothing (symbolName symbol) (Primitive (originalModule symbol)))
+        otherSliceUsages = do
+            (otherSliceNodeID,UsesSymbol symbol) <- lsuc tempslicegraph node
+            return (Usage Nothing (symbolName symbol) (OtherSlice (fromIntegral otherSliceNodeID)))
         allboundsymbols = do
             Declaration _ _ boundsymbols _ <- declarations
             listSymbols boundsymbols
