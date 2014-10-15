@@ -2,13 +2,14 @@
 module Main where
 
 import System.Process (rawSystem)
+import System.Environment (getArgs)
 
 main :: IO ()
 main = do
-    let packagequalifier = "containers"
+    [packagequalifier] <- getArgs
     exitCode <- rawSystem "cabal" [
         "install","--force-reinstalls",
         "--gcc-option=-I/usr/lib/ghc/include",
-        "--haskell-suite","-w","package-modules",
+        "--haskell-suite","-w",".cabal-sandbox/bin/haskell-modules",
         packagequalifier]
     print exitCode

@@ -2,60 +2,47 @@
 module Main where
 
 import Language.Haskell.Exts.Annotated (
-    Module,ModuleName(ModuleName),Decl,
-    defaultParseMode, ParseMode(..),ParseResult(ParseOk,ParseFailed))
+    Module(Module),ModuleHead(ModuleHead),ModuleName(ModuleName),
+    parseFileContentsWithMode,
+    ParseMode(..),defaultParseMode,baseLanguage,extensions,
+    ParseResult(ParseOk,ParseFailed),SrcSpanInfo)
 import Language.Haskell.Exts.Extension (
     Extension(EnableExtension),KnownExtension(..),knownExtensions,
     Language(..),knownLanguages)
-import Language.Haskell.Exts.SrcLoc
-import Language.Haskell.Exts.Annotated.CPP
-import Language.Haskell.Names.SyntaxUtils
-import Language.Haskell.Names
-import Language.Haskell.Names.Interfaces
-import Language.Haskell.Names.ModuleSymbols (getTopDeclSymbols)
-import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (empty)
-import Distribution.ModuleName (fromString,toFilePath)
-import Data.Version
-import Data.Tagged
-import Data.Maybe
-import qualified Data.Foldable as F
-import System.FilePath
-import Text.Printf
-import Data.Aeson (encode,ToJSON(toJSON),object,(.=))
-import qualified Data.ByteString.Lazy as ByteString (writeFile)
+import Language.Preprocessor.Cpphs (
+    runCpphs,CpphsOptions(..),BoolOptions(..))
+import Data.Version (Version(Version))
+import Data.Tagged (Tagged(Tagged))
 
-import Language.Haskell.Exts.Annotated (Decl(..))
-import Language.Haskell.Exts.Pretty (prettyPrint)
+import Distribution.HaskellSuite (
+    IsDBName(getDBName),StandardDB)
+import qualified Distribution.HaskellSuite.Compiler as Compiler (
+    main,Simple,simple,CompileFn)
 
-import qualified Data.Set as Set (fromList)
+import Distribution.Package (
+    PackageIdentifier(pkgName),PackageName(PackageName))
 
-import Distribution.HaskellSuite
-import qualified Distribution.HaskellSuite.Compiler as Compiler
-
-import Distribution.Package (PackageIdentifier(pkgName),PackageName(PackageName))
-
-import System.Directory (doesFileExist,createDirectoryIfMissing)
-
-import Data.Either (partitionEithers)
-import Control.Monad
-import Data.Foldable (foldMap)
+import System.Directory (createDirectoryIfMissing)
+import Control.Monad (forM_)
+import Data.Maybe (fromMaybe)
+import System.FilePath ((</>),(<.>))
 
 main :: IO ()
 main =
   Compiler.main theTool
 
-version :: Data.Version.Version
-version = Data.Version.Version [0,1] []
+version :: Version
+version = Version [0,1] []
 
 data DeclarationsDB = DeclarationsDB
 
 instance IsDBName DeclarationsDB where
-    getDBName = Tagged "module-declarations"
+    getDBName = Tagged "haskell-modules"
 
 theTool :: Compiler.Simple (StandardDB DeclarationsDB)
 theTool =
     Compiler.simple
-        "module-declarations"
+        "haskell-modules"
         version
         knownLanguages
         knownExtensions
@@ -107,130 +94,30 @@ fixExtensions exts =
     (EnableExtension TemplateHaskell):
     exts
 
-parse :: Language -> [Extension] -> CpphsOptions -> FilePath -> IO (Module SrcSpan)
-parse language exts cppoptions filename = do
-    let mode = defaultParseMode {
-            parseFilename   = filename,
-            baseLanguage          = language,
-            extensions            = fixExtensions exts,
-            ignoreLanguagePragmas = False,
-            ignoreLinePragmas     = False,
-            fixities              = Just []}
-    parseresult <- parseFileWithCommentsAndCPP cppoptions mode filename
-    case parseresult of
-        ParseOk (ast,_) -> return (fmap srcInfoSpan ast)
-        ParseFailed location msg -> error ("PARSE FAILED: " ++ show location ++ " " ++ show msg)
-
 compile :: Compiler.CompileFn
-compile _ maybelanguage exts cppoptions packagename _ _ files = do
-    let language = fromMaybe Haskell98 maybelanguage
+compile _ maybelanguage exts cppoptions packagename _ _ filenames = do
 
-    let isParsec = pkgName packagename == PackageName "parsec"
+    let language = fromMaybe Haskell98 maybelanguage
+        isParsec = pkgName packagename == PackageName "parsec"
         cppoptions' = if isParsec then fixCppOptsForParsec cppoptions else fixCppOpts cppoptions
 
-    moduleasts <- mapM (parse language exts cppoptions') files  
+    createDirectoryIfMissing True "fragnix/modules"
 
-    (interfaces, errors) <- runFragnixModule (getInterfaces language exts moduleasts)
+    forM_ filenames (\filename -> do
+        file <- readFile filename
+        preprocessedfile <- runCpphs cppoptions' filename file
+        let parsemode = defaultParseMode {
+                parseFilename         = filename,
+                baseLanguage          = language,
+                extensions            = fixExtensions exts,
+                ignoreLanguagePragmas = False,
+                ignoreLinePragmas     = False,
+                fixities              = Just []}
+            parseresult = parseFileContentsWithMode parsemode preprocessedfile
+        case parseresult of
+            ParseOk ast -> writeFile (modulfilename ast) file
+            ParseFailed location message -> error ("PARSE FAILED: " ++ show location ++ " " ++ show message))
 
-    F.for_ errors $ \e -> printf "Warning: %s" (ppError e)
-
-    forM_ (zip moduleasts interfaces) (\(moduleast, symbols) -> do
-
-        annotatedmoduleast <- runFragnixModule (annotateModule language exts moduleast)
-
-        let declarations = extractDeclarations (getModuleName annotatedmoduleast) annotatedmoduleast
-            ModuleName _ modulename = getModuleName moduleast
-            interfacefilename = modulePath modulename
-            declarationsfilename = "/home/pschuster/Projects/fragnix/fragnix" </> "declarations" </> modulename
-
-        createDirectoryIfMissing True (dropFileName interfacefilename)
-        createDirectoryIfMissing True (dropFileName declarationsfilename)
-
-        writeInterface interfacefilename $ qualifySymbols packagename symbols
-        ByteString.writeFile declarationsfilename (encode declarations))
-
-extractDeclarations :: ModuleName (Scoped SrcSpan) -> Module (Scoped SrcSpan) -> [Declaration]
-extractDeclarations modulenameast annotatedmoduleast =
-  map (declToDeclaration modulenameast) (getModuleDecls annotatedmoduleast)
-
-declToDeclaration :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> Declaration
-declToDeclaration modulenameast annotatedmoduleast = Declaration
-    (declGenre annotatedmoduleast)
-    (prettyPrint annotatedmoduleast)
-    (declaredSymbols modulenameast annotatedmoduleast)
-    (usedSymbols annotatedmoduleast)
-
-declGenre :: Decl (Scoped SrcSpan) -> Genre
-declGenre (TypeDecl _ _ _) = Type
-declGenre (TypeFamDecl _ _ _) = Type
-declGenre (DataDecl _ _ _ _ _ _) = Type
-declGenre (GDataDecl _ _ _ _ _ _ _) = Type
-declGenre (DataFamDecl _ _ _ _) = Type
-declGenre (TypeInsDecl _ _ _) = Type
-declGenre (DataInsDecl _ _ _ _ _) = Type
-declGenre (GDataInsDecl _ _ _ _ _ _) = Type
-declGenre (ClassDecl _ _ _ _ _) = TypeClass
-declGenre (InstDecl _ _ _ _) = ClassInstance
-declGenre (DerivDecl _ _ _) = ClassInstance
-declGenre (TypeSig _ _ _) = TypeSignature
-declGenre (FunBind _ _) = Value
-declGenre (PatBind _ _ _ _) = Value
-declGenre (ForImp _ _ _ _ _ _) = Value
-declGenre _ = Other
-
-declaredSymbols :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> Symbols
-declaredSymbols modulenameast annotatedmoduleast = Symbols (Set.fromList valuesymbols) (Set.fromList typesymbols) where
-    (valuesymbols,typesymbols) = partitionEithers (getTopDeclSymbols GlobalTable.empty modulenameast annotatedmoduleast)
-
-usedSymbols :: Decl (Scoped SrcSpan) -> Symbols
-usedSymbols annotatedmoduleast = Symbols (Set.fromList valuesymbols) (Set.fromList typesymbols) where
-    (valuesymbols,typesymbols) = partitionEithers (foldMap externalSymbol annotatedmoduleast)
-
-externalSymbol :: Scoped SrcSpan -> [Either (SymValueInfo OrigName) (SymTypeInfo OrigName)]
-externalSymbol (Scoped (GlobalValue symvalueinfo) _) = [Left symvalueinfo]
-externalSymbol (Scoped (GlobalType symtypeinfo) _) = [Right symtypeinfo]
-externalSymbol _ = []
-
-data Declaration = Declaration Genre DeclarationAST DeclaredSymbols UsedSymbols deriving (Show,Eq)
-data Genre = Value | TypeSignature | Type | TypeClass | ClassInstance | Other deriving (Show,Eq)
-type DeclarationAST = String
-type DeclaredSymbols = Symbols
-type UsedSymbols = Symbols
-
-instance ToJSON Declaration where
-    toJSON (Declaration genre declarationast declaredsymbols usedsymbols) = object [
-        "declarationgenre" .= show genre,
-        "declarationast" .= declarationast,
-        "declaredsymbols" .= declaredsymbols,
-        "mentionedsymbols" .= usedsymbols]
-
-type ModuleNameString = String
-
-modulePath :: ModuleNameString -> FilePath
-modulePath modulename = "/home/pschuster/Projects/fragnix/fragnix" </> "names" </> modulename
-
-builtinPath :: ModuleNameString -> FilePath
-builtinPath modulename = "/home/pschuster/Projects/fragnix/fragnix" </> "builtin" </> modulename
-
-newtype FragnixModule a = FragnixModule {runFragnixModule :: IO a}
-    deriving (Functor,Monad)
-
-instance MonadModule FragnixModule where
-    type ModuleInfo FragnixModule = Symbols
-    lookupInCache modulename = FragnixModule (do
-        let builtinpath = builtinPath (toFilePath (fromString (modToString modulename)) <.> "names")
-            modulepath = modulePath (modToString modulename)
-        builtinExists <- doesFileExist builtinpath
-        moduleExists <- doesFileExist modulepath
-        if builtinExists
-            then readInterface builtinpath >>= return . Just
-            else (do
-                if moduleExists
-                    then readInterface modulepath >>= return . Just
-                    else return Nothing))
-    insertInCache modulename symbols = FragnixModule (do
-        let modulepath = modulePath (modToString modulename)
-        createDirectoryIfMissing True (dropFileName modulepath)
-        writeInterface modulepath symbols)
-    getPackages = return []
-    readModuleInfo = error "Not implemented: readModuleInfo"
+modulfilename :: Module SrcSpanInfo -> FilePath
+modulfilename (Module _ (Just (ModuleHead _ (ModuleName _ modulname) _ _)) _ _ _) =
+    "fragnix/modules" </> modulname <.> "hs"
