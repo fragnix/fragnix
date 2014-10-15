@@ -16,7 +16,7 @@ import Language.Preprocessor.Cpphs (
 import Data.Version (Version(Version))
 
 import Distribution.HaskellSuite (
-    IsPackageDB(..),Packages)
+    IsPackageDB(..))
 import qualified Distribution.HaskellSuite.Compiler as Compiler (
     main,Simple,simple,CompileFn)
 
