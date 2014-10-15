@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings,GeneralizedNewtypeDeriving,TypeFamilies #-}
 module Main where
 
+import Fragnix.BuiltinPackages (builtinpackages)
+
 import Language.Haskell.Exts.Annotated (
     Module(Module),ModuleHead(ModuleHead),ModuleName(ModuleName),
     parseFileContentsWithMode,
@@ -12,16 +14,16 @@ import Language.Haskell.Exts.Extension (
 import Language.Preprocessor.Cpphs (
     runCpphs,CpphsOptions(..),BoolOptions(..))
 import Data.Version (Version(Version))
-import Data.Tagged (Tagged(Tagged))
 
 import Distribution.HaskellSuite (
-    IsDBName(getDBName),StandardDB)
+    IsPackageDB(..),Packages)
 import qualified Distribution.HaskellSuite.Compiler as Compiler (
     main,Simple,simple,CompileFn)
 
 import Distribution.Package (
     PackageIdentifier(pkgName),PackageName(PackageName))
 
+import Data.Tagged (Tagged(Tagged))
 import System.Directory (createDirectoryIfMissing)
 import Control.Monad (forM_)
 import Data.Maybe (fromMaybe)
@@ -31,15 +33,7 @@ main :: IO ()
 main =
   Compiler.main theTool
 
-version :: Version
-version = Version [0,1] []
-
-data DeclarationsDB = DeclarationsDB
-
-instance IsDBName DeclarationsDB where
-    getDBName = Tagged "haskell-modules"
-
-theTool :: Compiler.Simple (StandardDB DeclarationsDB)
+theTool :: Compiler.Simple DummyDB
 theTool =
     Compiler.simple
         "haskell-modules"
@@ -48,6 +42,33 @@ theTool =
         knownExtensions
         compile
         []
+
+version :: Version
+version = Version [0,1] []
+
+data DummyDB = DummyDB
+
+instance IsPackageDB DummyDB where
+    --dbName :: Tagged db String
+    dbName = Tagged "haskell-modules"
+
+    --readPackageDB :: MaybeInitDB -> db -> IO Packages
+    readPackageDB _ DummyDB = return builtinpackages
+
+    --writePackageDB :: db -> Packages -> IO ()
+    writePackageDB _ _ = return ()
+
+    --globalDB :: IO (Maybe db)
+    globalDB = return (Just DummyDB)
+
+    --dbFromPath :: FilePath -> IO db
+    dbFromPath _ = return DummyDB
+
+    --locateDB :: PackageDB -> IO (Maybe db)
+    locateDB _ = return (Just DummyDB)
+
+    --userDB :: IO db
+    userDB = return DummyDB
 
 fixCppOpts :: CpphsOptions -> CpphsOptions
 fixCppOpts opts =
@@ -120,4 +141,4 @@ compile _ maybelanguage exts cppoptions packagename _ _ filenames = do
 
 modulfilename :: Module SrcSpanInfo -> FilePath
 modulfilename (Module _ (Just (ModuleHead _ (ModuleName _ modulname) _ _)) _ _ _) =
-    "fragnix/modules" </> modulname <.> "hs"
+    "/home/pschuster/Projects/fragnix/fragnix/modules" </> modulname <.> "hs"
