@@ -136,7 +136,7 @@ compile _ maybelanguage exts cppoptions packagename _ _ filenames = do
                 fixities              = Just []}
             parseresult = parseFileContentsWithMode parsemode preprocessedfile
         case parseresult of
-            ParseOk ast -> writeFile (modulfilename ast) file
+            ParseOk ast -> writeFile (modulfilename ast) preprocessedfile
             ParseFailed location message -> error ("PARSE FAILED: " ++ show location ++ " " ++ show message))
 
 modulfilename :: Module SrcSpanInfo -> FilePath
