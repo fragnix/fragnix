@@ -5,6 +5,8 @@ import Fragnix.Declaration (Declaration(Declaration),Genre(TypeSignature))
 import Fragnix.Slice (
     Slice(Slice),SliceID,Fragment(Fragment),Usage(Usage),UsedName(..),
     Reference(Primitive,OtherSlice),OriginalModule)
+import Fragnix.GlobalScope (GlobalScope)
+import Fragnix.Symbol (Symbol(ValueSymbol,TypeSymbol))
 
 import Language.Haskell.Names (
     SymValueInfo(SymConstructor),SymTypeInfo,OrigName,Symbols(Symbols),
@@ -151,11 +153,6 @@ constructorNameUsed typename constructorname = case stringToName constructorname
 originalModule :: Symbol -> OriginalModule
 originalModule (ValueSymbol valuesymbol) = pack (gModule (origGName (sv_origName valuesymbol)))
 originalModule (TypeSymbol typesymbol) = pack (gModule (origGName (st_origName typesymbol)))
-
-data Symbol =
-    ValueSymbol (SymValueInfo OrigName) |
-    TypeSymbol (SymTypeInfo OrigName)
-        deriving (Eq,Ord,Show)
 
 data Dependency =
     UsesSymbol Symbol |
