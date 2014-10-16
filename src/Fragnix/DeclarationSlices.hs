@@ -26,15 +26,14 @@ import qualified Data.Set as Set (toList)
 import Data.Maybe (maybeToList,fromJust)
 import Data.Hashable (hash)
 
-declarationSlices :: [Declaration] -> ([Slice],SliceID)
-declarationSlices declarations = (slices,mainSliceID) where
+declarationSlices :: [Declaration] -> ([Slice],GlobalScope)
+declarationSlices declarations = (slices,globalscope) where
     (tempslices,slicebindings) = unzip (buildTempSlices (sccGraph (declarationGraph declarations)))
     slices = hashSlices tempslices
-    mainSliceID = head (do
+    globalscope = Map.fromList (do
         (Slice sliceID _ _,boundsymbols) <- zip slices slicebindings
         boundsymbol <- boundsymbols
-        guard (symbolName boundsymbol == ValueIdentifier "main")
-        return sliceID)
+        return (boundsymbol,sliceID))
 
 declarationGraph :: [Declaration] -> Gr Declaration Dependency
 declarationGraph declarations =
