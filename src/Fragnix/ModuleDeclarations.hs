@@ -4,6 +4,9 @@ module Fragnix.ModuleDeclarations where
 import Fragnix.Declaration (
     Declaration(Declaration),Genre(..))
 
+import Fragnix.Primitive (
+    primitiveNames)
+
 import Language.Haskell.Exts.Annotated (
     Module,ModuleName,Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
     SrcSpan,srcInfoSpan,
@@ -21,15 +24,14 @@ import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (
     empty)
 import Distribution.HaskellSuite.Modules (
     MonadModule(..),ModuleInfo,modToString)
-import Distribution.ModuleName (
-    fromString,toFilePath)
 
 import Data.Set (Set)
 import qualified Data.Set as Set (fromList)
+import qualified Data.Map as Map (lookup)
 import Control.Monad (forM)
 import Data.Either (partitionEithers)
 import Data.Foldable (foldMap)
-import System.FilePath ((</>),(<.>),dropFileName)
+import System.FilePath ((</>),dropFileName)
 import System.Directory (doesFileExist,createDirectoryIfMissing)
 import Data.Text (pack)
 
@@ -110,25 +112,20 @@ type ModuleNameString = String
 namesPath :: ModuleNameString -> FilePath
 namesPath modulname = "fragnix" </> "names" </> modulname
 
-builtinPath :: ModuleNameString -> FilePath
-builtinPath modulname = "fragnix" </> "builtin" </> modulname
-
 newtype FragnixModule a = FragnixModule {runFragnixModule :: IO a}
     deriving (Functor,Monad)
 
 instance MonadModule FragnixModule where
     type ModuleInfo FragnixModule = Symbols
     lookupInCache name = FragnixModule (do
-        let builtinpath = builtinPath (toFilePath (fromString (modToString name)) <.> "names")
-            namespath = namesPath (modToString name)
-        builtinExists <- doesFileExist builtinpath
-        namesExists <- doesFileExist namespath
-        if builtinExists
-            then readInterface builtinpath >>= return . Just
-            else (do
+        case Map.lookup (modToString name) primitiveNames of
+            Just symbols -> return (Just symbols)
+            Nothing -> do
+                let namespath = namesPath (modToString name)
+                namesExists <- doesFileExist namespath
                 if namesExists
                     then fmap Just (readInterface namespath)
-                    else return Nothing))
+                    else return Nothing)
     insertInCache name symbols = FragnixModule (do
         let namespath = namesPath (modToString name)
         createDirectoryIfMissing True (dropFileName namespath)
