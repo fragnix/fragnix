@@ -23,7 +23,8 @@ executable fragnix
                        Fragnix.DeclarationSlices,
                        Fragnix.SliceCompiler,
                        Fragnix.GlobalScope,
-                       Fragnix.Symbol
+                       Fragnix.Symbol,
+                       Fragnix.Primitive
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.7,
                        text >=1.1 && < 1.2,
@@ -40,7 +41,8 @@ executable fragnix
                        bytestring >=0.10.4.0 && <0.11,
                        hashable >=1.2.2.0 && <1.3,
                        transformers >=0.3.0.0 && <0.4,
-                       fgl >=5.4.2.4 && <5.5
+                       fgl >=5.4.2.4 && <5.5,
+                       directory-tree
   hs-source-dirs:      src
   default-language:    Haskell2010
 
