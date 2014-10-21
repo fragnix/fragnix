@@ -5,7 +5,7 @@ import Fragnix.Declaration (
     Declaration(Declaration),Genre(..))
 
 import Fragnix.Primitive (
-    primitiveNames)
+    primitiveModules)
 
 import Language.Haskell.Exts.Annotated (
     Module,ModuleName,Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
@@ -14,7 +14,7 @@ import Language.Haskell.Exts.Annotated (
 import Language.Haskell.Names (
     Symbols(Symbols),Error,Scoped(Scoped),computeInterfaces,annotateModule,
     SymValueInfo,SymTypeInfo,OrigName,
-    NameInfo(GlobalValue,GlobalType))
+    NameInfo(GlobalValue,GlobalType),ModuleNameS)
 import Language.Haskell.Names.Interfaces (readInterface,writeInterface)
 import Language.Haskell.Names.SyntaxUtils (
     getModuleDecls,getModuleName)
@@ -107,10 +107,11 @@ externalSymbol (Scoped (GlobalValue symvalueinfo) _) = [Left symvalueinfo]
 externalSymbol (Scoped (GlobalType symtypeinfo) _) = [Right symtypeinfo]
 externalSymbol _ = []
 
-type ModuleNameString = String
-
-namesPath :: ModuleNameString -> FilePath
+namesPath :: ModuleNameS -> FilePath
 namesPath modulname = "fragnix" </> "names" </> modulname
+
+primitivePath :: ModuleNameS -> FilePath
+primitivePath modulname = "fragnix" </> "primitive" </> modulname
 
 newtype FragnixModule a = FragnixModule {runFragnixModule :: IO a}
     deriving (Functor,Monad)
@@ -118,10 +119,12 @@ newtype FragnixModule a = FragnixModule {runFragnixModule :: IO a}
 instance MonadModule FragnixModule where
     type ModuleInfo FragnixModule = Symbols
     lookupInCache name = FragnixModule (do
-        case Map.lookup (modToString name) primitiveNames of
-            Just symbols -> return (Just symbols)
-            Nothing -> do
-                let namespath = namesPath (modToString name)
+        let modulname = modToString name
+        if modulname `elem` primitiveModules
+            then do
+                fmap Just (readInterface (primitivePath modulname))
+            else do
+                let namespath = namesPath modulname
                 namesExists <- doesFileExist namespath
                 if namesExists
                     then fmap Just (readInterface namespath)
