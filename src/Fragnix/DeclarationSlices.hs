@@ -7,6 +7,7 @@ import Fragnix.Slice (
     Reference(Primitive,OtherSlice),OriginalModule)
 import Fragnix.GlobalScope (GlobalScope)
 import Fragnix.Symbol (Symbol(ValueSymbol,TypeSymbol))
+import Fragnix.Primitive (primitiveModules)
 
 import Language.Haskell.Names (
     SymValueInfo(SymConstructor),SymTypeInfo,OrigName,Symbols(Symbols),
@@ -19,7 +20,7 @@ import Data.Graph.Inductive (buildGr,scc,lab,lsuc,labNodes,insEdges,insNodes,emp
 import Data.Graph.Inductive.PatriciaTree (Gr)
 
 import Control.Monad (guard)
-import Data.Text (pack,isPrefixOf)
+import Data.Text (pack,unpack,isPrefixOf)
 import Data.Map (Map)
 import qualified Data.Map as Map (lookup,fromList)
 import qualified Data.Set as Set (toList)
@@ -119,7 +120,7 @@ replaceUsageID f (Usage qualification usedName (OtherSlice tempID)) =
 replaceUsageID _ usage = usage
 
 isPrimitive :: Symbol -> Bool
-isPrimitive symbol = any (`isPrefixOf` (originalModule symbol)) ["GHC","System"]
+isPrimitive symbol = unpack (originalModule symbol) `elem` primitiveModules
 
 listSymbols :: Symbols -> [Symbol]
 listSymbols (Symbols valueSymbolSet typeSymbolSet) = valueSymbols ++ typeSymbols where
