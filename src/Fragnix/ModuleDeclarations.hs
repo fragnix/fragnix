@@ -27,7 +27,6 @@ import Distribution.HaskellSuite.Modules (
 
 import Data.Set (Set)
 import qualified Data.Set as Set (fromList)
-import qualified Data.Map as Map (lookup)
 import Control.Monad (forM)
 import Data.Either (partitionEithers)
 import Data.Foldable (foldMap)

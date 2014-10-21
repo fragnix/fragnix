@@ -20,7 +20,7 @@ import Data.Graph.Inductive (buildGr,scc,lab,lsuc,labNodes,insEdges,insNodes,emp
 import Data.Graph.Inductive.PatriciaTree (Gr)
 
 import Control.Monad (guard)
-import Data.Text (pack,unpack,isPrefixOf)
+import Data.Text (pack,unpack)
 import Data.Map (Map)
 import qualified Data.Map as Map (lookup,fromList)
 import qualified Data.Set as Set (toList)
