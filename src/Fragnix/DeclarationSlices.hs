@@ -157,9 +157,9 @@ typeNameUsed typename = case stringToName typename of
     Name.Symbol _ name -> TypeOperator (pack name)
 
 constructorNameUsed :: String -> String -> UsedName
-constructorNameUsed typename constructorname = case stringToName constructorname of
-    Name.Ident _ name -> ConstructorIdentifier (pack typename) (pack name)
-    Name.Symbol _ name -> ConstructorOperator (pack typename) (pack name)
+constructorNameUsed typename constructorname = case constructorname of
+    (':':_) -> ConstructorOperator (pack typename) (pack constructorname)
+    _ -> ConstructorIdentifier (pack typename) (pack constructorname)
 
 originalModule :: Symbol -> OriginalModule
 originalModule (ValueSymbol valuesymbol) = pack (gModule (origGName (sv_origName valuesymbol)))
