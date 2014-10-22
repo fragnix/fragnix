@@ -1,1 +1,2582 @@
-[{"origin":{"name":"=<<","module":"Control.Monad","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"mapM","module":"Control.Monad","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"mapM_","module":"Control.Monad","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"sequence","module":"Control.Monad","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"sequence_","module":"Control.Monad","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"either","module":"Data.Either","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"foldl1","module":"Data.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"lines","module":"Data.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"maximum","module":"Data.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"minimum","module":"Data.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"product","module":"Data.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"sum","module":"Data.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"unlines","module":"Data.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"unwords","module":"Data.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"words","module":"Data.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"maybe","module":"Data.Maybe","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"curry","module":"Data.Tuple","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"fst","module":"Data.Tuple","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"snd","module":"Data.Tuple","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"uncurry","module":"Data.Tuple","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"$","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"++","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":".","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"asTypeOf","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"const","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"flip","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"foldr","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"id","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"map","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"otherwise","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"until","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"error","module":"GHC.Err","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"undefined","module":"GHC.Err","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"ioError","module":"GHC.IO.Exception","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"userError","module":"GHC.IO.Exception","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"!!","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"all","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"and","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"any","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"break","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"concat","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"concatMap","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"cycle","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"drop","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"dropWhile","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"elem","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"filter","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"foldl","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"foldr1","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"head","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"init","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"iterate","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"last","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"length","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"lookup","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"notElem","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"null","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"or","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"repeat","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"replicate","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"reverse","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"scanl","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"scanl1","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"scanr","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"scanr1","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"span","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"splitAt","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"tail","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"take","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"takeWhile","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"unzip","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"unzip3","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"zip","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"zip3","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"zipWith","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"zipWith3","module":"GHC.List","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"subtract","module":"GHC.Num","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"lex","module":"GHC.Read","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"readParen","module":"GHC.Read","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"^","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"^^","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"even","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"fromIntegral","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"gcd","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"lcm","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"odd","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"realToFrac","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"showChar","module":"GHC.Show","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"showParen","module":"GHC.Show","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"showString","module":"GHC.Show","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"shows","module":"GHC.Show","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"$!","module":"Prelude","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"appendFile","module":"System.IO","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"getChar","module":"System.IO","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"getContents","module":"System.IO","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"getLine","module":"System.IO","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"interact","module":"System.IO","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"print","module":"System.IO","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"putChar","module":"System.IO","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"putStr","module":"System.IO","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"putStrLn","module":"System.IO","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"readFile","module":"System.IO","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"readIO","module":"System.IO","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"readLn","module":"System.IO","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"writeFile","module":"System.IO","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"read","module":"Text.Read","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"reads","module":"Text.Read","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"&&","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"value"},{"origin":{"name":"not","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"value"},{"origin":{"name":"||","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"value"},{"origin":{"name":"seq","module":"GHC.Prim","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"value"},{"origin":{"name":">>","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Monad","module":"GHC.Base","package":"base-4.7.0.0"}},{"origin":{"name":">>=","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Monad","module":"GHC.Base","package":"base-4.7.0.0"}},{"origin":{"name":"fail","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Monad","module":"GHC.Base","package":"base-4.7.0.0"}},{"origin":{"name":"fmap","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Functor","module":"GHC.Base","package":"base-4.7.0.0"}},{"origin":{"name":"return","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Monad","module":"GHC.Base","package":"base-4.7.0.0"}},{"origin":{"name":"enumFrom","module":"GHC.Enum","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Enum","module":"GHC.Enum","package":"base-4.7.0.0"}},{"origin":{"name":"enumFromThen","module":"GHC.Enum","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Enum","module":"GHC.Enum","package":"base-4.7.0.0"}},{"origin":{"name":"enumFromThenTo","module":"GHC.Enum","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Enum","module":"GHC.Enum","package":"base-4.7.0.0"}},{"origin":{"name":"enumFromTo","module":"GHC.Enum","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Enum","module":"GHC.Enum","package":"base-4.7.0.0"}},{"origin":{"name":"fromEnum","module":"GHC.Enum","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Enum","module":"GHC.Enum","package":"base-4.7.0.0"}},{"origin":{"name":"maxBound","module":"GHC.Enum","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Bounded","module":"GHC.Enum","package":"base-4.7.0.0"}},{"origin":{"name":"minBound","module":"GHC.Enum","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Bounded","module":"GHC.Enum","package":"base-4.7.0.0"}},{"origin":{"name":"pred","module":"GHC.Enum","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Enum","module":"GHC.Enum","package":"base-4.7.0.0"}},{"origin":{"name":"succ","module":"GHC.Enum","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Enum","module":"GHC.Enum","package":"base-4.7.0.0"}},{"origin":{"name":"toEnum","module":"GHC.Enum","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Enum","module":"GHC.Enum","package":"base-4.7.0.0"}},{"origin":{"name":"**","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"acos","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"acosh","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"asin","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"asinh","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"atan","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"atan2","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFloat","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"atanh","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"cos","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"cosh","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"decodeFloat","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFloat","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"encodeFloat","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFloat","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"exp","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"exponent","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFloat","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"floatDigits","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFloat","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"floatRadix","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFloat","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"floatRange","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFloat","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"isDenormalized","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFloat","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"isIEEE","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFloat","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"isInfinite","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFloat","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"isNaN","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFloat","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"isNegativeZero","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFloat","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"log","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"logBase","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"pi","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"scaleFloat","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFloat","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"significand","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFloat","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"sin","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"sinh","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"sqrt","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"tan","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"tanh","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"}},{"origin":{"name":"*","module":"GHC.Num","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Num","module":"GHC.Num","package":"base-4.7.0.0"}},{"origin":{"name":"+","module":"GHC.Num","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Num","module":"GHC.Num","package":"base-4.7.0.0"}},{"origin":{"name":"-","module":"GHC.Num","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Num","module":"GHC.Num","package":"base-4.7.0.0"}},{"origin":{"name":"abs","module":"GHC.Num","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Num","module":"GHC.Num","package":"base-4.7.0.0"}},{"origin":{"name":"fromInteger","module":"GHC.Num","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Num","module":"GHC.Num","package":"base-4.7.0.0"}},{"origin":{"name":"negate","module":"GHC.Num","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Num","module":"GHC.Num","package":"base-4.7.0.0"}},{"origin":{"name":"signum","module":"GHC.Num","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Num","module":"GHC.Num","package":"base-4.7.0.0"}},{"origin":{"name":"readList","module":"GHC.Read","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Read","module":"GHC.Read","package":"base-4.7.0.0"}},{"origin":{"name":"readsPrec","module":"GHC.Read","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Read","module":"GHC.Read","package":"base-4.7.0.0"}},{"origin":{"name":"/","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Fractional","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"ceiling","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFrac","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"div","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Integral","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"divMod","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Integral","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"floor","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFrac","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"fromRational","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Fractional","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"mod","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Integral","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"properFraction","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFrac","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"quot","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Integral","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"quotRem","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Integral","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"recip","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Fractional","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"rem","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Integral","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"round","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFrac","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"toInteger","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Integral","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"toRational","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Real","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"truncate","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"RealFrac","module":"GHC.Real","package":"base-4.7.0.0"}},{"origin":{"name":"show","module":"GHC.Show","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Show","module":"GHC.Show","package":"base-4.7.0.0"}},{"origin":{"name":"showList","module":"GHC.Show","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Show","module":"GHC.Show","package":"base-4.7.0.0"}},{"origin":{"name":"showsPrec","module":"GHC.Show","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"Show","module":"GHC.Show","package":"base-4.7.0.0"}},{"origin":{"name":"/=","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"method","class":{"name":"Eq","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"}},{"origin":{"name":"<","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"method","class":{"name":"Ord","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"}},{"origin":{"name":"<=","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"method","class":{"name":"Ord","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"}},{"origin":{"name":"==","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"method","class":{"name":"Eq","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"}},{"origin":{"name":">","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"method","class":{"name":"Ord","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"}},{"origin":{"name":">=","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"method","class":{"name":"Ord","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"}},{"origin":{"name":"compare","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"method","class":{"name":"Ord","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"}},{"origin":{"name":"max","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"method","class":{"name":"Ord","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"}},{"origin":{"name":"min","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"method","class":{"name":"Ord","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"}},{"origin":{"name":"Left","module":"Data.Either","package":"base-4.7.0.0"},"type":{"name":"Either","module":"Data.Either","package":"base-4.7.0.0"},"fixity":null,"entity":"constructor"},{"origin":{"name":"Right","module":"Data.Either","package":"base-4.7.0.0"},"type":{"name":"Either","module":"Data.Either","package":"base-4.7.0.0"},"fixity":null,"entity":"constructor"},{"origin":{"name":"Just","module":"Data.Maybe","package":"base-4.7.0.0"},"type":{"name":"Maybe","module":"Data.Maybe","package":"base-4.7.0.0"},"fixity":null,"entity":"constructor"},{"origin":{"name":"Nothing","module":"Data.Maybe","package":"base-4.7.0.0"},"type":{"name":"Maybe","module":"Data.Maybe","package":"base-4.7.0.0"},"fixity":null,"entity":"constructor"},{"origin":{"name":"EQ","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"type":{"name":"Ordering","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"constructor"},{"origin":{"name":"False","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"type":{"name":"Bool","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"constructor"},{"origin":{"name":"GT","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"type":{"name":"Ordering","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"constructor"},{"origin":{"name":"LT","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"type":{"name":"Ordering","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"constructor"},{"origin":{"name":"True","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"type":{"name":"Bool","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"constructor"},{"origin":{"name":"String","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"type"},{"origin":{"name":"FilePath","module":"GHC.IO","package":"base-4.7.0.0"},"fixity":null,"entity":"type"},{"origin":{"name":"IOError","module":"GHC.IO.Exception","package":"base-4.7.0.0"},"fixity":null,"entity":"type"},{"origin":{"name":"Rational","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"type"},{"origin":{"name":"ShowS","module":"GHC.Show","package":"base-4.7.0.0"},"fixity":null,"entity":"type"},{"origin":{"name":"ReadS","module":"Text.ParserCombinators.ReadP","package":"base-4.7.0.0"},"fixity":null,"entity":"type"},{"origin":{"name":"Either","module":"Data.Either","package":"base-4.7.0.0"},"fixity":null,"entity":"data"},{"origin":{"name":"Maybe","module":"Data.Maybe","package":"base-4.7.0.0"},"fixity":null,"entity":"data"},{"origin":{"name":"Bool","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"data"},{"origin":{"name":"Char","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"data"},{"origin":{"name":"Double","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"data"},{"origin":{"name":"Float","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"data"},{"origin":{"name":"Int","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"data"},{"origin":{"name":"Ordering","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"data"},{"origin":{"name":"Integer","module":"GHC.Integer.Type","package":"integer-simple-0.1.1.0"},"fixity":null,"entity":"data"},{"origin":{"name":"IO","module":"GHC.Types","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"newtype"},{"origin":{"name":"Functor","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"class"},{"origin":{"name":"Monad","module":"GHC.Base","package":"base-4.7.0.0"},"fixity":null,"entity":"class"},{"origin":{"name":"Bounded","module":"GHC.Enum","package":"base-4.7.0.0"},"fixity":null,"entity":"class"},{"origin":{"name":"Enum","module":"GHC.Enum","package":"base-4.7.0.0"},"fixity":null,"entity":"class"},{"origin":{"name":"Floating","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"class"},{"origin":{"name":"RealFloat","module":"GHC.Float","package":"base-4.7.0.0"},"fixity":null,"entity":"class"},{"origin":{"name":"Num","module":"GHC.Num","package":"base-4.7.0.0"},"fixity":null,"entity":"class"},{"origin":{"name":"Read","module":"GHC.Read","package":"base-4.7.0.0"},"fixity":null,"entity":"class"},{"origin":{"name":"Fractional","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"class"},{"origin":{"name":"Integral","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"class"},{"origin":{"name":"Real","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"class"},{"origin":{"name":"RealFrac","module":"GHC.Real","package":"base-4.7.0.0"},"fixity":null,"entity":"class"},{"origin":{"name":"Show","module":"GHC.Show","package":"base-4.7.0.0"},"fixity":null,"entity":"class"},{"origin":{"name":"Eq","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"class"},{"origin":{"name":"Ord","module":"GHC.Classes","package":"ghc-prim-0.3.1.0"},"fixity":null,"entity":"class"}]
+[
+  {
+    "origin": {
+      "name": "=<<",
+      "module": "Control.Monad",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "mapM",
+      "module": "Control.Monad",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "mapM_",
+      "module": "Control.Monad",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "sequence",
+      "module": "Control.Monad",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "sequence_",
+      "module": "Control.Monad",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "either",
+      "module": "Data.Either",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "foldl1",
+      "module": "Data.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "lines",
+      "module": "Data.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "maximum",
+      "module": "Data.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "minimum",
+      "module": "Data.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "product",
+      "module": "Data.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "sum",
+      "module": "Data.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "unlines",
+      "module": "Data.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "unwords",
+      "module": "Data.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "words",
+      "module": "Data.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "maybe",
+      "module": "Data.Maybe",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "curry",
+      "module": "Data.Tuple",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "fst",
+      "module": "Data.Tuple",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "snd",
+      "module": "Data.Tuple",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "uncurry",
+      "module": "Data.Tuple",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "$",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "++",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": ".",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "asTypeOf",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "const",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "flip",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "foldr",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "id",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "map",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "otherwise",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "until",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "error",
+      "module": "GHC.Err",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "undefined",
+      "module": "GHC.Err",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "ioError",
+      "module": "GHC.IO.Exception",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "userError",
+      "module": "GHC.IO.Exception",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "!!",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "all",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "and",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "any",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "break",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "concat",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "concatMap",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "cycle",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "drop",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "dropWhile",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "elem",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "filter",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "foldl",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "foldr1",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "head",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "init",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "iterate",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "last",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "length",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "lookup",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "notElem",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "null",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "or",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "repeat",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "replicate",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "reverse",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "scanl",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "scanl1",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "scanr",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "scanr1",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "span",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "splitAt",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "tail",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "take",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "takeWhile",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "unzip",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "unzip3",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "zip",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "zip3",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "zipWith",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "zipWith3",
+      "module": "GHC.List",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "subtract",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "lex",
+      "module": "GHC.Read",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "readParen",
+      "module": "GHC.Read",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "^",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "^^",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "even",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "fromIntegral",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "gcd",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "lcm",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "odd",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "realToFrac",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "showChar",
+      "module": "GHC.Show",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "showParen",
+      "module": "GHC.Show",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "showString",
+      "module": "GHC.Show",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "shows",
+      "module": "GHC.Show",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "$!",
+      "module": "Prelude",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "appendFile",
+      "module": "System.IO",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "getChar",
+      "module": "System.IO",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "getContents",
+      "module": "System.IO",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "getLine",
+      "module": "System.IO",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "interact",
+      "module": "System.IO",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "print",
+      "module": "System.IO",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "putChar",
+      "module": "System.IO",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "putStr",
+      "module": "System.IO",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "putStrLn",
+      "module": "System.IO",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "readFile",
+      "module": "System.IO",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "readIO",
+      "module": "System.IO",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "readLn",
+      "module": "System.IO",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "writeFile",
+      "module": "System.IO",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "read",
+      "module": "Text.Read",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "reads",
+      "module": "Text.Read",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "&&",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "not",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "||",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": "seq",
+      "module": "GHC.Prim",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "value"
+  },
+  {
+    "origin": {
+      "name": ">>",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Monad",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": ">>=",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Monad",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "fail",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Monad",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "fmap",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Functor",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "return",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Monad",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "enumFrom",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Enum",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "enumFromThen",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Enum",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "enumFromThenTo",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Enum",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "enumFromTo",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Enum",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "fromEnum",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Enum",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "maxBound",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Bounded",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "minBound",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Bounded",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "pred",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Enum",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "succ",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Enum",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "toEnum",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Enum",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "**",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "acos",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "acosh",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "asin",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "asinh",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "atan",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "atan2",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "atanh",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "cos",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "cosh",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "decodeFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "encodeFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "exp",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "exponent",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "floatDigits",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "floatRadix",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "floatRange",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "isDenormalized",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "isIEEE",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "isInfinite",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "isNaN",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "isNegativeZero",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "log",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "logBase",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "pi",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "scaleFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "significand",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "sin",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "sinh",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "sqrt",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "tan",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "tanh",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "*",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Num",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "+",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Num",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "-",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Num",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "abs",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Num",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "fromInteger",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Num",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "negate",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Num",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "signum",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Num",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "readList",
+      "module": "GHC.Read",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Read",
+      "module": "GHC.Read",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "readsPrec",
+      "module": "GHC.Read",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Read",
+      "module": "GHC.Read",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "/",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Fractional",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "ceiling",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFrac",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "div",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Integral",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "divMod",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Integral",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "floor",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFrac",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "fromRational",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Fractional",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "mod",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Integral",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "properFraction",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFrac",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "quot",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Integral",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "quotRem",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Integral",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "recip",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Fractional",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "rem",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Integral",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "round",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFrac",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "toInteger",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Integral",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "toRational",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Real",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "truncate",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "RealFrac",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "show",
+      "module": "GHC.Show",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Show",
+      "module": "GHC.Show",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "showList",
+      "module": "GHC.Show",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Show",
+      "module": "GHC.Show",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "showsPrec",
+      "module": "GHC.Show",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Show",
+      "module": "GHC.Show",
+      "package": "base-4.7.0.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "/=",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Eq",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "<",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Ord",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "<=",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Ord",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "==",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Eq",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    }
+  },
+  {
+    "origin": {
+      "name": ">",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Ord",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    }
+  },
+  {
+    "origin": {
+      "name": ">=",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Ord",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "compare",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Ord",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "max",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Ord",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "min",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "method",
+    "class": {
+      "name": "Ord",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    }
+  },
+  {
+    "origin": {
+      "name": "Left",
+      "module": "Data.Either",
+      "package": "base-4.7.0.0"
+    },
+    "type": {
+      "name": "Either",
+      "module": "Data.Either",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "constructor"
+  },
+  {
+    "origin": {
+      "name": "Right",
+      "module": "Data.Either",
+      "package": "base-4.7.0.0"
+    },
+    "type": {
+      "name": "Either",
+      "module": "Data.Either",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "constructor"
+  },
+  {
+    "origin": {
+      "name": "Just",
+      "module": "Data.Maybe",
+      "package": "base-4.7.0.0"
+    },
+    "type": {
+      "name": "Maybe",
+      "module": "Data.Maybe",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "constructor"
+  },
+  {
+    "origin": {
+      "name": "Nothing",
+      "module": "Data.Maybe",
+      "package": "base-4.7.0.0"
+    },
+    "type": {
+      "name": "Maybe",
+      "module": "Data.Maybe",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "constructor"
+  },
+  {
+    "origin": {
+      "name": "EQ",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "type": {
+      "name": "Ordering",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "constructor"
+  },
+  {
+    "origin": {
+      "name": "False",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "type": {
+      "name": "Bool",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "constructor"
+  },
+  {
+    "origin": {
+      "name": "GT",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "type": {
+      "name": "Ordering",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "constructor"
+  },
+  {
+    "origin": {
+      "name": "LT",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "type": {
+      "name": "Ordering",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "constructor"
+  },
+  {
+    "origin": {
+      "name": "True",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "type": {
+      "name": "Bool",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "constructor"
+  },
+  {
+    "origin": {
+      "name": "String",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "type"
+  },
+  {
+    "origin": {
+      "name": "FilePath",
+      "module": "GHC.IO",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "type"
+  },
+  {
+    "origin": {
+      "name": "IOError",
+      "module": "GHC.IO.Exception",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "type"
+  },
+  {
+    "origin": {
+      "name": "Rational",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "type"
+  },
+  {
+    "origin": {
+      "name": "ShowS",
+      "module": "GHC.Show",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "type"
+  },
+  {
+    "origin": {
+      "name": "ReadS",
+      "module": "Text.ParserCombinators.ReadP",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "type"
+  },
+  {
+    "origin": {
+      "name": "Either",
+      "module": "Data.Either",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "data"
+  },
+  {
+    "origin": {
+      "name": "Maybe",
+      "module": "Data.Maybe",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "data"
+  },
+  {
+    "origin": {
+      "name": "Bool",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "data"
+  },
+  {
+    "origin": {
+      "name": "Char",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "data"
+  },
+  {
+    "origin": {
+      "name": "Double",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "data"
+  },
+  {
+    "origin": {
+      "name": "Float",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "data"
+  },
+  {
+    "origin": {
+      "name": "Int",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "data"
+  },
+  {
+    "origin": {
+      "name": "Ordering",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "data"
+  },
+  {
+    "origin": {
+      "name": "Integer",
+      "module": "GHC.Integer.GMP.Internals",
+      "package": "integer-gmp-0.5.0.0"
+    },
+    "fixity": null,
+    "entity": "data"
+  },
+  {
+    "origin": {
+      "name": "IO",
+      "module": "GHC.Types",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "newtype"
+  },
+  {
+    "origin": {
+      "name": "Functor",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "class"
+  },
+  {
+    "origin": {
+      "name": "Monad",
+      "module": "GHC.Base",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "class"
+  },
+  {
+    "origin": {
+      "name": "Bounded",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "class"
+  },
+  {
+    "origin": {
+      "name": "Enum",
+      "module": "GHC.Enum",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "class"
+  },
+  {
+    "origin": {
+      "name": "Floating",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "class"
+  },
+  {
+    "origin": {
+      "name": "RealFloat",
+      "module": "GHC.Float",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "class"
+  },
+  {
+    "origin": {
+      "name": "Num",
+      "module": "GHC.Num",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "class"
+  },
+  {
+    "origin": {
+      "name": "Read",
+      "module": "GHC.Read",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "class"
+  },
+  {
+    "origin": {
+      "name": "Fractional",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "class"
+  },
+  {
+    "origin": {
+      "name": "Integral",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "class"
+  },
+  {
+    "origin": {
+      "name": "Real",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "class"
+  },
+  {
+    "origin": {
+      "name": "RealFrac",
+      "module": "GHC.Real",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "class"
+  },
+  {
+    "origin": {
+      "name": "Show",
+      "module": "GHC.Show",
+      "package": "base-4.7.0.0"
+    },
+    "fixity": null,
+    "entity": "class"
+  },
+  {
+    "origin": {
+      "name": "Eq",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "class"
+  },
+  {
+    "origin": {
+      "name": "Ord",
+      "module": "GHC.Classes",
+      "package": "ghc-prim-0.3.1.0"
+    },
+    "fixity": null,
+    "entity": "class"
+  }
+]
