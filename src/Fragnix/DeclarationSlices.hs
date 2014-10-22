@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Fragnix.DeclarationSlices where
 
-import Fragnix.Declaration (Declaration(Declaration),Genre(TypeSignature))
+import Fragnix.Declaration (
+    Declaration(Declaration),Genre(TypeSignature,ClassInstance))
 import Fragnix.Slice (
     Slice(Slice),SliceID,Fragment(Fragment),Usage(Usage),UsedName(..),
     Reference(Primitive,OtherSlice),OriginalModule)
@@ -10,14 +11,16 @@ import Fragnix.Symbol (Symbol(ValueSymbol,TypeSymbol))
 import Fragnix.Primitive (primitiveModules)
 
 import Language.Haskell.Names (
-    SymValueInfo(SymConstructor),SymTypeInfo,OrigName,Symbols(Symbols),
-    sv_origName,st_origName,origGName,gName,gModule)
+    Symbols(Symbols),SymValueInfo(SymConstructor),SymTypeInfo(SymClass),
+    OrigName,sv_origName,st_origName,origGName,gName,gModule)
 import qualified Language.Haskell.Exts.Annotated as Name (
     Name(Ident,Symbol))
 import Language.Haskell.Names.SyntaxUtils (stringToName)
 
-import Data.Graph.Inductive (buildGr,scc,lab,lsuc,labNodes,insEdges,insNodes,empty)
-import Data.Graph.Inductive.PatriciaTree (Gr)
+import Data.Graph.Inductive (
+    buildGr,scc,lab,lsuc,labNodes,insEdges,insNodes,empty)
+import Data.Graph.Inductive.PatriciaTree (
+    Gr)
 
 import Control.Monad (guard)
 import Data.Text (pack,unpack)
@@ -38,7 +41,10 @@ declarationSlices declarations = (slices,globalscope) where
 
 declarationGraph :: [Declaration] -> Gr Declaration Dependency
 declarationGraph declarations =
-    insEdges signatureedges (insEdges usedsymboledges (insNodes declarationnodes empty)) where
+    insEdges signatureedges (
+        insEdges usedsymboledges (
+            insEdges instanceEdges (
+                insNodes declarationnodes empty))) where
     declarationnodes = zip [0..] declarations
     boundmap = Map.fromList (do
         (node,declaration) <- declarationnodes
@@ -56,6 +62,11 @@ declarationGraph declarations =
         mentionedsymbol@(ValueSymbol _) <- listSymbols mentionedsymbols
         declarationnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (declarationnode,signaturenode,Signature)
+    instanceEdges = do
+        (instancenode,Declaration ClassInstance _ _ mentionedsymbols) <- declarationnodes
+        classsymbol@(TypeSymbol (SymClass _ _)) <- listSymbols mentionedsymbols
+        classnode <- maybeToList (Map.lookup classsymbol boundmap)
+        return (classnode,instancenode,Instance)
 
 sccGraph :: Gr a b -> Gr [a] b
 sccGraph graph = buildGr (do
@@ -156,5 +167,6 @@ originalModule (TypeSymbol typesymbol) = pack (gModule (origGName (st_origName t
 
 data Dependency =
     UsesSymbol Symbol |
-    Signature
+    Signature |
+    Instance
         deriving (Eq,Ord,Show)
