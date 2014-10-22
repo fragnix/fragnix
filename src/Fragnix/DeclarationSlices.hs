@@ -53,7 +53,7 @@ declarationGraph declarations =
         return (node,usednode,UsesSymbol mentionedsymbol)
     signatureedges = do
         (signaturenode,Declaration TypeSignature _ _ mentionedsymbols) <- declarationnodes
-        mentionedsymbol <- listSymbols mentionedsymbols
+        mentionedsymbol@(ValueSymbol _) <- listSymbols mentionedsymbols
         declarationnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (declarationnode,signaturenode,Signature)
 
