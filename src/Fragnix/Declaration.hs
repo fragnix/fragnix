@@ -1,7 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Fragnix.Declaration where
 
-import Language.Haskell.Names (Symbols)
+import Fragnix.Symbol (Symbol)
+
+import Language.Haskell.Names (Symbols,ModuleNameS)
 import Language.Haskell.Names.Interfaces ()
 
 import Data.Aeson (
@@ -21,7 +23,7 @@ data Genre = Value | TypeSignature | Type | TypeClass | ClassInstance | Other
     deriving (Show,Eq,Read)
 type DeclarationAST   = Text
 type DeclaredSymbols  = Symbols
-type MentionedSymbols = Symbols
+type MentionedSymbols = [(Maybe ModuleNameS,Symbol)]
 
 readDeclarations :: FilePath -> IO [Declaration]
 readDeclarations declarationspath = do

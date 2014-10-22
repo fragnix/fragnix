@@ -3,17 +3,17 @@ module Fragnix.ModuleDeclarations where
 
 import Fragnix.Declaration (
     Declaration(Declaration),Genre(..))
-
+import Fragnix.Symbol (
+    Symbol(ValueSymbol,TypeSymbol))
 import Fragnix.Primitive (
     primitiveModules)
 
 import Language.Haskell.Exts.Annotated (
-    Module,ModuleName,Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
-    SrcSpan,srcInfoSpan,
+    Module,ModuleName(ModuleName),Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
+    SrcSpan,srcInfoSpan,QName(Qual),ann,
     prettyPrint,Language(Haskell2010),Extension)
 import Language.Haskell.Names (
     Symbols(Symbols),Error,Scoped(Scoped),computeInterfaces,annotateModule,
-    SymValueInfo,SymTypeInfo,OrigName,
     NameInfo(GlobalValue,GlobalType),ModuleNameS)
 import Language.Haskell.Names.Interfaces (readInterface,writeInterface)
 import Language.Haskell.Names.SyntaxUtils (
@@ -25,11 +25,13 @@ import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (
 import Distribution.HaskellSuite.Modules (
     MonadModule(..),ModuleInfo,modToString)
 
+import Data.Generics.Uniplate.Data (universeBi)
+
 import Data.Set (Set)
 import qualified Data.Set as Set (fromList)
 import Control.Monad (forM)
 import Data.Either (partitionEithers)
-import Data.Foldable (foldMap)
+import Data.Maybe (mapMaybe)
 import System.FilePath ((</>),dropFileName)
 import System.Directory (doesFileExist,createDirectoryIfMissing)
 import Data.Text (pack)
@@ -97,14 +99,20 @@ declaredSymbols :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> Symbo
 declaredSymbols modulnameast annotatedast = Symbols (Set.fromList valuesymbols) (Set.fromList typesymbols) where
     (valuesymbols,typesymbols) = partitionEithers (getTopDeclSymbols GlobalTable.empty modulnameast annotatedast)
 
-usedSymbols :: Decl (Scoped SrcSpan) -> Symbols
-usedSymbols annotatedast = Symbols (Set.fromList valuesymbols) (Set.fromList typesymbols) where
-    (valuesymbols,typesymbols) = partitionEithers (foldMap externalSymbol annotatedast)
+usedSymbols :: Decl (Scoped SrcSpan) -> [(Maybe ModuleNameS,Symbol)]
+usedSymbols = mapMaybe externalSymbol . universeBi
 
-externalSymbol :: Scoped SrcSpan -> [Either (SymValueInfo OrigName) (SymTypeInfo OrigName)]
-externalSymbol (Scoped (GlobalValue symvalueinfo) _) = [Left symvalueinfo]
-externalSymbol (Scoped (GlobalType symtypeinfo) _) = [Right symtypeinfo]
-externalSymbol _ = []
+externalSymbol :: QName (Scoped SrcSpan) -> Maybe (Maybe ModuleNameS,Symbol)
+externalSymbol qname = do
+    symbol <- scopeSymbol (ann qname)
+    return (case qname of
+        Qual _ (ModuleName _ modulname) _ -> (Just modulname,symbol)
+        _ -> (Nothing,symbol))
+
+scopeSymbol :: Scoped SrcSpan -> Maybe Symbol
+scopeSymbol (Scoped (GlobalValue valuesymbol) _) = Just (ValueSymbol valuesymbol)
+scopeSymbol (Scoped (GlobalType typesymbol) _) = Just (TypeSymbol typesymbol)
+scopeSymbol _ = Nothing
 
 namesPath :: ModuleNameS -> FilePath
 namesPath modulname = "fragnix" </> "names" </> modulname

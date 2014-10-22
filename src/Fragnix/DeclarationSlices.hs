@@ -12,7 +12,7 @@ import Fragnix.Primitive (primitiveModules)
 
 import Language.Haskell.Names (
     Symbols(Symbols),SymValueInfo(SymConstructor),SymTypeInfo(SymClass),
-    OrigName,sv_origName,st_origName,origGName,gName,gModule)
+    OrigName,sv_origName,st_origName,origGName,gName,gModule,ModuleNameS)
 import qualified Language.Haskell.Exts.Annotated as Name (
     Name(Ident,Symbol))
 import Language.Haskell.Names.SyntaxUtils (stringToName)
@@ -54,17 +54,17 @@ declarationGraph declarations =
     usedsymboledges = do
         (node,declaration) <- declarationnodes
         let Declaration _ _ _ mentionedsymbols = declaration
-        mentionedsymbol <- listSymbols mentionedsymbols
+        (maybequalification,mentionedsymbol) <- mentionedsymbols
         usednode <- maybeToList (Map.lookup mentionedsymbol boundmap)
-        return (node,usednode,UsesSymbol mentionedsymbol)
+        return (node,usednode,UsesSymbol maybequalification mentionedsymbol)
     signatureedges = do
         (signaturenode,Declaration TypeSignature _ _ mentionedsymbols) <- declarationnodes
-        mentionedsymbol@(ValueSymbol _) <- listSymbols mentionedsymbols
+        mentionedsymbol@(ValueSymbol _) <- map snd mentionedsymbols
         declarationnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (declarationnode,signaturenode,Signature)
     instanceEdges = do
         (instancenode,Declaration ClassInstance _ _ mentionedsymbols) <- declarationnodes
-        classsymbol@(TypeSymbol (SymClass _ _)) <- listSymbols mentionedsymbols
+        classsymbol@(TypeSymbol (SymClass _ _)) <- map snd mentionedsymbols
         classnode <- maybeToList (Map.lookup classsymbol boundmap)
         return (classnode,instancenode,Instance)
 
@@ -95,12 +95,12 @@ buildTempSlices tempslicegraph = do
         usages = primitiveUsages ++ otherSliceUsages
         primitiveUsages = do
             Declaration _ _ _ mentionedsymbols <- declarations
-            symbol <- listSymbols mentionedsymbols
+            (maybequalification,symbol) <- mentionedsymbols
             guard (isPrimitive symbol)
-            return (Usage Nothing (symbolName symbol) (Primitive (originalModule symbol)))
+            return (Usage (fmap pack maybequalification) (symbolName symbol) (Primitive (originalModule symbol)))
         otherSliceUsages = do
-            (otherSliceNodeID,UsesSymbol symbol) <- lsuc tempslicegraph node
-            return (Usage Nothing (symbolName symbol) (OtherSlice (fromIntegral otherSliceNodeID)))
+            (otherSliceNodeID,UsesSymbol maybequalification symbol) <- lsuc tempslicegraph node
+            return (Usage (fmap pack maybequalification) (symbolName symbol) (OtherSlice (fromIntegral otherSliceNodeID)))
         allboundsymbols = do
             Declaration _ _ boundsymbols _ <- declarations
             listSymbols boundsymbols
@@ -166,7 +166,7 @@ originalModule (ValueSymbol valuesymbol) = pack (gModule (origGName (sv_origName
 originalModule (TypeSymbol typesymbol) = pack (gModule (origGName (st_origName typesymbol)))
 
 data Dependency =
-    UsesSymbol Symbol |
+    UsesSymbol (Maybe ModuleNameS) Symbol |
     Signature |
     Instance
         deriving (Eq,Ord,Show)
