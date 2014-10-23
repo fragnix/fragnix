@@ -2,7 +2,7 @@
 module Fragnix.DeclarationSlices where
 
 import Fragnix.Declaration (
-    Declaration(Declaration),Genre(TypeSignature,ClassInstance))
+    Declaration(Declaration),Genre(TypeSignature,ClassInstance,InfixFixity))
 import Fragnix.Slice (
     Slice(Slice),SliceID,Fragment(Fragment),Usage(Usage),UsedName(..),
     Reference(Primitive,OtherSlice),OriginalModule)
@@ -41,10 +41,8 @@ declarationSlices declarations = (slices,globalscope) where
 
 declarationGraph :: [Declaration] -> Gr Declaration Dependency
 declarationGraph declarations =
-    insEdges signatureedges (
-        insEdges usedsymboledges (
-            insEdges instanceEdges (
-                insNodes declarationnodes empty))) where
+    insEdges (signatureedges ++ usedsymboledges ++ instanceEdges ++ fixityEdges) (
+        insNodes declarationnodes empty) where
     declarationnodes = zip [0..] declarations
     boundmap = Map.fromList (do
         (node,declaration) <- declarationnodes
@@ -67,6 +65,11 @@ declarationGraph declarations =
         classsymbol@(TypeSymbol (SymClass _ _)) <- map snd mentionedsymbols
         classnode <- maybeToList (Map.lookup classsymbol boundmap)
         return (classnode,instancenode,Instance)
+    fixityEdges = do
+        (fixitynode,Declaration InfixFixity _ _ mentionedsymbols) <- declarationnodes
+        mentionedsymbol <- map snd mentionedsymbols
+        bindingnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
+        return (bindingnode,fixitynode,Fixity)
 
 sccGraph :: Gr a b -> Gr [a] b
 sccGraph graph = buildGr (do
@@ -168,5 +171,6 @@ originalModule (TypeSymbol typesymbol) = pack (gModule (origGName (st_origName t
 data Dependency =
     UsesSymbol (Maybe ModuleNameS) Symbol |
     Signature |
-    Instance
+    Instance |
+    Fixity
         deriving (Eq,Ord,Show)

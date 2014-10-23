@@ -93,6 +93,7 @@ declGenre (TypeSig _ _ _) = TypeSignature
 declGenre (FunBind _ _) = Value
 declGenre (PatBind _ _ _ _) = Value
 declGenre (ForImp _ _ _ _ _ _) = Value
+declGenre (InfixDecl _ _ _ _) = InfixFixity
 declGenre _ = Other
 
 declaredSymbols :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> Symbols
