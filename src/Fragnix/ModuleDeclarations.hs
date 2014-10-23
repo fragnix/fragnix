@@ -10,7 +10,7 @@ import Fragnix.Primitive (
 
 import Language.Haskell.Exts.Annotated (
     Module,ModuleName(ModuleName),Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
-    SrcSpan,srcInfoSpan,QName(Qual),ann,
+    SrcSpan,srcInfoSpan,QName(Qual,UnQual),ann,
     prettyPrint,Language(Haskell2010),Extension)
 import Language.Haskell.Names (
     Symbols(Symbols),Error,Scoped(Scoped),computeInterfaces,annotateModule,
@@ -100,7 +100,10 @@ declaredSymbols modulnameast annotatedast = Symbols (Set.fromList valuesymbols) 
     (valuesymbols,typesymbols) = partitionEithers (getTopDeclSymbols GlobalTable.empty modulnameast annotatedast)
 
 usedSymbols :: Decl (Scoped SrcSpan) -> [(Maybe ModuleNameS,Symbol)]
-usedSymbols = mapMaybe externalSymbol . universeBi
+usedSymbols (TypeSig _ names typ) =
+    mapMaybe externalSymbol (universeBi typ) ++
+    mapMaybe (externalSymbol . (\n -> UnQual (ann n) n)) names
+usedSymbols decl = mapMaybe externalSymbol (universeBi decl)
 
 externalSymbol :: QName (Scoped SrcSpan) -> Maybe (Maybe ModuleNameS,Symbol)
 externalSymbol qname = do
