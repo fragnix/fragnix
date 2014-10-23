@@ -10,14 +10,14 @@ import Fragnix.Primitive (
 
 import Language.Haskell.Exts.Annotated (
     Module,ModuleName(ModuleName),Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
-    SrcSpan,srcInfoSpan,QName(Qual,UnQual),ann,
+    SrcSpan,srcInfoSpan,QName(Qual),ann,
     prettyPrint,Language(Haskell2010),Extension)
 import Language.Haskell.Names (
     Symbols(Symbols),Error,Scoped(Scoped),computeInterfaces,annotateModule,
     NameInfo(GlobalValue,GlobalType),ModuleNameS)
 import Language.Haskell.Names.Interfaces (readInterface,writeInterface)
 import Language.Haskell.Names.SyntaxUtils (
-    getModuleDecls,getModuleName)
+    getModuleDecls,getModuleName,opName)
 import Language.Haskell.Names.ModuleSymbols (
     getTopDeclSymbols)
 import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (
@@ -102,7 +102,9 @@ declaredSymbols modulnameast annotatedast = Symbols (Set.fromList valuesymbols) 
 usedSymbols :: Decl (Scoped SrcSpan) -> [(Maybe ModuleNameS,Symbol)]
 usedSymbols (TypeSig _ names typ) =
     mapMaybe externalSymbol (universeBi typ) ++
-    mapMaybe (externalSymbol . (\n -> UnQual (ann n) n)) names
+    mapMaybe (fmap noQualification . scopeSymbol . ann) names
+usedSymbols (InfixDecl _ _ _ ops) =
+    mapMaybe (fmap noQualification . scopeSymbol . ann . opName) ops
 usedSymbols decl = mapMaybe externalSymbol (universeBi decl)
 
 externalSymbol :: QName (Scoped SrcSpan) -> Maybe (Maybe ModuleNameS,Symbol)
@@ -110,12 +112,15 @@ externalSymbol qname = do
     symbol <- scopeSymbol (ann qname)
     return (case qname of
         Qual _ (ModuleName _ modulname) _ -> (Just modulname,symbol)
-        _ -> (Nothing,symbol))
+        _ -> noQualification symbol)
 
 scopeSymbol :: Scoped SrcSpan -> Maybe Symbol
 scopeSymbol (Scoped (GlobalValue valuesymbol) _) = Just (ValueSymbol valuesymbol)
 scopeSymbol (Scoped (GlobalType typesymbol) _) = Just (TypeSymbol typesymbol)
 scopeSymbol _ = Nothing
+
+noQualification :: Symbol -> (Maybe ModuleNameS,Symbol)
+noQualification symbol = (Nothing,symbol)
 
 namesPath :: ModuleNameS -> FilePath
 namesPath modulname = "fragnix" </> "names" </> modulname
