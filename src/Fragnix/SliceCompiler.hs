@@ -3,6 +3,7 @@ module Fragnix.SliceCompiler where
 import Fragnix.Slice (
     Slice(Slice),SliceID,Fragment(Fragment),Usage(Usage),
     Reference(OtherSlice,Primitive),UsedName(..),readSlice)
+import Fragnix.LanguageExtensions (languageExtensions)
 
 import Prelude hiding (writeFile)
 
@@ -12,7 +13,8 @@ import Language.Haskell.Exts.Syntax (
     CName(ConName),Namespace(NoNamespace))
 import Language.Haskell.Exts.SrcLoc (noLoc)
 import Language.Haskell.Exts.Parser (
-    parseModuleWithMode,ParseMode(parseFilename),defaultParseMode,fromParseResult)
+    parseModuleWithMode,ParseMode(parseFilename,extensions),defaultParseMode,
+    fromParseResult)
 import Language.Haskell.Exts.Pretty (prettyPrint)
 
 import Data.Text.IO (writeFile)
@@ -53,7 +55,9 @@ assemble (Slice sliceID slice usages) =
 parseDeclaration :: SliceID -> Text -> Decl
 parseDeclaration sliceID declaration = decl where
     Module _ _ _ _ _ _ [decl] = fromParseResult (parseModuleWithMode parseMode (unpack declaration))
-    parseMode = defaultParseMode { parseFilename = show sliceID }
+    parseMode = defaultParseMode {
+        parseFilename = show sliceID,
+        extensions = languageExtensions}
 
 usageImport :: Usage -> ImportDecl
 usageImport (Usage maybeQualification usedName symbolSource) =
