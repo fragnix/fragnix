@@ -7,14 +7,11 @@ import Fragnix.Symbol (
     Symbol(ValueSymbol,TypeSymbol))
 import Fragnix.Primitive (
     primitiveModules)
-import Fragnix.LanguageExtensions (
-    languageExtensions)
 
 import Language.Haskell.Exts.Annotated (
-    Module,ModuleName(ModuleName),Decl(..),parseModule,ParseResult(ParseOk,ParseFailed),
+    Module,ModuleName(ModuleName),Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
     SrcSpan,srcInfoSpan,QName(Qual),ann,
-    prettyPrint,Language(Haskell2010),Extension,
-    parseModuleWithMode,defaultParseMode,ParseMode(parseFilename,extensions))
+    prettyPrint,Language(Haskell2010),Extension)
 import Language.Haskell.Names (
     Symbols(Symbols),Error,Scoped(Scoped),computeInterfaces,annotateModule,
     NameInfo(GlobalValue,GlobalType),ModuleNameS)
@@ -51,22 +48,22 @@ modulDeclarations modulpaths = do
 
 parse :: FilePath -> IO (Module SrcSpan)
 parse path = do
-    modulfile <- readFile path
-    let parsemode = defaultParseMode {
-            parseFilename = path,
-            extensions = languageExtensions}
-    case parseModuleWithMode parsemode modulfile of
+    parseresult <- parseFile path
+    case parseresult of
         ParseOk ast -> return (fmap srcInfoSpan ast)
         ParseFailed location message -> error ("PARSE FAILED: " ++ path ++ show location ++ message)
 
 resolve :: [Module SrcSpan] -> IO (Set (Error SrcSpan))
-resolve asts = runFragnixModule (computeInterfaces language languageExtensions asts)
+resolve asts = runFragnixModule (computeInterfaces language extensions asts)
 
 annotate :: Module SrcSpan -> IO (Module (Scoped SrcSpan))
-annotate ast = runFragnixModule (annotateModule language languageExtensions ast)
+annotate ast = runFragnixModule (annotateModule language extensions ast)
 
 language :: Language
 language = Haskell2010
+
+extensions :: [Extension]
+extensions = []
 
 extractDeclarations :: Module (Scoped SrcSpan) -> [Declaration]
 extractDeclarations annotatedast =
