@@ -16,7 +16,7 @@ import Language.Preprocessor.Cpphs (
 import Data.Version (Version(Version))
 
 import Distribution.HaskellSuite (
-    IsPackageDB(..))
+    IsPackageDB(..),readDB,writeDB,MaybeInitDB(InitDB))
 import qualified Distribution.HaskellSuite.Compiler as Compiler (
     main,Simple,simple,CompileFn)
 
@@ -49,25 +49,14 @@ version = Version [0,1] []
 data DummyDB = DummyDB
 
 instance IsPackageDB DummyDB where
-    --dbName :: Tagged db String
     dbName = Tagged "haskell-modules"
-
-    --readPackageDB :: MaybeInitDB -> db -> IO Packages
-    readPackageDB _ DummyDB = return builtinpackages
-
-    --writePackageDB :: db -> Packages -> IO ()
-    writePackageDB _ _ = return ()
-
-    --globalDB :: IO (Maybe db)
+    readPackageDB _ DummyDB = do
+        packages <- readDB InitDB packagedbfilename
+        return (builtinpackages ++ packages)
+    writePackageDB DummyDB packages = writeDB packagedbfilename packages
     globalDB = return (Just DummyDB)
-
-    --dbFromPath :: FilePath -> IO db
     dbFromPath _ = return DummyDB
-
-    --locateDB :: PackageDB -> IO (Maybe db)
     locateDB _ = return (Just DummyDB)
-
-    --userDB :: IO db
     userDB = return DummyDB
 
 fixCppOpts :: CpphsOptions -> CpphsOptions
@@ -142,3 +131,6 @@ compile _ maybelanguage exts cppoptions packagename _ _ filenames = do
 modulfilename :: Module SrcSpanInfo -> FilePath
 modulfilename (Module _ (Just (ModuleHead _ (ModuleName _ modulname) _ _)) _ _ _) =
     "/home/pschuster/Projects/fragnix/fragnix/modules" </> modulname <.> "hs"
+
+packagedbfilename :: FilePath
+packagedbfilename = "/home/pschuster/Projects/fragnix/fragnix/packagedb/packages.db"
