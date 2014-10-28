@@ -27,7 +27,6 @@ import Data.Tagged (Tagged(Tagged))
 import System.Directory (createDirectoryIfMissing)
 import Control.Monad (forM_)
 import Data.Maybe (fromMaybe)
-import Distribution.Text (disp)
 import System.FilePath ((</>),(<.>),dropFileName)
 
 main :: IO ()
@@ -125,13 +124,13 @@ compile _ maybelanguage exts cppoptions packagename _ _ filenames = do
             parseresult = parseFileContentsWithMode parsemode preprocessedfile
         case parseresult of
             ParseOk ast -> do
-                createDirectoryIfMissing True (dropFileName (modulfilename packagename ast))
-                writeFile (modulfilename packagename ast) preprocessedfile
+                createDirectoryIfMissing True (dropFileName (modulfilename ast))
+                writeFile (modulfilename ast) preprocessedfile
             ParseFailed location message -> error ("PARSE FAILED: " ++ show location ++ " " ++ show message))
 
-modulfilename :: PackageIdentifier -> Module SrcSpanInfo -> FilePath
-modulfilename packagename (Module _ (Just (ModuleHead _ (ModuleName _ modulname) _ _)) _ _ _) =
-    "/home/pschuster/Projects/fragnix/fragnix/modules" </> show (disp packagename) </> modulname <.> "hs"
+modulfilename :: Module SrcSpanInfo -> FilePath
+modulfilename (Module _ (Just (ModuleHead _ (ModuleName _ modulname) _ _)) _ _ _) =
+    "/home/pschuster/Projects/fragnix/fragnix/modules" </> modulname <.> "hs"
 
 packagedbfilename :: FilePath
 packagedbfilename = "/home/pschuster/Projects/fragnix/fragnix/instances/packages.db"
