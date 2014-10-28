@@ -69,6 +69,7 @@ instance Hashable Fragment
 
 
 deriving instance Show Usage
+deriving instance Eq Usage
 deriving instance Generic Usage
 
 instance ToJSON Usage where
@@ -114,6 +115,7 @@ instance Hashable UsedName
 
 
 deriving instance Show Reference
+deriving instance Eq Reference
 deriving instance Generic Reference
 
 instance ToJSON Reference where

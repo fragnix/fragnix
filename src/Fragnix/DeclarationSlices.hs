@@ -29,6 +29,7 @@ import qualified Data.Map as Map (lookup,fromList)
 import qualified Data.Set as Set (toList)
 import Data.Maybe (maybeToList,fromJust)
 import Data.Hashable (hash)
+import Data.List (nub)
 
 declarationSlices :: [Declaration] -> ([Slice],GlobalScope)
 declarationSlices declarations = (slices,globalscope) where
@@ -95,7 +96,7 @@ buildTempSlices tempslicegraph = do
         fragments = Fragment (do
             Declaration _ ast _ _ <- declarations
             return ast)
-        usages = primitiveUsages ++ otherSliceUsages
+        usages = nub (primitiveUsages ++ otherSliceUsages)
         primitiveUsages = do
             Declaration _ _ _ mentionedsymbols <- declarations
             (maybequalification,symbol) <- mentionedsymbols
