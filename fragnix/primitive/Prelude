@@ -2429,8 +2429,8 @@
   {
     "origin": {
       "name": "Integer",
-      "module": "GHC.Integer.GMP.Internals",
-      "package": "integer-gmp-0.5.0.0"
+      "module": "GHC.Integer",
+      "package": "integer-simple-0.1.1.0"
     },
     "fixity": null,
     "entity": "data"
