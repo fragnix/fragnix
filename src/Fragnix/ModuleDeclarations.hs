@@ -6,7 +6,7 @@ import Fragnix.Declaration (
 import Fragnix.Symbol (
     Symbol(ValueSymbol,TypeSymbol))
 import Fragnix.Primitive (
-    primitiveModules)
+    loadPrimitiveSymbols)
 
 import Language.Haskell.Exts.Annotated (
     Module,ModuleName(ModuleName),Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
@@ -15,7 +15,6 @@ import Language.Haskell.Exts.Annotated (
 import Language.Haskell.Names (
     Symbols(Symbols),Error,Scoped(Scoped),computeInterfaces,annotateModule,
     NameInfo(GlobalValue,GlobalType),ModuleNameS)
-import Language.Haskell.Names.Interfaces (readInterface)
 import Language.Haskell.Names.SyntaxUtils (
     getModuleDecls,getModuleName,opName)
 import Language.Haskell.Names.ModuleSymbols (
@@ -29,23 +28,20 @@ import Data.Generics.Uniplate.Data (universeBi)
 
 import Data.Set (Set)
 import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map (lookup,insert,fromList)
+import qualified Data.Map.Strict as Map (lookup,insert)
 import Control.Monad.Trans.State.Strict (State,runState,gets,modify)
 import qualified Data.Set as Set (fromList)
 import Control.Monad (forM)
 import Data.Either (partitionEithers)
 import Data.Maybe (mapMaybe)
-import System.FilePath ((</>))
 import Data.Text (pack)
 
 type NamesPath = FilePath
 
 modulDeclarations :: [FilePath] -> IO [Declaration]
 modulDeclarations modulpaths = do
-    primitivesymbols <- forM primitiveModules (\modulname -> do
-        symbols <- readInterface (primitivePath modulname)
-        return (modulname,symbols))
-    fmap fst (modulDeclarationsAndNames (Map.fromList primitivesymbols) modulpaths)
+    primitivesymbols <- loadPrimitiveSymbols
+    fmap fst (modulDeclarationsAndNames primitivesymbols modulpaths)
 
 modulDeclarationsAndNames :: Map ModuleNameS Symbols -> [FilePath] -> IO ([Declaration],Map ModuleNameS Symbols)
 modulDeclarationsAndNames names modulpaths = do
@@ -132,9 +128,6 @@ scopeSymbol _ = Nothing
 
 noQualification :: Symbol -> (Maybe ModuleNameS,Symbol)
 noQualification symbol = (Nothing,symbol)
-
-primitivePath :: ModuleNameS -> FilePath
-primitivePath modulname = "fragnix" </> "primitive" </> modulname
 
 newtype FragnixModule a = FragnixModule {runFragnixModule :: State (Map ModuleNameS Symbols) a}
     deriving (Functor,Monad)
