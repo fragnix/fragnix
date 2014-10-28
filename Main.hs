@@ -2,6 +2,7 @@ module Main where
 
 import Fav (color)
 
+{-# INLINE foo #-}
 
 putHello :: String -> IO ()
 putHello x = putStrLn ("HELLO " ++ x)

@@ -73,15 +73,19 @@ extensions = []
 
 extractDeclarations :: Module (Scoped SrcSpan) -> [Declaration]
 extractDeclarations annotatedast =
-    map (declToDeclaration modulnameast) (getModuleDecls annotatedast) where
+    mapMaybe (declToDeclaration modulnameast) (getModuleDecls annotatedast) where
         modulnameast = getModuleName annotatedast
 
-declToDeclaration :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> Declaration
-declToDeclaration modulnameast annotatedast = Declaration
-    (declGenre annotatedast)
-    (pack (prettyPrint annotatedast))
-    (declaredSymbols modulnameast annotatedast)
-    (usedSymbols annotatedast)
+declToDeclaration :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> Maybe Declaration
+declToDeclaration modulnameast annotatedast = do
+    let genre = declGenre annotatedast
+    case genre of
+        Other -> Nothing
+        _ -> return (Declaration
+            genre
+            (pack (prettyPrint annotatedast))
+            (declaredSymbols modulnameast annotatedast)
+            (usedSymbols annotatedast))
 
 declGenre :: Decl (Scoped SrcSpan) -> Genre
 declGenre (TypeDecl _ _ _) = Type
