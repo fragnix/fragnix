@@ -15,7 +15,7 @@ import Language.Haskell.Exts.Annotated (
 import Language.Haskell.Names (
     Symbols(Symbols),Error,Scoped(Scoped),computeInterfaces,annotateModule,
     NameInfo(GlobalValue,GlobalType),ModuleNameS)
-import Language.Haskell.Names.Interfaces (readInterface,writeInterface)
+import Language.Haskell.Names.Interfaces (readInterface)
 import Language.Haskell.Names.SyntaxUtils (
     getModuleDecls,getModuleName,opName)
 import Language.Haskell.Names.ModuleSymbols (
@@ -28,23 +28,33 @@ import Distribution.HaskellSuite.Modules (
 import Data.Generics.Uniplate.Data (universeBi)
 
 import Data.Set (Set)
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map (lookup,insert,fromList)
+import Control.Monad.Trans.State.Strict (State,runState,gets,modify)
 import qualified Data.Set as Set (fromList)
 import Control.Monad (forM)
 import Data.Either (partitionEithers)
 import Data.Maybe (mapMaybe)
-import System.FilePath ((</>),dropFileName)
-import System.Directory (doesFileExist,createDirectoryIfMissing)
+import System.FilePath ((</>))
 import Data.Text (pack)
 
 type NamesPath = FilePath
 
 modulDeclarations :: [FilePath] -> IO [Declaration]
 modulDeclarations modulpaths = do
+    primitivesymbols <- forM primitiveModules (\modulname -> do
+        symbols <- readInterface (primitivePath modulname)
+        return (modulname,symbols))
+    fmap fst (modulDeclarationsAndNames (Map.fromList primitivesymbols) modulpaths)
+
+modulDeclarationsAndNames :: Map ModuleNameS Symbols -> [FilePath] -> IO ([Declaration],Map ModuleNameS Symbols)
+modulDeclarationsAndNames names modulpaths = do
     asts <- forM modulpaths parse
-    _ <- resolve asts
-    annotatedasts <- forM asts annotate
+    let (annotatedasts,newnames) = flip runState names (do
+            resolve asts
+            forM asts annotate)
     let declarations = concatMap extractDeclarations annotatedasts
-    return declarations
+    return (declarations,newnames)
 
 parse :: FilePath -> IO (Module SrcSpan)
 parse path = do
@@ -53,10 +63,10 @@ parse path = do
         ParseOk ast -> return (fmap srcInfoSpan ast)
         ParseFailed location message -> error ("PARSE FAILED: " ++ path ++ show location ++ message)
 
-resolve :: [Module SrcSpan] -> IO (Set (Error SrcSpan))
+resolve :: [Module SrcSpan] -> State (Map ModuleNameS Symbols) (Set (Error SrcSpan))
 resolve asts = runFragnixModule (computeInterfaces language extensions asts)
 
-annotate :: Module SrcSpan -> IO (Module (Scoped SrcSpan))
+annotate :: Module SrcSpan -> State (Map ModuleNameS Symbols) (Module (Scoped SrcSpan))
 annotate ast = runFragnixModule (annotateModule language extensions ast)
 
 language :: Language
@@ -123,31 +133,18 @@ scopeSymbol _ = Nothing
 noQualification :: Symbol -> (Maybe ModuleNameS,Symbol)
 noQualification symbol = (Nothing,symbol)
 
-namesPath :: ModuleNameS -> FilePath
-namesPath modulname = "fragnix" </> "names" </> modulname
-
 primitivePath :: ModuleNameS -> FilePath
 primitivePath modulname = "fragnix" </> "primitive" </> modulname
 
-newtype FragnixModule a = FragnixModule {runFragnixModule :: IO a}
+newtype FragnixModule a = FragnixModule {runFragnixModule :: State (Map ModuleNameS Symbols) a}
     deriving (Functor,Monad)
 
 instance MonadModule FragnixModule where
     type ModuleInfo FragnixModule = Symbols
     lookupInCache name = FragnixModule (do
         let modulname = modToString name
-        if modulname `elem` primitiveModules
-            then do
-                fmap Just (readInterface (primitivePath modulname))
-            else do
-                let namespath = namesPath modulname
-                namesExists <- doesFileExist namespath
-                if namesExists
-                    then fmap Just (readInterface namespath)
-                    else return Nothing)
+        gets (Map.lookup modulname))
     insertInCache name symbols = FragnixModule (do
-        let namespath = namesPath (modToString name)
-        createDirectoryIfMissing True (dropFileName namespath)
-        writeInterface namespath symbols)
+        modify (Map.insert (modToString name) symbols))
     getPackages = return []
     readModuleInfo = error "Not implemented: readModuleInfo"
