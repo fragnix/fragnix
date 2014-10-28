@@ -27,7 +27,8 @@ import Data.Tagged (Tagged(Tagged))
 import System.Directory (createDirectoryIfMissing)
 import Control.Monad (forM_)
 import Data.Maybe (fromMaybe)
-import System.FilePath ((</>),(<.>))
+import Distribution.Text (disp)
+import System.FilePath ((</>),(<.>),dropFileName)
 
 main :: IO ()
 main =
@@ -111,8 +112,6 @@ compile _ maybelanguage exts cppoptions packagename _ _ filenames = do
         isParsec = pkgName packagename == PackageName "parsec"
         cppoptions' = if isParsec then fixCppOptsForParsec cppoptions else fixCppOpts cppoptions
 
-    createDirectoryIfMissing True "fragnix/modules"
-
     forM_ filenames (\filename -> do
         file <- readFile filename
         preprocessedfile <- runCpphs cppoptions' filename file
@@ -125,12 +124,14 @@ compile _ maybelanguage exts cppoptions packagename _ _ filenames = do
                 fixities              = Just []}
             parseresult = parseFileContentsWithMode parsemode preprocessedfile
         case parseresult of
-            ParseOk ast -> writeFile (modulfilename ast) preprocessedfile
+            ParseOk ast -> do
+                createDirectoryIfMissing True (dropFileName (modulfilename packagename ast))
+                writeFile (modulfilename packagename ast) preprocessedfile
             ParseFailed location message -> error ("PARSE FAILED: " ++ show location ++ " " ++ show message))
 
-modulfilename :: Module SrcSpanInfo -> FilePath
-modulfilename (Module _ (Just (ModuleHead _ (ModuleName _ modulname) _ _)) _ _ _) =
-    "/home/pschuster/Projects/fragnix/fragnix/modules" </> modulname <.> "hs"
+modulfilename :: PackageIdentifier -> Module SrcSpanInfo -> FilePath
+modulfilename packagename (Module _ (Just (ModuleHead _ (ModuleName _ modulname) _ _)) _ _ _) =
+    "/home/pschuster/Projects/fragnix/fragnix/modules" </> show (disp packagename) </> modulname <.> "hs"
 
 packagedbfilename :: FilePath
-packagedbfilename = "/home/pschuster/Projects/fragnix/fragnix/packagedb/packages.db"
+packagedbfilename = "/home/pschuster/Projects/fragnix/fragnix/instances/packages.db"
