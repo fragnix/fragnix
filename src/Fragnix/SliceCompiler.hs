@@ -25,6 +25,7 @@ import System.FilePath ((</>),(<.>))
 import System.Directory (createDirectoryIfMissing,doesFileExist)
 import System.Process (rawSystem)
 import System.Exit (ExitCode)
+import Control.Exception (SomeException,catch,evaluate)
 
 import Control.Monad (forM_,unless)
 
@@ -92,7 +93,10 @@ sliceModuleName :: SliceID -> String
 sliceModuleName sliceID = "F" ++ show sliceID
 
 writeSliceModule :: Slice -> IO ()
-writeSliceModule slice@(Slice sliceID _ _) = writeFile (sliceModulePath sliceID) (pack (prettyPrint (assemble slice)))
+writeSliceModule slice@(Slice sliceID _ _) = (do
+    slicecontent <- evaluate (pack (prettyPrint (assemble slice)))
+    writeFile (sliceModulePath sliceID) slicecontent)
+        `catch` (print :: SomeException -> IO ())
 
 writeSliceModuleTransitive :: SliceID -> IO ()
 writeSliceModuleTransitive sliceID = do
