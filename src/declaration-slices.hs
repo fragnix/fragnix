@@ -8,6 +8,6 @@ import Control.Monad (forM_)
 
 main :: IO ()
 main = do
-    _ <- readDeclarations "fragnix/declarations/declarations.json"
-    let (slices,_) = declarationSlices undefined
+    declarations <- readDeclarations "fragnix/declarations/declarations.json"
+    let (slices,_) = declarationSlices declarations
     forM_ slices writeSlice

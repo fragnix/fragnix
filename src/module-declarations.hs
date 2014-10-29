@@ -12,7 +12,7 @@ import Control.Monad (filterM)
 main :: IO ()
 main = do
     modulepaths <- getDirectoryContents "fragnix/modules" >>= filterM doesFileExist
-    declarationmap <- modulDeclarations modulepaths
+    declarations <- modulDeclarations modulepaths
     createDirectoryIfMissing True "fragnix/declarations"
-    writeDeclarations "fragnix/declarations/declarations.json" (Map.keys declarationmap)
+    writeDeclarations "fragnix/declarations/declarations.json" declarations
 

@@ -32,10 +32,9 @@ import Data.Maybe (maybeToList,fromJust,mapMaybe)
 import Data.Hashable (hash)
 import Data.List (nub)
 
-declarationSlices :: Map Declaration [Extension] -> ([Slice],GlobalScope)
-declarationSlices declarationmap = (slices,globalscope) where
-    declarations = Map.keys declarationmap
-    (tempslices,slicebindings) = unzip (buildTempSlices declarationmap (sccGraph (declarationGraph declarations)))
+declarationSlices :: [Declaration] -> ([Slice],GlobalScope)
+declarationSlices declarations = (slices,globalscope) where
+    (tempslices,slicebindings) = unzip (buildTempSlices (sccGraph (declarationGraph declarations)))
     slices = hashSlices tempslices
     globalscope = Map.fromList (do
         (Slice sliceID _ _ _,boundsymbols) <- zip slices slicebindings
@@ -49,27 +48,27 @@ declarationGraph declarations =
     declarationnodes = zip [0..] declarations
     boundmap = Map.fromList (do
         (node,declaration) <- declarationnodes
-        let Declaration _ _ boundsymbols _ = declaration
+        let Declaration _ _ _ boundsymbols _ = declaration
         boundsymbol <- listSymbols boundsymbols
         return (boundsymbol,node))
     usedsymboledges = do
         (node,declaration) <- declarationnodes
-        let Declaration _ _ _ mentionedsymbols = declaration
+        let Declaration _ _ _ _ mentionedsymbols = declaration
         (maybequalification,mentionedsymbol) <- mentionedsymbols
         usednode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (node,usednode,UsesSymbol maybequalification mentionedsymbol)
     signatureedges = do
-        (signaturenode,Declaration TypeSignature _ _ mentionedsymbols) <- declarationnodes
+        (signaturenode,Declaration TypeSignature _ _ _ mentionedsymbols) <- declarationnodes
         mentionedsymbol@(ValueSymbol _) <- map snd mentionedsymbols
         declarationnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (declarationnode,signaturenode,Signature)
     instanceEdges = do
-        (instancenode,Declaration ClassInstance _ _ mentionedsymbols) <- declarationnodes
+        (instancenode,Declaration ClassInstance _ _ _ mentionedsymbols) <- declarationnodes
         classsymbol@(TypeSymbol (SymClass _ _)) <- map snd mentionedsymbols
         classnode <- maybeToList (Map.lookup classsymbol boundmap)
         return (classnode,instancenode,Instance)
     fixityEdges = do
-        (fixitynode,Declaration InfixFixity _ _ mentionedsymbols) <- declarationnodes
+        (fixitynode,Declaration InfixFixity _ _ _ mentionedsymbols) <- declarationnodes
         mentionedsymbol <- map snd mentionedsymbols
         bindingnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (bindingnode,fixitynode,Fixity)
@@ -91,18 +90,20 @@ sccGraph graph = buildGr (do
             return (label,sccsuc)
     return ([],sccnode,scclabels,sccsucs))
 
-buildTempSlices :: Map Declaration [Extension] -> Gr [Declaration] Dependency -> [(Slice,[Symbol])]
-buildTempSlices extensionmap tempslicegraph = do
+buildTempSlices :: Gr [Declaration] Dependency -> [(Slice,[Symbol])]
+buildTempSlices tempslicegraph = do
     (node,declarations) <- labNodes tempslicegraph
     let tempID = fromIntegral node
-        ghcextensions = concat (mapMaybe (flip Map.lookup extensionmap) declarations)
-        language = Language (map (pack . prettyExtension) ghcextensions)
+        language = Language (nub (do
+            Declaration _ ghcextensions _ _ _ <- declarations
+            ghcextension <- ghcextensions
+            return (pack (prettyExtension ghcextension))))
         fragments = Fragment (do
-            Declaration _ ast _ _ <- declarations
+            Declaration _ _ ast _ _ <- declarations
             return ast)
         usages = nub (primitiveUsages ++ otherSliceUsages)
         primitiveUsages = do
-            Declaration _ _ _ mentionedsymbols <- declarations
+            Declaration _ _ _ _ mentionedsymbols <- declarations
             (maybequalification,symbol) <- mentionedsymbols
             guard (isPrimitive symbol)
             return (Usage (fmap pack maybequalification) (symbolName symbol) (Primitive (originalModule symbol)))
@@ -110,7 +111,7 @@ buildTempSlices extensionmap tempslicegraph = do
             (otherSliceNodeID,UsesSymbol maybequalification symbol) <- lsuc tempslicegraph node
             return (Usage (fmap pack maybequalification) (symbolName symbol) (OtherSlice (fromIntegral otherSliceNodeID)))
         allboundsymbols = do
-            Declaration _ _ boundsymbols _ <- declarations
+            Declaration _ _ _ boundsymbols _ <- declarations
             listSymbols boundsymbols
     return (Slice tempID language fragments usages,allboundsymbols)
 
