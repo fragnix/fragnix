@@ -37,11 +37,14 @@ import Data.Either (partitionEithers)
 import Data.Maybe (mapMaybe,fromMaybe)
 import Data.Text (pack)
 
-modulDeclarations :: [FilePath] -> IO [Declaration]
+modulDeclarations :: [FilePath] -> IO (Map Declaration [Extension])
 modulDeclarations modulpaths = do
     primitivesymbols <- loadPrimitiveSymbols
     modulinformation <- modulDeclarationsNamesExtensions primitivesymbols modulpaths
-    return (concatMap (\(declarations,_,_) -> declarations) (Map.elems modulinformation))
+    return (Map.fromList (do
+        (declarations,_,ghcextensions) <- Map.elems modulinformation
+        declaration <- declarations
+        return (declaration,ghcextensions)))
 
 modulDeclarationsNamesExtensions :: Map ModuleNameS Symbols -> [FilePath] -> IO ModuleInformation
 modulDeclarationsNamesExtensions names modulpaths = do

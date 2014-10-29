@@ -17,10 +17,10 @@ import System.FilePath (dropFileName)
 import Data.Maybe (fromMaybe)
 
 data Declaration = Declaration Genre DeclarationAST DeclaredSymbols MentionedSymbols
-    deriving (Show,Eq)
+    deriving (Show,Eq,Ord)
 
 data Genre = Value | TypeSignature | Type | TypeClass | ClassInstance | InfixFixity | Other
-    deriving (Show,Eq,Read)
+    deriving (Show,Eq,Ord,Read)
 type DeclarationAST   = Text
 type DeclaredSymbols  = Symbols
 type MentionedSymbols = [(Maybe ModuleNameS,Symbol)]
