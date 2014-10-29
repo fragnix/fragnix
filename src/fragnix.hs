@@ -10,6 +10,7 @@ import Fragnix.SliceCompiler (sliceCompilerMain,sliceCompiler)
 import qualified Data.Map as Map (lookup)
 import Control.Monad (forM_,forM)
 import System.Environment (getArgs)
+import System.Exit (ExitCode(ExitSuccess,ExitFailure))
 
 fragnixExecutable :: IO ()
 fragnixExecutable = do
@@ -31,7 +32,10 @@ fragnixTest = do
     forM_ slices writeSlice
     let sliceIDs = [sliceID | Slice sliceID _ _ _ <- slices]
     exitCodes <- forM sliceIDs (\sliceID -> sliceCompiler sliceID)
-    print (zip sliceIDs exitCodes)
+    let successes = length [() | ExitSuccess <- exitCodes]
+        failures = length [() | ExitFailure _ <- exitCodes]
+    putStrLn ("Successes: " ++ show successes)
+    putStrLn ("Failures: " ++ show failures)
 
 main :: IO ()
 main = fragnixTest
