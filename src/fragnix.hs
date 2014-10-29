@@ -7,7 +7,7 @@ import Fragnix.ModuleDeclarations (modulDeclarations)
 import Fragnix.DeclarationSlices (declarationSlices)
 import Fragnix.SliceCompiler (sliceCompilerMain,sliceCompiler)
 
-import qualified Data.Map as Map (lookup,keys)
+import qualified Data.Map as Map (lookup)
 import Control.Monad (forM_,forM)
 import System.Environment (getArgs)
 

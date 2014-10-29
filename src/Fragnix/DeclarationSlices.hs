@@ -15,7 +15,7 @@ import Language.Haskell.Names (
     OrigName,sv_origName,st_origName,origGName,gName,gModule,ModuleNameS)
 import qualified Language.Haskell.Exts.Annotated as Name (
     Name(Ident,Symbol))
-import Language.Haskell.Exts.Annotated (Extension,prettyExtension)
+import Language.Haskell.Exts.Annotated (prettyExtension)
 import Language.Haskell.Names.SyntaxUtils (stringToName)
 
 import Data.Graph.Inductive (
@@ -26,9 +26,9 @@ import Data.Graph.Inductive.PatriciaTree (
 import Control.Monad (guard)
 import Data.Text (pack,unpack)
 import Data.Map (Map)
-import qualified Data.Map as Map (lookup,fromList,keys)
+import qualified Data.Map as Map (lookup,fromList)
 import qualified Data.Set as Set (toList)
-import Data.Maybe (maybeToList,fromJust,mapMaybe)
+import Data.Maybe (maybeToList,fromJust)
 import Data.Hashable (hash)
 import Data.List (nub)
 

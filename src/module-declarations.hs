@@ -6,7 +6,6 @@ import Fragnix.Declaration (writeDeclarations)
 import System.Directory (
     getDirectoryContents,createDirectoryIfMissing,doesFileExist)
 
-import qualified Data.Map as Map (keys)
 import Control.Monad (filterM)
 
 main :: IO ()
