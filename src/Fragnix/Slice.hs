@@ -22,7 +22,9 @@ import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>))
 import System.Directory (createDirectoryIfMissing,doesFileExist)
 
-data Slice = Slice SliceID Fragment [Usage]
+data Slice = Slice SliceID Language Fragment [Usage]
+
+data Language = Language [GHCExtension]
 
 data Fragment = Fragment [SourceCode]
 
@@ -42,18 +44,29 @@ type SliceID = Integer
 type SourceCode = Text
 type Qualification = Text
 type OriginalModule = Text
+type GHCExtension = Text
 
 deriving instance Show Slice
 
 instance ToJSON Slice where
-    toJSON (Slice sliceID fragment usages) = object [
+    toJSON (Slice sliceID language fragment usages) = object [
         "sliceID" .= sliceID,
+        "language" .= language,
         "fragment" .= fragment,
         "usages" .= usages]
 
 instance FromJSON Slice where
     parseJSON = withObject "slice" (\o ->
-        Slice <$> o .: "sliceID" <*> o .: "fragment" <*> o .: "usages")
+        Slice <$> o .: "sliceID" <*> o .: "language" <*> o .: "fragment" <*> o .: "usages")
+
+
+deriving instance Show Language
+
+instance ToJSON Language where
+    toJSON (Language ghcextensions) = toJSON ghcextensions
+
+instance FromJSON Language where
+    parseJSON = fmap Language . parseJSON
 
 
 deriving instance Show Fragment
@@ -137,7 +150,7 @@ deriving instance Show SliceParseError
 instance Exception SliceParseError
 
 writeSlice :: Slice -> IO ()
-writeSlice slice@(Slice sliceID _ _) = do
+writeSlice slice@(Slice sliceID _ _ _) = do
     createDirectoryIfMissing True sliceDirectory
     writeFile (slicePath sliceID) (encode slice)
 

@@ -4,7 +4,7 @@ module Fragnix.DeclarationSlices where
 import Fragnix.Declaration (
     Declaration(Declaration),Genre(TypeSignature,ClassInstance,InfixFixity))
 import Fragnix.Slice (
-    Slice(Slice),SliceID,Fragment(Fragment),Usage(Usage),UsedName(..),
+    Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Usage(Usage),UsedName(..),
     Reference(Primitive,OtherSlice),OriginalModule)
 import Fragnix.GlobalScope (GlobalScope)
 import Fragnix.Symbol (Symbol(ValueSymbol,TypeSymbol))
@@ -36,7 +36,7 @@ declarationSlices declarations = (slices,globalscope) where
     (tempslices,slicebindings) = unzip (buildTempSlices (sccGraph (declarationGraph declarations)))
     slices = hashSlices tempslices
     globalscope = Map.fromList (do
-        (Slice sliceID _ _,boundsymbols) <- zip slices slicebindings
+        (Slice sliceID _ _ _,boundsymbols) <- zip slices slicebindings
         boundsymbol <- boundsymbols
         return (boundsymbol,sliceID))
 
@@ -93,6 +93,7 @@ buildTempSlices :: Gr [Declaration] Dependency -> [(Slice,[Symbol])]
 buildTempSlices tempslicegraph = do
     (node,declarations) <- labNodes tempslicegraph
     let tempID = fromIntegral node
+        language = Language []
         fragments = Fragment (do
             Declaration _ ast _ _ <- declarations
             return ast)
@@ -108,7 +109,7 @@ buildTempSlices tempslicegraph = do
         allboundsymbols = do
             Declaration _ _ boundsymbols _ <- declarations
             listSymbols boundsymbols
-    return (Slice tempID fragments usages,allboundsymbols)
+    return (Slice tempID language fragments usages,allboundsymbols)
 
 type TempID = Integer
 
@@ -118,15 +119,15 @@ hashSlices tempSlices = map (replaceSliceID (computeHash tempSliceMap)) tempSlic
 
 sliceMap :: [Slice] -> Map TempID Slice
 sliceMap tempSlices = Map.fromList (do
-    tempSlice@(Slice tempSliceID _ _) <- tempSlices
+    tempSlice@(Slice tempSliceID _ _ _) <- tempSlices
     return (tempSliceID,tempSlice))
 
 replaceSliceID :: (TempID -> SliceID) -> Slice -> Slice
-replaceSliceID f (Slice tempID fragment usages) = Slice (f tempID) fragment (map (replaceUsageID f) usages)
+replaceSliceID f (Slice tempID language fragment usages) = Slice (f tempID) language fragment (map (replaceUsageID f) usages)
 
 computeHash :: Map TempID Slice -> TempID -> SliceID
 computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,usages))) where
-    Just (Slice _ fragment tempUsages) = Map.lookup tempID tempSliceMap
+    Just (Slice _ _ fragment tempUsages) = Map.lookup tempID tempSliceMap
     usages = map (replaceUsageID (computeHash tempSliceMap)) tempUsages
 
 replaceUsageID :: (TempID -> SliceID) -> Usage -> Usage

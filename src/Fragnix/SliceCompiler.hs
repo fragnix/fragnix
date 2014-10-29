@@ -1,7 +1,7 @@
 module Fragnix.SliceCompiler where
 
 import Fragnix.Slice (
-    Slice(Slice),SliceID,Fragment(Fragment),Usage(Usage),
+    Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Usage(Usage),
     Reference(OtherSlice,Primitive),UsedName(..),readSlice)
 
 import Prelude hiding (writeFile)
@@ -46,11 +46,13 @@ sliceCompiler sliceID = do
     rawSystem "ghc" ["-ifragnix/compilationunits",sliceModulePath sliceID]
 
 assemble :: Slice -> Module
-assemble (Slice sliceID slice usages) =
-    let decls = case slice of
+assemble (Slice sliceID language fragment usages) =
+    let decls = case fragment of
             Fragment declarations -> map (parseDeclaration sliceID) declarations
         modulName = ModuleName (sliceModuleName sliceID)
-        pragmas = [LanguagePragma noLoc [Ident "NoImplicitPrelude"]]
+        Language ghcextensions = language
+        languagepragmas = [Ident "NoImplicitPrelude"] ++ (map (Ident . unpack) ghcextensions)
+        pragmas = [LanguagePragma noLoc languagepragmas]
         imports = map usageImport usages
     in Module noLoc modulName pragmas Nothing Nothing imports decls
 
@@ -93,7 +95,7 @@ sliceModuleName :: SliceID -> String
 sliceModuleName sliceID = "F" ++ show sliceID
 
 writeSliceModule :: Slice -> IO ()
-writeSliceModule slice@(Slice sliceID _ _) = (do
+writeSliceModule slice@(Slice sliceID _ _ _) = (do
     slicecontent <- evaluate (pack (prettyPrint (assemble slice)))
     writeFile (sliceModulePath sliceID) slicecontent)
         `catch` (print :: SomeException -> IO ())
@@ -107,7 +109,7 @@ writeSliceModuleTransitive sliceID = do
         forM_ (usedSlices slice) writeSliceModuleTransitive)
 
 usedSlices :: Slice -> [SliceID]
-usedSlices (Slice _ _ usages) = [sliceID | Usage _ _ (OtherSlice sliceID) <- usages]
+usedSlices (Slice _ _ _ usages) = [sliceID | Usage _ _ (OtherSlice sliceID) <- usages]
 
 doesSliceModuleExist :: SliceID -> IO Bool
 doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)

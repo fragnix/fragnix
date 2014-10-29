@@ -16,7 +16,7 @@ import Language.Haskell.Names (
     Symbols(Symbols),Error,Scoped(Scoped),computeInterfaces,annotateModule,
     NameInfo(GlobalValue,GlobalType),ModuleNameS)
 import Language.Haskell.Names.SyntaxUtils (
-    getModuleDecls,getModuleName,opName)
+    getModuleDecls,getModuleName,opName,getModuleExtensions)
 import Language.Haskell.Names.ModuleSymbols (
     getTopDeclSymbols)
 import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (
@@ -27,30 +27,37 @@ import Distribution.HaskellSuite.Modules (
 import Data.Generics.Uniplate.Data (universeBi)
 
 import Data.Set (Set)
+import qualified Data.Set as Set (empty)
 import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map (lookup,insert)
+import qualified Data.Map.Strict as Map (lookup,insert,elems,fromList)
 import Control.Monad.Trans.State.Strict (State,runState,gets,modify)
 import qualified Data.Set as Set (fromList)
 import Control.Monad (forM)
 import Data.Either (partitionEithers)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe,fromMaybe)
 import Data.Text (pack)
-
-type NamesPath = FilePath
 
 modulDeclarations :: [FilePath] -> IO [Declaration]
 modulDeclarations modulpaths = do
     primitivesymbols <- loadPrimitiveSymbols
-    fmap fst (modulDeclarationsAndNames primitivesymbols modulpaths)
+    modulinformation <- modulDeclarationsNamesExtensions primitivesymbols modulpaths
+    return (concatMap (\(declarations,_,_) -> declarations) (Map.elems modulinformation))
 
-modulDeclarationsAndNames :: Map ModuleNameS Symbols -> [FilePath] -> IO ([Declaration],Map ModuleNameS Symbols)
-modulDeclarationsAndNames names modulpaths = do
+modulDeclarationsNamesExtensions :: Map ModuleNameS Symbols -> [FilePath] -> IO ModuleInformation
+modulDeclarationsNamesExtensions names modulpaths = do
     asts <- forM modulpaths parse
     let (annotatedasts,newnames) = flip runState names (do
             resolve asts
             forM asts annotate)
-    let declarations = concatMap extractDeclarations annotatedasts
-    return (declarations,newnames)
+    return (Map.fromList (do
+        annotatedast <- annotatedasts
+        let ModuleName _ modulname = getModuleName annotatedast
+            declarations = extractDeclarations annotatedast
+            symbols = fromMaybe (Symbols Set.empty Set.empty) (Map.lookup modulname newnames)
+            (_,modulextensions) = getModuleExtensions annotatedast
+        return (modulname,(declarations,symbols,modulextensions))))
+
+type ModuleInformation = Map ModuleNameS ([Declaration],Symbols,[Extension])
 
 parse :: FilePath -> IO (Module SrcSpan)
 parse path = do

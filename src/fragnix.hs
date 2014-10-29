@@ -29,7 +29,7 @@ fragnixTest = do
     writeDeclarations "fragnix/declarations/declarations.json" declarations
     let (slices,_) = declarationSlices declarations
     forM_ slices writeSlice
-    let sliceIDs = [sliceID | Slice sliceID _ _ <- slices]
+    let sliceIDs = [sliceID | Slice sliceID _ _ _ <- slices]
     exitCodes <- forM sliceIDs (\sliceID -> sliceCompiler sliceID)
     print (zip sliceIDs exitCodes)
 
