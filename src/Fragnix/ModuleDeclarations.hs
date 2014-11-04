@@ -4,14 +4,15 @@ module Fragnix.ModuleDeclarations where
 import Fragnix.Declaration (
     Declaration(Declaration),Genre(..))
 import Fragnix.Symbol (
-    Symbol(ValueSymbol,TypeSymbol))
+    Symbol(ValueSymbol,TypeSymbol,InstanceSymbol))
 import Fragnix.Primitive (
     loadPrimitiveSymbols)
 
 import Language.Haskell.Exts.Annotated (
     Module,ModuleName(ModuleName),Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
     SrcSpan,srcInfoSpan,QName(Qual),ann,
-    prettyPrint,Language(Haskell2010),Extension)
+    prettyPrint,Language(Haskell2010),Extension,
+    InstRule(..),InstHead(..))
 import Language.Haskell.Names (
     Symbols(Symbols),Error,Scoped(Scoped),computeInterfaces,annotateModule,
     NameInfo(GlobalValue,GlobalType),ModuleNameS)
@@ -34,7 +35,7 @@ import Control.Monad.Trans.State.Strict (State,runState,gets,modify)
 import qualified Data.Set as Set (fromList)
 import Control.Monad (forM)
 import Data.Either (partitionEithers)
-import Data.Maybe (mapMaybe,fromMaybe)
+import Data.Maybe (mapMaybe,fromMaybe,maybeToList,listToMaybe)
 import Data.Text (pack)
 
 modulDeclarations :: [FilePath] -> IO [Declaration]
@@ -96,7 +97,7 @@ declToDeclaration modulnameast annotatedast = do
             []
             (pack (prettyPrint annotatedast))
             (declaredSymbols modulnameast annotatedast)
-            (usedSymbols annotatedast))
+            (mentionedSymbols annotatedast))
 
 declGenre :: Decl (Scoped SrcSpan) -> Genre
 declGenre (TypeDecl _ _ _) = Type
@@ -121,13 +122,16 @@ declaredSymbols :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> Symbo
 declaredSymbols modulnameast annotatedast = Symbols (Set.fromList valuesymbols) (Set.fromList typesymbols) where
     (valuesymbols,typesymbols) = partitionEithers (getTopDeclSymbols GlobalTable.empty modulnameast annotatedast)
 
-usedSymbols :: Decl (Scoped SrcSpan) -> [(Maybe ModuleNameS,Symbol)]
-usedSymbols (TypeSig _ names typ) =
+mentionedSymbols :: Decl (Scoped SrcSpan) -> [(Maybe ModuleNameS,Symbol)]
+mentionedSymbols (TypeSig _ names typ) =
     mapMaybe externalSymbol (universeBi typ) ++
     mapMaybe (fmap noQualification . scopeSymbol . ann) names
-usedSymbols (InfixDecl _ _ _ ops) =
+mentionedSymbols (InfixDecl _ _ _ ops) =
     mapMaybe (fmap noQualification . scopeSymbol . ann . opName) ops
-usedSymbols decl = mapMaybe externalSymbol (universeBi decl)
+mentionedSymbols inst@(InstDecl _ _ instrule _) =
+    instanceSymbol instrule ++
+    mapMaybe externalSymbol (universeBi inst)
+mentionedSymbols decl = mapMaybe externalSymbol (universeBi decl)
 
 externalSymbol :: QName (Scoped SrcSpan) -> Maybe (Maybe ModuleNameS,Symbol)
 externalSymbol qname = do
@@ -143,6 +147,25 @@ scopeSymbol _ = Nothing
 
 noQualification :: Symbol -> (Maybe ModuleNameS,Symbol)
 noQualification symbol = (Nothing,symbol)
+
+instanceSymbol :: InstRule (Scoped SrcSpan) -> [(Maybe ModuleNameS,Symbol)]
+instanceSymbol (IParen _ instrule) = instanceSymbol instrule
+instanceSymbol (IRule _ _ _ insthead) = do
+    classsymbol <- maybeToList (instHeadClassSymbol insthead)
+    typesymbol <- maybeToList (listToMaybe (instHeadTypeSymbols insthead))
+    return (noQualification (InstanceSymbol classsymbol typesymbol))
+
+instHeadClassSymbol :: InstHead (Scoped SrcSpan) -> Maybe Symbol
+instHeadClassSymbol (IHParen _ insthead) = instHeadClassSymbol insthead
+instHeadClassSymbol (IHCon _ qname)      = scopeSymbol (ann qname)
+instHeadClassSymbol (IHInfix _ _ qname)  = scopeSymbol (ann qname)
+instHeadClassSymbol (IHApp _ insthead _) = instHeadClassSymbol insthead
+
+instHeadTypeSymbols :: InstHead (Scoped SrcSpan) -> [Symbol]
+instHeadTypeSymbols (IHParen _ insthead) = instHeadTypeSymbols insthead
+instHeadTypeSymbols (IHCon _ _)      = []
+instHeadTypeSymbols (IHInfix _ typ _)  = mapMaybe scopeSymbol (universeBi typ)
+instHeadTypeSymbols (IHApp _ insthead typ) = instHeadTypeSymbols insthead ++ mapMaybe scopeSymbol (universeBi typ)
 
 newtype FragnixModule a = FragnixModule {runFragnixModule :: State (Map ModuleNameS Symbols) a}
     deriving (Functor,Monad)

@@ -24,7 +24,7 @@ import Data.Graph.Inductive.PatriciaTree (
     Gr)
 
 import Control.Monad (guard)
-import Data.Text (pack,unpack)
+import Data.Text (pack)
 import Data.Map (Map)
 import qualified Data.Map as Map (lookup,fromList)
 import qualified Data.Set as Set (toList)
@@ -65,7 +65,7 @@ declarationGraph declarations =
     instanceEdges = do
         (instancenode,Declaration ClassInstance _ _ _ mentionedsymbols) <- declarationnodes
         (InstanceSymbol classsymbol _) <- map snd mentionedsymbols
-        classnode <- maybeToList (Map.lookup (TypeSymbol classsymbol) boundmap)
+        classnode <- maybeToList (Map.lookup classsymbol boundmap)
         return (classnode,instancenode,Instance)
     fixityEdges = do
         (fixitynode,Declaration InfixFixity _ _ _ mentionedsymbols) <- declarationnodes
@@ -105,8 +105,8 @@ buildTempSlices tempslicegraph = do
         primitiveUsages = do
             Declaration _ _ _ _ mentionedsymbols <- declarations
             (maybequalification,symbol) <- mentionedsymbols
-            guard (isPrimitive symbol)
-            return (Usage (fmap pack maybequalification) (symbolName symbol) (Primitive (originalModule symbol)))
+            primitivemodule <- primitiveModule symbol
+            return (Usage (fmap pack maybequalification) (symbolName symbol) (Primitive primitivemodule))
         otherSliceUsages = do
             (otherSliceNodeID,UsesSymbol maybequalification symbol) <- lsuc tempslicegraph node
             return (Usage (fmap pack maybequalification) (symbolName symbol) (OtherSlice (fromIntegral otherSliceNodeID)))
@@ -139,8 +139,14 @@ replaceUsageID f (Usage qualification usedName (OtherSlice tempID)) =
     (Usage qualification usedName (OtherSlice (f tempID)))
 replaceUsageID _ usage = usage
 
-isPrimitive :: Symbol -> Bool
-isPrimitive symbol = unpack (originalModule symbol) `elem` primitiveModules
+primitiveModule :: Symbol -> [OriginalModule]
+primitiveModule symbol = do
+    originalmodule <- case symbol of
+        ValueSymbol valuesymbol -> [gModule (origGName (sv_origName valuesymbol))]
+        TypeSymbol typesymbol -> [gModule (origGName (st_origName typesymbol))]
+        _ -> []
+    guard (originalmodule `elem` primitiveModules)
+    return (pack originalmodule)
 
 listSymbols :: Symbols -> [Symbol]
 listSymbols (Symbols valueSymbolSet typeSymbolSet) = valueSymbols ++ typeSymbols where
@@ -169,10 +175,6 @@ constructorNameUsed :: String -> String -> UsedName
 constructorNameUsed typename constructorname = case constructorname of
     (':':_) -> ConstructorOperator (pack typename) (pack constructorname)
     _ -> ConstructorIdentifier (pack typename) (pack constructorname)
-
-originalModule :: Symbol -> OriginalModule
-originalModule (ValueSymbol valuesymbol) = pack (gModule (origGName (sv_origName valuesymbol)))
-originalModule (TypeSymbol typesymbol) = pack (gModule (origGName (st_origName typesymbol)))
 
 data Dependency =
     UsesSymbol (Maybe ModuleNameS) Symbol |

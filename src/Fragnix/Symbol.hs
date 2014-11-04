@@ -14,7 +14,7 @@ import Control.Applicative ((<|>),(<$>),(<*>))
 data Symbol =
     ValueSymbol (SymValueInfo OrigName) |
     TypeSymbol (SymTypeInfo OrigName) |
-    InstanceSymbol (SymTypeInfo OrigName) (SymTypeInfo OrigName)
+    InstanceSymbol Symbol Symbol
         deriving (Eq,Ord,Show)
 
 instance ToJSON Symbol where
