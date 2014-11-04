@@ -24,6 +24,7 @@ import Data.Graph.Inductive.PatriciaTree (
     Gr)
 
 import Control.Monad (guard)
+import Control.Applicative ((<|>))
 import Data.Text (pack)
 import Data.Map (Map)
 import qualified Data.Map as Map (lookup,fromList)
@@ -64,9 +65,11 @@ declarationGraph declarations =
         return (declarationnode,signaturenode,Signature)
     instanceEdges = do
         (instancenode,Declaration ClassInstance _ _ _ mentionedsymbols) <- declarationnodes
-        (InstanceSymbol classsymbol _) <- map snd mentionedsymbols
-        classnode <- maybeToList (Map.lookup classsymbol boundmap)
-        return (classnode,instancenode,Instance)
+        (InstanceSymbol classsymbol typesymbol) <- map snd mentionedsymbols
+        declarationnode <- maybeToList (
+            Map.lookup classsymbol boundmap <|>
+            Map.lookup typesymbol boundmap)
+        return (declarationnode,instancenode,Instance)
     fixityEdges = do
         (fixitynode,Declaration InfixFixity _ _ _ mentionedsymbols) <- declarationnodes
         mentionedsymbol <- map snd mentionedsymbols

@@ -131,6 +131,9 @@ mentionedSymbols (InfixDecl _ _ _ ops) =
 mentionedSymbols inst@(InstDecl _ _ instrule _) =
     instanceSymbol instrule ++
     mapMaybe externalSymbol (universeBi inst)
+mentionedSymbols inst@(DerivDecl _ _ instrule) =
+    instanceSymbol instrule ++
+    mapMaybe externalSymbol (universeBi inst)
 mentionedSymbols decl = mapMaybe externalSymbol (universeBi decl)
 
 externalSymbol :: QName (Scoped SrcSpan) -> Maybe (Maybe ModuleNameS,Symbol)
