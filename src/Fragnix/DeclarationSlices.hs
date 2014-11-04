@@ -44,7 +44,7 @@ declarationSlices declarations = (slices,globalscope) where
 
 declarationGraph :: [Declaration] -> Gr Declaration Dependency
 declarationGraph declarations =
-    insEdges (signatureedges ++ usedsymboledges ++ instanceEdges ++ fixityEdges) (
+    insEdges (usedsymboledges ++ signatureedges ++ instanceEdges ++ fixityEdges) (
         insNodes declarationnodes empty) where
     declarationnodes = zip [0..] declarations
     boundmap = Map.fromList (do
