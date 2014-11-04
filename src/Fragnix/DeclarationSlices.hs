@@ -7,11 +7,11 @@ import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Usage(Usage),UsedName(..),
     Reference(Primitive,OtherSlice),OriginalModule)
 import Fragnix.GlobalScope (GlobalScope)
-import Fragnix.Symbol (Symbol(ValueSymbol,TypeSymbol))
+import Fragnix.Symbol (Symbol(ValueSymbol,TypeSymbol,InstanceSymbol))
 import Fragnix.Primitive (primitiveModules)
 
 import Language.Haskell.Names (
-    Symbols(Symbols),SymValueInfo(SymConstructor),SymTypeInfo(SymClass),
+    Symbols(Symbols),SymValueInfo(SymConstructor),SymTypeInfo,
     OrigName,sv_origName,st_origName,origGName,gName,gModule,ModuleNameS)
 import qualified Language.Haskell.Exts.Annotated as Name (
     Name(Ident,Symbol))
@@ -64,8 +64,8 @@ declarationGraph declarations =
         return (declarationnode,signaturenode,Signature)
     instanceEdges = do
         (instancenode,Declaration ClassInstance _ _ _ mentionedsymbols) <- declarationnodes
-        classsymbol@(TypeSymbol (SymClass _ _)) <- map snd mentionedsymbols
-        classnode <- maybeToList (Map.lookup classsymbol boundmap)
+        (InstanceSymbol classsymbol _) <- map snd mentionedsymbols
+        classnode <- maybeToList (Map.lookup (TypeSymbol classsymbol) boundmap)
         return (classnode,instancenode,Instance)
     fixityEdges = do
         (fixitynode,Declaration InfixFixity _ _ _ mentionedsymbols) <- declarationnodes
