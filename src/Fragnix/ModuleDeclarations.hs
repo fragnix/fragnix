@@ -12,7 +12,7 @@ import Language.Haskell.Exts.Annotated (
     Module,ModuleName(ModuleName),Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
     SrcSpan,srcInfoSpan,QName(Qual),ann,
     prettyPrint,Language(Haskell2010),Extension,
-    InstRule(..),InstHead(..))
+    InstRule(..),InstHead(..),Pat(PVar),Match(Match,InfixMatch))
 import Language.Haskell.Names (
     Symbols(Symbols),Error,Scoped(Scoped),computeInterfaces,annotateModule,
     NameInfo(GlobalValue,GlobalType),ModuleNameS)
@@ -130,6 +130,8 @@ mentionedSymbols (InfixDecl _ _ _ ops) =
     mapMaybe (fmap noQualification . scopeSymbol . ann . opName) ops
 mentionedSymbols inst@(InstDecl _ _ instrule _) =
     instanceSymbol instrule ++
+    mapMaybe pvarSymbol (universeBi inst) ++
+    mapMaybe matchSymbol (universeBi inst) ++
     mapMaybe externalSymbol (universeBi inst)
 mentionedSymbols inst@(DerivDecl _ _ instrule) =
     instanceSymbol instrule ++
@@ -169,6 +171,14 @@ instHeadTypeSymbols (IHParen _ insthead) = instHeadTypeSymbols insthead
 instHeadTypeSymbols (IHCon _ _)      = []
 instHeadTypeSymbols (IHInfix _ typ _)  = mapMaybe scopeSymbol (universeBi typ)
 instHeadTypeSymbols (IHApp _ insthead typ) = instHeadTypeSymbols insthead ++ mapMaybe scopeSymbol (universeBi typ)
+
+pvarSymbol :: Pat (Scoped SrcSpan) -> Maybe (Maybe ModuleNameS,Symbol)
+pvarSymbol (PVar _ name) = fmap noQualification (scopeSymbol (ann name))
+pvarSymbol _ = Nothing
+
+matchSymbol :: Match (Scoped SrcSpan) -> Maybe (Maybe ModuleNameS,Symbol)
+matchSymbol (Match _ name _ _ _) = fmap noQualification (scopeSymbol (ann name))
+matchSymbol (InfixMatch _ _ name _ _ _) = fmap noQualification (scopeSymbol (ann name))
 
 newtype FragnixModule a = FragnixModule {runFragnixModule :: State (Map ModuleNameS Symbols) a}
     deriving (Functor,Monad)
