@@ -104,7 +104,7 @@ buildTempSlices tempslicegraph = do
         fragments = Fragment (do
             Declaration _ _ ast _ _ <- declarations
             return ast)
-        usages = nub (primitiveUsages ++ otherSliceUsages ++ instanceUsages)
+        usages = nub (primitiveUsages ++ otherSliceUsages)
         primitiveUsages = do
             Declaration _ _ _ _ mentionedsymbols <- declarations
             (maybequalification,symbol) <- mentionedsymbols
@@ -113,9 +113,6 @@ buildTempSlices tempslicegraph = do
         otherSliceUsages = do
             (otherSliceNodeID,UsesSymbol maybequalification symbol) <- lsuc tempslicegraph node
             return (Usage (fmap pack maybequalification) (symbolName symbol) (OtherSlice (fromIntegral otherSliceNodeID)))
-        instanceUsages = do
-            (otherSliceNodeID,Instance) <- lsuc tempslicegraph node
-            return (Usage Nothing (ValueIdentifier "") (OtherSlice (fromIntegral otherSliceNodeID)))
         allboundsymbols = do
             Declaration _ _ _ boundsymbols _ <- declarations
             listSymbols boundsymbols
