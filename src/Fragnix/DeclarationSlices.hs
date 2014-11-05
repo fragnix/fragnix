@@ -11,7 +11,7 @@ import Fragnix.Symbol (Symbol(ValueSymbol,TypeSymbol,InstanceSymbol))
 import Fragnix.Primitive (primitiveModules)
 
 import Language.Haskell.Names (
-    Symbols(Symbols),SymValueInfo(SymConstructor,SymMethod),SymTypeInfo(SymClass),
+    Symbols(Symbols),SymValueInfo(SymConstructor),SymTypeInfo,
     OrigName,sv_origName,st_origName,origGName,gName,gModule,ModuleNameS)
 import qualified Language.Haskell.Exts.Annotated as Name (
     Name(Ident,Symbol))
@@ -64,11 +64,11 @@ declarationGraph declarations =
         declarationnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (declarationnode,signaturenode,Signature)
     instanceEdges = do
-        (instancenode,Declaration ClassInstance _ _ _ instancesymbols) <- declarationnodes
-        (InstanceSymbol (TypeSymbol (SymClass instanceclassname _)) _) <- map snd instancesymbols
-        (declarationnode,Declaration _ _ _ _ mentionedsymbols) <- declarationnodes
-        (ValueSymbol (SymMethod _ _ methodclassname)) <- map snd mentionedsymbols
-        guard (instanceclassname == methodclassname)
+        (instancenode,Declaration ClassInstance _ _ _ mentionedsymbols) <- declarationnodes
+        (InstanceSymbol classsymbol typesymbol) <- map snd mentionedsymbols
+        declarationnode <- maybeToList (
+            Map.lookup classsymbol boundmap <|>
+            Map.lookup typesymbol boundmap)
         return (declarationnode,instancenode,Instance)
     fixityEdges = do
         (fixitynode,Declaration InfixFixity _ _ _ mentionedsymbols) <- declarationnodes
