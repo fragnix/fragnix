@@ -2,7 +2,6 @@ module Main where
 
 import Fragnix.Declaration (writeDeclarations)
 import Fragnix.Slice (writeSlice,Slice(Slice))
-import Fragnix.Symbol (mainsymbol)
 import Fragnix.ModuleDeclarations (modulDeclarations)
 import Fragnix.DeclarationSlices (declarationSlices)
 import Fragnix.SliceCompiler (sliceCompilerMain,sliceCompiler)

@@ -14,11 +14,5 @@ putHello :: String -> IO ()
 putHello x = putStrLn ("HELLO " ++ x)
 
 main :: IO ()
-main = do
-    config <- readFile "config.xml"
-    putHello config
+main = putHello (show A)
 
-
-f x = g x
-
-g x = f x

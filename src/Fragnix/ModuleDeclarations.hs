@@ -3,8 +3,6 @@ module Fragnix.ModuleDeclarations where
 
 import Fragnix.Declaration (
     Declaration(Declaration),Genre(..))
-import Fragnix.Symbol (
-    Symbol(ValueSymbol,TypeSymbol,InstanceSymbol))
 import Fragnix.Primitive (
     loadPrimitiveSymbols)
 

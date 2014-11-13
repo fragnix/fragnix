@@ -1,10 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Fragnix.Declaration where
 
-import Fragnix.Symbol (Symbol)
-
 import Language.Haskell.Exts.Annotated (Extension)
-import Language.Haskell.Names (Symbols,ModuleNameS)
+import Language.Haskell.Names (Symbols,Symbol,ModuleNameS)
 import Language.Haskell.Names.Interfaces ()
 
 import Data.Aeson (
