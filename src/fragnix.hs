@@ -5,6 +5,7 @@ import Fragnix.Slice (writeSlice,Slice(Slice))
 import Fragnix.ModuleDeclarations (modulDeclarations)
 import Fragnix.DeclarationSlices (declarationSlices)
 import Fragnix.SliceCompiler (sliceCompilerMain,sliceCompiler)
+import Fragnix.Primitive (mainsymbol)
 
 import qualified Data.Map as Map (lookup)
 import Control.Monad (forM_,forM)

@@ -2,8 +2,9 @@
 module Fragnix.Declaration where
 
 import Language.Haskell.Exts.Annotated (Extension)
-import Language.Haskell.Names (Symbols,Symbol,ModuleNameS)
+import Language.Haskell.Names (Symbol)
 import Language.Haskell.Names.Interfaces ()
+import Language.Haskell.Exts (ModuleName(ModuleName),prettyPrint)
 
 import Data.Aeson (
     ToJSON(toJSON),object,(.=),encode,
@@ -21,8 +22,8 @@ data Declaration = Declaration Genre [Extension] DeclarationAST DeclaredSymbols 
 data Genre = Value | TypeSignature | Type | TypeClass | ClassInstance | InfixFixity | Other
     deriving (Show,Eq,Ord,Read)
 type DeclarationAST   = Text
-type DeclaredSymbols  = Symbols
-type MentionedSymbols = [(Maybe ModuleNameS,Symbol)]
+type DeclaredSymbols  = [Symbol]
+type MentionedSymbols = [(Symbol,Maybe ModuleName)]
 
 readDeclarations :: FilePath -> IO [Declaration]
 readDeclarations declarationspath = do
@@ -40,7 +41,7 @@ instance ToJSON Declaration where
         "declarationextensions" .= map show extensions,
         "declarationast" .= declarationast,
         "declaredsymbols" .= declaredsymbols,
-        "mentionedsymbols" .= mentionedsymbols]
+        "mentionedsymbols" .= fmap (fmap (fmap prettyPrint)) mentionedsymbols]
 
 instance FromJSON Declaration where
     parseJSON = withObject "declaration object" (\o -> do
@@ -48,6 +49,6 @@ instance FromJSON Declaration where
         declarationextensions <- fmap (map read) (o .: "declarationextensions")
         declarationast <- o .: "declarationast"
         declaredsymbols <- o .: "declaredsymbols"
-        mentionedsymbols <- o .: "mentionedsymbols"
+        mentionedsymbols <- fmap (fmap (fmap (fmap ModuleName))) (o .: "mentionedsymbols")
         return (Declaration declarationgenre declarationextensions declarationast declaredsymbols mentionedsymbols))
 

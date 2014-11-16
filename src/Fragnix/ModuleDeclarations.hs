@@ -6,14 +6,17 @@ import Fragnix.Declaration (
 import Fragnix.Primitive (
     loadPrimitiveSymbols)
 
+import qualified Language.Haskell.Exts as UnAnn (
+    QName(Qual,UnQual),ModuleName(ModuleName))
+import Language.Haskell.Exts.Annotated.Simplify (sModuleName)
 import Language.Haskell.Exts.Annotated (
-    Module,ModuleName(ModuleName),Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
-    SrcSpan,srcInfoSpan,QName(Qual),ann,
+    Module,Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
+    SrcSpan,ModuleName(ModuleName),srcInfoSpan,ann,
     prettyPrint,Language(Haskell2010),Extension,
     InstRule(..),InstHead(..),Pat(PVar),Match(Match,InfixMatch))
 import Language.Haskell.Names (
-    Symbols(Symbols),Error,Scoped(Scoped),computeInterfaces,annotateModule,
-    NameInfo(GlobalValue,GlobalType),ModuleNameS)
+    Symbol,Error,Scoped(Scoped),computeInterfaces,annotateModule,
+    NameInfo(GlobalSymbol))
 import Language.Haskell.Names.SyntaxUtils (
     getModuleDecls,getModuleName,opName,getModuleExtensions)
 import Language.Haskell.Names.ModuleSymbols (
@@ -33,8 +36,9 @@ import Control.Monad.Trans.State.Strict (State,runState,gets,modify)
 import qualified Data.Set as Set (fromList)
 import Control.Monad (forM)
 import Data.Either (partitionEithers)
-import Data.Maybe (mapMaybe,fromMaybe,maybeToList,listToMaybe)
+import Data.Maybe (mapMaybe,fromMaybe,maybeToList,listToMaybe,catMaybes)
 import Data.Text (pack)
+import Data.Foldable (toList)
 
 modulDeclarations :: [FilePath] -> IO [Declaration]
 modulDeclarations modulpaths = do
@@ -45,7 +49,7 @@ modulDeclarations modulpaths = do
         Declaration genre _ ast boundsymbols mentionedsymbols <- declarations
         return (Declaration genre ghcextensions ast boundsymbols mentionedsymbols))
 
-modulDeclarationsNamesExtensions :: Map ModuleNameS Symbols -> [FilePath] -> IO ModuleInformation
+modulDeclarationsNamesExtensions :: Map UnAnn.ModuleName [Symbol] -> [FilePath] -> IO ModuleInformation
 modulDeclarationsNamesExtensions names modulpaths = do
     asts <- forM modulpaths parse
     let (annotatedasts,newnames) = flip runState names (do
@@ -53,13 +57,13 @@ modulDeclarationsNamesExtensions names modulpaths = do
             forM asts annotate)
     return (Map.fromList (do
         annotatedast <- annotatedasts
-        let ModuleName _ modulname = getModuleName annotatedast
+        let modulname = sModuleName (getModuleName annotatedast)
             declarations = extractDeclarations annotatedast
-            symbols = fromMaybe (Symbols Set.empty Set.empty) (Map.lookup modulname newnames)
+            symbols = concat (maybeToList (Map.lookup modulname newnames))
             (_,modulextensions) = getModuleExtensions annotatedast
         return (modulname,(declarations,symbols,modulextensions))))
 
-type ModuleInformation = Map ModuleNameS ([Declaration],Symbols,[Extension])
+type ModuleInformation = Map UnAnn.ModuleName ([Declaration],[Symbol],[Extension])
 
 parse :: FilePath -> IO (Module SrcSpan)
 parse path = do
@@ -68,10 +72,10 @@ parse path = do
         ParseOk ast -> return (fmap srcInfoSpan ast)
         ParseFailed location message -> error ("PARSE FAILED: " ++ path ++ show location ++ message)
 
-resolve :: [Module SrcSpan] -> State (Map ModuleNameS Symbols) (Set (Error SrcSpan))
+resolve :: [Module SrcSpan] -> State (Map UnAnn.ModuleName [Symbol]) (Set (Error SrcSpan))
 resolve asts = runFragnixModule (computeInterfaces language extensions asts)
 
-annotate :: Module SrcSpan -> State (Map ModuleNameS Symbols) (Module (Scoped SrcSpan))
+annotate :: Module SrcSpan -> State (Map UnAnn.ModuleName [Symbol]) (Module (Scoped SrcSpan))
 annotate ast = runFragnixModule (annotateModule language extensions ast)
 
 language :: Language
@@ -116,77 +120,26 @@ declGenre (ForImp _ _ _ _ _ _) = Value
 declGenre (InfixDecl _ _ _ _) = InfixFixity
 declGenre _ = Other
 
-declaredSymbols :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> Symbols
-declaredSymbols modulnameast annotatedast = Symbols (Set.fromList valuesymbols) (Set.fromList typesymbols) where
-    (valuesymbols,typesymbols) = partitionEithers (getTopDeclSymbols GlobalTable.empty modulnameast annotatedast)
+declaredSymbols :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> [Symbol]
+declaredSymbols modulnameast annotatedast = getTopDeclSymbols GlobalTable.empty modulnameast annotatedast
 
-mentionedSymbols :: Decl (Scoped SrcSpan) -> [(Maybe ModuleNameS,Symbol)]
-mentionedSymbols (TypeSig _ names typ) =
-    mapMaybe externalSymbol (universeBi typ) ++
-    mapMaybe (fmap noQualification . scopeSymbol . ann) names
-mentionedSymbols (InfixDecl _ _ _ ops) =
-    mapMaybe (fmap noQualification . scopeSymbol . ann . opName) ops
-mentionedSymbols inst@(InstDecl _ _ instrule _) =
-    instanceSymbol instrule ++
-    mapMaybe pvarSymbol (universeBi inst) ++
-    mapMaybe matchSymbol (universeBi inst) ++
-    mapMaybe externalSymbol (universeBi inst)
-mentionedSymbols inst@(DerivDecl _ _ instrule) =
-    instanceSymbol instrule ++
-    mapMaybe externalSymbol (universeBi inst)
-mentionedSymbols decl = mapMaybe externalSymbol (universeBi decl)
+mentionedSymbols :: Decl (Scoped SrcSpan) -> [(Symbol,Maybe UnAnn.ModuleName)]
+mentionedSymbols decl = mapMaybe scopeSymbol (toList decl)
 
-externalSymbol :: QName (Scoped SrcSpan) -> Maybe (Maybe ModuleNameS,Symbol)
-externalSymbol qname = do
-    symbol <- scopeSymbol (ann qname)
-    return (case qname of
-        Qual _ (ModuleName _ modulname) _ -> (Just modulname,symbol)
-        _ -> noQualification symbol)
-
-scopeSymbol :: Scoped SrcSpan -> Maybe Symbol
-scopeSymbol (Scoped (GlobalValue valuesymbol) _) = Just (ValueSymbol valuesymbol)
-scopeSymbol (Scoped (GlobalType typesymbol) _) = Just (TypeSymbol typesymbol)
+scopeSymbol :: Scoped SrcSpan -> Maybe (Symbol,Maybe UnAnn.ModuleName)
+scopeSymbol (Scoped (GlobalSymbol symbol (UnAnn.Qual modulname _)) _) = Just (symbol,Just modulname)
+scopeSymbol (Scoped (GlobalSymbol symbol (UnAnn.UnQual _)) _) = Just (symbol,Nothing)
 scopeSymbol _ = Nothing
 
-noQualification :: Symbol -> (Maybe ModuleNameS,Symbol)
-noQualification symbol = (Nothing,symbol)
-
-instanceSymbol :: InstRule (Scoped SrcSpan) -> [(Maybe ModuleNameS,Symbol)]
-instanceSymbol (IParen _ instrule) = instanceSymbol instrule
-instanceSymbol (IRule _ _ _ insthead) = do
-    classsymbol <- maybeToList (instHeadClassSymbol insthead)
-    typesymbol <- maybeToList (listToMaybe (instHeadTypeSymbols insthead))
-    return (noQualification (InstanceSymbol classsymbol typesymbol))
-
-instHeadClassSymbol :: InstHead (Scoped SrcSpan) -> Maybe Symbol
-instHeadClassSymbol (IHParen _ insthead) = instHeadClassSymbol insthead
-instHeadClassSymbol (IHCon _ qname)      = scopeSymbol (ann qname)
-instHeadClassSymbol (IHInfix _ _ qname)  = scopeSymbol (ann qname)
-instHeadClassSymbol (IHApp _ insthead _) = instHeadClassSymbol insthead
-
-instHeadTypeSymbols :: InstHead (Scoped SrcSpan) -> [Symbol]
-instHeadTypeSymbols (IHParen _ insthead) = instHeadTypeSymbols insthead
-instHeadTypeSymbols (IHCon _ _)      = []
-instHeadTypeSymbols (IHInfix _ typ _)  = mapMaybe scopeSymbol (universeBi typ)
-instHeadTypeSymbols (IHApp _ insthead typ) = instHeadTypeSymbols insthead ++ mapMaybe scopeSymbol (universeBi typ)
-
-pvarSymbol :: Pat (Scoped SrcSpan) -> Maybe (Maybe ModuleNameS,Symbol)
-pvarSymbol (PVar _ name) = fmap noQualification (scopeSymbol (ann name))
-pvarSymbol _ = Nothing
-
-matchSymbol :: Match (Scoped SrcSpan) -> Maybe (Maybe ModuleNameS,Symbol)
-matchSymbol (Match _ name _ _ _) = fmap noQualification (scopeSymbol (ann name))
-matchSymbol (InfixMatch _ _ name _ _ _) = fmap noQualification (scopeSymbol (ann name))
-
-newtype FragnixModule a = FragnixModule {runFragnixModule :: State (Map ModuleNameS Symbols) a}
+newtype FragnixModule a = FragnixModule {runFragnixModule :: State (Map UnAnn.ModuleName [Symbol]) a}
     deriving (Functor,Monad)
 
 instance MonadModule FragnixModule where
-    type ModuleInfo FragnixModule = Symbols
+    type ModuleInfo FragnixModule = [Symbol]
     lookupInCache name = FragnixModule (do
-        let modulname = modToString name
+        let modulname = UnAnn.ModuleName (modToString name)
         gets (Map.lookup modulname))
     insertInCache name symbols = FragnixModule (do
-        modify (Map.insert (modToString name) symbols))
+        modify (Map.insert (UnAnn.ModuleName (modToString name)) symbols))
     getPackages = return []
     readModuleInfo = error "Not implemented: readModuleInfo"

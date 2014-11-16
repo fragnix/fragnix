@@ -32,7 +32,7 @@ executable fragnix
                        process >=1.1 && <1.2,
                        containers >=0.5.0.0 && <0.6,
                        haskell-src-exts >=1.16 && <1.17,
-                       haskell-names >=0.4.2 && <0.5,
+                       haskell-names >=0.5.0 && <0.6,
                        haskell-packages >=0.2.4.1 && <0.3,
                        Cabal >=1.20.0.2 && <1.21,
                        tagged >=0.7.2 && <0.8,
@@ -56,7 +56,7 @@ executable haskell-modules
   main-is:             haskell-modules.hs
   other-modules:       Fragnix.BuiltinPackages
   build-depends:       base >=4.6 && <4.7,
-                       haskell-names >=0.4 && <0.5,
+                       haskell-names >=0.5.0 && <0.6,
                        haskell-src-exts >=1.16 && <1.17,
                        haskell-packages >=0.2.4.1 && <0.3,
                        containers >=0.5.0.0 && <0.6,
@@ -76,7 +76,7 @@ executable haskell-modules
 executable module-declarations
   main-is:             module-declarations.hs
   build-depends:       base >=4.6 && <4.7,
-                       haskell-names >=0.4 && <0.5,
+                       haskell-names >=0.5.0 && <0.6,
                        haskell-src-exts >=1.16 && <1.17,
                        haskell-packages >=0.2.4.1 && <0.3,
                        containers >=0.5.0.0 && <0.6,
@@ -103,7 +103,7 @@ executable declaration-slices
                        process >=1.1 && <1.2,
                        containers >=0.5.0.0 && <0.6,
                        haskell-src-exts >=1.16 && <1.17,
-                       haskell-names >=0.4 && <0.5,
+                       haskell-names >=0.5.0 && <0.6,
                        haskell-packages >=0.2.4.1 && <0.3,
                        Cabal >=1.20.0.2 && <1.21,
                        tagged >=0.7.2 && <0.8,
@@ -124,7 +124,7 @@ executable slice-compiler
                        process >=1.1 && <1.2,
                        containers >=0.5.0.0 && <0.6,
                        haskell-src-exts >=1.16 && <1.17,
-                       haskell-names >=0.4 && <0.5,
+                       haskell-names >=0.5.0 && <0.6,
                        haskell-packages >=0.2.4.1 && <0.3,
                        Cabal >=1.20.0.2 && <1.21,
                        tagged >=0.7.2 && <0.8,
@@ -148,7 +148,7 @@ test-suite test
                        process >=1.1 && <1.2,
                        containers >=0.5.0.0 && <0.6,
                        haskell-src-exts >=1.16 && <1.17,
-                       haskell-names >=0.4 && <0.5,
+                       haskell-names >=0.5.0 && <0.6,
                        haskell-packages >=0.2.4.1 && <0.3,
                        Cabal >=1.20.0.2 && <1.21,
                        tagged >=0.7.2 && <0.8,

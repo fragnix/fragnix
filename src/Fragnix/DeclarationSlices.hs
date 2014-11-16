@@ -10,11 +10,10 @@ import Fragnix.GlobalScope (GlobalScope)
 import Fragnix.Primitive (primitiveModules)
 
 import Language.Haskell.Names (
-    Symbols,Symbol(Constructor),SymTypeInfo,
-    OrigName,sv_origName,st_origName,origGName,gName,gModule,ModuleNameS)
-import qualified Language.Haskell.Exts.Annotated as Name (
+    Symbol(Constructor,Value,Method,Selector,symbolModule,symbolName))
+import qualified Language.Haskell.Exts as Name (
     Name(Ident,Symbol))
-import Language.Haskell.Exts.Annotated (prettyExtension)
+import Language.Haskell.Exts (ModuleName,prettyExtension,Name,prettyPrint)
 import Language.Haskell.Names.SyntaxUtils (stringToName)
 
 import Data.Graph.Inductive (
@@ -49,29 +48,29 @@ declarationGraph declarations =
     boundmap = Map.fromList (do
         (node,declaration) <- declarationnodes
         let Declaration _ _ _ boundsymbols _ = declaration
-        boundsymbol <- listSymbols boundsymbols
+        boundsymbol <- boundsymbols
         return (boundsymbol,node))
     usedsymboledges = do
         (node,declaration) <- declarationnodes
         let Declaration _ _ _ _ mentionedsymbols = declaration
-        (maybequalification,mentionedsymbol) <- mentionedsymbols
+        (mentionedsymbol,maybequalification) <- mentionedsymbols
         usednode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (node,usednode,UsesSymbol maybequalification mentionedsymbol)
     signatureedges = do
         (signaturenode,Declaration TypeSignature _ _ _ mentionedsymbols) <- declarationnodes
-        mentionedsymbol@(ValueSymbol _) <- map snd mentionedsymbols
+        mentionedsymbol@(Value _ _) <- map fst mentionedsymbols
         declarationnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (declarationnode,signaturenode,Signature)
-    instanceEdges = do
+    instanceEdges = []{-do
         (instancenode,Declaration ClassInstance _ _ _ mentionedsymbols) <- declarationnodes
         (InstanceSymbol classsymbol typesymbol) <- map snd mentionedsymbols
         declarationnode <- maybeToList (
             Map.lookup classsymbol boundmap <|>
             Map.lookup typesymbol boundmap)
-        return (declarationnode,instancenode,Instance)
+        return (declarationnode,instancenode,Instance)-}
     fixityEdges = do
         (fixitynode,Declaration InfixFixity _ _ _ mentionedsymbols) <- declarationnodes
-        mentionedsymbol <- map snd mentionedsymbols
+        mentionedsymbol <- map fst mentionedsymbols
         bindingnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (bindingnode,fixitynode,Fixity)
 
@@ -106,15 +105,18 @@ buildTempSlices tempslicegraph = do
         usages = nub (primitiveUsages ++ otherSliceUsages)
         primitiveUsages = do
             Declaration _ _ _ _ mentionedsymbols <- declarations
-            (maybequalification,symbol) <- mentionedsymbols
+            (symbol,maybequalification) <- mentionedsymbols
             primitivemodule <- primitiveModule symbol
-            return (Usage (fmap pack maybequalification) (symbolName symbol) (Primitive primitivemodule))
+            let maybeQualificationText = fmap (pack . prettyPrint) maybequalification
+                primitiveModuleText = pack (prettyPrint primitivemodule)
+            return (Usage maybeQualificationText (symbolUsedName symbol) (Primitive primitiveModuleText))
         otherSliceUsages = do
             (otherSliceNodeID,UsesSymbol maybequalification symbol) <- lsuc tempslicegraph node
-            return (Usage (fmap pack maybequalification) (symbolName symbol) (OtherSlice (fromIntegral otherSliceNodeID)))
+            let maybeQualificationText = fmap (pack . prettyPrint) maybequalification
+            return (Usage maybeQualificationText (symbolUsedName symbol) (OtherSlice (fromIntegral otherSliceNodeID)))
         allboundsymbols = do
             Declaration _ _ _ boundsymbols _ <- declarations
-            listSymbols boundsymbols
+            boundsymbols
     return (Slice tempID language fragments usages,allboundsymbols)
 
 type TempID = Integer
@@ -141,45 +143,46 @@ replaceUsageID f (Usage qualification usedName (OtherSlice tempID)) =
     (Usage qualification usedName (OtherSlice (f tempID)))
 replaceUsageID _ usage = usage
 
-primitiveModule :: Symbol -> [OriginalModule]
+primitiveModule :: Symbol -> [ModuleName]
 primitiveModule symbol = do
-    originalmodule <- case symbol of
-        ValueSymbol valuesymbol -> [gModule (origGName (sv_origName valuesymbol))]
-        TypeSymbol typesymbol -> [gModule (origGName (st_origName typesymbol))]
-        _ -> []
-    guard (originalmodule `elem` primitiveModules)
-    return (pack originalmodule)
+    let modulename = symbolModule symbol
+    guard (modulename `elem` primitiveModules)
+    return modulename
 
-listSymbols :: Symbols -> [Symbol]
-listSymbols (Symbols valueSymbolSet typeSymbolSet) = valueSymbols ++ typeSymbols where
-    valueSymbols = map ValueSymbol (Set.toList valueSymbolSet)
-    typeSymbols = map TypeSymbol (Set.toList typeSymbolSet)
+symbolUsedName :: Symbol -> UsedName
+symbolUsedName (Constructor _ constructorname typename) = constructorNameUsed typename constructorname
+symbolUsedName symbol
+    | isValue symbol = valueNameUsed (symbolName symbol)
+    | otherwise = typeNameUsed (symbolName symbol)
 
-symbolName :: Symbol -> UsedName
-symbolName (ValueSymbol (SymConstructor origname _ typename)) =
-    constructorNameUsed (gName (origGName typename)) (gName (origGName origname))
-symbolName (ValueSymbol valueSymbol) =
-    valueNameUsed (gName (origGName (sv_origName valueSymbol)))
-symbolName (TypeSymbol typeSymbol) =
-    typeNameUsed (gName (origGName (st_origName typeSymbol)))
+isValue :: Symbol -> Bool
+isValue symbol = case symbol of
+    Value {} -> True
+    Method {} -> True
+    Selector {} -> True
+    Constructor {} -> True
+    _ -> False
 
-valueNameUsed :: String -> UsedName
-valueNameUsed valuename = case stringToName valuename of
-    Name.Ident _ name -> ValueIdentifier (pack name)
-    Name.Symbol _ name -> ValueOperator (pack name)
+valueNameUsed :: Name -> UsedName
+valueNameUsed (Name.Ident name) = ValueIdentifier (pack name)
+valueNameUsed (Name.Symbol name) = ValueOperator (pack name)
 
-typeNameUsed :: String -> UsedName
-typeNameUsed typename = case stringToName typename of
-    Name.Ident _ name -> TypeIdentifier (pack name)
-    Name.Symbol _ name -> TypeOperator (pack name)
+typeNameUsed :: Name -> UsedName
+typeNameUsed (Name.Ident name) = TypeIdentifier (pack name)
+typeNameUsed (Name.Symbol name) = TypeOperator (pack name)
 
-constructorNameUsed :: String -> String -> UsedName
-constructorNameUsed typename constructorname = case constructorname of
-    (':':_) -> ConstructorOperator (pack typename) (pack constructorname)
-    _ -> ConstructorIdentifier (pack typename) (pack constructorname)
+constructorNameUsed :: Name -> Name -> UsedName
+constructorNameUsed (Name.Ident typename) (Name.Ident constructorname) =
+    ConstructorIdentifier (pack typename) (pack constructorname)
+constructorNameUsed (Name.Ident typename) (Name.Symbol constructorname) =
+    ConstructorOperator (pack typename) (pack constructorname)
+constructorNameUsed (Name.Symbol typename) (Name.Ident constructorname) =
+    ConstructorIdentifier (pack typename) (pack constructorname)
+constructorNameUsed (Name.Symbol typename) (Name.Symbol constructorname) =
+    ConstructorOperator (pack typename) (pack constructorname)
 
 data Dependency =
-    UsesSymbol (Maybe ModuleNameS) Symbol |
+    UsesSymbol (Maybe ModuleName) Symbol |
     Signature |
     Instance |
     Fixity
