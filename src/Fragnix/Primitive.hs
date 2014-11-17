@@ -2,7 +2,7 @@ module Fragnix.Primitive where
 
 import Language.Haskell.Names (Symbol(Value))
 import Language.Haskell.Names.Interfaces (readInterface)
-import Language.Haskell.Exts (ModuleName(ModuleName),prettyPrint,Name(Ident,Symbol))
+import Language.Haskell.Exts (ModuleName(ModuleName),prettyPrint,Name(Ident))
 
 import Data.Map (Map,fromList)
 import System.FilePath ((</>))

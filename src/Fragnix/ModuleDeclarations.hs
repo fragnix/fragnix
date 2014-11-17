@@ -11,14 +11,13 @@ import qualified Language.Haskell.Exts as UnAnn (
 import Language.Haskell.Exts.Annotated.Simplify (sModuleName)
 import Language.Haskell.Exts.Annotated (
     Module,Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
-    SrcSpan,ModuleName(ModuleName),srcInfoSpan,ann,
-    prettyPrint,Language(Haskell2010),Extension,
-    InstRule(..),InstHead(..),Pat(PVar),Match(Match,InfixMatch))
+    SrcSpan,srcInfoSpan,ModuleName,
+    prettyPrint,Language(Haskell2010),Extension)
 import Language.Haskell.Names (
     Symbol,Error,Scoped(Scoped),computeInterfaces,annotateModule,
     NameInfo(GlobalSymbol))
 import Language.Haskell.Names.SyntaxUtils (
-    getModuleDecls,getModuleName,opName,getModuleExtensions)
+    getModuleDecls,getModuleName,getModuleExtensions)
 import Language.Haskell.Names.ModuleSymbols (
     getTopDeclSymbols)
 import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (
@@ -26,17 +25,13 @@ import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (
 import Distribution.HaskellSuite.Modules (
     MonadModule(..),ModuleInfo,modToString)
 
-import Data.Generics.Uniplate.Data (universeBi)
 
 import Data.Set (Set)
-import qualified Data.Set as Set (empty)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map (lookup,insert,elems,fromList)
 import Control.Monad.Trans.State.Strict (State,runState,gets,modify)
-import qualified Data.Set as Set (fromList)
 import Control.Monad (forM)
-import Data.Either (partitionEithers)
-import Data.Maybe (mapMaybe,fromMaybe,maybeToList,listToMaybe,catMaybes)
+import Data.Maybe (mapMaybe,maybeToList)
 import Data.Text (pack)
 import Data.Foldable (toList)
 
