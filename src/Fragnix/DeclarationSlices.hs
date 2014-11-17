@@ -63,12 +63,9 @@ declarationGraph declarations =
         return (declarationnode,signaturenode,Signature)
     instanceEdges = do
         (instancenode,Declaration ClassInstance _ _ _ instancesymbols) <- declarationnodes
-        let classname = last (do
-                (Class _ classname) <- map fst instancesymbols
-                return classname)
+        method@(Method _ _ _) <- map fst instancesymbols
         (declarationnode,Declaration _ _ _ _ declarationsymbols) <- declarationnodes
-        (Class _ classname') <- map fst declarationsymbols
-        guard (classname == classname')
+        guard (method `elem` (map fst declarationsymbols))
         return (declarationnode,instancenode,Instance)
     fixityEdges = do
         (fixitynode,Declaration InfixFixity _ _ _ mentionedsymbols) <- declarationnodes
