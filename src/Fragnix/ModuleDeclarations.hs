@@ -34,6 +34,7 @@ import Control.Monad (forM)
 import Data.Maybe (mapMaybe,maybeToList)
 import Data.Text (pack)
 import Data.Foldable (toList)
+import Data.List (nub)
 
 modulDeclarations :: [FilePath] -> IO [Declaration]
 modulDeclarations modulpaths = do
