@@ -1,0 +1,1 @@
+[{"name":"unpackCString#","module":"GHC.CString","entity":"value"},{"name":"unpackAppendCString#","module":"GHC.CString","entity":"value"},{"name":"unpackFoldrCString#","module":"GHC.CString","entity":"value"},{"name":"unpackCStringUtf8#","module":"GHC.CString","entity":"value"},{"name":"unpackNBytes#","module":"GHC.CString","entity":"value"}]
