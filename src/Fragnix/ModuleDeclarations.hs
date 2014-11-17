@@ -119,7 +119,7 @@ declaredSymbols :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> [Symb
 declaredSymbols modulnameast annotatedast = getTopDeclSymbols GlobalTable.empty modulnameast annotatedast
 
 mentionedSymbols :: Decl (Scoped SrcSpan) -> [(Symbol,Maybe UnAnn.ModuleName)]
-mentionedSymbols decl = mapMaybe scopeSymbol (toList decl)
+mentionedSymbols decl = nub (mapMaybe scopeSymbol (toList decl))
 
 scopeSymbol :: Scoped SrcSpan -> Maybe (Symbol,Maybe UnAnn.ModuleName)
 scopeSymbol (Scoped (GlobalSymbol symbol (UnAnn.Qual modulname _)) _) = Just (symbol,Just modulname)

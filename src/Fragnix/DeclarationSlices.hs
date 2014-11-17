@@ -10,7 +10,7 @@ import Fragnix.GlobalScope (GlobalScope)
 import Fragnix.Primitive (primitiveModules)
 
 import Language.Haskell.Names (
-    Symbol(Constructor,Value,Method,Selector,symbolModule,symbolName))
+    Symbol(Constructor,Value,Method,Selector,Class,symbolModule,symbolName))
 import qualified Language.Haskell.Exts as Name (
     Name(Ident,Symbol))
 import Language.Haskell.Exts (ModuleName,prettyExtension,Name,prettyPrint)
@@ -61,13 +61,15 @@ declarationGraph declarations =
         mentionedsymbol@(Value _ _) <- map fst mentionedsymbols
         declarationnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (declarationnode,signaturenode,Signature)
-    instanceEdges = []{-do
-        (instancenode,Declaration ClassInstance _ _ _ mentionedsymbols) <- declarationnodes
-        (InstanceSymbol classsymbol typesymbol) <- map snd mentionedsymbols
-        declarationnode <- maybeToList (
-            Map.lookup classsymbol boundmap <|>
-            Map.lookup typesymbol boundmap)
-        return (declarationnode,instancenode,Instance)-}
+    instanceEdges = do
+        (instancenode,Declaration ClassInstance _ _ _ instancesymbols) <- declarationnodes
+        let classname = last (do
+                (Class _ classname) <- map fst instancesymbols
+                return classname)
+        (declarationnode,Declaration _ _ _ _ declarationsymbols) <- declarationnodes
+        (Class _ classname') <- map fst declarationsymbols
+        guard (classname == classname')
+        return (declarationnode,instancenode,Instance)
     fixityEdges = do
         (fixitynode,Declaration InfixFixity _ _ _ mentionedsymbols) <- declarationnodes
         mentionedsymbol <- map fst mentionedsymbols
