@@ -38,7 +38,8 @@ data UsedName =
     TypeIdentifier Text |
     TypeOperator Text |
     ConstructorIdentifier Text Text |
-    ConstructorOperator Text Text
+    ConstructorOperator Text Text |
+    Instance
 
 type SliceID = Integer
 type SourceCode = Text
@@ -114,6 +115,8 @@ instance ToJSON UsedName  where
     toJSON (ConstructorOperator typeName name) = object [
         "typeName" .= typeName,
         "constructorOperator" .= name]
+    toJSON Instance = object [
+        "instance" .= ("" :: Text)]
 
 instance FromJSON UsedName where
     parseJSON = withObject "used name" (\o ->
@@ -122,7 +125,8 @@ instance FromJSON UsedName where
         TypeIdentifier <$> o .: "typeIdentifier" <|>
         TypeOperator <$> o .: "typeOperator" <|>
         ConstructorIdentifier <$> o .: "typeName" <*> o .: "constructorIdentifier" <|>
-        ConstructorOperator <$> o .: "typeName" <*> o .: "constructorOperator")
+        ConstructorOperator <$> o .: "typeName" <*> o .: "constructorOperator" <|>
+        (const Instance :: Text -> UsedName) <$> o .: "instance")
 
 instance Hashable UsedName
 

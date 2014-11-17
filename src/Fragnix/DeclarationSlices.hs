@@ -5,7 +5,7 @@ import Fragnix.Declaration (
     Declaration(Declaration),Genre(TypeSignature,ClassInstance,InfixFixity))
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Usage(Usage),UsedName(..),
-    Reference(Primitive,OtherSlice),OriginalModule)
+    Reference(Primitive,OtherSlice))
 import Fragnix.GlobalScope (GlobalScope)
 import Fragnix.Primitive (primitiveModules)
 
@@ -14,7 +14,6 @@ import Language.Haskell.Names (
 import qualified Language.Haskell.Exts as Name (
     Name(Ident,Symbol))
 import Language.Haskell.Exts (ModuleName,prettyExtension,Name,prettyPrint)
-import Language.Haskell.Names.SyntaxUtils (stringToName)
 
 import Data.Graph.Inductive (
     buildGr,scc,lab,lsuc,labNodes,insEdges,insNodes,empty)
@@ -22,11 +21,9 @@ import Data.Graph.Inductive.PatriciaTree (
     Gr)
 
 import Control.Monad (guard)
-import Control.Applicative ((<|>))
 import Data.Text (pack)
 import Data.Map (Map)
 import qualified Data.Map as Map (lookup,fromList)
-import qualified Data.Set as Set (toList)
 import Data.Maybe (maybeToList,fromJust)
 import Data.Hashable (hash)
 import Data.List (nub)
@@ -63,10 +60,10 @@ declarationGraph declarations =
         return (declarationnode,signaturenode,Signature)
     instanceEdges = do
         (instancenode,Declaration ClassInstance _ _ _ instancesymbols) <- declarationnodes
-        method@(Method _ _ _) <- map fst instancesymbols
+        (method@(Method _ _ _),maybequalification) <- instancesymbols
         (declarationnode,Declaration _ _ _ _ declarationsymbols) <- declarationnodes
         guard (method `elem` (map fst declarationsymbols))
-        return (declarationnode,instancenode,Instance)
+        return (declarationnode,instancenode,UsesInstance maybequalification)
     fixityEdges = do
         (fixitynode,Declaration InfixFixity _ _ _ mentionedsymbols) <- declarationnodes
         mentionedsymbol <- map fst mentionedsymbols
@@ -101,7 +98,7 @@ buildTempSlices tempslicegraph = do
         fragments = Fragment (do
             Declaration _ _ ast _ _ <- declarations
             return ast)
-        usages = nub (primitiveUsages ++ otherSliceUsages)
+        usages = nub (primitiveUsages ++ otherSliceUsages ++ instanceUsages)
         primitiveUsages = do
             Declaration _ _ _ _ mentionedsymbols <- declarations
             (symbol,maybequalification) <- mentionedsymbols
@@ -113,6 +110,10 @@ buildTempSlices tempslicegraph = do
             (otherSliceNodeID,UsesSymbol maybequalification symbol) <- lsuc tempslicegraph node
             let maybeQualificationText = fmap (pack . prettyPrint) maybequalification
             return (Usage maybeQualificationText (symbolUsedName symbol) (OtherSlice (fromIntegral otherSliceNodeID)))
+        instanceUsages = do
+            (otherSliceNodeID,UsesInstance maybequalification) <- lsuc tempslicegraph node
+            let maybeQualificationText = fmap (pack . prettyPrint) maybequalification
+            return (Usage maybeQualificationText Instance (OtherSlice (fromIntegral otherSliceNodeID)))
         allboundsymbols = do
             Declaration _ _ _ boundsymbols _ <- declarations
             boundsymbols
@@ -183,6 +184,6 @@ constructorNameUsed (Name.Symbol typename) (Name.Symbol constructorname) =
 data Dependency =
     UsesSymbol (Maybe ModuleName) Symbol |
     Signature |
-    Instance |
+    UsesInstance (Maybe ModuleName) |
     Fixity
         deriving (Eq,Ord,Show)
