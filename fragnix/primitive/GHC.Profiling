@@ -1,1 +1,1 @@
-[{"origin":{"name":"startProfTimer","module":"GHC.Profiling","package":"base-4.7.0.0"},"fixity":null,"entity":"value"},{"origin":{"name":"stopProfTimer","module":"GHC.Profiling","package":"base-4.7.0.0"},"fixity":null,"entity":"value"}]
+[{"name":"startProfTimer","module":"GHC.Profiling","entity":"value"},{"name":"stopProfTimer","module":"GHC.Profiling","entity":"value"}]

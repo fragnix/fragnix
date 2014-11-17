@@ -1,1 +1,1 @@
-[{"origin":{"name":"Fingerprint","module":"GHC.Fingerprint.Type","package":"base-4.7.0.0"},"type":{"name":"Fingerprint","module":"GHC.Fingerprint.Type","package":"base-4.7.0.0"},"fixity":null,"entity":"constructor"},{"origin":{"name":"Fingerprint","module":"GHC.Fingerprint.Type","package":"base-4.7.0.0"},"fixity":null,"entity":"data"}]
+[{"name":"Fingerprint","module":"GHC.Fingerprint.Type","entity":"data"},{"name":"Fingerprint","module":"GHC.Fingerprint.Type","type":"Fingerprint","entity":"constructor"}]

@@ -1,1 +1,1 @@
-[{"origin":{"name":"getFullArgs","module":"GHC.Environment","package":"base-4.7.0.0"},"fixity":null,"entity":"value"}]
+[{"name":"getFullArgs","module":"GHC.Environment","entity":"value"}]

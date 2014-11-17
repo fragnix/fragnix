@@ -1,1 +1,1 @@
-[{"origin":{"name":"ip","module":"GHC.IP","package":"base-4.7.0.0"},"fixity":null,"entity":"method","class":{"name":"IP","module":"GHC.IP","package":"base-4.7.0.0"}},{"origin":{"name":"IP","module":"GHC.IP","package":"base-4.7.0.0"},"fixity":null,"entity":"class"}]
+[{"name":"IP","module":"GHC.IP","entity":"class"},{"name":"ip","module":"GHC.IP","entity":"method","class":"IP"}]

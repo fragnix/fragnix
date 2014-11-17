@@ -1,1 +1,1 @@
-[{"origin":{"name":"chr","module":"GHC.Char","package":"base-4.7.0.0"},"fixity":null,"entity":"value"}]
+[{"name":"chr","module":"GHC.Char","entity":"value"}]
