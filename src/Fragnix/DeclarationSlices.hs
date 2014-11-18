@@ -10,10 +10,12 @@ import Fragnix.GlobalScope (GlobalScope)
 import Fragnix.Primitive (primitiveModules)
 
 import Language.Haskell.Names (
-    Symbol(Constructor,Value,Method,Selector,Class,symbolModule,symbolName))
+    Symbol(Constructor,Value,Method,Selector,symbolModule,symbolName))
 import qualified Language.Haskell.Exts as Name (
     Name(Ident,Symbol))
-import Language.Haskell.Exts (ModuleName,prettyExtension,Name,prettyPrint)
+import Language.Haskell.Exts (
+    ModuleName,prettyExtension,Name,prettyPrint,
+    Extension(EnableExtension),KnownExtension(Safe))
 
 import Data.Graph.Inductive (
     buildGr,scc,lab,lsuc,labNodes,insEdges,insNodes,empty)
@@ -94,6 +96,7 @@ buildTempSlices tempslicegraph = do
         language = Language (nub (do
             Declaration _ ghcextensions _ _ _ <- declarations
             ghcextension <- ghcextensions
+            guard (not (ghcextension == EnableExtension Safe))
             return (pack (prettyExtension ghcextension))))
         fragments = Fragment (do
             Declaration _ _ ast _ _ <- declarations

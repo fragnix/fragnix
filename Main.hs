@@ -1,3 +1,4 @@
+{-# LANGUAGE Safe,Trustworthy #-}
 module Main where
 
 import Fav (color)
