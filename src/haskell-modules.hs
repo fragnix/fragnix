@@ -133,4 +133,4 @@ modulfilename (Module _ (Just (ModuleHead _ (ModuleName _ modulname) _ _)) _ _ _
     "/home/pschuster/Projects/fragnix/fragnix/modules" </> modulname <.> "hs"
 
 packagedbfilename :: FilePath
-packagedbfilename = "/home/pschuster/Projects/fragnix/fragnix/instances/packages.db"
+packagedbfilename = "/home/pschuster/Projects/fragnix/fragnix/packagedb/packages.db"
