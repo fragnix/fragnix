@@ -16,7 +16,7 @@ import Language.Haskell.Exts.Parser (
     fromParseResult)
 import Language.Haskell.Exts.Pretty (prettyPrint)
 import Language.Haskell.Exts.Extension (
-    glasgowExts,Extension(EnableExtension),KnownExtension(NondecreasingIndentation))
+    parseExtension,Extension(EnableExtension),KnownExtension(NondecreasingIndentation))
 
 import Data.Text.IO (writeFile)
 import Data.Text (Text,pack,unpack)
@@ -48,7 +48,7 @@ sliceCompiler sliceID = do
 assemble :: Slice -> Module
 assemble (Slice sliceID language fragment usages) =
     let decls = case fragment of
-            Fragment declarations -> map (parseDeclaration sliceID) declarations
+            Fragment declarations -> map (parseDeclaration sliceID ghcextensions) declarations
         modulName = ModuleName (sliceModuleName sliceID)
         Language ghcextensions = language
         languagepragmas = [Ident "NoImplicitPrelude"] ++ (map (Ident . unpack) ghcextensions)
@@ -56,12 +56,12 @@ assemble (Slice sliceID language fragment usages) =
         imports = map usageImport usages
     in Module noLoc modulName pragmas Nothing Nothing imports decls
 
-parseDeclaration :: SliceID -> Text -> Decl
-parseDeclaration sliceID declaration = decl where
+parseDeclaration :: SliceID -> [Text] -> Text -> Decl
+parseDeclaration sliceID ghcextensions declaration = decl where
     Module _ _ _ _ _ _ [decl] = fromParseResult (parseModuleWithMode parseMode (unpack declaration))
     parseMode = defaultParseMode {
         parseFilename = show sliceID,
-        extensions = EnableExtension NondecreasingIndentation:glasgowExts}
+        extensions = EnableExtension NondecreasingIndentation : map (parseExtension . unpack) ghcextensions}
 
 usageImport :: Usage -> ImportDecl
 usageImport (Usage maybeQualification usedName symbolSource) =
