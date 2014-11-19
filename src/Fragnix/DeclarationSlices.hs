@@ -10,7 +10,7 @@ import Fragnix.GlobalScope (GlobalScope)
 import Fragnix.Primitive (primitiveModules)
 
 import Language.Haskell.Names (
-    Symbol(Constructor,Value,Method,Selector,symbolModule,symbolName))
+    Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,symbolModule,symbolName))
 import qualified Language.Haskell.Exts as Name (
     Name(Ident,Symbol))
 import Language.Haskell.Exts (
@@ -23,6 +23,7 @@ import Data.Graph.Inductive.PatriciaTree (
     Gr)
 
 import Control.Monad (guard)
+import Control.Applicative ((<|>))
 import Data.Text (pack)
 import Data.Map (Map)
 import qualified Data.Map as Map (lookup,fromList)
@@ -66,11 +67,13 @@ declarationGraph declarations =
         declarationnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (declarationnode,signaturenode,Signature)
     instanceEdges = do
-        (instancenode,Declaration ClassInstance _ _ _ instancesymbols) <- declarationnodes
-        (method@(Method _ _ _),maybequalification) <- instancesymbols
-        (declarationnode,Declaration _ _ _ _ declarationsymbols) <- declarationnodes
-        guard (method `elem` (map fst declarationsymbols))
-        return (declarationnode,instancenode,UsesInstance maybequalification)
+        (instancenode,Declaration ClassInstance _ _ _ mentionedsymbols) <- declarationnodes
+        let candidates = do
+                mentionedsymbol <- map fst mentionedsymbols
+                guard (isClassDataNewType mentionedsymbol)
+                return (Map.lookup mentionedsymbol boundmap)
+        declarationnode <- maybeToList (foldr (<|>) Nothing candidates)
+        return (declarationnode,instancenode,UsesInstance Nothing)
     fixityEdges = do
         (fixitynode,Declaration InfixFixity _ _ _ mentionedsymbols) <- declarationnodes
         mentionedsymbol <- map fst mentionedsymbols
@@ -180,6 +183,13 @@ isValue symbol = case symbol of
     Method {} -> True
     Selector {} -> True
     Constructor {} -> True
+    _ -> False
+
+isClassDataNewType :: Symbol -> Bool
+isClassDataNewType symbol = case symbol of
+    Class {} -> True
+    Data {} -> True
+    NewType {} -> True
     _ -> False
 
 valueNameUsed :: Name -> UsedName
