@@ -30,6 +30,8 @@ import Data.Maybe (maybeToList,fromJust)
 import Data.Hashable (hash)
 import Data.List (nub)
 
+-- | Take the list of declarations where everything needed for compilation is present and
+-- return a list of slices and a map from bound symbol to slice that binds it.
 declarationSlices :: [Declaration] -> ([Slice],GlobalScope)
 declarationSlices declarations = (slices,globalscope) where
     (tempslices,slicebindings) = unzip (buildTempSlices (sccGraph (declarationGraph declarations)))
@@ -39,6 +41,9 @@ declarationSlices declarations = (slices,globalscope) where
         boundsymbol <- boundsymbols
         return (boundsymbol,sliceID))
 
+-- | Create a dependency graph between all declarations in the given list. Dependency edges
+-- come primarily from when a declaration mentions a symbol another declaration binds. But also
+-- from signatures, fixities and instances.
 declarationGraph :: [Declaration] -> Gr Declaration Dependency
 declarationGraph declarations =
     insEdges (signatureedges ++ usedsymboledges ++ instanceEdges ++ fixityEdges) (
@@ -72,6 +77,7 @@ declarationGraph declarations =
         bindingnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (bindingnode,fixitynode,Fixity)
 
+-- | Build a graph of strongly connected components from a given graph.
 sccGraph :: Gr a b -> Gr [a] b
 sccGraph graph = buildGr (do
     let sccnodes = zip [0..] (scc graph)
@@ -89,6 +95,9 @@ sccGraph graph = buildGr (do
             return (label,sccsuc)
     return ([],sccnode,scclabels,sccsucs))
 
+-- | Take a graph where each node corresponds to a list of declarations that from a strongly
+-- connected component. Return a list of slices paired with the symbols it binds. The slices
+-- have temporary IDs starting from 0.
 buildTempSlices :: Gr [Declaration] Dependency -> [(Slice,[Symbol])]
 buildTempSlices tempslicegraph = do
     (node,declarations) <- labNodes tempslicegraph
@@ -96,6 +105,7 @@ buildTempSlices tempslicegraph = do
         language = Language (nub (do
             Declaration _ ghcextensions _ _ _ <- declarations
             ghcextension <- ghcextensions
+            -- disregard the Safe extension
             guard (not (ghcextension == EnableExtension Safe))
             return (pack (prettyExtension ghcextension))))
         fragments = Fragment (do
@@ -122,20 +132,26 @@ buildTempSlices tempslicegraph = do
             boundsymbols
     return (Slice tempID language fragments usages,allboundsymbols)
 
+-- | A temporary ID before slices can be hashed.
 type TempID = Integer
 
+-- | Compute the hashes for the given list of slices and return slices where every ID is
+-- its hash.
 hashSlices :: [Slice] -> [Slice]
 hashSlices tempSlices = map (replaceSliceID (computeHash tempSliceMap)) tempSlices where
     tempSliceMap = sliceMap tempSlices
 
+-- | Build up a map from temporary ID to corresponding slice for better lookup.
 sliceMap :: [Slice] -> Map TempID Slice
 sliceMap tempSlices = Map.fromList (do
     tempSlice@(Slice tempSliceID _ _ _) <- tempSlices
     return (tempSliceID,tempSlice))
 
+-- | Replace every occurence of a temporary ID with the final ID.
 replaceSliceID :: (TempID -> SliceID) -> Slice -> Slice
 replaceSliceID f (Slice tempID language fragment usages) = Slice (f tempID) language fragment (map (replaceUsageID f) usages)
 
+-- | Hash the slice with the given temporary ID.
 computeHash :: Map TempID Slice -> TempID -> SliceID
 computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,usages))) where
     Just (Slice _ _ fragment tempUsages) = Map.lookup tempID tempSliceMap
