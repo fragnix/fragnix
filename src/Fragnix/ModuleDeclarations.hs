@@ -31,6 +31,7 @@ import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map (lookup,insert,elems,fromList)
 import Control.Monad.Trans.State.Strict (State,runState,gets,modify)
 import Control.Monad (forM)
+import Control.Applicative (Applicative)
 import Data.Maybe (mapMaybe,maybeToList)
 import Data.Text (pack)
 import Data.Foldable (toList)
@@ -128,7 +129,7 @@ scopeSymbol (Scoped (GlobalSymbol symbol (UnAnn.UnQual _)) _) = Just (symbol,Not
 scopeSymbol _ = Nothing
 
 newtype FragnixModule a = FragnixModule {runFragnixModule :: State (Map UnAnn.ModuleName [Symbol]) a}
-    deriving (Functor,Monad)
+    deriving (Functor,Monad,Applicative)
 
 instance MonadModule FragnixModule where
     type ModuleInfo FragnixModule = [Symbol]
