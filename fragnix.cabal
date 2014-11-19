@@ -25,7 +25,7 @@ executable fragnix
                        Fragnix.GlobalScope,
                        Fragnix.Primitive
   -- other-extensions:    
-  build-depends:       base >=4.6 && <4.7,
+  build-depends:       base >=4.6 && <4.8,
                        text >=1.1 && < 1.2,
                        filepath >=1.3 && < 1.4,
                        directory >=1.2.0.1 && < 1.3,
@@ -40,14 +40,13 @@ executable fragnix
                        bytestring >=0.10.4.0 && <0.11,
                        hashable >=1.2.2.0 && <1.3,
                        transformers >=0.3.0.0 && <0.4,
-                       fgl >=5.4.2.4 && <5.5,
-                       uniplate >=1.6.12 && <1.7
+                       fgl >=5.4.2.4 && <5.5
   hs-source-dirs:      src
   default-language:    Haskell2010
 
 executable package-modules
   main-is:             package-modules.hs
-  build-depends:       base >=4.6 && <4.7,
+  build-depends:       base >=4.6 && <4.8,
                        process >=1.1.0.2 && <1.2
   hs-source-dirs:      src
   default-language:    Haskell2010
@@ -55,7 +54,7 @@ executable package-modules
 executable haskell-modules
   main-is:             haskell-modules.hs
   other-modules:       Fragnix.BuiltinPackages
-  build-depends:       base >=4.6 && <4.7,
+  build-depends:       base >=4.6 && <4.8,
                        haskell-names >=0.5.0 && <0.6,
                        haskell-src-exts >=1.16 && <1.17,
                        haskell-packages >=0.2.4.1 && <0.3,
@@ -73,71 +72,9 @@ executable haskell-modules
   hs-source-dirs:      src
   default-language:    Haskell2010
 
-executable module-declarations
-  main-is:             module-declarations.hs
-  build-depends:       base >=4.6 && <4.7,
-                       haskell-names >=0.5.0 && <0.6,
-                       haskell-src-exts >=1.16 && <1.17,
-                       haskell-packages >=0.2.4.1 && <0.3,
-                       containers >=0.5.0.0 && <0.6,
-                       filepath >=1.3 && < 1.4,
-                       Cabal >=1.20.0.2 && <1.21,
-                       hse-cpp,
-                       tagged,
-                       aeson >=0.8.0.0 && <0.9,
-                       bytestring >=0.10.4.0 && <0.11,
-                       cpphs,
-                       directory >=1.2.0.1 && < 1.3,
-                       transformers >=0.3.0.0 && <0.4,
-                       text,
-                       uniplate
-  hs-source-dirs:      src
-  default-language:    Haskell2010
-
-executable declaration-slices
-  main-is:             declaration-slices.hs
-  build-depends:       base >=4.6 && <4.7,
-                       text >=1.1 && < 1.2,
-                       filepath >=1.3 && < 1.4,
-                       directory >=1.2.0.1 && < 1.3,
-                       process >=1.1 && <1.2,
-                       containers >=0.5.0.0 && <0.6,
-                       haskell-src-exts >=1.16 && <1.17,
-                       haskell-names >=0.5.0 && <0.6,
-                       haskell-packages >=0.2.4.1 && <0.3,
-                       Cabal >=1.20.0.2 && <1.21,
-                       tagged >=0.7.2 && <0.8,
-                       aeson >=0.8.0.0 && <0.9,
-                       bytestring >=0.10.4.0 && <0.11,
-                       hashable >=1.2.2.0 && <1.3,
-                       transformers >=0.3.0.0 && <0.4,
-                       fgl
-  hs-source-dirs:      src
-  default-language:    Haskell2010
-
-executable slice-compiler
-  main-is:             slice-compiler.hs
-  build-depends:       base >=4.6 && <4.7,
-                       text >=1.1 && < 1.2,
-                       filepath >=1.3 && < 1.4,
-                       directory >=1.2.0.1 && < 1.3,
-                       process >=1.1 && <1.2,
-                       containers >=0.5.0.0 && <0.6,
-                       haskell-src-exts >=1.16 && <1.17,
-                       haskell-names >=0.5.0 && <0.6,
-                       haskell-packages >=0.2.4.1 && <0.3,
-                       Cabal >=1.20.0.2 && <1.21,
-                       tagged >=0.7.2 && <0.8,
-                       aeson >=0.8.0.0 && <0.9,
-                       bytestring >=0.10.4.0 && <0.11,
-                       hashable >=1.2.2.0 && <1.3,
-                       transformers >=0.3.0.0 && <0.4
-  hs-source-dirs:      src
-  default-language:    Haskell2010
-
 executable flatten-names
   main-is:             flatten-names.hs
-  build-depends:       base >=4.6 && <4.7,
+  build-depends:       base >=4.6 && <4.8,
                        text >=1.1 && < 1.2,
                        filepath >=1.3 && < 1.4,
                        directory >=1.2.0.1 && < 1.3,
@@ -162,7 +99,7 @@ test-suite test
   main-is:             Tests.hs
   GHC-Options:         -threaded -Wall
   Default-language:    Haskell2010
-  Build-depends:       base < 5,
+  Build-depends:       base >=4.6 && <4.8,
                        text >=1.1 && < 1.2,
                        filepath >=1.3 && < 1.4,
                        directory >=1.2.0.1 && < 1.3,
