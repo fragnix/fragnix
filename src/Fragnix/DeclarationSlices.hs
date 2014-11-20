@@ -7,7 +7,7 @@ import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Usage(Usage),UsedName(..),
     Reference(Primitive,OtherSlice))
 import Fragnix.GlobalScope (GlobalScope)
-import Fragnix.Primitive (primitiveModules)
+import Fragnix.Symbols (primitiveModules)
 
 import Language.Haskell.Names (
     Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,symbolModule,symbolName))

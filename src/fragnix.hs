@@ -5,7 +5,7 @@ import Fragnix.Slice (writeSlice,Slice(Slice))
 import Fragnix.ModuleDeclarations (modulDeclarations)
 import Fragnix.DeclarationSlices (declarationSlices)
 import Fragnix.SliceCompiler (sliceCompilerMain,sliceCompiler)
-import Fragnix.Primitive (mainsymbol)
+import Fragnix.Symbols (mainsymbol)
 
 import qualified Data.Map as Map (lookup)
 import Control.Monad (forM_,forM)
@@ -38,4 +38,4 @@ fragnixTest = do
     putStrLn ("Failures: " ++ show failures)
 
 main :: IO ()
-main = fragnixExecutable
+main = fragnixTest

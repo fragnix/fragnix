@@ -23,7 +23,7 @@ executable fragnix
                        Fragnix.DeclarationSlices,
                        Fragnix.SliceCompiler,
                        Fragnix.GlobalScope,
-                       Fragnix.Primitive
+                       Fragnix.Symbols
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.8,
                        text >=1.1 && < 1.2,
