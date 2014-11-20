@@ -4,7 +4,7 @@ module Fragnix.ModuleDeclarations where
 import Fragnix.Declaration (
     Declaration(Declaration),Genre(..))
 import Fragnix.Symbols (
-    loadSymbols,primitiveSymbolsPath,symbolsPath)
+    loadSymbols,persistSymbols,primitiveSymbolsPath,symbolsPath)
 
 import qualified Language.Haskell.Exts as UnAnn (
     QName(Qual,UnQual),ModuleName(ModuleName))
@@ -30,7 +30,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set (toList)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map (
-    lookup,insert,elems,fromList,union)
+    lookup,insert,elems,fromList,union,map)
 import Control.Monad.Trans.State.Strict (
     State,runState,gets,modify)
 import Control.Monad (forM)
@@ -45,6 +45,7 @@ modulDeclarations modulpaths = do
     primitivesymbols <- loadSymbols primitiveSymbolsPath
     symbols <- loadSymbols symbolsPath
     modulinformation <- modulDeclarationsNamesExtensions (Map.union primitivesymbols symbols) modulpaths
+    persistSymbols symbolsPath (Map.map (\(_,symbols,_) -> symbols) modulinformation)
     return (do
         (declarations,_,ghcextensions) <- Map.elems modulinformation
         Declaration genre _ ast boundsymbols mentionedsymbols <- declarations
