@@ -29,7 +29,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map (lookup,fromList)
 import Data.Maybe (maybeToList,fromJust)
 import Data.Hashable (hash)
-import Data.List (nub)
+import Data.List (nub,(\\))
 
 -- | Take the list of declarations where everything needed for compilation is present and
 -- return a list of slices and a map from bound symbol to slice that binds it.
@@ -112,7 +112,7 @@ buildTempSlices tempslicegraph = do
             guard (not (ghcextension `elem` map EnableExtension [Safe,CPP]))
             return (pack (prettyExtension ghcextension))))
         fragments = Fragment (do
-            Declaration _ _ ast _ _ <- declarations
+            Declaration _ _ ast _ _ <- arrange declarations
             return ast)
         usages = nub (primitiveUsages ++ otherSliceUsages ++ instanceUsages)
         primitiveUsages = do
@@ -134,6 +134,22 @@ buildTempSlices tempslicegraph = do
             Declaration _ _ _ boundsymbols _ <- declarations
             boundsymbols
     return (Slice tempID language fragments usages,allboundsymbols)
+
+-- | Arrange a list of declarations so that the signature is directly above the corresponding
+-- binding declaration
+arrange :: [Declaration] -> [Declaration]
+arrange declarations = arrangements ++ (declarations \\ arrangements) where
+    arrangements = nub (concatMap findBinding signatures)
+    findBinding signature@(Declaration _ _ _ _ mentionedsymbols) = do
+        let bindings = do
+                mentionedsymbol@(Value _ _) <- map fst mentionedsymbols
+                binding@(Declaration _ _ _ boundsymbols _) <- declarations
+                guard (mentionedsymbol `elem` boundsymbols)
+                return binding
+        [signature] ++ bindings
+    signatures = do
+        signature@(Declaration TypeSignature _ _ _ _) <- declarations
+        return signature
 
 -- | A temporary ID before slices can be hashed.
 type TempID = Integer
