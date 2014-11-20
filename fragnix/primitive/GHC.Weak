@@ -1,1 +1,0 @@
-[{"name":"Weak","module":"GHC.Weak","entity":"data"},{"name":"Weak","module":"GHC.Weak","type":"Weak","entity":"constructor"},{"name":"mkWeak","module":"GHC.Weak","entity":"value"},{"name":"deRefWeak","module":"GHC.Weak","entity":"value"},{"name":"finalize","module":"GHC.Weak","entity":"value"},{"name":"runFinalizerBatch","module":"GHC.Weak","entity":"value"}]

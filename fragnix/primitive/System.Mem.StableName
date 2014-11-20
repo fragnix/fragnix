@@ -1,1 +1,0 @@
-[{"name":"StableName","module":"System.Mem.StableName","entity":"data"},{"name":"makeStableName","module":"System.Mem.StableName","entity":"value"},{"name":"hashStableName","module":"System.Mem.StableName","entity":"value"},{"name":"eqStableName","module":"System.Mem.StableName","entity":"value"}]
