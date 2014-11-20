@@ -5,7 +5,7 @@ import Fragnix.Declaration (
     Declaration(Declaration),Genre(TypeSignature,ClassInstance,InfixFixity))
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Usage(Usage),UsedName(..),
-    Reference(Primitive,OtherSlice))
+    Reference(OtherSlice))
 import Fragnix.Environment (Environment)
 import Fragnix.Environment (
     loadEnvironment,persistEnvironment,
@@ -44,10 +44,17 @@ declarationSlices declarations = do
 
 declarationSlicesWithEnvironment :: Environment -> [Declaration] -> ([Slice],Environment)
 declarationSlicesWithEnvironment environment declarations = (slices,Map.union newenvironment environment) where
-    (tempslices,slicebindings) = unzip (buildTempSlices environment (sccGraph (declarationGraph declarations)))
+    sccgraph = sccGraph (declarationGraph declarations)
+    tempslices = buildTempSlices environment sccgraph
     slices = hashSlices tempslices
+    tempMap = Map.fromList (do
+        (Slice tempID _ _ _,Slice sliceID _ _ _) <- zip tempslices slices
+        return (tempID,sliceID))
     newenvironment = Map.fromList (do
-        (Slice sliceID _ _ _,boundsymbols) <- zip slices slicebindings
+        Slice tempID _ _ _ <- tempslices
+        sliceID <- maybeToList (Map.lookup tempID tempMap)
+        slicedeclarations <- maybeToList (lab sccgraph (fromIntegral tempID))
+        Declaration _ _ _ boundsymbols _ <- slicedeclarations
         boundsymbol <- boundsymbols
         return (boundsymbol,OtherSlice sliceID))
 
@@ -58,7 +65,7 @@ declarationGraph :: [Declaration] -> Gr Declaration Dependency
 declarationGraph declarations =
     insEdges (signatureedges ++ usedsymboledges ++ instanceEdges ++ fixityEdges) (
         insNodes declarationnodes empty) where
-    declarationnodes = zip [0..] declarations
+    declarationnodes = zip [-1,-2..] declarations
     boundmap = Map.fromList (do
         (node,declaration) <- declarationnodes
         let Declaration _ _ _ boundsymbols _ = declaration
@@ -92,7 +99,7 @@ declarationGraph declarations =
 -- | Build a graph of strongly connected components from a given graph.
 sccGraph :: Gr a b -> Gr [a] b
 sccGraph graph = buildGr (do
-    let sccnodes = zip [0..] (scc graph)
+    let sccnodes = zip [-1,-2..] (scc graph)
         sccmap = Map.fromList (do
             (sccnode,graphnodes) <- sccnodes
             graphnode <- graphnodes
@@ -107,10 +114,11 @@ sccGraph graph = buildGr (do
             return (label,sccsuc)
     return ([],sccnode,scclabels,sccsucs))
 
--- | Take a map from symbol to SliceID. Take also a graph where each node corresponds to a
+-- | Take a graph where each node corresponds to a
 -- list of declarations that from a strongly connected component. Return a list of slices
--- paired with the symbols it binds. The slices have temporary IDs starting from 0.
-buildTempSlices :: Environment -> Gr [Declaration] Dependency -> [(Slice,[Symbol])]
+-- tripled with the symbols it binds and the mentioned symbols that could not be resolved
+-- inside the graph. The slices have temporary IDs starting from 0.
+buildTempSlices :: Environment -> Gr [Declaration] Dependency -> [Slice]
 buildTempSlices environment tempslicegraph = do
     (node,declarations) <- labNodes tempslicegraph
     let tempID = fromIntegral node
@@ -123,27 +131,23 @@ buildTempSlices environment tempslicegraph = do
         fragments = Fragment (do
             Declaration _ _ ast _ _ <- arrange declarations
             return ast)
-        usages = nub (primitiveUsages ++ otherSliceUsages ++ instanceUsages)
-        primitiveUsages = do
+        otherslices = Map.fromList (do
+            (otherSliceTempID,UsesSymbol _ symbol) <- lsuc tempslicegraph node
+            return (symbol,OtherSlice (fromIntegral otherSliceTempID)))
+        mentionedusages = nub (do
             Declaration _ _ _ _ mentionedsymbols <- declarations
-            (symbol,maybequalification) <- mentionedsymbols
+            (mentionedsymbol,maybequalification) <- mentionedsymbols
             let maybeQualificationText = fmap (pack . prettyPrint) maybequalification
-            case Map.lookup symbol environment of
-                Just (primitive@(Primitive _)) ->
-                    return (Usage maybeQualificationText (symbolUsedName symbol) primitive)
-                _ -> []
-        otherSliceUsages = do
-            (otherSliceNodeID,UsesSymbol maybequalification symbol) <- lsuc tempslicegraph node
+                usedName = symbolUsedName mentionedsymbol
+            reference <- maybeToList (
+                Map.lookup mentionedsymbol otherslices <|>
+                Map.lookup mentionedsymbol environment)
+            return (Usage maybeQualificationText usedName reference))
+        instanceusages = do
+            (otherSliceTempID,UsesInstance maybequalification) <- lsuc tempslicegraph node
             let maybeQualificationText = fmap (pack . prettyPrint) maybequalification
-            return (Usage maybeQualificationText (symbolUsedName symbol) (OtherSlice (fromIntegral otherSliceNodeID)))
-        instanceUsages = do
-            (otherSliceNodeID,UsesInstance maybequalification) <- lsuc tempslicegraph node
-            let maybeQualificationText = fmap (pack . prettyPrint) maybequalification
-            return (Usage maybeQualificationText Instance (OtherSlice (fromIntegral otherSliceNodeID)))
-        allboundsymbols = do
-            Declaration _ _ _ boundsymbols _ <- declarations
-            boundsymbols
-    return (Slice tempID language fragments usages,allboundsymbols)
+            return (Usage maybeQualificationText Instance (OtherSlice (fromIntegral otherSliceTempID)))
+    return (Slice tempID language fragments (mentionedusages ++ instanceusages))
 
 -- | Arrange a list of declarations so that the signature is directly above the corresponding
 -- binding declaration
@@ -187,8 +191,8 @@ computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,usages))) wh
     usages = map (replaceUsageID (computeHash tempSliceMap)) tempUsages
 
 replaceUsageID :: (TempID -> SliceID) -> Usage -> Usage
-replaceUsageID f (Usage qualification usedName (OtherSlice tempID)) =
-    (Usage qualification usedName (OtherSlice (f tempID)))
+replaceUsageID f (Usage qualification usedName (OtherSlice tempID))
+    | tempID < 0 = (Usage qualification usedName (OtherSlice (f tempID)))
 replaceUsageID _ usage = usage
 
 symbolUsedName :: Symbol -> UsedName
