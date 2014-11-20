@@ -44,6 +44,35 @@ executable fragnix
   hs-source-dirs:      src
   default-language:    Haskell2010
 
+executable fragnix-test
+  main-is:             fragnix-test.hs
+  other-modules:       Fragnix.Slice,
+                       Fragnix.Declaration,
+                       Fragnix.ModuleDeclarations,
+                       Fragnix.DeclarationSlices,
+                       Fragnix.SliceCompiler,
+                       Fragnix.GlobalScope,
+                       Fragnix.Symbols
+  -- other-extensions:    
+  build-depends:       base >=4.6 && <4.8,
+                       text >=1.1 && < 1.2,
+                       filepath >=1.3 && < 1.4,
+                       directory >=1.2.0.1 && < 1.3,
+                       process >=1.2.0.0 && <1.3,
+                       containers >=0.5.0.0 && <0.6,
+                       haskell-src-exts >=1.16 && <1.17,
+                       haskell-names >=0.5.0 && <0.6,
+                       haskell-packages >=0.2.4.1 && <0.3,
+                       Cabal >=1.20.0.2 && <1.21,
+                       tagged >=0.7.2 && <0.8,
+                       aeson >=0.8.0.0 && <0.9,
+                       bytestring >=0.10.4.0 && <0.11,
+                       hashable >=1.2.2.0 && <1.3,
+                       transformers >=0.3.0.0 && <0.4,
+                       fgl >=5.4.2.4 && <5.5
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+
 executable package-modules
   main-is:             package-modules.hs
   build-depends:       base >=4.6 && <4.8,
