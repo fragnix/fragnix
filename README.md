@@ -7,16 +7,12 @@ Immutable, fragment-based dependencies!
 Installation
 ------------
 
-After having installed the latest [Haskell-Platform](https://www.haskell.org/platform/):
-
-    git clone github.com/phischu/fragnix
-    cabal sandbox init
-    cabal install
+Unfourtunately installation is rather difficult, because `fragnix` uses a heavily modified version of `haskell-names` that is not (yet) on hackage.
 
 Example
 -------
 
-    .cabal-sandbox/bin/fragnix examples/tests/HelloFragnix.hs
+    fragnix Main.hs
 
 You should see the following output:
 
