@@ -22,8 +22,8 @@ executable fragnix
                        Fragnix.ModuleDeclarations,
                        Fragnix.DeclarationSlices,
                        Fragnix.SliceCompiler,
-                       Fragnix.GlobalScope,
-                       Fragnix.Symbols
+                       Fragnix.Symbols,
+                       Fragnix.Environment
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.8,
                        text >=1.1 && < 1.2,
@@ -51,8 +51,8 @@ executable fragnix-test
                        Fragnix.ModuleDeclarations,
                        Fragnix.DeclarationSlices,
                        Fragnix.SliceCompiler,
-                       Fragnix.GlobalScope,
-                       Fragnix.Symbols
+                       Fragnix.Symbols,
+                       Fragnix.Environment
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.8,
                        text >=1.1 && < 1.2,

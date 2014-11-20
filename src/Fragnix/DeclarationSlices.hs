@@ -6,11 +6,13 @@ import Fragnix.Declaration (
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Usage(Usage),UsedName(..),
     Reference(Primitive,OtherSlice))
-import Fragnix.GlobalScope (GlobalScope)
-import Fragnix.Symbols (primitiveModules)
+import Fragnix.Environment (Environment)
+import Fragnix.Environment (
+    loadEnvironment,persistEnvironment,
+    loadPrimitiveEnvironment,environmentPath)
 
 import Language.Haskell.Names (
-    Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,symbolModule,symbolName))
+    Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,symbolName))
 import qualified Language.Haskell.Exts as Name (
     Name(Ident,Symbol))
 import Language.Haskell.Exts (
@@ -26,21 +28,28 @@ import Control.Monad (guard)
 import Control.Applicative ((<|>))
 import Data.Text (pack)
 import Data.Map (Map)
-import qualified Data.Map as Map (lookup,fromList)
+import qualified Data.Map as Map (lookup,fromList,union)
 import Data.Maybe (maybeToList,fromJust)
 import Data.Hashable (hash)
 import Data.List (nub,(\\))
 
--- | Take the list of declarations where everything needed for compilation is present and
--- return a list of slices and a map from bound symbol to slice that binds it.
-declarationSlices :: [Declaration] -> ([Slice],GlobalScope)
-declarationSlices declarations = (slices,globalscope) where
-    (tempslices,slicebindings) = unzip (buildTempSlices (sccGraph (declarationGraph declarations)))
+
+declarationSlices :: [Declaration] -> IO [Slice]
+declarationSlices declarations = do
+    primitiveEnvironment <- loadPrimitiveEnvironment
+    environment <- loadEnvironment environmentPath
+    let (slices,newenvironment) = declarationSlicesWithEnvironment (Map.union primitiveEnvironment environment) declarations
+    persistEnvironment environmentPath newenvironment
+    return slices
+
+declarationSlicesWithEnvironment :: Environment -> [Declaration] -> ([Slice],Environment)
+declarationSlicesWithEnvironment environment declarations = (slices,Map.union newenvironment environment) where
+    (tempslices,slicebindings) = unzip (buildTempSlices environment (sccGraph (declarationGraph declarations)))
     slices = hashSlices tempslices
-    globalscope = Map.fromList (do
+    newenvironment = Map.fromList (do
         (Slice sliceID _ _ _,boundsymbols) <- zip slices slicebindings
         boundsymbol <- boundsymbols
-        return (boundsymbol,sliceID))
+        return (boundsymbol,OtherSlice sliceID))
 
 -- | Create a dependency graph between all declarations in the given list. Dependency edges
 -- come primarily from when a declaration mentions a symbol another declaration binds. But also
@@ -98,11 +107,11 @@ sccGraph graph = buildGr (do
             return (label,sccsuc)
     return ([],sccnode,scclabels,sccsucs))
 
--- | Take a graph where each node corresponds to a list of declarations that from a strongly
--- connected component. Return a list of slices paired with the symbols it binds. The slices
--- have temporary IDs starting from 0.
-buildTempSlices :: Gr [Declaration] Dependency -> [(Slice,[Symbol])]
-buildTempSlices tempslicegraph = do
+-- | Take a map from symbol to SliceID. Take also a graph where each node corresponds to a
+-- list of declarations that from a strongly connected component. Return a list of slices
+-- paired with the symbols it binds. The slices have temporary IDs starting from 0.
+buildTempSlices :: Environment -> Gr [Declaration] Dependency -> [(Slice,[Symbol])]
+buildTempSlices environment tempslicegraph = do
     (node,declarations) <- labNodes tempslicegraph
     let tempID = fromIntegral node
         language = Language (nub (do
@@ -118,10 +127,11 @@ buildTempSlices tempslicegraph = do
         primitiveUsages = do
             Declaration _ _ _ _ mentionedsymbols <- declarations
             (symbol,maybequalification) <- mentionedsymbols
-            primitivemodule <- primitiveModule symbol
             let maybeQualificationText = fmap (pack . prettyPrint) maybequalification
-                primitiveModuleText = pack (prettyPrint primitivemodule)
-            return (Usage maybeQualificationText (symbolUsedName symbol) (Primitive primitiveModuleText))
+            case Map.lookup symbol environment of
+                Just (primitive@(Primitive _)) ->
+                    return (Usage maybeQualificationText (symbolUsedName symbol) primitive)
+                _ -> []
         otherSliceUsages = do
             (otherSliceNodeID,UsesSymbol maybequalification symbol) <- lsuc tempslicegraph node
             let maybeQualificationText = fmap (pack . prettyPrint) maybequalification
@@ -180,12 +190,6 @@ replaceUsageID :: (TempID -> SliceID) -> Usage -> Usage
 replaceUsageID f (Usage qualification usedName (OtherSlice tempID)) =
     (Usage qualification usedName (OtherSlice (f tempID)))
 replaceUsageID _ usage = usage
-
-primitiveModule :: Symbol -> [ModuleName]
-primitiveModule symbol = do
-    let modulename = symbolModule symbol
-    guard (modulename `elem` primitiveModules)
-    return modulename
 
 symbolUsedName :: Symbol -> UsedName
 symbolUsedName (Constructor _ constructorname typename) = constructorNameUsed typename constructorname

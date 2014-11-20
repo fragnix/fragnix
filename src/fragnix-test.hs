@@ -10,13 +10,20 @@ import Control.Monad (forM_,forM)
 import System.Environment (getArgs)
 import System.Exit (ExitCode(ExitSuccess,ExitFailure))
 
-fragnixTest :: IO ()
-fragnixTest = do
+
+-- | Take a list of module paths on the command line and try to compile every single
+-- slice found in them.
+main :: IO ()
+main = do
+
     args <- getArgs
+
     declarations <- modulDeclarations args
     writeDeclarations "fragnix/declarations/declarations.json" declarations
-    let (slices,_) = declarationSlices declarations
+
+    slices <- declarationSlices declarations
     forM_ slices writeSlice
+
     let sliceIDs = [sliceID | Slice sliceID _ _ _ <- slices]
     exitCodes <- forM sliceIDs (\sliceID -> sliceCompiler sliceID)
     let successes = length [() | ExitSuccess <- exitCodes]
@@ -24,5 +31,3 @@ fragnixTest = do
     putStrLn ("Successes: " ++ show successes)
     putStrLn ("Failures: " ++ show failures)
 
-main :: IO ()
-main = fragnixTest
