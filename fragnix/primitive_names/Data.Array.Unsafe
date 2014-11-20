@@ -1,0 +1,1 @@
+[{"name":"castSTUArray","module":"Data.Array.Base","entity":"value"},{"name":"castIOUArray","module":"Data.Array.IO.Internals","entity":"value"},{"name":"unsafeFreeze","module":"Data.Array.Base","entity":"value"},{"name":"unsafeThaw","module":"Data.Array.Base","entity":"value"},{"name":"unsafeForeignPtrToStorableArray","module":"Data.Array.Storable.Internals","entity":"value"}]

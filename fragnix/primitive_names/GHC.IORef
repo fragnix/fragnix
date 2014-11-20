@@ -1,0 +1,1 @@
+[{"name":"IORef","module":"GHC.IORef","entity":"newtype"},{"name":"IORef","module":"GHC.IORef","type":"IORef","entity":"constructor"},{"name":"newIORef","module":"GHC.IORef","entity":"value"},{"name":"readIORef","module":"GHC.IORef","entity":"value"},{"name":"writeIORef","module":"GHC.IORef","entity":"value"},{"name":"atomicModifyIORef","module":"GHC.IORef","entity":"value"}]

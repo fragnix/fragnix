@@ -1,0 +1,1 @@
+[{"name":"IOUArray","module":"Data.Array.IO.Internals","entity":"newtype"},{"name":"IOUArray","module":"Data.Array.IO.Internals","type":"IOUArray","entity":"constructor"},{"name":"castIOUArray","module":"Data.Array.IO.Internals","entity":"value"},{"name":"unsafeThawIOUArray","module":"Data.Array.IO.Internals","entity":"value"}]

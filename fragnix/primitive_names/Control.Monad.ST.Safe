@@ -1,0 +1,1 @@
+[{"name":"ST","module":"GHC.ST","entity":"newtype"},{"name":"runST","module":"GHC.ST","entity":"value"},{"name":"fixST","module":"GHC.ST","entity":"value"},{"name":"RealWorld","module":"GHC.Prim","entity":"data"},{"name":"stToIO","module":"GHC.IO","entity":"value"}]

@@ -1,0 +1,1 @@
+[{"name":"Int","module":"GHC.Types","entity":"data"},{"name":"Int8","module":"GHC.Int","entity":"data"},{"name":"Int16","module":"GHC.Int","entity":"data"},{"name":"Int32","module":"GHC.Int","entity":"data"},{"name":"Int64","module":"GHC.Int","entity":"data"}]

@@ -1,0 +1,1 @@
+[{"name":"Ratio","module":"GHC.Real","entity":"data"},{"name":"Rational","module":"GHC.Real","entity":"type"},{"name":"%","module":"GHC.Real","entity":"value"},{"name":"numerator","module":"GHC.Real","entity":"value"},{"name":"denominator","module":"GHC.Real","entity":"value"},{"name":"approxRational","module":"Data.Ratio","entity":"value"}]
