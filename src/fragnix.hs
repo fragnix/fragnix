@@ -1,16 +1,15 @@
 module Main where
 
 import Fragnix.Declaration (writeDeclarations)
-import Fragnix.Slice (writeSlice,Slice(Slice))
+import Fragnix.Slice (writeSlice)
 import Fragnix.ModuleDeclarations (modulDeclarations)
 import Fragnix.DeclarationSlices (declarationSlices)
-import Fragnix.SliceCompiler (sliceCompilerMain,sliceCompiler)
+import Fragnix.SliceCompiler (sliceCompilerMain)
 import Fragnix.Symbols (mainsymbol)
 
 import qualified Data.Map as Map (lookup)
-import Control.Monad (forM_,forM)
+import Control.Monad (forM_)
 import System.Environment (getArgs)
-import System.Exit (ExitCode(ExitSuccess,ExitFailure))
 
 fragnixExecutable :: IO ()
 fragnixExecutable = do
