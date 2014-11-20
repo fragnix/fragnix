@@ -15,7 +15,7 @@ import Language.Haskell.Exts.Annotated (
     prettyPrint,Language(Haskell2010),Extension)
 import Language.Haskell.Names (
     Symbol,Error,Scoped(Scoped),computeInterfaces,annotateModule,
-    NameInfo(GlobalSymbol))
+    NameInfo(GlobalSymbol),ppError)
 import Language.Haskell.Names.SyntaxUtils (
     getModuleDecls,getModuleName,getModuleExtensions)
 import Language.Haskell.Names.ModuleSymbols (
@@ -27,11 +27,12 @@ import Distribution.HaskellSuite.Modules (
 
 
 import Data.Set (Set)
+import qualified Data.Set as Set (toList)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map (lookup,insert,elems,fromList)
 import Control.Monad.Trans.State.Strict (State,runState,gets,modify)
 import Control.Monad (forM)
-import Control.Applicative (Applicative)
+import Control.Applicative (Applicative,(<$>),(<*>))
 import Data.Maybe (mapMaybe,maybeToList)
 import Data.Text (pack)
 import Data.Foldable (toList)
@@ -49,9 +50,9 @@ modulDeclarations modulpaths = do
 modulDeclarationsNamesExtensions :: Map UnAnn.ModuleName [Symbol] -> [FilePath] -> IO ModuleInformation
 modulDeclarationsNamesExtensions names modulpaths = do
     asts <- forM modulpaths parse
-    let (annotatedasts,newnames) = flip runState names (do
-            resolve asts
-            forM asts annotate)
+    let ((errors,annotatedasts),newnames) = flip runState names (do
+            (,) <$> resolve asts <*> forM asts annotate)
+    forM (Set.toList errors) (putStrLn . ("WARNING: " ++) . ppError)
     return (Map.fromList (do
         annotatedast <- annotatedasts
         let modulname = sModuleName (getModuleName annotatedast)

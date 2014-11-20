@@ -38,4 +38,4 @@ fragnixTest = do
     putStrLn ("Failures: " ++ show failures)
 
 main :: IO ()
-main = fragnixTest
+main = fragnixExecutable
