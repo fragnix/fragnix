@@ -45,7 +45,7 @@ modulDeclarations modulpaths = do
     primitivesymbols <- loadSymbols primitiveSymbolsPath
     symbols <- loadSymbols symbolsPath
     modulinformation <- modulDeclarationsNamesExtensions (Map.union primitivesymbols symbols) modulpaths
-    persistSymbols symbolsPath (Map.map (\(_,symbols,_) -> symbols) modulinformation)
+    persistSymbols symbolsPath (Map.map (\(_,modulsymbols,_) -> modulsymbols) modulinformation)
     return (do
         (declarations,_,ghcextensions) <- Map.elems modulinformation
         Declaration genre _ ast boundsymbols mentionedsymbols <- declarations
