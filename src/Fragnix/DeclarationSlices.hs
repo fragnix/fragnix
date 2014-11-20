@@ -134,14 +134,19 @@ buildTempSlices environment tempslicegraph = do
         otherslices = Map.fromList (do
             (otherSliceTempID,UsesSymbol _ symbol) <- lsuc tempslicegraph node
             return (symbol,OtherSlice (fromIntegral otherSliceTempID)))
+        locallyboundsymbols = do
+            Declaration _ _ _ boundsymbols _ <- declarations
+            boundsymbols
         mentionedusages = nub (do
             Declaration _ _ _ _ mentionedsymbols <- declarations
             (mentionedsymbol,maybequalification) <- mentionedsymbols
             let maybeQualificationText = fmap (pack . prettyPrint) maybequalification
                 usedName = symbolUsedName mentionedsymbol
-            reference <- maybeToList (
-                Map.lookup mentionedsymbol otherslices <|>
-                Map.lookup mentionedsymbol environment)
+            reference <- if mentionedsymbol `elem` locallyboundsymbols
+                then []
+                else maybeToList (
+                    Map.lookup mentionedsymbol otherslices <|>
+                    Map.lookup mentionedsymbol environment)
             return (Usage maybeQualificationText usedName reference))
         instanceusages = do
             (otherSliceTempID,UsesInstance maybequalification) <- lsuc tempslicegraph node
