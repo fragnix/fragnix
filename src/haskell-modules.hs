@@ -22,12 +22,14 @@ import qualified Distribution.HaskellSuite.Compiler as Compiler (
 
 import Distribution.Package (
     PackageIdentifier(pkgName),PackageName(PackageName))
+import Distribution.ModuleName (
+    fromString,toFilePath)
 
 import Data.Tagged (Tagged(Tagged))
-import System.Directory (createDirectoryIfMissing)
 import Control.Monad (forM_)
 import Data.Maybe (fromMaybe)
 import System.FilePath ((</>),(<.>),dropFileName)
+import System.Directory (createDirectoryIfMissing)
 
 main :: IO ()
 main =
@@ -41,7 +43,7 @@ theTool =
         knownLanguages
         knownExtensions
         compile
-        []
+        ["hs"]
 
 version :: Version
 version = Version [0,1] []
@@ -53,7 +55,8 @@ instance IsPackageDB DummyDB where
     readPackageDB _ DummyDB = do
         packages <- readDB InitDB packagedbfilename
         return (builtinpackages ++ packages)
-    writePackageDB DummyDB packages = writeDB packagedbfilename packages
+    writePackageDB DummyDB packages = do
+        writeDB packagedbfilename packages
     globalDB = return (Just DummyDB)
     dbFromPath _ = return DummyDB
     locateDB _ = return (Just DummyDB)
@@ -69,7 +72,7 @@ fixCppOpts opts =
         preInclude = "cabal_macros.h" : preInclude opts,
         includes =
             "/usr/lib/ghc/include/" :
-            "/home/pschuster/.haskell-packages/base-4.7.0.0/include/" :
+            "~/.haskell-packages/base-4.7.0.0/include/" :
             includes opts,
         boolopts = fixBoolOpts (boolopts opts)
     }
@@ -105,7 +108,7 @@ fixExtensions exts =
     exts
 
 compile :: Compiler.CompileFn
-compile _ maybelanguage exts cppoptions packagename _ _ filenames = do
+compile builddirectory maybelanguage exts cppoptions packagename _ _ filenames = do
 
     let language = fromMaybe Haskell98 maybelanguage
         isParsec = pkgName packagename == PackageName "parsec"
@@ -124,13 +127,13 @@ compile _ maybelanguage exts cppoptions packagename _ _ filenames = do
             parseresult = parseFileContentsWithMode parsemode preprocessedfile
         case parseresult of
             ParseOk ast -> do
-                createDirectoryIfMissing True (dropFileName (modulfilename ast))
-                writeFile (modulfilename ast) preprocessedfile
+                let modulefilepath = builddirectory </> toFilePath (fromString (moduleName ast)) <.> "hs"
+                createDirectoryIfMissing True (dropFileName modulefilepath)
+                writeFile modulefilepath preprocessedfile
             ParseFailed location message -> error ("PARSE FAILED: " ++ show location ++ " " ++ show message))
 
-modulfilename :: Module SrcSpanInfo -> FilePath
-modulfilename (Module _ (Just (ModuleHead _ (ModuleName _ modulname) _ _)) _ _ _) =
-    "/home/pschuster/Projects/fragnix/temp/fragnix/modules" </> modulname <.> "hs"
+moduleName :: Module SrcSpanInfo -> String
+moduleName (Module _ (Just (ModuleHead _ (ModuleName _ modulename) _ _)) _ _ _) = modulename
 
 packagedbfilename :: FilePath
-packagedbfilename = "/home/pschuster/Projects/fragnix/temp/fragnix/packagedb/packages.db"
+packagedbfilename = "/home/pschuster/Projects/fragnix/fragnix/temp/packagedb/packages.db"
