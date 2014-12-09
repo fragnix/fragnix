@@ -18,14 +18,13 @@ import Data.Version (Version(Version))
 import Distribution.HaskellSuite (
     IsPackageDB(..),readDB,writeDB,MaybeInitDB(InitDB))
 import qualified Distribution.HaskellSuite.Compiler as Compiler (
-    main,Simple,simple,CompileFn)
+    main,CompileFn,Is(..))
 
-import Distribution.Package (
-    PackageIdentifier(pkgName),PackageName(PackageName))
-import Distribution.ModuleName (
-    fromString,toFilePath)
-import Distribution.Simple.Compiler (
-    PackageDB(SpecificPackageDB))
+import Distribution.Package (PackageIdentifier(pkgName),PackageName(PackageName))
+import Distribution.Simple.Compiler (PackageDB(SpecificPackageDB))
+import Distribution.Simple.Utils (installOrdinaryFiles)
+import Distribution.Verbosity (normal)
+import Distribution.Text (display)
 
 import Data.Tagged (Tagged(Tagged))
 import Control.Monad (forM_)
@@ -35,20 +34,23 @@ import System.Directory (createDirectoryIfMissing)
 
 main :: IO ()
 main =
-  Compiler.main theTool
+  Compiler.main HaskellModules
 
-theTool :: Compiler.Simple SpecificDB
-theTool =
-    Compiler.simple
-        "haskell-modules"
-        version
-        knownLanguages
-        knownExtensions
-        compile
-        ["hs"]
+data HaskellModules = HaskellModules
 
-version :: Version
-version = Version [0,1] []
+instance Compiler.Is HaskellModules where
+    type DB HaskellModules = SpecificDB
+    name HaskellModules = "haskell-modules"
+    version HaskellModules = Version [0,1] []
+    fileExtensions HaskellModules = []
+    compile HaskellModules = compile
+    languages HaskellModules = knownLanguages
+    languageExtensions HaskellModules = knownExtensions
+    installLib HaskellModules builddirectory targetdirectory _ _ modulenames = do
+        let modulefiles = do
+                modulename <- modulenames
+                return (builddirectory,display modulename <.> "hs")
+        installOrdinaryFiles normal targetdirectory modulefiles
 
 data SpecificDB = SpecificDB FilePath
 
@@ -61,6 +63,9 @@ instance IsPackageDB SpecificDB where
         writeDB packagedbfilepath packages
     locateDB (SpecificPackageDB packagedbfilepath) = return (Just (SpecificDB packagedbfilepath))
     locateDB _ = return Nothing
+    globalDB = error "haskell-modules does not support global db"
+    dbFromPath = error "haskell-modules does not support db from path"
+    userDB = error "haskell-modules does not support user db"
 
 fixCppOpts :: CpphsOptions -> CpphsOptions
 fixCppOpts opts =
@@ -127,7 +132,7 @@ compile builddirectory maybelanguage exts cppoptions packagename _ _ filenames =
             parseresult = parseFileContentsWithMode parsemode preprocessedfile
         case parseresult of
             ParseOk ast -> do
-                let modulefilepath = builddirectory </> toFilePath (fromString (moduleName ast)) <.> "hs"
+                let modulefilepath = builddirectory </> moduleName ast <.> "hs"
                 createDirectoryIfMissing True (dropFileName modulefilepath)
                 writeFile modulefilepath preprocessedfile
             ParseFailed location message -> error ("PARSE FAILED: " ++ show location ++ " " ++ show message))
