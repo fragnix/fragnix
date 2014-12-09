@@ -24,6 +24,8 @@ import Distribution.Package (
     PackageIdentifier(pkgName),PackageName(PackageName))
 import Distribution.ModuleName (
     fromString,toFilePath)
+import Distribution.Simple.Compiler (
+    PackageDB(SpecificPackageDB))
 
 import Data.Tagged (Tagged(Tagged))
 import Control.Monad (forM_)
@@ -35,7 +37,7 @@ main :: IO ()
 main =
   Compiler.main theTool
 
-theTool :: Compiler.Simple DummyDB
+theTool :: Compiler.Simple SpecificDB
 theTool =
     Compiler.simple
         "haskell-modules"
@@ -48,19 +50,17 @@ theTool =
 version :: Version
 version = Version [0,1] []
 
-data DummyDB = DummyDB
+data SpecificDB = SpecificDB FilePath
 
-instance IsPackageDB DummyDB where
+instance IsPackageDB SpecificDB where
     dbName = Tagged "haskell-modules"
-    readPackageDB _ DummyDB = do
-        packages <- readDB InitDB packagedbfilename
+    readPackageDB _ (SpecificDB packagedbfilepath) = do
+        packages <- readDB InitDB packagedbfilepath
         return (builtinpackages ++ packages)
-    writePackageDB DummyDB packages = do
-        writeDB packagedbfilename packages
-    globalDB = return (Just DummyDB)
-    dbFromPath _ = return DummyDB
-    locateDB _ = return (Just DummyDB)
-    userDB = return DummyDB
+    writePackageDB (SpecificDB packagedbfilepath) packages = do
+        writeDB packagedbfilepath packages
+    locateDB (SpecificPackageDB packagedbfilepath) = return (Just (SpecificDB packagedbfilepath))
+    locateDB _ = return Nothing
 
 fixCppOpts :: CpphsOptions -> CpphsOptions
 fixCppOpts opts =
@@ -134,6 +134,3 @@ compile builddirectory maybelanguage exts cppoptions packagename _ _ filenames =
 
 moduleName :: Module SrcSpanInfo -> String
 moduleName (Module _ (Just (ModuleHead _ (ModuleName _ modulename) _ _)) _ _ _) = modulename
-
-packagedbfilename :: FilePath
-packagedbfilename = "/home/pschuster/Projects/fragnix/fragnix/temp/packagedb/packages.db"
