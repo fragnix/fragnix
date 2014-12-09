@@ -84,7 +84,7 @@ usageImport (Usage maybeQualification usedName symbolSource) =
     in ImportDecl noLoc modulName qualified False False Nothing maybeAlias (Just (False,importSpec))
 
 sliceModuleDirectory :: FilePath
-sliceModuleDirectory = "fragnix" </> "compilationunits"
+sliceModuleDirectory = "fragnix" </> "temp" </> "compilationunits"
 
 sliceModulePath :: SliceID -> FilePath
 sliceModulePath sliceID = sliceModuleDirectory </> sliceModuleFileName sliceID

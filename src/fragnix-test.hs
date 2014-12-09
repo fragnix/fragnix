@@ -19,7 +19,7 @@ main = do
     args <- getArgs
 
     declarations <- modulDeclarations args
-    writeDeclarations "fragnix/declarations/declarations.json" declarations
+    writeDeclarations "fragnix/temp/declarations/declarations.json" declarations
 
     slices <- declarationSlices declarations
     forM_ slices writeSlice

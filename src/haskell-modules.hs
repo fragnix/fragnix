@@ -130,7 +130,7 @@ compile _ maybelanguage exts cppoptions packagename _ _ filenames = do
 
 modulfilename :: Module SrcSpanInfo -> FilePath
 modulfilename (Module _ (Just (ModuleHead _ (ModuleName _ modulname) _ _)) _ _ _) =
-    "/home/pschuster/Projects/fragnix/fragnix/modules" </> modulname <.> "hs"
+    "/home/pschuster/Projects/fragnix/temp/fragnix/modules" </> modulname <.> "hs"
 
 packagedbfilename :: FilePath
-packagedbfilename = "/home/pschuster/Projects/fragnix/fragnix/packagedb/packages.db"
+packagedbfilename = "/home/pschuster/Projects/fragnix/temp/fragnix/packagedb/packages.db"
