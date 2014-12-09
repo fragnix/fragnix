@@ -35,7 +35,7 @@ sliceCompilerMain sliceID = do
     writeSliceModuleTransitive sliceID
     rawSystem "ghc" [
         "-o","main",
-        "-ifragnix/compilationunits",
+        "-ifragnix/temp/compilationunits",
         "-main-is",sliceModuleName sliceID,
         sliceModulePath sliceID]
 
@@ -43,7 +43,7 @@ sliceCompiler :: SliceID -> IO ExitCode
 sliceCompiler sliceID = do
     createDirectoryIfMissing True sliceModuleDirectory
     writeSliceModuleTransitive sliceID
-    rawSystem "ghc" ["-ifragnix/compilationunits",sliceModulePath sliceID]
+    rawSystem "ghc" ["-ifragnix/temp/compilationunits",sliceModulePath sliceID]
 
 assemble :: Slice -> Module
 assemble (Slice sliceID language fragment usages) =
