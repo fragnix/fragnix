@@ -1,1 +1,0 @@
-Slice 0 (Fragment ["main :: IO ()","main = putHello \"Fragnix!\""]) [Usage Nothing (ValueIdentifier "putHello") (OtherSlice 1),Usage Nothing (TypeIdentifier "IO") (Primitive "System.IO")]

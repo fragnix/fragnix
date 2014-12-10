@@ -2,7 +2,7 @@ module Main where
 
 import Fragnix.Declaration (writeDeclarations)
 import Fragnix.Slice (writeSlice,Reference(OtherSlice))
-import Fragnix.ModuleDeclarations (modulDeclarations)
+import Fragnix.ModuleDeclarations (moduleDeclarations)
 import Fragnix.DeclarationSlices (declarationSlices)
 import Fragnix.SliceCompiler (sliceCompilerMain)
 import Fragnix.Environment (loadEnvironment,environmentPath,mainsymbol)
@@ -18,7 +18,7 @@ main = do
 
     args <- getArgs
 
-    declarations <- modulDeclarations args
+    declarations <- moduleDeclarations args
     writeDeclarations "fragnix/temp/declarations/declarations.json" declarations
 
     slices <- declarationSlices declarations

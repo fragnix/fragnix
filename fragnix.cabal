@@ -44,8 +44,8 @@ executable fragnix
   hs-source-dirs:      src
   default-language:    Haskell2010
 
-executable fragnix-test
-  main-is:             fragnix-test.hs
+test-suite test
+  main-is:             test.hs
   other-modules:       Fragnix.Slice,
                        Fragnix.Declaration,
                        Fragnix.ModuleDeclarations,
@@ -69,9 +69,12 @@ executable fragnix-test
                        bytestring >=0.10.4.0 && <0.11,
                        hashable >=1.2.2.0 && <1.3,
                        transformers >=0.3.0.0 && <0.4,
-                       fgl >=5.4.2.4 && <5.5
+                       fgl >=5.4.2.4 && <5.5,
+                       tasty >=0.10.1 && <0.11,
+                       tasty-golden >=2.2.2.4 && <2.3
   hs-source-dirs:      src
   default-language:    Haskell2010
+  type:                exitcode-stdio-1.0
 
 executable package-modules
   main-is:             package-modules.hs
@@ -122,27 +125,3 @@ executable flatten-names
                        directory-tree >=0.12.0 && <0.13
   hs-source-dirs:      src
   default-language:    Haskell2010
-
-test-suite test
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      tests,src
-  main-is:             Tests.hs
-  GHC-Options:         -threaded -Wall
-  Default-language:    Haskell2010
-  Build-depends:       base >=4.6 && <4.8,
-                       text >=1.1 && < 1.2,
-                       filepath >=1.3 && < 1.4,
-                       directory >=1.2.0.1 && < 1.3,
-                       process >=1.1 && <1.2,
-                       containers >=0.5.0.0 && <0.6,
-                       haskell-src-exts >=1.16.0.2 && <1.17,
-                       haskell-names >=0.5.0 && <0.6,
-                       haskell-packages >=0.2.4.1 && <0.3,
-                       Cabal >=1.20.0.2 && <1.21,
-                       tagged >=0.7.2 && <0.8,
-                       aeson >=0.8.0.0 && <0.9,
-                       bytestring >=0.10.4.0 && <0.11,
-                       hashable >=1.2.2.0 && <1.3,
-                       transformers >=0.3.0.0 && <0.4,
-                       tasty >= 0.8.1.3 && <0.9,
-                       tasty-golden >= 2.2.2.4 && <2.3

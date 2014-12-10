@@ -1,1 +1,0 @@
-Slice 1 (Fragment ["putHello :: String -> IO ()","putHello x = putStrLn (\"Hello \" ++ x)"]) [Usage Nothing (ValueIdentifier "putStrLn") (Primitive "System.IO"),Usage Nothing (ValueOperator "++") (Primitive "Data.List"),Usage Nothing (TypeIdentifier "String") (Primitive "Data.String"),Usage Nothing (TypeIdentifier "IO") (Primitive "System.IO")]

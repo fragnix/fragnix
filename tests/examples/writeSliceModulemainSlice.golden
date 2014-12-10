@@ -1,7 +1,0 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-module F0 where
-import F1 (putHello)
-import System.IO (IO)
- 
-main :: IO ()
-main = putHello "Fragnix!"

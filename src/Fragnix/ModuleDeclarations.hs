@@ -40,19 +40,19 @@ import Data.Text (pack)
 import Data.Foldable (toList)
 import Data.List (nub)
 
-modulDeclarations :: [FilePath] -> IO [Declaration]
-modulDeclarations modulpaths = do
+moduleDeclarations :: [FilePath] -> IO [Declaration]
+moduleDeclarations modulpaths = do
     primitivesymbols <- loadSymbols primitiveSymbolsPath
     symbols <- loadSymbols symbolsPath
-    modulinformation <- modulDeclarationsNamesExtensions (Map.union primitivesymbols symbols) modulpaths
+    modulinformation <- moduleDeclarationsNamesExtensions (Map.union primitivesymbols symbols) modulpaths
     persistSymbols symbolsPath (Map.map (\(_,modulsymbols,_) -> modulsymbols) modulinformation)
     return (do
         (declarations,_,ghcextensions) <- Map.elems modulinformation
         Declaration genre _ ast boundsymbols mentionedsymbols <- declarations
         return (Declaration genre ghcextensions ast boundsymbols mentionedsymbols))
 
-modulDeclarationsNamesExtensions :: Map UnAnn.ModuleName [Symbol] -> [FilePath] -> IO ModuleInformation
-modulDeclarationsNamesExtensions names modulpaths = do
+moduleDeclarationsNamesExtensions :: Map UnAnn.ModuleName [Symbol] -> [FilePath] -> IO ModuleInformation
+moduleDeclarationsNamesExtensions names modulpaths = do
     asts <- forM modulpaths parse
     let ((errors,annotatedasts),newnames) = flip runState names (do
             (,) <$> resolve asts <*> forM asts annotate)
