@@ -14,7 +14,8 @@ import Language.Haskell.Exts.Annotated (
     SrcSpan,srcInfoSpan,ModuleName,
     prettyPrint,Language(Haskell2010),Extension)
 import Language.Haskell.Names (
-    Symbol,Error,Scoped(Scoped),computeInterfaces,annotateModule,
+    Symbol(NewType,Constructor),Error,Scoped(Scoped),
+    computeInterfaces,annotateModule,
     NameInfo(GlobalSymbol),ppError)
 import Language.Haskell.Names.SyntaxUtils (
     getModuleDecls,getModuleName,getModuleExtensions)
@@ -125,9 +126,19 @@ declGenre _ = Other
 declaredSymbols :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> [Symbol]
 declaredSymbols modulnameast annotatedast = getTopDeclSymbols GlobalTable.empty modulnameast annotatedast
 
+-- | All symbols the given declaration mentions together with a qualifiaction
+-- if they are used qualified. Foreign imports have an implicit dependency on
+-- the constructors of all mentioned newtypes.
 mentionedSymbols :: Decl (Scoped SrcSpan) -> [(Symbol,Maybe UnAnn.ModuleName)]
+mentionedSymbols decl@(ForImp _ _ _ _ _ _) = newtypeconstructors ++ mentionedsymbols where
+    mentionedsymbols = nub (mapMaybe scopeSymbol (toList decl))
+    newtypeconstructors = do
+        (NewType symbolmodule symbolname,_) <- mentionedsymbols
+        return (Constructor symbolmodule symbolname symbolname,Nothing)
 mentionedSymbols decl = nub (mapMaybe scopeSymbol (toList decl))
 
+-- | Some scope annotations are for references to global symbols. Get these together with 
+-- any qualification.
 scopeSymbol :: Scoped SrcSpan -> Maybe (Symbol,Maybe UnAnn.ModuleName)
 scopeSymbol (Scoped (GlobalSymbol symbol (UnAnn.Qual modulname _)) _) = Just (symbol,Just modulname)
 scopeSymbol (Scoped (GlobalSymbol symbol (UnAnn.UnQual _)) _) = Just (symbol,Nothing)
