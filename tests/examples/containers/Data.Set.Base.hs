@@ -328,7 +328,6 @@ data Set a    = Bin {-# UNPACK #-} !Size !a !(Set a) !(Set a)
 type Size     = Int
 
 
-type role Set nominal
 
 
 instance Ord a => Monoid (Set a) where

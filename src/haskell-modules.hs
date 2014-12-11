@@ -130,15 +130,16 @@ compile builddirectory maybelanguage exts cppoptions packagename _ _ filenames =
                 ignoreLanguagePragmas = False,
                 ignoreLinePragmas     = False,
                 fixities              = Just []}
-            parseresult = parseFileContentsWithMode parsemode (stripRoles preprocessedfile)
+            roleStrippedFile = stripRoles preprocessedfile
+            parseresult = parseFileContentsWithMode parsemode roleStrippedFile
         case parseresult of
             ParseOk ast -> do
                 let modulefilepath = builddirectory </> moduleName ast <.> "hs"
                 createDirectoryIfMissing True (dropFileName modulefilepath)
-                writeFile modulefilepath preprocessedfile
+                writeFile modulefilepath roleStrippedFile
             ParseFailed location message -> putStrLn (unlines [
                 "PARSE FAILED: " ++ show location ++ " " ++ show message,
-                preprocessedfile]))
+                roleStrippedFile]))
 
 moduleName :: Module SrcSpanInfo -> String
 moduleName (Module _ (Just (ModuleHead _ (ModuleName _ modulename) _ _)) _ _ _) = modulename
