@@ -71,7 +71,7 @@ fixCppOpts :: CpphsOptions -> CpphsOptions
 fixCppOpts opts =
     opts {
         defines =
-            ("__GLASGOW_HASKELL__", "706") :
+            ("__GLASGOW_HASKELL__", "708") :
             ("INTEGER_SIMPLE", "1") :
             defines opts,
         preInclude = "cabal_macros.h" : preInclude opts,
