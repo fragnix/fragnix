@@ -20,20 +20,26 @@ import System.FilePath ((</>),takeExtension)
 
 main :: IO ()
 main = do
-    testfolders <- getDirectoryContents exampleFolder >>=
+    packagenames <- getDirectoryContents examplePackageFolder >>=
         return . filter (not . (=='.') . head)
-    defaultMain (testGroup "Tests" (map testCase testfolders))
+    quicknames <- getDirectoryContents exampleQuickFolder >>=
+        return . filter (not . (=='.') . head)
+    defaultMain (testGroup "tests" [
+        testGroup "packages" (map (testCase examplePackageFolder) packagenames),
+        testGroup "quick" (map (testCase exampleQuickFolder) quicknames)])
 
-exampleFolder :: FilePath
-exampleFolder = "tests/examples/"
+examplePackageFolder :: FilePath
+examplePackageFolder = "tests/packages"
 
+exampleQuickFolder :: FilePath
+exampleQuickFolder = "tests/quick"
 
-testCase :: String -> TestTree
-testCase testname = goldenVsFile
+testCase :: FilePath -> String -> TestTree
+testCase folder testname = goldenVsFile
     testname
-    (exampleFolder </> testname </> "golden")
-    (exampleFolder </> testname </> "out")
-    (testModules (exampleFolder </> testname))
+    (folder </> testname </> "golden")
+    (folder </> testname </> "out")
+    (testModules (folder </> testname))
 
 
 testModules :: FilePath -> IO ()
