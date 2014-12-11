@@ -17,7 +17,7 @@ import qualified Language.Haskell.Exts as Name (
     Name(Ident,Symbol))
 import Language.Haskell.Exts (
     ModuleName,prettyExtension,Name,prettyPrint,
-    Extension(EnableExtension),KnownExtension(Safe,CPP))
+    Extension(EnableExtension),KnownExtension(Safe,CPP,Trustworthy))
 
 import Data.Graph.Inductive (
     buildGr,scc,lab,lsuc,labNodes,insEdges,insNodes,empty)
@@ -126,7 +126,7 @@ buildTempSlices environment tempslicegraph = do
             Declaration _ ghcextensions _ _ _ <- declarations
             ghcextension <- ghcextensions
             -- disregard the Safe and CPP extensions
-            guard (not (ghcextension `elem` map EnableExtension [Safe,CPP]))
+            guard (not (ghcextension `elem` map EnableExtension [Safe,Trustworthy,CPP]))
             return (pack (prettyExtension ghcextension))))
         fragments = Fragment (do
             Declaration _ _ ast _ _ <- arrange declarations
