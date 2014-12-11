@@ -29,6 +29,7 @@ import Distribution.Text (display)
 import Data.Tagged (Tagged(Tagged))
 import Control.Monad (forM_)
 import Data.Maybe (fromMaybe)
+import Data.List (isPrefixOf)
 import System.FilePath ((</>),(<.>),dropFileName)
 import System.Directory (createDirectoryIfMissing)
 
@@ -91,7 +92,7 @@ fixBoolOpts bo =
 fixCppOptsForParsec :: CpphsOptions -> CpphsOptions
 fixCppOptsForParsec opts =
     opts {
-        defines = ("__GLASGOW_HASKELL__", "706") : ("INTEGER_SIMPLE", "1") : defines opts,
+        defines = ("__GLASGOW_HASKELL__", "708") : ("INTEGER_SIMPLE", "1") : defines opts,
         includes = "/usr/lib/ghc/include/": includes opts,
         boolopts = fixBoolOptsForParsec (boolopts opts)
     }
@@ -129,13 +130,19 @@ compile builddirectory maybelanguage exts cppoptions packagename _ _ filenames =
                 ignoreLanguagePragmas = False,
                 ignoreLinePragmas     = False,
                 fixities              = Just []}
-            parseresult = parseFileContentsWithMode parsemode preprocessedfile
+            parseresult = parseFileContentsWithMode parsemode (stripRoles preprocessedfile)
         case parseresult of
             ParseOk ast -> do
                 let modulefilepath = builddirectory </> moduleName ast <.> "hs"
                 createDirectoryIfMissing True (dropFileName modulefilepath)
                 writeFile modulefilepath preprocessedfile
-            ParseFailed location message -> error ("PARSE FAILED: " ++ show location ++ " " ++ show message))
+            ParseFailed location message -> putStrLn (unlines [
+                "PARSE FAILED: " ++ show location ++ " " ++ show message,
+                preprocessedfile]))
 
 moduleName :: Module SrcSpanInfo -> String
 moduleName (Module _ (Just (ModuleHead _ (ModuleName _ modulename) _ _)) _ _ _) = modulename
+moduleName m = error (show m)
+
+stripRoles :: String -> String
+stripRoles = unlines . filter (not . isPrefixOf "type role") . lines

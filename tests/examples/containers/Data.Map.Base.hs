@@ -426,7 +426,7 @@ data Map k a  = Bin {-# UNPACK #-} !Size !k a !(Map k a) !(Map k a)
 type Size     = Int
 
 
-
+type role Map nominal representational
 
 
 instance (Ord k) => Monoid (Map k v) where
@@ -2932,7 +2932,7 @@ withEmpty bars = "   ":bars
 
 
 {-# LINE 2770 "./Data/Map/Base.hs" #-}
-deriving instance Typeable2 Map
+deriving instance Typeable Map
 
 {--------------------------------------------------------------------
   Assertions

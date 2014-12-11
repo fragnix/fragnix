@@ -2164,7 +2164,7 @@ instance (Read e) => Read (IntMap e) where
 
 
 {-# LINE 2002 "./Data/IntMap/Base.hs" #-}
-deriving instance Typeable1 IntMap
+deriving instance Typeable IntMap
 
 {--------------------------------------------------------------------
   Helpers

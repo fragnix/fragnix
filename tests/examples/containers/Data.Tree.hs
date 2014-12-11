@@ -223,7 +223,7 @@ type Forest a = [Tree a]
 
 
 {-# LINE 61 "./Data/Tree.hs" #-}
-deriving instance Typeable1 Tree
+deriving instance Typeable Tree
 
 instance Functor Tree where
     fmap f (Node x ts) = Node (f x) (map (fmap f) ts)

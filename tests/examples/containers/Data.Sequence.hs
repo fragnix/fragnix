@@ -413,7 +413,7 @@ instance Monoid (Seq a) where
 
 
 {-# LINE 251 "./Data/Sequence.hs" #-}
-deriving instance Typeable1 Seq
+deriving instance Typeable Seq
 
 
 instance Data a => Data (Seq a) where
@@ -1100,7 +1100,7 @@ data ViewL a
 
 
 
-deriving instance Typeable1 ViewL
+deriving instance Typeable ViewL
 
 instance Functor ViewL where
     {-# INLINE fmap #-}
@@ -1151,7 +1151,7 @@ data ViewR a
 
 
 
-deriving instance Typeable1 ViewR
+deriving instance Typeable ViewR
 
 instance Functor ViewR where
     {-# INLINE fmap #-}

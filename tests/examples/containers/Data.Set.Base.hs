@@ -328,7 +328,7 @@ data Set a    = Bin {-# UNPACK #-} !Size !a !(Set a) !(Set a)
 type Size     = Int
 
 
-
+type role Set nominal
 
 
 instance Ord a => Monoid (Set a) where
@@ -1114,7 +1114,7 @@ instance (Read a, Ord a) => Read (Set a) where
 
 
 {-# LINE 952 "./Data/Set/Base.hs" #-}
-deriving instance Typeable1 Set
+deriving instance Typeable Set
 
 {--------------------------------------------------------------------
   NFData
