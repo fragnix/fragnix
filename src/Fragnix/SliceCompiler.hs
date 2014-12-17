@@ -49,12 +49,12 @@ assemble :: Slice -> Module
 assemble (Slice sliceID language fragment usages) =
     let decls = case fragment of
             Fragment declarations -> map (parseDeclaration sliceID ghcextensions) declarations
-        modulName = ModuleName (sliceModuleName sliceID)
+        moduleName = ModuleName (sliceModuleName sliceID)
         Language ghcextensions = language
         languagepragmas = [Ident "NoImplicitPrelude"] ++ (map (Ident . unpack) ghcextensions)
         pragmas = [LanguagePragma noLoc languagepragmas]
         imports = map usageImport usages
-    in Module noLoc modulName pragmas Nothing Nothing imports decls
+    in Module noLoc moduleName pragmas Nothing Nothing imports decls
 
 parseDeclaration :: SliceID -> [Text] -> Text -> Decl
 parseDeclaration sliceID ghcextensions declaration = decl where
@@ -65,7 +65,7 @@ parseDeclaration sliceID ghcextensions declaration = decl where
 
 usageImport :: Usage -> ImportDecl
 usageImport (Usage maybeQualification usedName symbolSource) =
-    let modulName = case symbolSource of
+    let moduleName = case symbolSource of
             OtherSlice sliceID -> ModuleName (sliceModuleName sliceID)
             Primitive originalModule -> ModuleName (unpack originalModule)
         qualified = maybe False (const True) maybeQualification
@@ -84,7 +84,10 @@ usageImport (Usage maybeQualification usedName symbolSource) =
             Instance -> True
             _ -> False
 
-    in ImportDecl noLoc modulName qualified sourceImport False Nothing maybeAlias (Just (False,importSpec))
+    in ImportDecl noLoc moduleName qualified sourceImport False Nothing maybeAlias (Just (False,importSpec))
+
+emptySliceModule :: SliceID -> Module
+emptySliceModule sliceID = Module noLoc (ModuleName (sliceModuleName sliceID)) [] Nothing Nothing [] []
 
 sliceModuleDirectory :: FilePath
 sliceModuleDirectory = "fragnix" </> "temp" </> "compilationunits"
@@ -95,6 +98,12 @@ sliceModulePath sliceID = sliceModuleDirectory </> sliceModuleFileName sliceID
 sliceModuleFileName :: SliceID -> FilePath
 sliceModuleFileName sliceID = sliceModuleName sliceID <.> "hs"
 
+sliceHSBootPath :: SliceID -> FilePath
+sliceHSBootPath sliceID = sliceModuleDirectory </> sliceHSBootFileName sliceID
+
+sliceHSBootFileName :: SliceID -> FilePath
+sliceHSBootFileName sliceID = sliceModuleName sliceID <.> "hs-boot"
+
 sliceModuleName :: SliceID -> String
 sliceModuleName sliceID = "F" ++ show sliceID
 
@@ -104,12 +113,24 @@ writeSliceModule slice@(Slice sliceID _ _ _) = (do
     writeFile (sliceModulePath sliceID) slicecontent)
         `catch` (print :: SomeException -> IO ())
 
+-- | Write an hs-boot file that contains only the module header. Used to break
+-- import cycles for instances.
+writeSliceHSBoot :: SliceID -> IO ()
+writeSliceHSBoot sliceID = (do
+    emptyslicecontent <- evaluate (pack (prettyPrint (emptySliceModule sliceID)))
+    writeFile (sliceHSBootPath sliceID) emptyslicecontent)
+        `catch` (print :: SomeException -> IO ())
+
+-- | Write out the module file and an hs-boot file for the slice with the given ID
+-- and all the slices it trasitively uses. The hs-boot file is unnecessary for
+-- non-instance slices but generated anyway.
 writeSliceModuleTransitive :: SliceID -> IO ()
 writeSliceModuleTransitive sliceID = do
     exists <- doesSliceModuleExist sliceID
     unless exists (do
         slice <- readSlice sliceID
         writeSliceModule slice
+        writeSliceHSBoot sliceID
         forM_ (usedSlices slice) writeSliceModuleTransitive)
 
 usedSlices :: Slice -> [SliceID]
