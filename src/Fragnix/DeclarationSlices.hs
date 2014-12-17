@@ -191,8 +191,8 @@ replaceSliceID f (Slice tempID language fragment usages) = Slice (f tempID) lang
 
 -- | Hash the slice with the given temporary ID.
 computeHash :: Map TempID Slice -> TempID -> SliceID
-computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,usages))) where
-    Just (Slice _ _ fragment tempUsages) = Map.lookup tempID tempSliceMap
+computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,usages,language))) where
+    Just (Slice _ language fragment tempUsages) = Map.lookup tempID tempSliceMap
     usages = map (replaceUsageID (computeHash tempSliceMap)) tempUsages
 
 replaceUsageID :: (TempID -> SliceID) -> Usage -> Usage

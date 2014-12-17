@@ -62,12 +62,15 @@ instance FromJSON Slice where
 
 
 deriving instance Show Language
+deriving instance Generic Language
 
 instance ToJSON Language where
     toJSON (Language ghcextensions) = toJSON ghcextensions
 
 instance FromJSON Language where
     parseJSON = fmap Language . parseJSON
+
+instance Hashable Language
 
 
 deriving instance Show Fragment
