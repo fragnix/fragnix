@@ -29,7 +29,7 @@ import Control.Applicative ((<|>))
 import Data.Text (pack)
 import Data.Map (Map)
 import qualified Data.Map as Map (lookup,fromList,union)
-import Data.Maybe (maybeToList,fromJust)
+import Data.Maybe (maybeToList,fromJust,listToMaybe)
 import Data.Hashable (hash)
 import Data.List (nub,(\\))
 
@@ -63,7 +63,7 @@ declarationSlicesWithEnvironment environment declarations = (slices,Map.union ne
 -- from signatures, fixities and instances.
 declarationGraph :: [Declaration] -> Gr Declaration Dependency
 declarationGraph declarations =
-    insEdges (signatureedges ++ usedsymboledges ++ instanceEdges ++ fixityEdges) (
+    insEdges (signatureedges ++ usedsymboledges ++ fixityEdges) (
         insNodes declarationnodes empty) where
     declarationnodes = zip [-1,-2..] declarations
     boundmap = Map.fromList (do
@@ -82,14 +82,6 @@ declarationGraph declarations =
         mentionedsymbol@(Value _ _) <- map fst mentionedsymbols
         declarationnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (declarationnode,signaturenode,Signature)
-    instanceEdges = do
-        (instancenode,Declaration ClassInstance _ _ _ mentionedsymbols) <- declarationnodes
-        let candidates = do
-                mentionedsymbol <- map fst mentionedsymbols
-                guard (isClassDataNewType mentionedsymbol)
-                return (Map.lookup mentionedsymbol boundmap)
-        declarationnode <- maybeToList (foldr (<|>) Nothing candidates)
-        return (declarationnode,instancenode,UsesInstance Nothing)
     fixityEdges = do
         (fixitynode,Declaration InfixFixity _ _ _ mentionedsymbols) <- declarationnodes
         mentionedsymbol <- map fst mentionedsymbols
@@ -120,39 +112,60 @@ sccGraph graph = buildGr (do
 -- inside the graph. The slices have temporary IDs starting from 0.
 buildTempSlices :: Environment -> Gr [Declaration] Dependency -> [Slice]
 buildTempSlices environment tempslicegraph = do
+
+    -- Build a Map from data or class symbol to instance temporary ID
+    let instanceMap = Map.fromList (do
+            (node,declarations) <- labNodes tempslicegraph
+            Declaration ClassInstance _ _ _ mentionedsymbols <- declarations
+            let classSymbol = maybeToList (listToMaybe (reverse (filter isClass (map fst mentionedsymbols))))
+                typeSymbol = maybeToList (listToMaybe (filter isType (map fst mentionedsymbols)))
+            symbol <- classSymbol ++ typeSymbol
+            return (symbol,node))
+
+    -- for all nodes
     (node,declarations) <- labNodes tempslicegraph
+
     let tempID = fromIntegral node
+
         language = Language (nub (do
             Declaration _ ghcextensions _ _ _ <- declarations
             ghcextension <- ghcextensions
             -- disregard the Safe and CPP extensions
             guard (not (ghcextension `elem` map EnableExtension [Safe,Trustworthy,CPP]))
             return (pack (prettyExtension ghcextension))))
+
         fragments = Fragment (do
             Declaration _ _ ast _ _ <- arrange declarations
             return ast)
+
         otherslices = Map.fromList (do
             (otherSliceTempID,UsesSymbol _ symbol) <- lsuc tempslicegraph node
             return (symbol,OtherSlice (fromIntegral otherSliceTempID)))
-        locallyboundsymbols = do
+
+        locallyBoundSymbols = do
             Declaration _ _ _ boundsymbols _ <- declarations
             boundsymbols
-        mentionedusages = nub (do
+
+        -- A usage for every mentioned symbol
+        mentionedUsages = nub (do
             Declaration _ _ _ _ mentionedsymbols <- declarations
             (mentionedsymbol,maybequalification) <- mentionedsymbols
             let maybeQualificationText = fmap (pack . prettyPrint) maybequalification
                 usedName = symbolUsedName mentionedsymbol
-            reference <- if mentionedsymbol `elem` locallyboundsymbols
+            reference <- if mentionedsymbol `elem` locallyBoundSymbols
                 then []
                 else maybeToList (
                     Map.lookup mentionedsymbol otherslices <|>
                     Map.lookup mentionedsymbol environment)
             return (Usage maybeQualificationText usedName reference))
-        instanceusages = do
-            (otherSliceTempID,UsesInstance maybequalification) <- lsuc tempslicegraph node
-            let maybeQualificationText = fmap (pack . prettyPrint) maybequalification
-            return (Usage maybeQualificationText Instance (OtherSlice (fromIntegral otherSliceTempID)))
-    return (Slice tempID language fragments (mentionedusages ++ instanceusages))
+
+        -- We want every class and data slice to import relevant instances
+        instanceUsages = do
+            boundSymbol <- locallyBoundSymbols
+            instanceSliceTempID <- maybeToList (Map.lookup boundSymbol instanceMap)
+            return (Usage Nothing Instance (OtherSlice (fromIntegral instanceSliceTempID)))
+
+    return (Slice tempID language fragments (mentionedUsages ++ instanceUsages))
 
 -- | Arrange a list of declarations so that the signature is directly above the corresponding
 -- binding declaration
@@ -193,7 +206,11 @@ replaceSliceID f (Slice tempID language fragment usages) = Slice (f tempID) lang
 computeHash :: Map TempID Slice -> TempID -> SliceID
 computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,usages,language))) where
     Just (Slice _ language fragment tempUsages) = Map.lookup tempID tempSliceMap
-    usages = map (replaceUsageID (computeHash tempSliceMap)) tempUsages
+    usages = map (replaceUsageID (computeHash tempSliceMap)) tempUsagesWithoutInstances
+    tempUsagesWithoutInstances = do
+        usage@(Usage _ usedName _) <- tempUsages
+        guard (not (usedName == Instance))
+        return usage
 
 replaceUsageID :: (TempID -> SliceID) -> Usage -> Usage
 replaceUsageID f (Usage qualification usedName (OtherSlice tempID))
@@ -214,9 +231,13 @@ isValue symbol = case symbol of
     Constructor {} -> True
     _ -> False
 
-isClassDataNewType :: Symbol -> Bool
-isClassDataNewType symbol = case symbol of
+isClass :: Symbol -> Bool
+isClass symbol = case symbol of
     Class {} -> True
+    _ -> False
+
+isType :: Symbol -> Bool
+isType symbol = case symbol of
     Data {} -> True
     NewType {} -> True
     _ -> False
@@ -242,6 +263,5 @@ constructorNameUsed (Name.Symbol typename) (Name.Symbol constructorname) =
 data Dependency =
     UsesSymbol (Maybe ModuleName) Symbol |
     Signature |
-    UsesInstance (Maybe ModuleName) |
     Fixity
         deriving (Eq,Ord,Show)

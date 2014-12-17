@@ -130,6 +130,7 @@ writeSliceModuleTransitive sliceID = do
     unless exists (do
         slice <- readSlice sliceID
         writeSliceModule slice
+        writeSliceHSBoot sliceID
         forM_ (usedSlices slice) writeSliceModuleTransitive)
 
 usedSlices :: Slice -> [SliceID]
