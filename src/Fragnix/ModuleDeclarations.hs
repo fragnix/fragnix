@@ -16,7 +16,7 @@ import Language.Haskell.Exts.Annotated (
 import Language.Haskell.Names (
     Symbol(NewType,Constructor),Error,Scoped(Scoped),
     computeInterfaces,annotateModule,
-    NameInfo(GlobalSymbol),ppError)
+    NameInfo(GlobalSymbol,RecPatWildcard),ppError)
 import Language.Haskell.Names.SyntaxUtils (
     getModuleDecls,getModuleName,getModuleExtensions)
 import Language.Haskell.Names.ModuleSymbols (
@@ -104,6 +104,7 @@ declToDeclaration modulnameast annotatedast = do
             (declaredSymbols modulnameast annotatedast)
             (mentionedSymbols annotatedast))
 
+-- | The genre of a declaration, for example Type, Value, TypeSignature, ...
 declGenre :: Decl (Scoped SrcSpan) -> Genre
 declGenre (TypeDecl _ _ _) = Type
 declGenre (TypeFamDecl _ _ _) = Type
@@ -123,6 +124,7 @@ declGenre (ForImp _ _ _ _ _ _) = Value
 declGenre (InfixDecl _ _ _ _) = InfixFixity
 declGenre _ = Other
 
+-- | All symbols the given declaration in a module with the given name binds.
 declaredSymbols :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> [Symbol]
 declaredSymbols modulnameast annotatedast = getTopDeclSymbols GlobalTable.empty modulnameast annotatedast
 
@@ -131,18 +133,18 @@ declaredSymbols modulnameast annotatedast = getTopDeclSymbols GlobalTable.empty 
 -- the constructors of all mentioned newtypes.
 mentionedSymbols :: Decl (Scoped SrcSpan) -> [(Symbol,Maybe UnAnn.ModuleName)]
 mentionedSymbols decl@(ForImp _ _ _ _ _ _) = newtypeconstructors ++ mentionedsymbols where
-    mentionedsymbols = nub (mapMaybe scopeSymbol (toList decl))
+    mentionedsymbols = nub (concatMap scopeSymbol (toList decl))
     newtypeconstructors = do
         (NewType symbolmodule symbolname,_) <- mentionedsymbols
         return (Constructor symbolmodule symbolname symbolname,Nothing)
-mentionedSymbols decl = nub (mapMaybe scopeSymbol (toList decl))
+mentionedSymbols decl = nub (concatMap scopeSymbol (toList decl))
 
--- | Some scope annotations are for references to global symbols. Get these together with 
--- any qualification.
-scopeSymbol :: Scoped SrcSpan -> Maybe (Symbol,Maybe UnAnn.ModuleName)
-scopeSymbol (Scoped (GlobalSymbol symbol (UnAnn.Qual modulname _)) _) = Just (symbol,Just modulname)
-scopeSymbol (Scoped (GlobalSymbol symbol (UnAnn.UnQual _)) _) = Just (symbol,Nothing)
-scopeSymbol _ = Nothing
+-- | Get all references to global symbols from the given scope annotation.
+scopeSymbol :: Scoped SrcSpan -> [(Symbol,Maybe UnAnn.ModuleName)]
+scopeSymbol (Scoped (GlobalSymbol symbol (UnAnn.Qual modulname _)) _) = [(symbol,Just modulname)]
+scopeSymbol (Scoped (GlobalSymbol symbol (UnAnn.UnQual _)) _) = [(symbol,Nothing)]
+scopeSymbol (Scoped (RecPatWildcard symbols) _) = map (\symbol -> (symbol,Nothing)) symbols
+scopeSymbol _ = []
 
 newtype FragnixModule a = FragnixModule {runFragnixModule :: State (Map UnAnn.ModuleName [Symbol]) a}
     deriving (Functor,Monad,Applicative)
