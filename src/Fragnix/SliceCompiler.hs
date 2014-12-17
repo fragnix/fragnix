@@ -80,8 +80,11 @@ usageImport (Usage maybeQualification usedName symbolSource) =
             ConstructorOperator typeName name ->
                 [IThingWith (Ident (unpack typeName)) [(ConName (Symbol (unpack name)))]]
             Instance -> []
+        sourceImport = case usedName of
+            Instance -> True
+            _ -> False
 
-    in ImportDecl noLoc modulName qualified False False Nothing maybeAlias (Just (False,importSpec))
+    in ImportDecl noLoc modulName qualified sourceImport False Nothing maybeAlias (Just (False,importSpec))
 
 sliceModuleDirectory :: FilePath
 sliceModuleDirectory = "fragnix" </> "temp" </> "compilationunits"
