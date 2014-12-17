@@ -28,7 +28,7 @@ import Control.Monad (guard)
 import Control.Applicative ((<|>))
 import Data.Text (pack)
 import Data.Map (Map)
-import qualified Data.Map as Map (lookup,fromList,union)
+import qualified Data.Map as Map (lookup,fromList,union,fromListWith)
 import Data.Maybe (maybeToList,fromJust,listToMaybe)
 import Data.Hashable (hash)
 import Data.List (nub,(\\))
@@ -114,13 +114,13 @@ buildTempSlices :: Environment -> Gr [Declaration] Dependency -> [Slice]
 buildTempSlices environment tempslicegraph = do
 
     -- Build a Map from data or class symbol to instance temporary ID
-    let instanceMap = Map.fromList (do
+    let instanceMap = Map.fromListWith (++) (do
             (node,declarations) <- labNodes tempslicegraph
             Declaration ClassInstance _ _ _ mentionedsymbols <- declarations
             let classSymbol = maybeToList (listToMaybe (reverse (filter isClass (map fst mentionedsymbols))))
                 typeSymbol = maybeToList (listToMaybe (filter isType (map fst mentionedsymbols)))
             symbol <- classSymbol ++ typeSymbol
-            return (symbol,node))
+            return (symbol,[node]))
 
     -- for all nodes
     (node,declarations) <- labNodes tempslicegraph
@@ -162,7 +162,7 @@ buildTempSlices environment tempslicegraph = do
         -- We want every class and data slice to import relevant instances
         instanceUsages = do
             boundSymbol <- locallyBoundSymbols
-            instanceSliceTempID <- maybeToList (Map.lookup boundSymbol instanceMap)
+            instanceSliceTempID <- concat (maybeToList (Map.lookup boundSymbol instanceMap))
             return (Usage Nothing Instance (OtherSlice (fromIntegral instanceSliceTempID)))
 
     return (Slice tempID language fragments (mentionedUsages ++ instanceUsages))
