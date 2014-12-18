@@ -1,6 +1,6 @@
-module Instance where
+module FoldableDigit where
 
-import DataType (Digit(..))
+import Digit (Digit(..))
 
 import Data.Foldable (Foldable(foldr,foldl,foldr1,foldl1))
 

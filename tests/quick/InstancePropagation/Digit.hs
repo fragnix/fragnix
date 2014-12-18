@@ -1,6 +1,7 @@
-module DataType where
+module Digit where
 
-import {-# SOURCE #-} Instance ()
+import {-# SOURCE #-} FoldableDigit ()
+import {-# SOURCE #-} FunctorDigit ()
 
 data Digit a = One a
              | Two a a

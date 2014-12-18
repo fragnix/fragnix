@@ -1,9 +1,9 @@
-module Using where
+module SizedDigit where
 
 import Prelude hiding (foldl1)
 
-import DataType (Digit)
-import Class (Sized,size)
+import Digit (Digit)
+import Sized (Sized,size)
 import Data.Foldable (foldl1)
 
 instance Sized a => Sized (Digit a) where

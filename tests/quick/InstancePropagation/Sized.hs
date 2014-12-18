@@ -1,4 +1,4 @@
-module Class where
+module Sized where
 
 
 class Sized a where
