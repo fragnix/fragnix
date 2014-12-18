@@ -2,6 +2,7 @@ module Digit where
 
 import {-# SOURCE #-} FoldableDigit ()
 import {-# SOURCE #-} FunctorDigit ()
+import {-# SOURCE #-} SizedDigit ()
 
 data Digit a = One a
              | Two a a

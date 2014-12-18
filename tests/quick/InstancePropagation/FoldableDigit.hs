@@ -21,10 +21,3 @@ instance Foldable Digit where
         foldl1 f (Two a b) = a `f` b
         foldl1 f (Three a b c) = (a `f` b) `f` c
         foldl1 f (Four a b c d) = ((a `f` b) `f` c) `f` d
-
-instance Functor Digit where
-        {-# INLINE fmap #-}
-        fmap f (One a) = One (f a)
-        fmap f (Two a b) = Two (f a) (f b)
-        fmap f (Three a b c) = Three (f a) (f b) (f c)
-        fmap f (Four a b c d) = Four (f a) (f b) (f c) (f d)
