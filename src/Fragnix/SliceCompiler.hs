@@ -7,8 +7,9 @@ import Fragnix.Slice (
 import Prelude hiding (writeFile)
 
 import Language.Haskell.Exts.Syntax (
-    Module(Module),Decl,ModuleName(ModuleName),ModulePragma(LanguagePragma),
-    Name(Ident,Symbol),ImportDecl(ImportDecl),ImportSpec(IVar,IAbs,IThingWith),
+    Module(Module),ModuleName(ModuleName),ModulePragma(LanguagePragma),
+    Decl(InstDecl,DataDecl),Type(TyCon),QName(UnQual),
+    Name(Ident,Symbol),ImportDecl(ImportDecl,importSrc),ImportSpec(IVar,IAbs,IThingWith),
     CName(ConName),Namespace(NoNamespace))
 import Language.Haskell.Exts.SrcLoc (noLoc)
 import Language.Haskell.Exts.Parser (
@@ -28,6 +29,7 @@ import System.Exit (ExitCode)
 import Control.Exception (SomeException,catch,evaluate)
 
 import Control.Monad (forM_,unless)
+import Data.Maybe (mapMaybe)
 
 sliceCompilerMain :: SliceID -> IO ExitCode
 sliceCompilerMain sliceID = do
@@ -86,8 +88,29 @@ usageImport (Usage maybeQualification usedName symbolSource) =
 
     in ImportDecl noLoc moduleName qualified sourceImport False Nothing maybeAlias (Just (False,importSpec))
 
-emptySliceModule :: SliceID -> Module
-emptySliceModule sliceID = Module noLoc (ModuleName (sliceModuleName sliceID)) [] Nothing Nothing [] []
+sliceHSBootModule :: Slice -> Module
+sliceHSBootModule slice = bootModule (assemble slice)
+
+bootModule :: Module -> Module
+bootModule (Module srcloc moduleName pragmas warnings exports imports decls) = 
+    Module srcloc moduleName pragmas warnings exports bootImports bootDecls where
+        bootImports = mapMaybe bootImport imports
+        bootDecls = concatMap bootDecl decls
+
+bootImport :: ImportDecl -> Maybe ImportDecl
+bootImport importDecl
+    | importSrc importDecl = Nothing
+    | otherwise = Just (importDecl {importSrc = True})
+
+bootDecl :: Decl -> [Decl]
+bootDecl (InstDecl srcloc overlap typeVars context classname types _) =
+    [(InstDecl srcloc overlap typeVars context classname types [])]
+bootDecl (DataDecl srcloc dataOrNew context dataname typeVars constructors derivings) =
+    [DataDecl srcloc dataOrNew context dataname typeVars constructors []] ++ derivedInstances where
+        derivedInstances = map derivedInstance derivings
+        derivedInstance (classname,_) =
+            InstDecl noLoc Nothing [] [] classname [TyCon (UnQual dataname)] []
+bootDecl decl = [decl]
 
 sliceModuleDirectory :: FilePath
 sliceModuleDirectory = "fragnix" </> "temp" </> "compilationunits"
@@ -115,9 +138,9 @@ writeSliceModule slice@(Slice sliceID _ _ _) = (do
 
 -- | Write an hs-boot file that contains only the module header. Used to break
 -- import cycles for instances.
-writeSliceHSBoot :: SliceID -> IO ()
-writeSliceHSBoot sliceID = (do
-    emptyslicecontent <- evaluate (pack (prettyPrint (emptySliceModule sliceID)))
+writeSliceHSBoot :: Slice -> IO ()
+writeSliceHSBoot slice@(Slice sliceID _ _ _) = (do
+    emptyslicecontent <- evaluate (pack (prettyPrint (sliceHSBootModule slice)))
     writeFile (sliceHSBootPath sliceID) emptyslicecontent)
         `catch` (print :: SomeException -> IO ())
 
@@ -129,7 +152,7 @@ writeSliceModuleTransitive sliceID = do
     exists <- doesSliceModuleExist sliceID
     unless exists (do
         slice <- readSlice sliceID
-        forM_ (usedInstanceSlices slice) writeSliceHSBoot
+        writeSliceHSBoot slice
         writeSliceModule slice
         forM_ (usedSlices slice) writeSliceModuleTransitive)
 
