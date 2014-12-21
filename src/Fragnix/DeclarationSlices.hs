@@ -29,6 +29,7 @@ import Control.Applicative ((<|>))
 import Data.Text (pack)
 import Data.Map (Map)
 import qualified Data.Map as Map (lookup,fromList,union,fromListWith)
+import qualified Data.Set as Set (fromList,member)
 import Data.Maybe (maybeToList,fromJust,listToMaybe)
 import Data.Hashable (hash)
 import Data.List (nub,(\\))
@@ -109,17 +110,28 @@ sccGraph graph = buildGr (do
 -- | Take a graph where each node corresponds to a
 -- list of declarations that from a strongly connected component. Return a list of slices
 -- tripled with the symbols it binds and the mentioned symbols that could not be resolved
--- inside the graph. The slices have temporary IDs starting from 0.
+-- inside the graph. The slices have negative IDs starting from -1.
 buildTempSlices :: Environment -> Gr [Declaration] Dependency -> [Slice]
 buildTempSlices environment tempslicegraph = do
 
     -- Build a Map from data or class symbol to instance temporary ID
     -- Prefer the class symbol if both are present
-    let instanceMap = Map.fromListWith (++) (do
+    -- Only include classes and types bound in this graph
+    let graphSymbols = Set.fromList (do
+            (_,declarations) <- labNodes tempslicegraph
+            Declaration _ _ _ boundSymbols _ <- declarations
+            boundSymbols)
+        instanceMap = Map.fromListWith (++) (do
             (node,declarations) <- labNodes tempslicegraph
             Declaration ClassInstance _ _ _ mentionedsymbols <- declarations
-            let classSymbol = listToMaybe (reverse (filter isClass (map fst mentionedsymbols)))
-                typeSymbol = listToMaybe (filter isType (map fst mentionedsymbols))
+            let classSymbol = do
+                    classSymbolMentionedLast <- listToMaybe (reverse (filter isClass (map fst mentionedsymbols)))
+                    guard (Set.member classSymbolMentionedLast graphSymbols)
+                    return classSymbolMentionedLast
+                typeSymbol = do
+                    typeSymbolMentionedFirst <- listToMaybe (filter isType (map fst mentionedsymbols))
+                    guard (Set.member typeSymbolMentionedFirst graphSymbols)
+                    return typeSymbolMentionedFirst
             symbol <- maybeToList (classSymbol <|> typeSymbol)
             return (symbol,[node]))
 
