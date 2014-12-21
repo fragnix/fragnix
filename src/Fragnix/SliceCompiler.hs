@@ -8,7 +8,7 @@ import Prelude hiding (writeFile)
 
 import Language.Haskell.Exts.Syntax (
     Module(Module),ModuleName(ModuleName),ModulePragma(LanguagePragma),
-    Decl(InstDecl,DataDecl,PatBind,FunBind,DerivDecl),Name(Ident,Symbol),
+    Decl(InstDecl,DataDecl,GDataDecl,PatBind,FunBind,ForImp,DerivDecl),Name(Ident,Symbol),
     ImportDecl(ImportDecl,importSrc,importModule),ImportSpec(IVar,IAbs,IThingWith),
     CName(ConName),Namespace(NoNamespace))
 import Language.Haskell.Exts.SrcLoc (noLoc)
@@ -112,12 +112,16 @@ bootDecl :: Decl -> [Decl]
 bootDecl (InstDecl srcloc overlap typeVars context classname types _) =
     [InstDecl srcloc overlap typeVars context classname types []]
 bootDecl (DataDecl srcloc dataOrNew context dataname typeVars constructors _) =
-    [DataDecl srcloc dataOrNew context dataname typeVars constructors []] where
+    [DataDecl srcloc dataOrNew context dataname typeVars constructors []]
+bootDecl (GDataDecl srcloc dataOrNew context name typeVars kind constructors _) =
+    [GDataDecl srcloc dataOrNew context name typeVars kind constructors []]
 bootDecl (DerivDecl srcloc overlap typeVars context classname types) =
     [InstDecl srcloc overlap typeVars context classname types []]
 bootDecl (PatBind _ _ _ _) =
     []
 bootDecl (FunBind _) =
+    []
+bootDecl (ForImp _ _ _ _ _ _) =
     []
 bootDecl decl = [decl]
 
