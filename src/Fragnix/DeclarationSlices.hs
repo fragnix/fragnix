@@ -114,12 +114,13 @@ buildTempSlices :: Environment -> Gr [Declaration] Dependency -> [Slice]
 buildTempSlices environment tempslicegraph = do
 
     -- Build a Map from data or class symbol to instance temporary ID
+    -- Prefer the class symbol if both are present
     let instanceMap = Map.fromListWith (++) (do
             (node,declarations) <- labNodes tempslicegraph
             Declaration ClassInstance _ _ _ mentionedsymbols <- declarations
-            let classSymbol = maybeToList (listToMaybe (reverse (filter isClass (map fst mentionedsymbols))))
-                typeSymbol = maybeToList (listToMaybe (filter isType (map fst mentionedsymbols)))
-            symbol <- classSymbol ++ typeSymbol
+            let classSymbol = listToMaybe (reverse (filter isClass (map fst mentionedsymbols)))
+                typeSymbol = listToMaybe (filter isType (map fst mentionedsymbols))
+            symbol <- maybeToList (classSymbol <|> typeSymbol)
             return (symbol,[node]))
 
     -- for all nodes
@@ -159,7 +160,8 @@ buildTempSlices environment tempslicegraph = do
                     Map.lookup mentionedsymbol environment)
             return (Usage maybeQualificationText usedName reference))
 
-        -- We want every class and data slice to import relevant instances
+        -- We want every class to import all its instances
+        -- For builtin classes we want the data type to import the instances
         instanceUsages = do
             boundSymbol <- locallyBoundSymbols
             instanceSliceTempID <- concat (maybeToList (Map.lookup boundSymbol instanceMap))
