@@ -8,7 +8,7 @@ import Prelude hiding (writeFile)
 
 import Language.Haskell.Exts.Syntax (
     Module(Module),ModuleName(ModuleName),ModulePragma(LanguagePragma),
-    Decl(InstDecl,DataDecl,PatBind,FunBind),Type(TyCon),QName(UnQual),Name(Ident,Symbol),
+    Decl(InstDecl,DataDecl,PatBind,FunBind,DerivDecl),Name(Ident,Symbol),
     ImportDecl(ImportDecl,importSrc,importModule),ImportSpec(IVar,IAbs,IThingWith),
     CName(ConName),Namespace(NoNamespace))
 import Language.Haskell.Exts.SrcLoc (noLoc)
@@ -110,12 +110,11 @@ bootImport importDecl
 -- | Remove instance bodies, make derived instances into bodyless instance decls
 bootDecl :: Decl -> [Decl]
 bootDecl (InstDecl srcloc overlap typeVars context classname types _) =
-    [(InstDecl srcloc overlap typeVars context classname types [])]
-bootDecl (DataDecl srcloc dataOrNew context dataname typeVars constructors derivings) =
-    [DataDecl srcloc dataOrNew context dataname typeVars constructors []] ++ derivedInstances where
-        derivedInstances = map derivedInstance derivings
-        derivedInstance (classname,_) =
-            InstDecl noLoc Nothing [] [] classname [TyCon (UnQual dataname)] []
+    [InstDecl srcloc overlap typeVars context classname types []]
+bootDecl (DataDecl srcloc dataOrNew context dataname typeVars constructors _) =
+    [DataDecl srcloc dataOrNew context dataname typeVars constructors []] where
+bootDecl (DerivDecl srcloc overlap typeVars context classname types) =
+    [InstDecl srcloc overlap typeVars context classname types []]
 bootDecl (PatBind _ _ _ _) =
     []
 bootDecl (FunBind _) =
