@@ -8,8 +8,8 @@ import Prelude hiding (writeFile)
 
 import Language.Haskell.Exts.Syntax (
     Module(Module),ModuleName(ModuleName),ModulePragma(LanguagePragma),
-    Decl(InstDecl,DataDecl),Type(TyCon),QName(UnQual),
-    Name(Ident,Symbol),ImportDecl(ImportDecl,importSrc),ImportSpec(IVar,IAbs,IThingWith),
+    Decl(InstDecl,DataDecl,PatBind,FunBind),Type(TyCon),QName(UnQual),Name(Ident,Symbol),
+    ImportDecl(ImportDecl,importSrc,importModule),ImportSpec(IVar,IAbs,IThingWith),
     CName(ConName),Namespace(NoNamespace))
 import Language.Haskell.Exts.SrcLoc (noLoc)
 import Language.Haskell.Exts.Parser (
@@ -30,6 +30,8 @@ import Control.Exception (SomeException,catch,evaluate)
 
 import Control.Monad (forM_,unless)
 import Data.Maybe (mapMaybe)
+import Data.Char (isDigit)
+
 
 sliceCompilerMain :: SliceID -> IO ExitCode
 sliceCompilerMain sliceID = do
@@ -97,11 +99,15 @@ bootModule (Module srcloc moduleName pragmas warnings exports imports decls) =
         bootImports = mapMaybe bootImport imports
         bootDecls = concatMap bootDecl decls
 
+-- | Remove all source imports and make all other imports source except those
+-- from builtin modules
 bootImport :: ImportDecl -> Maybe ImportDecl
 bootImport importDecl
     | importSrc importDecl = Nothing
-    | otherwise = Just (importDecl {importSrc = True})
+    | isSliceModule (importModule importDecl) = Just (importDecl {importSrc = True})
+    | otherwise = Just importDecl
 
+-- | Remove instance bodies, make derived instances into bodyless instance decls
 bootDecl :: Decl -> [Decl]
 bootDecl (InstDecl srcloc overlap typeVars context classname types _) =
     [(InstDecl srcloc overlap typeVars context classname types [])]
@@ -110,11 +116,17 @@ bootDecl (DataDecl srcloc dataOrNew context dataname typeVars constructors deriv
         derivedInstances = map derivedInstance derivings
         derivedInstance (classname,_) =
             InstDecl noLoc Nothing [] [] classname [TyCon (UnQual dataname)] []
+bootDecl (PatBind _ _ _ _) =
+    []
+bootDecl (FunBind _) =
+    []
 bootDecl decl = [decl]
 
+-- | Directory for generated modules
 sliceModuleDirectory :: FilePath
 sliceModuleDirectory = "fragnix" </> "temp" </> "compilationunits"
 
+-- | The path for the module generated for the slice with the given ID
 sliceModulePath :: SliceID -> FilePath
 sliceModulePath sliceID = sliceModuleDirectory </> sliceModuleFileName sliceID
 
@@ -129,6 +141,11 @@ sliceHSBootFileName sliceID = sliceModuleName sliceID <.> "hs-boot"
 
 sliceModuleName :: SliceID -> String
 sliceModuleName sliceID = "F" ++ show sliceID
+
+-- | Is the module name from a fragnix generated module
+isSliceModule :: ModuleName -> Bool
+isSliceModule (ModuleName ('F':rest)) = all isDigit rest
+isSliceModule _ = False
 
 writeSliceModule :: Slice -> IO ()
 writeSliceModule slice@(Slice sliceID _ _ _) = (do
