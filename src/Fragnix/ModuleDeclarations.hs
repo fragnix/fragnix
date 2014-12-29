@@ -3,7 +3,7 @@ module Fragnix.ModuleDeclarations where
 
 import Fragnix.Declaration (
     Declaration(Declaration),Genre(..))
-import Fragnix.Symbols (
+import Fragnix.Environment (
     loadSymbols,persistSymbols,primitiveSymbolsPath,symbolsPath)
 
 import qualified Language.Haskell.Exts as UnAnn (

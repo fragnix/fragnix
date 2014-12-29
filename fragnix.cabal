@@ -22,7 +22,6 @@ executable fragnix
                        Fragnix.ModuleDeclarations,
                        Fragnix.DeclarationSlices,
                        Fragnix.SliceCompiler,
-                       Fragnix.Symbols,
                        Fragnix.Environment
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.8,
@@ -51,7 +50,6 @@ test-suite test
                        Fragnix.ModuleDeclarations,
                        Fragnix.DeclarationSlices,
                        Fragnix.SliceCompiler,
-                       Fragnix.Symbols,
                        Fragnix.Environment
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.8,
