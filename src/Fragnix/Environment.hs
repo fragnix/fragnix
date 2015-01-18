@@ -46,9 +46,6 @@ persistEnvironment path environment = do
         let modulpath = path </> prettyPrint modulname
         writeInterface modulpath symbols)
 
-loadBuiltinEnvironment :: IO Environment
-loadBuiltinEnvironment = loadEnvironment builtinEnvironmentPath
-
 environmentPath :: FilePath
 environmentPath = "fragnix" </> "environment"
 

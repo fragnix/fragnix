@@ -4,7 +4,7 @@ module Fragnix.ModuleDeclarations where
 import Fragnix.Declaration (
     Declaration(Declaration),Genre(..))
 import Fragnix.Environment (
-    loadSymbols,persistSymbols,primitiveSymbolsPath,symbolsPath)
+    loadEnvironment,persistEnvironment,environmentPath,builtinEnvironmentPath)
 
 import qualified Language.Haskell.Exts as UnAnn (
     QName(Qual,UnQual),ModuleName(ModuleName))
@@ -43,10 +43,10 @@ import Data.List (nub)
 
 moduleDeclarations :: [FilePath] -> IO [Declaration]
 moduleDeclarations modulpaths = do
-    primitivesymbols <- loadSymbols primitiveSymbolsPath
-    symbols <- loadSymbols symbolsPath
-    modulinformation <- moduleDeclarationsNamesExtensions (Map.union primitivesymbols symbols) modulpaths
-    persistSymbols symbolsPath (Map.map (\(_,modulsymbols,_) -> modulsymbols) modulinformation)
+    builtinEnvironment <- loadEnvironment builtinEnvironmentPath
+    environment <- loadEnvironment environmentPath
+    modulinformation <- moduleDeclarationsNamesExtensions (Map.union builtinEnvironment environment) modulpaths
+    persistEnvironment environmentPath (Map.map (\(_,modulsymbols,_) -> modulsymbols) modulinformation)
     return (do
         (declarations,_,ghcextensions) <- Map.elems modulinformation
         Declaration genre _ ast boundsymbols mentionedsymbols <- declarations

@@ -8,8 +8,7 @@ import Fragnix.Slice (
     Reference(OtherSlice))
 import Fragnix.Environment (Environment)
 import Fragnix.Environment (
-    loadEnvironment,persistEnvironment,
-    loadPrimitiveEnvironment,environmentPath)
+    loadEnvironment,persistEnvironment,environmentPath,builtinEnvironmentPath)
 
 import Language.Haskell.Names (
     Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,symbolName))
@@ -37,9 +36,10 @@ import Data.List (nub,(\\))
 
 declarationSlices :: [Declaration] -> IO [Slice]
 declarationSlices declarations = do
-    primitiveEnvironment <- loadPrimitiveEnvironment
+    builtinEnvironment <- loadEnvironment builtinEnvironmentPath
     environment <- loadEnvironment environmentPath
-    let (slices,newenvironment) = declarationSlicesWithEnvironment (Map.union primitiveEnvironment environment) declarations
+    let (slices,newenvironment) =
+            declarationSlicesWithEnvironment (Map.union builtinEnvironment environment) declarations
     persistEnvironment environmentPath newenvironment
     return slices
 
