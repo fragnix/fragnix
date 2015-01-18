@@ -4,11 +4,11 @@ module Fragnix.DeclarationSlices where
 import Fragnix.Declaration (
     Declaration(Declaration),Genre(TypeSignature,ClassInstance,InfixFixity))
 import Fragnix.Slice (
-    Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Usage(Usage),UsedName(..),
-    Reference(OtherSlice))
+    Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
+    Usage(Usage),UsedName(..),Reference(OtherSlice,Primitive))
 
 import Language.Haskell.Names (
-    Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,symbolName))
+    Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,symbolName,symbolModule))
 import qualified Language.Haskell.Exts as Name (
     Name(Ident,Symbol))
 import Language.Haskell.Exts (
@@ -31,6 +31,7 @@ import Data.Hashable (hash)
 import Data.List (nub,(\\))
 
 
+-- | Extract all slices from the given list of declarations.
 declarationSlices :: [Declaration] -> [Slice]
 declarationSlices declarations =
     hashSlices (buildTempSlices (sccGraph (declarationGraph declarations)))
@@ -141,10 +142,13 @@ buildTempSlices tempslicegraph = do
             (mentionedsymbol,maybequalification) <- mentionedsymbols
             let maybeQualificationText = fmap (pack . prettyPrint) maybequalification
                 usedName = symbolUsedName mentionedsymbol
-            reference <- if mentionedsymbol `elem` locallyBoundSymbols
-                then []
-                else maybeToList (
-                    Map.lookup mentionedsymbol otherslices)
+            -- No usage for declarations in this fragment
+            guard (not (mentionedsymbol `elem` locallyBoundSymbols))
+            -- Look up reference to other slice from this graph
+            -- if it fails the symbol must be builtin
+            reference <- maybeToList (
+                    Map.lookup mentionedsymbol otherslices <|>
+                    Just (Primitive (pack (prettyPrint (symbolModule (mentionedsymbol))))))
             return (Usage maybeQualificationText usedName reference))
 
         -- We want every class to import all its instances
