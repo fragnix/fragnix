@@ -1,0 +1,1 @@
+[{"name":"STRef","module":"GHC.STRef","entity":"data"},{"name":"newSTRef","module":"Data.STRef.Lazy","entity":"value"},{"name":"readSTRef","module":"Data.STRef.Lazy","entity":"value"},{"name":"writeSTRef","module":"Data.STRef.Lazy","entity":"value"},{"name":"modifySTRef","module":"Data.STRef.Lazy","entity":"value"}]

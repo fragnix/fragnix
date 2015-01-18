@@ -1,0 +1,1 @@
+[{"name":"MonadFix","module":"Control.Monad.Fix","entity":"class"},{"name":"mfix","module":"Control.Monad.Fix","entity":"method","class":"MonadFix"},{"name":"fix","module":"Data.Function","entity":"value"}]

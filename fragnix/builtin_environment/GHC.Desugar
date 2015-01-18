@@ -1,0 +1,1 @@
+[{"name":">>>","module":"GHC.Desugar","entity":"value"},{"name":"AnnotationWrapper","module":"GHC.Desugar","entity":"data"},{"name":"AnnotationWrapper","module":"GHC.Desugar","type":"AnnotationWrapper","entity":"constructor"},{"name":"toAnnotationWrapper","module":"GHC.Desugar","entity":"value"}]

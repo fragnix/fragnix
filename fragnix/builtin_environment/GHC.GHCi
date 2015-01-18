@@ -1,0 +1,1 @@
+[{"name":"GHCiSandboxIO","module":"GHC.GHCi","entity":"class"},{"name":"ghciStepIO","module":"GHC.GHCi","entity":"method","class":"GHCiSandboxIO"},{"name":"NoIO","module":"GHC.GHCi","entity":"newtype"}]

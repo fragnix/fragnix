@@ -1,0 +1,1 @@
+[{"name":"utf8","module":"GHC.IO.Encoding.UTF8","entity":"value"},{"name":"mkUTF8","module":"GHC.IO.Encoding.UTF8","entity":"value"},{"name":"utf8_bom","module":"GHC.IO.Encoding.UTF8","entity":"value"},{"name":"mkUTF8_bom","module":"GHC.IO.Encoding.UTF8","entity":"value"}]

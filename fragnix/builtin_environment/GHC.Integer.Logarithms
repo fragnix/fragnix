@@ -1,0 +1,1 @@
+[{"name":"integerLogBase#","module":"GHC.Integer.Logarithms","entity":"value"},{"name":"integerLog2#","module":"GHC.Integer.Logarithms","entity":"value"},{"name":"wordLog2#","module":"GHC.Integer.Logarithms","entity":"value"}]
