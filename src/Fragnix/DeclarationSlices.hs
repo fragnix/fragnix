@@ -6,9 +6,6 @@ import Fragnix.Declaration (
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Usage(Usage),UsedName(..),
     Reference(OtherSlice))
-import Fragnix.Environment (Environment)
-import Fragnix.Environment (
-    loadEnvironment,persistEnvironment,environmentPath,builtinEnvironmentPath)
 
 import Language.Haskell.Names (
     Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,symbolName))
@@ -27,37 +24,16 @@ import Control.Monad (guard)
 import Control.Applicative ((<|>))
 import Data.Text (pack)
 import Data.Map (Map)
-import qualified Data.Map as Map (lookup,fromList,union,fromListWith)
+import qualified Data.Map as Map (lookup,fromList,fromListWith)
 import qualified Data.Set as Set (fromList,member)
 import Data.Maybe (maybeToList,fromJust,listToMaybe)
 import Data.Hashable (hash)
 import Data.List (nub,(\\))
 
 
-declarationSlices :: [Declaration] -> IO [Slice]
-declarationSlices declarations = do
-    builtinEnvironment <- loadEnvironment builtinEnvironmentPath
-    environment <- loadEnvironment environmentPath
-    let (slices,newenvironment) =
-            declarationSlicesWithEnvironment (Map.union builtinEnvironment environment) declarations
-    persistEnvironment environmentPath newenvironment
-    return slices
-
-declarationSlicesWithEnvironment :: Environment -> [Declaration] -> ([Slice],Environment)
-declarationSlicesWithEnvironment environment declarations = (slices,Map.union newenvironment environment) where
-    sccgraph = sccGraph (declarationGraph declarations)
-    tempslices = buildTempSlices environment sccgraph
-    slices = hashSlices tempslices
-    tempMap = Map.fromList (do
-        (Slice tempID _ _ _,Slice sliceID _ _ _) <- zip tempslices slices
-        return (tempID,sliceID))
-    newenvironment = Map.fromList (do
-        Slice tempID _ _ _ <- tempslices
-        sliceID <- maybeToList (Map.lookup tempID tempMap)
-        slicedeclarations <- maybeToList (lab sccgraph (fromIntegral tempID))
-        Declaration _ _ _ boundsymbols _ <- slicedeclarations
-        boundsymbol <- boundsymbols
-        return (boundsymbol,OtherSlice sliceID))
+declarationSlices :: [Declaration] -> [Slice]
+declarationSlices declarations =
+    hashSlices (buildTempSlices (sccGraph (declarationGraph declarations)))
 
 -- | Create a dependency graph between all declarations in the given list. Dependency edges
 -- come primarily from when a declaration mentions a symbol another declaration binds. But also
@@ -111,8 +87,8 @@ sccGraph graph = buildGr (do
 -- list of declarations that from a strongly connected component. Return a list of slices
 -- tripled with the symbols it binds and the mentioned symbols that could not be resolved
 -- inside the graph. The slices have negative IDs starting from -1.
-buildTempSlices :: Environment -> Gr [Declaration] Dependency -> [Slice]
-buildTempSlices environment tempslicegraph = do
+buildTempSlices :: Gr [Declaration] Dependency -> [Slice]
+buildTempSlices tempslicegraph = do
 
     -- Build a Map from data or class symbol to instance temporary ID
     -- Prefer the class symbol if both are present
@@ -168,8 +144,7 @@ buildTempSlices environment tempslicegraph = do
             reference <- if mentionedsymbol `elem` locallyBoundSymbols
                 then []
                 else maybeToList (
-                    Map.lookup mentionedsymbol otherslices <|>
-                    Map.lookup mentionedsymbol environment)
+                    Map.lookup mentionedsymbol otherslices)
             return (Usage maybeQualificationText usedName reference))
 
         -- We want every class to import all its instances

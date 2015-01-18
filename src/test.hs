@@ -52,7 +52,7 @@ testModules folder = do
     declarations <- moduleDeclarations modulepaths
     writeDeclarations "fragnix/temp/declarations/declarations.json" declarations
 
-    slices <- declarationSlices declarations
+    let slices = declarationSlices declarations
     forM_ slices writeSlice
 
     let sliceIDs = [sliceID | Slice sliceID _ _ _ <- slices]

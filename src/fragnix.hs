@@ -1,13 +1,11 @@
 module Main where
 
 import Fragnix.Declaration (writeDeclarations)
-import Fragnix.Slice (writeSlice,Reference(OtherSlice))
+import Fragnix.Slice (writeSlice)
 import Fragnix.ModuleDeclarations (moduleDeclarations)
 import Fragnix.DeclarationSlices (declarationSlices)
 import Fragnix.SliceCompiler (sliceCompilerMain)
-import Fragnix.Environment (loadEnvironment,environmentPath,mainsymbol)
 
-import qualified Data.Map as Map (lookup)
 import Control.Monad (forM_)
 import System.Environment (getArgs)
 
@@ -21,12 +19,12 @@ main = do
     declarations <- moduleDeclarations args
     writeDeclarations "fragnix/temp/declarations/declarations.json" declarations
 
-    slices <- declarationSlices declarations
+    let slices = declarationSlices declarations
     forM_ slices writeSlice
 
-    environment <- loadEnvironment environmentPath
+    putStrLn "Finding main slice not implemented!"
+    let mainSliceID = undefined
 
-    case Map.lookup mainsymbol environment of
-        Just (OtherSlice mainSliceID) -> sliceCompilerMain mainSliceID >>= print
-        _ -> putStrLn "No main slice!"
+    sliceCompilerMain mainSliceID
 
+    return ()

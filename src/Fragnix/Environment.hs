@@ -1,7 +1,5 @@
 module Fragnix.Environment where
 
-import Fragnix.Slice (
-    Reference(Primitive))
 
 import Language.Haskell.Names (
     Symbol(Value))
@@ -13,17 +11,11 @@ import Language.Haskell.Exts (
 import Data.Map (
     Map)
 import qualified Data.Map as Map (
-    fromList,toList,empty)
+    fromList,toList)
 import System.FilePath (
-    (</>),dropFileName)
+    (</>))
 import System.Directory (
     createDirectoryIfMissing,doesFileExist,getDirectoryContents)
-import Data.Aeson (
-    eitherDecode,encode)
-import Data.Text (
-    pack)
-import qualified Data.ByteString.Lazy as ByteString (
-    readFile,writeFile)
 import Control.Monad (
     filterM,forM,forM_)
 
