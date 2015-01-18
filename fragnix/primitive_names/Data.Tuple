@@ -1,1 +1,0 @@
-[{"name":"fst","module":"Data.Tuple","entity":"value"},{"name":"snd","module":"Data.Tuple","entity":"value"},{"name":"curry","module":"Data.Tuple","entity":"value"},{"name":"uncurry","module":"Data.Tuple","entity":"value"},{"name":"swap","module":"Data.Tuple","entity":"value"}]

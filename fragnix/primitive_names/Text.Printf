@@ -1,1 +1,0 @@
-[{"name":"printf","module":"Text.Printf","entity":"value"},{"name":"hPrintf","module":"Text.Printf","entity":"value"},{"name":"PrintfType","module":"Text.Printf","entity":"class"},{"name":"HPrintfType","module":"Text.Printf","entity":"class"},{"name":"PrintfArg","module":"Text.Printf","entity":"class"},{"name":"IsChar","module":"Text.Printf","entity":"class"}]
