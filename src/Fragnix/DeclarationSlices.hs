@@ -38,7 +38,9 @@ declarationSlices declarations = slices where
     fragmentNodes = fragmentSCCs (declarationGraph declarations)
     sliceBindingsMap = sliceBindings fragmentNodes
     sliceInstancesMap = sliceInstances fragmentNodes
-    slices = hashSlices (map (buildTempSlice sliceBindingsMap sliceInstancesMap) fragmentNodes)
+    tempSlices = map (buildTempSlice sliceBindingsMap sliceInstancesMap) fragmentNodes
+    tempSliceIDMap = tempSliceIDs tempSlices
+    slices = map (hashSlice tempSliceIDMap) tempSlices
 
 
 -- | Build a Map from symbol to Node that binds this symbol.
@@ -195,24 +197,30 @@ moduleReference (ModuleName moduleName)
 -- | A temporary ID before slices can be hashed.
 type TempID = Integer
 
+-- | A Slice with a temporary ID that may use slices with
+-- temporary IDs.
+type TempSlice = Slice
+
+-- | Associate every temporary ID with the final ID.
+tempSliceIDs :: [TempSlice] -> Map TempID SliceID
+tempSliceIDs tempSlices = Map.fromList (do
+    let tempSliceMap = sliceMap tempSlices
+    Slice tempID _ _ _ <- tempSlices
+    return (tempID,computeHash tempSliceMap tempID))
+
 -- | Compute the hashes for the given list of slices and return slices where every ID is
 -- its hash.
-hashSlices :: [Slice] -> [Slice]
-hashSlices tempSlices = map (replaceSliceID (computeHash tempSliceMap)) tempSlices where
-    tempSliceMap = sliceMap tempSlices
+hashSlice :: Map TempID SliceID -> TempSlice -> Slice
+hashSlice tempSliceIDMap = replaceSliceID (\tempID -> fromJust (Map.lookup tempID tempSliceIDMap))
 
 -- | Build up a map from temporary ID to corresponding slice for better lookup.
-sliceMap :: [Slice] -> Map TempID Slice
+sliceMap :: [TempSlice] -> Map TempID TempSlice
 sliceMap tempSlices = Map.fromList (do
     tempSlice@(Slice tempSliceID _ _ _) <- tempSlices
     return (tempSliceID,tempSlice))
 
--- | Replace every occurence of a temporary ID with the final ID.
-replaceSliceID :: (TempID -> SliceID) -> Slice -> Slice
-replaceSliceID f (Slice tempID language fragment usages) = Slice (f tempID) language fragment (map (replaceUsageID f) usages)
-
 -- | Hash the slice with the given temporary ID.
-computeHash :: Map TempID Slice -> TempID -> SliceID
+computeHash :: Map TempID TempSlice -> TempID -> SliceID
 computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,usages,language))) where
     Just (Slice _ language fragment tempUsages) = Map.lookup tempID tempSliceMap
     usages = map (replaceUsageID (computeHash tempSliceMap)) tempUsagesWithoutInstances
@@ -221,6 +229,12 @@ computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,usages,langu
         guard (not (usedName == Instance))
         return usage
 
+-- | Replace every occurence of a temporary ID in the given slice with the final ID.
+replaceSliceID :: (TempID -> SliceID) -> TempSlice -> Slice
+replaceSliceID f (Slice tempID language fragment usages) = Slice (f tempID) language fragment (map (replaceUsageID f) usages)
+
+-- | Replace every occurence of a temporary ID in the given usage with the final ID.
+-- A temporary as opposed to a slice ID is smaller than zero.
 replaceUsageID :: (TempID -> SliceID) -> Usage -> Usage
 replaceUsageID f (Usage qualification usedName (OtherSlice tempID))
     | tempID < 0 = (Usage qualification usedName (OtherSlice (f tempID)))
