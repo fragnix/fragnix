@@ -16,7 +16,7 @@ import Language.Haskell.Exts (
     Extension(EnableExtension),KnownExtension(Safe,CPP,Trustworthy))
 
 import Data.Graph.Inductive (
-    Node,scc,lab,insEdges,insNodes,empty)
+    scc,lab,insEdges,insNodes,empty)
 import Data.Graph.Inductive.PatriciaTree (
     Gr)
 
@@ -35,25 +35,25 @@ import Data.List (nub,(\\))
 -- | Extract all slices from the given list of declarations.
 declarationSlices :: [Declaration] -> [Slice]
 declarationSlices declarations = slices where
-    fragmentNodes = sccGraph (declarationGraph declarations)
+    fragmentNodes = fragmentSCCs (declarationGraph declarations)
     sliceBindingsMap = sliceBindings fragmentNodes
     sliceInstancesMap = sliceInstances fragmentNodes
     slices = hashSlices (map (buildTempSlice sliceBindingsMap sliceInstancesMap) fragmentNodes)
 
 
 -- | Build a Map from symbol to Node that binds this symbol.
-sliceBindings :: [(Node,[Declaration])] -> Map Symbol Node
+sliceBindings :: [(TempID,[Declaration])] -> Map Symbol TempID
 sliceBindings fragmentNodes = Map.fromList (do
-    (node,declarations) <- fragmentNodes
+    (tempID,declarations) <- fragmentNodes
     Declaration _ _ _ boundsymbols _ <- declarations
     boundsymbol <- boundsymbols
-    return (boundsymbol,node))
+    return (boundsymbol,tempID))
 
 
 -- | Build a Map from data or class symbol to instance temporary ID
 -- Prefer the class symbol if both are present
 -- Only include classes and types bound in this graph
-sliceInstances :: [(Node,[Declaration])] -> Map Symbol [Node]
+sliceInstances :: [(TempID,[Declaration])] -> Map Symbol [TempID]
 sliceInstances fragmentNodes = Map.fromListWith (++) (do
 
     let graphSymbols = Set.fromList (do
@@ -61,7 +61,7 @@ sliceInstances fragmentNodes = Map.fromListWith (++) (do
             Declaration _ _ _ boundSymbols _ <- declarations
             boundSymbols)
 
-    (node,declarations) <- fragmentNodes
+    (tempID,declarations) <- fragmentNodes
     Declaration ClassInstance _ _ _ mentionedsymbols <- declarations
 
     let classSymbol = do
@@ -74,7 +74,7 @@ sliceInstances fragmentNodes = Map.fromListWith (++) (do
             return typeSymbolMentionedFirst
     symbol <- maybeToList (classSymbol <|> typeSymbol)
 
-    return (symbol,[node]))
+    return (symbol,[tempID]))
 
 
 -- | Create a dependency graph between all declarations in the given list. Dependency edges
@@ -109,8 +109,8 @@ declarationGraph declarations =
 
 
 -- | A list of strongly connected components from a given graph.
-sccGraph :: Gr a b -> [(Node,[a])]
-sccGraph graph = do
+fragmentSCCs :: Gr a b -> [(TempID,[a])]
+fragmentSCCs graph = do
     let sccnodes = zip [-1,-2..] (scc graph)
     (sccnode,graphnodes) <- sccnodes
     let scclabels = map (fromJust . lab graph) graphnodes
@@ -121,7 +121,7 @@ sccGraph graph = do
 -- Return a slice with a temporary ID that might contain references to temporary IDs.
 -- The nodes must have negative IDs starting from -1 to distinguis temporary from permanent
 -- slice IDs.
-buildTempSlice :: Map Symbol Node -> Map Symbol [Node] -> (Node,[Declaration]) -> Slice
+buildTempSlice :: Map Symbol TempID -> Map Symbol [TempID] -> (TempID,[Declaration]) -> Slice
 buildTempSlice tempEnvironment instanceMap (node,declarations) =
     Slice tempID language fragments (mentionedUsages ++ instanceUsages) where
         tempID = fromIntegral node
