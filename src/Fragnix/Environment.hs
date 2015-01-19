@@ -2,7 +2,7 @@ module Fragnix.Environment where
 
 
 import Language.Haskell.Names (
-    Symbol(Value))
+    Symbol(symbolName,symbolModule))
 import Language.Haskell.Names.Interfaces (
     readInterface,writeInterface)
 import Language.Haskell.Exts (
@@ -11,13 +11,13 @@ import Language.Haskell.Exts (
 import Data.Map (
     Map)
 import qualified Data.Map as Map (
-    fromList,toList)
+    fromList,toList,elems)
 import System.FilePath (
     (</>))
 import System.Directory (
     createDirectoryIfMissing,doesFileExist,getDirectoryContents)
 import Control.Monad (
-    filterM,forM,forM_)
+    filterM,forM,forM_,guard)
 
 type Environment = Map ModuleName [Symbol]
 
@@ -44,5 +44,12 @@ environmentPath = "fragnix" </> "environment"
 builtinEnvironmentPath :: FilePath
 builtinEnvironmentPath = "fragnix" </> "builtin_environment"
 
-mainsymbol :: Symbol
-mainsymbol = Value (ModuleName "Main") (Ident "main")
+findMainSliceIDs :: Map Symbol Symbol -> [Integer]
+findMainSliceIDs symbolSlices = do
+    symbol <- Map.elems symbolSlices
+    guard (symbolName symbol == Ident "main")
+    ModuleName moduleName <- return (symbolModule symbol)
+    return (read moduleName)
+
+updateEnvironment :: Map Symbol Symbol -> Environment -> Environment
+updateEnvironment = undefined

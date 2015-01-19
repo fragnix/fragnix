@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import Fragnix.ModuleDeclarations (moduleDeclarations)
+import Fragnix.ModuleDeclarations (parse,moduleDeclarationsWithEnvironment)
 import Fragnix.Declaration (writeDeclarations)
 import Fragnix.DeclarationSlices (declarationSlices)
 import Fragnix.Slice (Slice(Slice),writeSlice)
+import Fragnix.Environment (loadEnvironment,builtinEnvironmentPath)
 import Fragnix.SliceCompiler (sliceCompiler)
 
 import Test.Tasty (testGroup,TestTree)
@@ -49,7 +50,10 @@ testModules folder = do
         return . filter (\filename -> takeExtension filename == ".hs")
     let modulepaths = map (\filename -> folder </> filename) modulefilenames
 
-    declarations <- moduleDeclarations modulepaths
+    builtinEnvironment <- loadEnvironment builtinEnvironmentPath
+    modules <- forM modulepaths parse
+
+    let declarations = moduleDeclarationsWithEnvironment builtinEnvironment modules
     writeDeclarations "fragnix/temp/declarations/declarations.json" declarations
 
     let (slices,_) = declarationSlices declarations

@@ -36,14 +36,14 @@ import Data.List (nub,(\\))
 -- from a symbol to a new symbol where the original slice is encoded into the
 -- module name.
 declarationSlices :: [Declaration] -> ([Slice],Map Symbol Symbol)
-declarationSlices declarations = (slices,symbolOrigins) where
+declarationSlices declarations = (slices,symbolSlices) where
     fragmentNodes = fragmentSCCs (declarationGraph declarations)
     sliceBindingsMap = sliceBindings fragmentNodes
     sliceInstancesMap = sliceInstances fragmentNodes
     tempSlices = map (buildTempSlice sliceBindingsMap sliceInstancesMap) fragmentNodes
     tempSliceIDMap = tempSliceIDs tempSlices
     slices = map (replaceSliceID ((Map.!) tempSliceIDMap)) tempSlices
-    symbolOrigins = Map.mapWithKey (symbolOrigin tempSliceIDMap) sliceBindingsMap
+    symbolSlices = Map.mapWithKey (symbolOrigin tempSliceIDMap) sliceBindingsMap
 
 
 -- | Build a Map from symbol to temporary ID that binds this symbol.
