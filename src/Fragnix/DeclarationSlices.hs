@@ -16,7 +16,7 @@ import Language.Haskell.Exts (
     Extension(EnableExtension),KnownExtension(Safe,CPP,Trustworthy))
 
 import Data.Graph.Inductive (
-    Node,buildGr,scc,lab,lsuc,labNodes,insEdges,insNodes,empty)
+    Node,scc,lab,insEdges,insNodes,empty)
 import Data.Graph.Inductive.PatriciaTree (
     Gr)
 
@@ -35,10 +35,10 @@ import Data.List (nub,(\\))
 -- | Extract all slices from the given list of declarations.
 declarationSlices :: [Declaration] -> [Slice]
 declarationSlices declarations = slices where
-    sccs = labNodes (sccGraph (declarationGraph declarations))
-    sliceBindingsMap = sliceBindings sccs
-    sliceInstancesMap = sliceInstances sccs
-    slices = hashSlices (map (buildTempSlice sliceBindingsMap sliceInstancesMap) sccs)
+    fragmentNodes = sccGraph (declarationGraph declarations)
+    sliceBindingsMap = sliceBindings fragmentNodes
+    sliceInstancesMap = sliceInstances fragmentNodes
+    slices = hashSlices (map (buildTempSlice sliceBindingsMap sliceInstancesMap) fragmentNodes)
 
 
 -- | Build a Map from symbol to Node that binds this symbol.
@@ -108,29 +108,19 @@ declarationGraph declarations =
         return (bindingnode,fixitynode,Fixity)
 
 
--- | Build a graph of strongly connected components from a given graph.
-sccGraph :: Gr a b -> Gr [a] b
-sccGraph graph = buildGr (do
+-- | A list of strongly connected components from a given graph.
+sccGraph :: Gr a b -> [(Node,[a])]
+sccGraph graph = do
     let sccnodes = zip [-1,-2..] (scc graph)
-        sccmap = Map.fromList (do
-            (sccnode,graphnodes) <- sccnodes
-            graphnode <- graphnodes
-            return (graphnode,sccnode))
     (sccnode,graphnodes) <- sccnodes
     let scclabels = map (fromJust . lab graph) graphnodes
-        sccsucs = do
-            graphnode <- graphnodes
-            (graphsuc,label) <- lsuc graph graphnode
-            let sccsuc = fromJust (Map.lookup graphsuc sccmap)
-            guard (not (sccsuc == sccnode))
-            return (label,sccsuc)
-    return ([],sccnode,scclabels,sccsucs))
+    return (sccnode,scclabels)
 
 
--- | Take a graph where each node corresponds to a
--- list of declarations that from a strongly connected component. Return a list of slices
--- tripled with the symbols it binds and the mentioned symbols that could not be resolved
--- inside the graph. The slices have negative IDs starting from -1.
+-- | Take a temporary environment, an instance map and a pair of a node and a fragment.
+-- Return a slice with a temporary ID that might contain references to temporary IDs.
+-- The nodes must have negative IDs starting from -1 to distinguis temporary from permanent
+-- slice IDs.
 buildTempSlice :: Map Symbol Node -> Map Symbol [Node] -> (Node,[Declaration]) -> Slice
 buildTempSlice tempEnvironment instanceMap (node,declarations) =
     Slice tempID language fragments (mentionedUsages ++ instanceUsages) where
