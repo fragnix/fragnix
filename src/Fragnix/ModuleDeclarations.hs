@@ -4,11 +4,11 @@ module Fragnix.ModuleDeclarations where
 import Fragnix.Declaration (
     Declaration(Declaration),Genre(..))
 import Fragnix.Environment (
-    loadEnvironment,persistEnvironment,environmentPath,builtinEnvironmentPath)
+    Environment,
+    loadEnvironment,environmentPath,builtinEnvironmentPath)
 
 import qualified Language.Haskell.Exts as UnAnn (
     QName(Qual,UnQual),ModuleName(ModuleName))
-import Language.Haskell.Exts.Annotated.Simplify (sModuleName)
 import Language.Haskell.Exts.Annotated (
     Module,Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
     SrcSpan,srcInfoSpan,ModuleName,
@@ -16,7 +16,7 @@ import Language.Haskell.Exts.Annotated (
 import Language.Haskell.Names (
     Symbol(NewType,Constructor),Error,Scoped(Scoped),
     computeInterfaces,annotateModule,
-    NameInfo(GlobalSymbol,RecPatWildcard),ppError)
+    NameInfo(GlobalSymbol,RecPatWildcard))
 import Language.Haskell.Names.SyntaxUtils (
     getModuleDecls,getModuleName,getModuleExtensions)
 import Language.Haskell.Names.ModuleSymbols (
@@ -28,45 +28,47 @@ import Distribution.HaskellSuite.Modules (
 
 
 import Data.Set (Set)
-import qualified Data.Set as Set (toList)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map (
-    lookup,insert,elems,fromList,union,map)
+    lookup,insert,union)
 import Control.Monad.Trans.State.Strict (
-    State,runState,gets,modify)
+    State,execState,evalState,gets,modify)
 import Control.Monad (forM)
-import Control.Applicative (Applicative,(<$>),(<*>))
-import Data.Maybe (mapMaybe,maybeToList)
+import Control.Applicative (Applicative)
+import Data.Maybe (mapMaybe)
 import Data.Text (pack)
 import Data.Foldable (toList)
 import Data.List (nub)
 
+
+-- | Given a list of filepaths to valid Haskell modules produces a list of all
+-- declarations in those modules. The default environment loaded and used.
 moduleDeclarations :: [FilePath] -> IO [Declaration]
-moduleDeclarations modulpaths = do
+moduleDeclarations modulepaths = do
     builtinEnvironment <- loadEnvironment builtinEnvironmentPath
     environment <- loadEnvironment environmentPath
-    modulinformation <- moduleDeclarationsNamesExtensions (Map.union builtinEnvironment environment) modulpaths
-    persistEnvironment environmentPath (Map.map (\(_,modulsymbols,_) -> modulsymbols) modulinformation)
-    return (do
-        (declarations,_,ghcextensions) <- Map.elems modulinformation
-        Declaration genre _ ast boundsymbols mentionedsymbols <- declarations
-        return (Declaration genre ghcextensions ast boundsymbols mentionedsymbols))
+    modules <- forM modulepaths parse
+    return (moduleDeclarationsWithEnvironment (Map.union builtinEnvironment environment) modules)
 
-moduleDeclarationsNamesExtensions :: Map UnAnn.ModuleName [Symbol] -> [FilePath] -> IO ModuleInformation
-moduleDeclarationsNamesExtensions names modulpaths = do
-    asts <- forM modulpaths parse
-    let ((errors,annotatedasts),newnames) = flip runState names (do
-            (,) <$> resolve asts <*> forM asts annotate)
-    forM (Set.toList errors) (putStrLn . ("WARNING: " ++) . ppError)
-    return (Map.fromList (do
-        annotatedast <- annotatedasts
-        let modulname = sModuleName (getModuleName annotatedast)
-            declarations = extractDeclarations annotatedast
-            symbols = concat (maybeToList (Map.lookup modulname newnames))
-            (_,modulextensions) = getModuleExtensions annotatedast
-        return (modulname,(declarations,symbols,modulextensions))))
 
-type ModuleInformation = Map UnAnn.ModuleName ([Declaration],[Symbol],[Extension])
+-- | Use the given environment to produce a list of all declarations from the given list
+-- of modules.
+moduleDeclarationsWithEnvironment :: Environment -> [Module SrcSpan] -> [Declaration]
+moduleDeclarationsWithEnvironment environment modules = declarations where
+    declarations = do
+        annotatedModule <- annotatedModules
+        let (_,moduleExtensions) = getModuleExtensions annotatedModule
+        Declaration genre _ ast boundsymbols mentionedsymbols <- extractDeclarations annotatedModule
+        return (Declaration genre moduleExtensions ast boundsymbols mentionedsymbols)
+    annotatedModules = flip evalState environment (do
+        resolve modules
+        forM modules annotate)
+
+
+-- | Augment the given environment with symbols for the given modules.
+moduleSymbols :: Environment -> [Module SrcSpan] -> Environment
+moduleSymbols environment modules = execState (resolve modules) environment
+
 
 parse :: FilePath -> IO (Module SrcSpan)
 parse path = do
@@ -75,10 +77,10 @@ parse path = do
         ParseOk ast -> return (fmap srcInfoSpan ast)
         ParseFailed location message -> error ("PARSE FAILED: " ++ path ++ show location ++ message)
 
-resolve :: [Module SrcSpan] -> State (Map UnAnn.ModuleName [Symbol]) (Set (Error SrcSpan))
+resolve :: [Module SrcSpan] -> State Environment (Set (Error SrcSpan))
 resolve asts = runFragnixModule (computeInterfaces language extensions asts)
 
-annotate :: Module SrcSpan -> State (Map UnAnn.ModuleName [Symbol]) (Module (Scoped SrcSpan))
+annotate :: Module SrcSpan -> State Environment (Module (Scoped SrcSpan))
 annotate ast = runFragnixModule (annotateModule language extensions ast)
 
 language :: Language
