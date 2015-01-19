@@ -11,7 +11,7 @@ import Language.Haskell.Exts (
 import Data.Map (
     Map)
 import qualified Data.Map as Map (
-    fromList,toList,elems)
+    fromList,toList,elems,findWithDefault,map)
 import System.FilePath (
     (</>))
 import System.Directory (
@@ -52,4 +52,5 @@ findMainSliceIDs symbolSlices = do
     return (read moduleName)
 
 updateEnvironment :: Map Symbol Symbol -> Environment -> Environment
-updateEnvironment = undefined
+updateEnvironment symbolSlices environment = Map.map (map (\symbol ->
+    Map.findWithDefault symbol symbol symbolSlices)) environment

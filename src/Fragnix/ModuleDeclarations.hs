@@ -13,6 +13,8 @@ import Language.Haskell.Exts.Annotated (
     Module,Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
     SrcSpan,srcInfoSpan,ModuleName,
     prettyPrint,Language(Haskell2010),Extension)
+import Language.Haskell.Exts.Annotated.Simplify (
+    sModuleName)
 import Language.Haskell.Names (
     Symbol(NewType,Constructor),Error,Scoped(Scoped),
     computeInterfaces,annotateModule,
@@ -30,7 +32,7 @@ import Distribution.HaskellSuite.Modules (
 import Data.Set (Set)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map (
-    lookup,insert,union)
+    lookup,insert,union,(!),fromList)
 import Control.Monad.Trans.State.Strict (
     State,execState,evalState,gets,modify)
 import Control.Monad (forM)
@@ -65,9 +67,12 @@ moduleDeclarationsWithEnvironment environment modules = declarations where
         forM modules annotate)
 
 
--- | Augment the given environment with symbols for the given modules.
+-- | Get the exports of the given modules resolved against the given environment.
 moduleSymbols :: Environment -> [Module SrcSpan] -> Environment
-moduleSymbols environment modules = execState (resolve modules) environment
+moduleSymbols environment modules = Map.fromList (do
+    let environment' = execState (resolve modules) environment
+    moduleName <- map (sModuleName . getModuleName) modules
+    return (moduleName,environment' Map.! moduleName))
 
 
 parse :: FilePath -> IO (Module SrcSpan)
