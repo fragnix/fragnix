@@ -19,7 +19,7 @@ main = do
     declarations <- moduleDeclarations args
     writeDeclarations "fragnix/temp/declarations/declarations.json" declarations
 
-    let slices = declarationSlices declarations
+    let (slices,_) = declarationSlices declarations
     forM_ slices writeSlice
 
     putStrLn "Finding main slice not implemented!"

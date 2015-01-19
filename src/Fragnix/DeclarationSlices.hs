@@ -25,25 +25,28 @@ import Control.Applicative ((<|>))
 import Data.Text (pack)
 import Data.Char (isDigit)
 import Data.Map (Map)
-import qualified Data.Map as Map (lookup,fromList,fromListWith)
+import qualified Data.Map as Map (lookup,fromList,fromListWith,(!),mapWithKey)
 import qualified Data.Set as Set (fromList,member)
 import Data.Maybe (maybeToList,fromJust,listToMaybe)
 import Data.Hashable (hash)
 import Data.List (nub,(\\))
 
 
--- | Extract all slices from the given list of declarations.
-declarationSlices :: [Declaration] -> [Slice]
-declarationSlices declarations = slices where
+-- | Extract all slices from the given list of declarations. Also return a map
+-- from a symbol to a new symbol where the original slice is encoded into the
+-- module name.
+declarationSlices :: [Declaration] -> ([Slice],Map Symbol Symbol)
+declarationSlices declarations = (slices,symbolOrigins) where
     fragmentNodes = fragmentSCCs (declarationGraph declarations)
     sliceBindingsMap = sliceBindings fragmentNodes
     sliceInstancesMap = sliceInstances fragmentNodes
     tempSlices = map (buildTempSlice sliceBindingsMap sliceInstancesMap) fragmentNodes
     tempSliceIDMap = tempSliceIDs tempSlices
-    slices = map (hashSlice tempSliceIDMap) tempSlices
+    slices = map (replaceSliceID ((Map.!) tempSliceIDMap)) tempSlices
+    symbolOrigins = Map.mapWithKey (symbolOrigin tempSliceIDMap) sliceBindingsMap
 
 
--- | Build a Map from symbol to Node that binds this symbol.
+-- | Build a Map from symbol to temporary ID that binds this symbol.
 sliceBindings :: [(TempID,[Declaration])] -> Map Symbol TempID
 sliceBindings fragmentNodes = Map.fromList (do
     (tempID,declarations) <- fragmentNodes
@@ -193,6 +196,11 @@ moduleReference (ModuleName moduleName)
     | all isDigit moduleName = OtherSlice (read moduleName)
     | otherwise = Primitive (pack moduleName)
 
+-- | Lookup the given temporary ID and encode the resulting slice ID as
+-- the module of the given symbol.
+symbolOrigin :: Map TempID SliceID -> Symbol -> TempID -> Symbol
+symbolOrigin tempSliceIDMap symbol tempID = symbol {
+    symbolModule = ModuleName (show (tempSliceIDMap Map.! tempID))}
 
 -- | A temporary ID before slices can be hashed.
 type TempID = Integer
@@ -207,11 +215,6 @@ tempSliceIDs tempSlices = Map.fromList (do
     let tempSliceMap = sliceMap tempSlices
     Slice tempID _ _ _ <- tempSlices
     return (tempID,computeHash tempSliceMap tempID))
-
--- | Compute the hashes for the given list of slices and return slices where every ID is
--- its hash.
-hashSlice :: Map TempID SliceID -> TempSlice -> Slice
-hashSlice tempSliceIDMap = replaceSliceID (\tempID -> fromJust (Map.lookup tempID tempSliceIDMap))
 
 -- | Build up a map from temporary ID to corresponding slice for better lookup.
 sliceMap :: [TempSlice] -> Map TempID TempSlice
