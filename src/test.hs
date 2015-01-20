@@ -12,7 +12,7 @@ import Fragnix.Environment (
 import Fragnix.SliceCompiler (sliceCompiler)
 
 import Test.Tasty (testGroup,TestTree)
-import Test.Tasty.Golden (goldenVsFile)
+import Test.Tasty.Golden (goldenVsFileDiff)
 import Test.Tasty.Golden.Manage (defaultMain)
 
 import Language.Haskell.Exts (prettyPrint)
@@ -43,8 +43,9 @@ exampleQuickFolder :: FilePath
 exampleQuickFolder = "tests/quick"
 
 testCase :: FilePath -> String -> TestTree
-testCase folder testname = goldenVsFile
+testCase folder testname = goldenVsFileDiff
     testname
+    (\ref new -> ["diff", "-u", ref, new])
     (folder </> testname </> "golden")
     (folder </> testname </> "out")
     (testModules (folder </> testname))
