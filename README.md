@@ -1,5 +1,5 @@
 
-Fragnix
+Fragnix [![Build Status](https://travis-ci.org/phischu/fragnix.svg?branch=master)](https://travis-ci.org/phischu/fragnix)
 =======
 
 Immutable, fragment-based dependencies!
