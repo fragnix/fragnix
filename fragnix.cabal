@@ -30,7 +30,7 @@ executable fragnix
                        directory >=1.2.0.1 && < 1.3,
                        process >=1.2.0.0 && <1.3,
                        containers >=0.5.0.0 && <0.6,
-                       haskell-src-exts >=1.16.0.2 && <1.17,
+                       haskell-src-exts >=1.16.0.1 && <1.17,
                        haskell-names >=0.5.1 && <0.6,
                        haskell-packages >=0.2.4.1 && <0.3,
                        Cabal >=1.20.0.2 && <1.21,
@@ -38,7 +38,7 @@ executable fragnix
                        aeson >=0.8.0.0 && <0.9,
                        bytestring >=0.10.4.0 && <0.11,
                        hashable >=1.2.2.0 && <1.3,
-                       transformers >=0.3.0.0 && <0.4,
+                       transformers >=0.3.0.0 && <0.5,
                        fgl >=5.4.2.4 && <5.5
   hs-source-dirs:      src
   default-language:    Haskell2010
@@ -58,7 +58,7 @@ test-suite test
                        directory >=1.2.0.1 && < 1.3,
                        process >=1.2.0.0 && <1.3,
                        containers >=0.5.0.0 && <0.6,
-                       haskell-src-exts >=1.16.0.2 && <1.17,
+                       haskell-src-exts >=1.16.0.1 && <1.17,
                        haskell-names >=0.5.1 && <0.6,
                        haskell-packages >=0.2.4.1 && <0.3,
                        Cabal >=1.20.0.2 && <1.21,
@@ -66,7 +66,7 @@ test-suite test
                        aeson >=0.8.0.0 && <0.9,
                        bytestring >=0.10.4.0 && <0.11,
                        hashable >=1.2.2.0 && <1.3,
-                       transformers >=0.3.0.0 && <0.4,
+                       transformers >=0.3.0.0 && <0.5,
                        fgl >=5.4.2.4 && <5.5,
                        tasty >=0.10.1 && <0.11,
                        tasty-golden >=2.2.2.4 && <2.3
@@ -89,7 +89,7 @@ executable haskell-modules
   other-modules:       Fragnix.BuiltinPackages
   build-depends:       base >=4.6 && <4.8,
                        haskell-names >=0.5.1 && <0.6,
-                       haskell-src-exts >=1.16.0.2 && <1.17,
+                       haskell-src-exts >=1.16.0.1 && <1.17,
                        haskell-packages >=0.2.4.1 && <0.3,
                        containers >=0.5.0.0 && <0.6,
                        filepath >=1.3 && < 1.4,
@@ -100,7 +100,7 @@ executable haskell-modules
                        bytestring >=0.10.4.0 && <0.11,
                        cpphs,
                        directory >=1.2.0.1 && < 1.3,
-                       transformers >=0.3.0.0 && <0.4,
+                       transformers >=0.3.0.0 && <0.5,
                        text
   hs-source-dirs:      src
   default-language:    Haskell2010
@@ -112,7 +112,7 @@ executable flatten-names
                        filepath >=1.3 && < 1.4,
                        directory >=1.2.0.1 && < 1.3,
                        containers >=0.5.0.0 && <0.6,
-                       haskell-src-exts >=1.16.0.2 && <1.17,
+                       haskell-src-exts >=1.16.0.1 && <1.17,
                        haskell-names >=0.5.1 && <0.6,
                        haskell-packages >=0.2.4.1 && <0.3,
                        Cabal >=1.20.0.2 && <1.21,
@@ -120,7 +120,7 @@ executable flatten-names
                        aeson >=0.8.0.0 && <0.9,
                        bytestring >=0.10.4.0 && <0.11,
                        hashable >=1.2.2.0 && <1.3,
-                       transformers >=0.3.0.0 && <0.4,
+                       transformers >=0.3.0.0 && <0.5,
                        directory-tree >=0.12.0 && <0.13
   hs-source-dirs:      src
   default-language:    Haskell2010
