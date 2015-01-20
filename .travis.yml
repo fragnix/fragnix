@@ -2,5 +2,7 @@ language: haskell
 ghc: 7.8
 notifications:
   email: false
+before-install:
+  - cabal install alex happy && cp ~/.cabal/bin/alex ./ && cp ~/.cabal/bin/happy ./
 script:
   - cabal configure --enable-tests && cabal build && ./dist/build/test/test -p quick
