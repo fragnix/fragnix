@@ -11,7 +11,7 @@ import qualified Language.Haskell.Exts as UnAnn (
     QName(Qual,UnQual),ModuleName(ModuleName))
 import Language.Haskell.Exts.Annotated (
     Module,Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
-    SrcSpan,srcInfoSpan,ModuleName,
+    SrcSpan,srcInfoSpan,SrcLoc(SrcLoc),ModuleName,
     prettyPrint,Language(Haskell2010),Extension)
 import Language.Haskell.Exts.Annotated.Simplify (
     sModuleName)
@@ -80,7 +80,12 @@ parse path = do
     parseresult <- parseFile path
     case parseresult of
         ParseOk ast -> return (fmap srcInfoSpan ast)
-        ParseFailed location message -> error ("PARSE FAILED: " ++ path ++ show location ++ message)
+        ParseFailed (SrcLoc filename line column) message -> error (unlines [
+            "Failed to parse module.",
+            "Filename: " ++ filename,
+            "Line: " ++ show line,
+            "Column: " ++ show column,
+            "Error: " ++ message])
 
 resolve :: [Module SrcSpan] -> State Environment (Set (Error SrcSpan))
 resolve asts = runFragnixModule (computeInterfaces language extensions asts)
