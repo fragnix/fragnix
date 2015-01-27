@@ -1,0 +1,221 @@
+{-# LINE 1 "Data/Text/Lazy/Builder.hs" #-}
+# 1 "Data/Text/Lazy/Builder.hs"
+# 1 "<command-line>"
+# 10 "<command-line>"
+# 1 "/usr/include/stdc-predef.h" 1 3 4
+
+# 17 "/usr/include/stdc-predef.h" 3 4
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
+
+# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
+
+
+
+
+
+
+
+
+
+
+
+
+# 31 "/usr/include/stdc-predef.h" 2 3 4
+
+
+
+
+
+
+
+
+# 10 "<command-line>" 2
+# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 10 "<command-line>" 2
+# 1 "Data/Text/Lazy/Builder.hs"
+{-# LANGUAGE BangPatterns, CPP, Rank2Types #-}
+
+{-# LANGUAGE Trustworthy #-}
+
+
+-----------------------------------------------------------------------------
+-- |
+-- Module      : Data.Text.Lazy.Builder
+-- Copyright   : (c) 2013 Bryan O'Sullivan
+--               (c) 2010 Johan Tibell
+-- License     : BSD3-style (see LICENSE)
+--
+-- Maintainer  : Johan Tibell <johan.tibell@gmail.com>
+-- Stability   : experimental
+-- Portability : portable to Hugs and GHC
+--
+-- Efficient construction of lazy @Text@ values.  The principal
+-- operations on a @Builder@ are @singleton@, @fromText@, and
+-- @fromLazyText@, which construct new builders, and 'mappend', which
+-- concatenates two builders.
+--
+-- To get maximum performance when building lazy @Text@ values using a
+-- builder, associate @mappend@ calls to the right.  For example,
+-- prefer
+--
+-- > singleton 'a' `mappend` (singleton 'b' `mappend` singleton 'c')
+--
+-- to
+--
+-- > singleton 'a' `mappend` singleton 'b' `mappend` singleton 'c'
+--
+-- as the latter associates @mappend@ to the left. Or, equivalently,
+-- prefer
+--
+--  > singleton 'a' <> singleton 'b' <> singleton 'c'
+--
+-- since the '<>' from recent versions of 'Data.Monoid' associates
+-- to the right.
+
+-----------------------------------------------------------------------------
+
+module Data.Text.Lazy.Builder
+   ( -- * The Builder type
+     Builder
+   , toLazyText
+   , toLazyTextWith
+
+     -- * Constructing Builders
+   , singleton
+   , fromText
+   , fromLazyText
+   , fromString
+
+     -- * Flushing the buffer state
+   , flush
+   ) where
+
+import Data.Text.Internal.Builder
