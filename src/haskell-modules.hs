@@ -74,6 +74,7 @@ fixCppOpts opts =
         defines =
             ("__GLASGOW_HASKELL__", "708") :
             ("INTEGER_SIMPLE", "1") :
+            ("CALLCONV", "ccall") :
             defines opts,
         preInclude = "cabal_macros.h" : preInclude opts,
         includes =
