@@ -10,9 +10,13 @@ import Fragnix.Environment (
 import qualified Language.Haskell.Exts as UnAnn (
     QName(Qual,UnQual),ModuleName(ModuleName))
 import Language.Haskell.Exts.Annotated (
-    Module,Decl(..),parseFile,ParseResult(ParseOk,ParseFailed),
-    SrcSpan,srcInfoSpan,SrcLoc(SrcLoc),ModuleName,
-    prettyPrint,Language(Haskell2010),Extension)
+    Module,ModuleName,Decl(..),
+    parseFileWithMode,defaultParseMode,ParseMode(..),baseFixities,
+    ParseResult(ParseOk,ParseFailed),
+    SrcSpan,srcInfoSpan,SrcLoc(SrcLoc),
+    prettyPrint,
+    Language(Haskell2010),Extension(EnableExtension),
+    KnownExtension(..))
 import Language.Haskell.Exts.Annotated.Simplify (
     sModuleName)
 import Language.Haskell.Names (
@@ -61,7 +65,7 @@ moduleDeclarationsWithEnvironment environment modules = declarations where
         annotatedModule <- annotatedModules
         let (_,moduleExtensions) = getModuleExtensions annotatedModule
         Declaration genre _ ast boundsymbols mentionedsymbols <- extractDeclarations annotatedModule
-        return (Declaration genre moduleExtensions ast boundsymbols mentionedsymbols)
+        return (Declaration genre (moduleExtensions ++ globalExtensions) ast boundsymbols mentionedsymbols)
     annotatedModules = flip evalState environment (do
         resolve modules
         forM modules annotate)
@@ -77,7 +81,11 @@ moduleSymbols environment modules = Map.fromList (do
 
 parse :: FilePath -> IO (Module SrcSpan)
 parse path = do
-    parseresult <- parseFile path
+    let parseMode = defaultParseMode {
+            parseFilename = path,
+            extensions = globalExtensions,
+            fixities = Just baseFixities}
+    parseresult <- parseFileWithMode parseMode path
     case parseresult of
         ParseOk ast -> return (fmap srcInfoSpan ast)
         ParseFailed (SrcLoc filename line column) message -> error (unlines [
@@ -88,16 +96,19 @@ parse path = do
             "Error: " ++ message])
 
 resolve :: [Module SrcSpan] -> State Environment (Set (Error SrcSpan))
-resolve asts = runFragnixModule (computeInterfaces language extensions asts)
+resolve asts = runFragnixModule (computeInterfaces language globalExtensions asts)
 
 annotate :: Module SrcSpan -> State Environment (Module (Scoped SrcSpan))
-annotate ast = runFragnixModule (annotateModule language extensions ast)
+annotate ast = runFragnixModule (annotateModule language globalExtensions ast)
 
 language :: Language
 language = Haskell2010
 
-extensions :: [Extension]
-extensions = []
+globalExtensions :: [Extension]
+globalExtensions = [
+    EnableExtension MultiParamTypeClasses,
+    EnableExtension NondecreasingIndentation,
+    EnableExtension FunctionalDependencies]
 
 extractDeclarations :: Module (Scoped SrcSpan) -> [Declaration]
 extractDeclarations annotatedast =
