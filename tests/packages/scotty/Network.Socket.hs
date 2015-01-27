@@ -1,10 +1,5 @@
 {-# LINE 1 "dist/dist-sandbox-d76e0d17/build/Network/Socket.hs" #-}
-# 1 "dist/dist-sandbox-d76e0d17/build/Network/Socket.hs"
-# 1 "<command-line>"
-# 12 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 12 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,92 +44,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 12 "<command-line>" 2
-# 1 "dist/dist-sandbox-d76e0d17/build/Network/Socket.hs"
 {-# LINE 1 "Network/Socket.hsc" #-}
 {-# LANGUAGE CPP, ScopedTypeVariables #-}
 {-# LINE 2 "Network/Socket.hsc" #-}
@@ -353,9 +257,7 @@ import Data.Typeable
 import System.IO.Error
 
 import GHC.Conc (threadWaitRead, threadWaitWrite)
-
 import GHC.Conc (closeFdWith)
-
 
 {-# LINE 205 "Network/Socket.hsc" #-}
 import qualified GHC.IO.Device
@@ -389,11 +291,6 @@ type ServiceName    = String
 --    of others (recvFrom, sendFd, recvFd) will block all threads - if this
 --    is a problem, -threaded is the workaround.
 --
-
-
-
-
-
 
 -----------------------------------------------------------------------------
 -- Socket types
@@ -1159,9 +1056,6 @@ getPeerCred sock = do
 {-# LINE 978 "Network/Socket.hsc" #-}
 
 {-# LINE 979 "Network/Socket.hsc" #-}
-
-
-
 
 
 

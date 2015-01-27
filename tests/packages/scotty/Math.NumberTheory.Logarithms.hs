@@ -1,10 +1,5 @@
 {-# LINE 1 "src/Math/NumberTheory/Logarithms.hs" #-}
-# 1 "src/Math/NumberTheory/Logarithms.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -64,134 +54,18 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "src/Math/NumberTheory/Logarithms.hs"
 {-# LANGUAGE CPP, MagicHash, UnboxedTuples #-}
 
 -- | Integer logarithm, copied from Daniel Fischer's @arithmoi@
 module Math.NumberTheory.Logarithms ( integerLog10' ) where
 
-# 15 "src/Math/NumberTheory/Logarithms.hs"
 import GHC.Base ( Int(I#), Word#, Int#
                 , int2Word#, eqWord#, neWord#, (-#), and#, uncheckedShiftRL#
 
-
                 , isTrue#
-
                 )
 
-
 import GHC.Integer.Logarithms (integerLog2#, wordLog2#)
-# 134 "src/Math/NumberTheory/Logarithms.hs"
 
 -- | Only defined for positive inputs!
 integerLog10' :: Integer -> Int

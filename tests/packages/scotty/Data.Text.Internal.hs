@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Text/Internal.hs" #-}
-# 1 "Data/Text/Internal.hs"
-# 1 "<command-line>"
-# 10 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 10 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -60,107 +50,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 10 "<command-line>" 2
-# 1 "Data/Text/Internal.hs"
 {-# LANGUAGE CPP, DeriveDataTypeable, UnboxedTuples #-}
 {-# OPTIONS_HADDOCK not-home #-}
 
@@ -185,16 +74,13 @@
 
 
 
-# 1 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h" 1
 
-# 15 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h"
 
 
 
 
 
 
-# 1 "/usr/local/lib/ghc-7.8.3/include/ghcautoconf.h" 1
 
 
 
@@ -517,186 +403,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 21 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h" 2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 99 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h"
-
-# 109 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h"
-
-
-
-
-
-
-
-
-
-
-
-# 25 "Data/Text/Internal.hs" 2
 
 
 module Data.Text.Internal
@@ -722,9 +428,6 @@ module Data.Text.Internal
     , showText
     ) where
 
-
-
-
 import Data.Bits
 import Data.Int (Int32, Int64)
 import Data.Text.Internal.Unsafe.Char (ord)
@@ -741,7 +444,6 @@ data Text = Text
 -- | Smart constructor.
 text_ :: A.Array -> Int -> Int -> Text
 text_ arr off len =
-# 77 "Data/Text/Internal.hs"
      Text arr off len
 {-# INLINE text_ #-}
 
@@ -794,11 +496,7 @@ firstf _  Nothing      = Nothing
 -- | Checked multiplication.  Calls 'error' if the result would
 -- overflow.
 mul :: Int -> Int -> Int
-
 mul a b = fromIntegral $ fromIntegral a `mul64` fromIntegral b
-
-
-
 {-# INLINE mul #-}
 infixl 7 `mul`
 

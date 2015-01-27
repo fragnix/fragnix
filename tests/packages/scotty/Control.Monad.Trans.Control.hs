@@ -1,10 +1,5 @@
 {-# LINE 1 "Control/Monad/Trans/Control.hs" #-}
-# 1 "Control/Monad/Trans/Control.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -56,97 +46,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Control/Monad/Trans/Control.hs"
 {-# LANGUAGE CPP
            , NoImplicitPrelude
            , RankNTypes
@@ -156,13 +55,7 @@
            , UndecidableInstances
            , MultiParamTypeClasses #-}
 
-
 {-# LANGUAGE Safe #-}
-
-
-
-
-
 
 
 {- |
@@ -210,10 +103,8 @@ import System.IO     ( IO )
 import Data.Maybe    ( Maybe )
 import Data.Either   ( Either )
 
-
 import           Control.Monad.ST.Lazy.Safe           ( ST )
 import qualified Control.Monad.ST.Safe      as Strict ( ST )
-
 
 -- from stm:
 import Control.Monad.STM ( STM )
@@ -231,9 +122,6 @@ import Control.Monad.Trans.Writer   ( WriterT  (WriterT),   runWriterT )
 import Control.Monad.Trans.RWS      ( RWST     (RWST),      runRWST )
 
 
-
-
-
 import qualified Control.Monad.Trans.RWS.Strict    as Strict ( RWST   (RWST),    runRWST )
 import qualified Control.Monad.Trans.State.Strict  as Strict ( StateT (StateT),  runStateT )
 import qualified Control.Monad.Trans.Writer.Strict as Strict ( WriterT(WriterT), runWriterT )
@@ -243,13 +131,7 @@ import Data.Functor.Identity ( Identity )
 -- from transformers-base:
 import Control.Monad.Base ( MonadBase )
 
-
 import Control.Monad ( void )
-
-
-
-
-
 
 import Prelude (id)
 
@@ -362,7 +244,6 @@ instance Error e => MonadTransControl (ErrorT e) where
     {-# INLINABLE liftWith #-}
     {-# INLINABLE restoreT #-}
 
-# 224 "Control/Monad/Trans/Control.hs"
 
 instance MonadTransControl ListT where
     type StT ListT a = [a]
@@ -475,13 +356,6 @@ type RunInBase m b = forall a. m a -> b (StM m a)
 --------------------------------------------------------------------------------
 
 
-
-
-
-
-
-
-
 instance MonadBaseControl (IO) (IO) where {     type StM (IO) a = a;                       liftBaseWith f = f id;                    restoreM = return;                        {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
 instance MonadBaseControl (Maybe) (Maybe) where {     type StM (Maybe) a = a;                       liftBaseWith f = f id;                    restoreM = return;                        {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
 instance MonadBaseControl (Either e) (Either e) where {     type StM (Either e) a = a;                       liftBaseWith f = f id;                    restoreM = return;                        {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
@@ -491,11 +365,8 @@ instance MonadBaseControl (Identity) (Identity) where {     type StM (Identity) 
 
 instance MonadBaseControl (STM) (STM) where {     type StM (STM) a = a;                       liftBaseWith f = f id;                    restoreM = return;                        {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
 
-
 instance MonadBaseControl (Strict.ST s) (Strict.ST s) where {     type StM (Strict.ST s) a = a;                       liftBaseWith f = f id;                    restoreM = return;                        {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
 instance MonadBaseControl (       ST s) (       ST s) where {     type StM (       ST s) a = a;                       liftBaseWith f = f id;                    restoreM = return;                        {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
-
-
 
 
 
@@ -565,25 +436,12 @@ defaultRestoreM = restoreT . restoreM
 
 
 
-
-
-
-
-
-
-
-
-
-
 instance (     MonadBaseControl b m) => MonadBaseControl b (IdentityT m) where {                             type StM (IdentityT m) a = ComposeSt (IdentityT) m a;     liftBaseWith = defaultLiftBaseWith;       restoreM     = defaultRestoreM;           {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
 instance (     MonadBaseControl b m) => MonadBaseControl b (MaybeT m) where {                             type StM (MaybeT m) a = ComposeSt (MaybeT) m a;     liftBaseWith = defaultLiftBaseWith;       restoreM     = defaultRestoreM;           {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
 instance (     MonadBaseControl b m) => MonadBaseControl b (ListT m) where {                             type StM (ListT m) a = ComposeSt (ListT) m a;     liftBaseWith = defaultLiftBaseWith;       restoreM     = defaultRestoreM;           {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
 instance (     MonadBaseControl b m) => MonadBaseControl b (ReaderT r m) where {                             type StM (ReaderT r m) a = ComposeSt (ReaderT r) m a;     liftBaseWith = defaultLiftBaseWith;       restoreM     = defaultRestoreM;           {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
 instance (     MonadBaseControl b m) => MonadBaseControl b (Strict.StateT s m) where {                             type StM (Strict.StateT s m) a = ComposeSt (Strict.StateT s) m a;     liftBaseWith = defaultLiftBaseWith;       restoreM     = defaultRestoreM;           {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
 instance (     MonadBaseControl b m) => MonadBaseControl b (       StateT s m) where {                             type StM (       StateT s m) a = ComposeSt (       StateT s) m a;     liftBaseWith = defaultLiftBaseWith;       restoreM     = defaultRestoreM;           {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
-
-
-
 
 
 instance (Error e, MonadBaseControl b m) => MonadBaseControl b (         ErrorT e m) where {                             type StM (         ErrorT e m) a = ComposeSt (         ErrorT e) m a;     liftBaseWith = defaultLiftBaseWith;       restoreM     = defaultRestoreM;           {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}

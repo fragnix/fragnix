@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Acquire/Internal.hs" #-}
-# 1 "Data/Acquire/Internal.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -66,122 +56,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Data/Acquire/Internal.hs"
 {-# OPTIONS_HADDOCK not-home #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE RankNTypes #-}
@@ -298,11 +172,7 @@ with (Acquire f) g = control $ \run -> E.mask $ \restore -> do
 -- of @MonadBaseControl@ from exceptions.
 --
 -- Since 1.1.3
-
 withEx :: (C.MonadMask m, MonadIO m)
-
-
-
        => Acquire a
        -> (a -> m b)
        -> m b

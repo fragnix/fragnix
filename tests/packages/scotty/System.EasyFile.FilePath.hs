@@ -1,10 +1,5 @@
 {-# LINE 1 "System/EasyFile/FilePath.hs" #-}
-# 1 "System/EasyFile/FilePath.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -58,102 +48,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "System/EasyFile/FilePath.hs"
 {-# LANGUAGE CPP #-}
 
 {-
@@ -208,9 +102,6 @@ module System.EasyFile.FilePath (
 -}
 
 
-
-
-
     )
     where
 
@@ -236,11 +127,7 @@ isPosix = not isWindows
 
 -- | Is the operating system Windows like
 isWindows :: Bool
-
-
-
 isWindows = False
-
 
 ---------------------------------------------------------------------
 -- The basic functions

@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/IP/Range.hs" #-}
-# 1 "Data/IP/Range.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -58,102 +48,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Data/IP/Range.hs"
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE CPP #-}
 module Data.IP.Range where
@@ -164,9 +58,7 @@ import Data.IP.Addr
 import Data.IP.Mask
 import Data.String
 import Text.Appar.String
-
 import GHC.Generics
-
 
 ----------------------------------------------------------------
 
@@ -183,11 +75,7 @@ True
 
 data IPRange = IPv4Range { ipv4range :: AddrRange IPv4 }
              | IPv6Range { ipv6range :: AddrRange IPv6 }
-
         deriving (Eq, Generic)
-
-
-
 
 ----------------------------------------------------------------
 --
@@ -216,11 +104,7 @@ data AddrRange a = AddrRange {
         -- |The 'mlen' function returns a mask length from 'AddrRange'.
       , mlen :: {-# UNPACK #-} !Int
     }
-
     deriving (Eq, Ord, Generic)
-
-
-
 
 ----------------------------------------------------------------
 --

@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Vector/Unboxed/Mutable.hs" #-}
-# 1 "Data/Vector/Unboxed/Mutable.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -56,97 +46,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Data/Vector/Unboxed/Mutable.hs"
 -- |
 -- Module      : Data.Vector.Unboxed.Mutable
 -- Copyright   : (c) Roman Leshchinskiy 2009-2010
@@ -210,27 +109,12 @@ import Prelude hiding ( length, null, replicate, reverse, map, read,
                         zip, zip3, unzip, unzip3 )
 
 
-# 1 "include/vector.h" 1
-
-
-
-
-
-
 
 import qualified Data.Vector.Internal.Check as Ck
 
 
 
 
-
-
-
-
-
-
-
-# 64 "Data/Vector/Unboxed/Mutable.hs" 2
 
 -- Length information
 -- ------------------
@@ -450,10 +334,6 @@ unsafeMove :: (PrimMonad m, Unbox a)
 {-# INLINE unsafeMove #-}
 unsafeMove = G.unsafeMove
 
-
-
-# 1 "internal/unbox-tuple-instances" 1
-# 105 "internal/unbox-tuple-instances"
 -- | /O(1)/ Zip 2 vectors
 zip :: (Unbox a, Unbox b) => MVector s a ->
                              MVector s b -> MVector s (a, b)
@@ -465,7 +345,6 @@ unzip :: (Unbox a, Unbox b) => MVector s (a, b) -> (MVector s a,
                                                     MVector s b)
 {-# INLINE unzip #-}
 unzip (MV_2 n_ as bs) = (as, bs)
-# 260 "internal/unbox-tuple-instances"
 -- | /O(1)/ Zip 3 vectors
 zip3 :: (Unbox a, Unbox b, Unbox c) => MVector s a ->
                                        MVector s b ->
@@ -484,7 +363,6 @@ unzip3 :: (Unbox a,
                                                MVector s c)
 {-# INLINE unzip3 #-}
 unzip3 (MV_3 n_ as bs cs) = (as, bs, cs)
-# 459 "internal/unbox-tuple-instances"
 -- | /O(1)/ Zip 4 vectors
 zip4 :: (Unbox a, Unbox b, Unbox c, Unbox d) => MVector s a ->
                                                 MVector s b ->
@@ -510,7 +388,6 @@ unzip4 :: (Unbox a,
                                                   MVector s d)
 {-# INLINE unzip4 #-}
 unzip4 (MV_4 n_ as bs cs ds) = (as, bs, cs, ds)
-# 707 "internal/unbox-tuple-instances"
 -- | /O(1)/ Zip 5 vectors
 zip5 :: (Unbox a,
          Unbox b,
@@ -545,7 +422,6 @@ unzip5 :: (Unbox a,
                                                      MVector s e)
 {-# INLINE unzip5 #-}
 unzip5 (MV_5 n_ as bs cs ds es) = (as, bs, cs, ds, es)
-# 1004 "internal/unbox-tuple-instances"
 -- | /O(1)/ Zip 6 vectors
 zip6 :: (Unbox a,
          Unbox b,
@@ -586,5 +462,4 @@ unzip6 :: (Unbox a,
                                                         MVector s f)
 {-# INLINE unzip6 #-}
 unzip6 (MV_6 n_ as bs cs ds es fs) = (as, bs, cs, ds, es, fs)
-# 285 "Data/Vector/Unboxed/Mutable.hs" 2
 

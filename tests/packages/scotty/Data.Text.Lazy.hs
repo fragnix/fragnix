@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Text/Lazy.hs" #-}
-# 1 "Data/Text/Lazy.hs"
-# 1 "<command-line>"
-# 10 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 10 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -60,115 +50,10 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 10 "<command-line>" 2
-# 1 "Data/Text/Lazy.hs"
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE BangPatterns, MagicHash, CPP #-}
-
 {-# LANGUAGE Trustworthy #-}
-
-
 {-# LANGUAGE TypeFamilies #-}
-
 
 -- |
 -- Module      : Data.Text.Lazy
@@ -364,9 +249,7 @@ import Prelude (Char, Bool(..), Maybe(..), String,
                 (&&), (||), (+), (-), (.), ($), (++),
                 error, flip, fmap, fromIntegral, not, otherwise, quot)
 import qualified Prelude as P
-
 import Control.DeepSeq (NFData(..))
-
 import Data.Int (Int64)
 import qualified Data.List as L
 import Data.Char (isSpace)
@@ -385,14 +268,8 @@ import Data.Text.Internal.Lazy (Text(..), chunk, empty, foldlChunks, foldrChunks
 import Data.Text.Internal (firstf, safe, text)
 import qualified Data.Text.Internal.Functions as F
 import Data.Text.Internal.Lazy.Search (indices)
-
 import qualified GHC.CString as GHC
-
-
-
-
 import qualified GHC.Exts as Exts
-
 import GHC.Prim (Addr#)
 
 -- $fusion
@@ -499,18 +376,14 @@ instance Monoid Text where
 instance IsString Text where
     fromString = pack
 
-
 instance Exts.IsList Text where
     type Item Text = Char
     fromList       = pack
     toList         = unpack
 
-
-
 instance NFData Text where
     rnf Empty        = ()
     rnf (Chunk _ ts) = rnf ts
-
 
 instance Data Text where
   gfoldl f z txt = z pack `f` (unpack txt)

@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Text/Internal/Lazy/Encoding/Fusion.hs" #-}
-# 1 "Data/Text/Internal/Lazy/Encoding/Fusion.hs"
-# 1 "<command-line>"
-# 10 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 10 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -60,107 +50,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 10 "<command-line>" 2
-# 1 "Data/Text/Internal/Lazy/Encoding/Fusion.hs"
 {-# LANGUAGE BangPatterns, CPP, Rank2Types #-}
 
 -- |
@@ -212,9 +101,6 @@ import Data.Text.Unsafe (unsafeDupablePerformIO)
 import Foreign.ForeignPtr (withForeignPtr, ForeignPtr)
 import Foreign.Storable (pokeByteOff)
 import Data.ByteString.Internal (mallocByteString, memcpy)
-
-
-
 import qualified Data.ByteString.Internal as B
 
 data S = S0
@@ -463,9 +349,6 @@ unstreamChunks chunkSize (Stream next s0 len0) = chunk s0 (upperBound 4 len0)
             trimUp fp off = B.PS fp 0 off
             copy0 :: ForeignPtr Word8 -> Int -> Int -> IO (ForeignPtr Word8)
             copy0 !src !srcLen !destLen =
-
-
-
               do
                 dest <- mallocByteString destLen
                 withForeignPtr src  $ \src'  ->

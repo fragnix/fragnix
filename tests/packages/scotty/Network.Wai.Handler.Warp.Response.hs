@@ -1,10 +1,5 @@
 {-# LINE 1 "Network/Wai/Handler/Warp/Response.hs" #-}
-# 1 "Network/Wai/Handler/Warp/Response.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -86,172 +76,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Network/Wai/Handler/Warp/Response.hs"
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -264,9 +88,6 @@ module Network.Wai.Handler.Warp.Response (
   , warpVersion
   , defaultServerValue
   ) where
-
-
-
 
 
 import Blaze.ByteString.Builder (fromByteString, Builder, flush)
@@ -283,11 +104,7 @@ import qualified Data.CaseInsensitive as CI
 import Data.Function (on)
 import Data.List (deleteBy)
 import Data.Maybe (isJust, listToMaybe)
-
 import Data.Monoid ((<>))
-
-
-
 import Data.Version (showVersion)
 import qualified Network.HTTP.Types as H
 import Network.Wai
@@ -303,10 +120,6 @@ import Network.Wai.Internal
 import Numeric (showInt)
 import qualified Paths_warp
 import qualified System.PosixCompat.Files as P
-
-
-
-
 
 
 -- $setup
@@ -475,9 +288,6 @@ sendRsp conn ver s0 hs0 (RspFile path mPart mRange hook) = do
     ex <- fileRange s0 hs path mPart mRange
     case ex of
         Left _ex ->
-
-
-
           sendRsp conn ver s2 hs2 (RspBuilder body True)
         Right (s, hs1, beg, len) -> do
             lheader <- composeHeader ver s hs1

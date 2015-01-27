@@ -1,10 +1,5 @@
 {-# LINE 1 "src/Numeric/Natural.hs" #-}
-# 1 "src/Numeric/Natural.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -52,105 +42,12 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "src/Numeric/Natural.hs"
 {-# LANGUAGE CPP #-}
-
-
 
 {-# LANGUAGE DeriveDataTypeable #-}
 
 
-
-
-
-
-
-
 {-# LANGUAGE Trustworthy #-}
-
-
-
-
 
 -----------------------------------------------------------------------------
 -- |
@@ -172,12 +69,8 @@ module Numeric.Natural ( Natural ) where
 import Control.Exception ( throw, ArithException(Underflow) )
 import Data.Bits
 import Data.Ix
-
 import Data.Data
-
-
 import Data.Hashable
-
 
 -- | Type representing arbitrary-precision non-negative integers.
 --
@@ -190,20 +83,11 @@ newtype Natural = Natural { runNatural :: Integer } deriving
   ( Eq
   , Ord
   , Ix
-
   , Typeable
-
   )
 
-
 instance Hashable Natural where
-
   hashWithSalt p (Natural a) = hashWithSalt p a
-
-
-
-
-
 
 -- This follows the same style as the other integral 'Data' instances
 -- defined in "Data.Data"
@@ -217,7 +101,6 @@ instance Data Natural where
                     _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Natural"
   dataTypeOf _ = naturalType
-
 
 instance Show Natural where
   showsPrec d (Natural n) = showsPrec d n
@@ -266,10 +149,8 @@ instance Bits Natural where
   {-# INLINE complementBit #-}
   testBit = testBit . runNatural
   {-# INLINE testBit #-}
-
   bitSizeMaybe _ = Nothing
   {-# INLINE bitSizeMaybe #-}
-
   bitSize = error "Natural: bitSize"
   {-# INLINE bitSize #-}
   isSigned _ = False
@@ -282,10 +163,8 @@ instance Bits Natural where
   {-# INLINE rotateL #-}
   rotateR (Natural n) = Natural . rotateR n
   {-# INLINE rotateR #-}
-
   popCount = popCountDefault
   {-# INLINE popCount #-}
-
 
 instance Real Natural where
   toRational (Natural a) = toRational a

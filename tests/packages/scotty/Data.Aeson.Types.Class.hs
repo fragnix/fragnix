@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Aeson/Types/Class.hs" #-}
-# 1 "Data/Aeson/Types/Class.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -82,167 +72,9 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Data/Aeson/Types/Class.hs"
 {-# LANGUAGE CPP, FlexibleContexts #-}
 
-
 {-# LANGUAGE DefaultSignatures #-}
-
 
 -- |
 -- Module:      Data.Aeson.Types.Class
@@ -261,17 +93,14 @@ module Data.Aeson.Types.Class
     -- ** Core JSON classes
       FromJSON(..)
     , ToJSON(..)
-
     -- ** Generic JSON classes
     , GFromJSON(..)
     , GToJSON(..)
     , genericToJSON
     , genericParseJSON
-
     ) where
 
 import Data.Aeson.Types.Internal
-
 
 import GHC.Generics
 
@@ -298,7 +127,6 @@ genericToJSON opts = gToJSON opts . from
 -- type is an instance of 'Generic'.
 genericParseJSON :: (Generic a, GFromJSON (Rep a)) => Options -> Value -> Parser a
 genericParseJSON opts = fmap to . gParseJSON opts
-
 
 -- | A type that can be converted to JSON.
 --
@@ -355,10 +183,8 @@ genericParseJSON opts = fmap to . gParseJSON opts
 class ToJSON a where
     toJSON   :: a -> Value
 
-
     default toJSON :: (Generic a, GToJSON (Rep a)) => a -> Value
     toJSON = genericToJSON defaultOptions
-
 
 -- | A type that can be converted from JSON, with the possibility of
 -- failure.
@@ -425,7 +251,6 @@ class ToJSON a where
 
 class FromJSON a where
     parseJSON :: Value -> Parser a
-
 
     default parseJSON :: (Generic a, GFromJSON (Rep a)) => Value -> Parser a
     parseJSON = genericParseJSON defaultOptions

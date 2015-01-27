@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/IORef/Lifted.hs" #-}
-# 1 "Data/IORef/Lifted.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,99 +44,11 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Data/IORef/Lifted.hs"
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-
 {-# LANGUAGE Trustworthy #-}
-
 
 {- |
 Module      :  Data.IORef
@@ -166,14 +68,10 @@ module Data.IORef.Lifted
     , readIORef
     , writeIORef
     , modifyIORef
-
     , modifyIORef'
-
     , atomicModifyIORef
-
     , atomicModifyIORef'
     , atomicWriteIORef
-
     , mkWeakIORef
     ) where
 
@@ -194,9 +92,6 @@ import Control.Monad.Base ( MonadBase, liftBase )
 -- from monad-control:
 import Control.Monad.Trans.Control ( MonadBaseControl, liftBaseDiscard )
 
-
-# 1 "include/inlinable.h" 1
-# 56 "Data/IORef/Lifted.hs" 2
 
 --------------------------------------------------------------------------------
 -- * IORefs
@@ -227,7 +122,6 @@ atomicModifyIORef :: MonadBase IO m => IORef a -> (a -> (a, b)) -> m b
 atomicModifyIORef r = liftBase . R.atomicModifyIORef r
 {-# INLINE atomicModifyIORef #-}
 
-
 -- | Generalized version of 'R.modifyIORef''.
 modifyIORef' :: MonadBase IO m => IORef a -> (a -> a) -> m ()
 modifyIORef' r = liftBase . R.modifyIORef' r
@@ -241,7 +135,6 @@ atomicModifyIORef' r = liftBase . R.atomicModifyIORef' r
 -- | Generalized version of 'R.atomicWriteIORef'.
 atomicWriteIORef :: MonadBase IO m => IORef a -> a -> m ()
 atomicWriteIORef r = liftBase . R.atomicWriteIORef r
-
 
 -- | Generalized version of 'R.mkWeakIORef'.
 --

@@ -1,10 +1,5 @@
 {-# LINE 1 "Control/Concurrent/MVar/Lifted.hs" #-}
-# 1 "Control/Concurrent/MVar/Lifted.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,100 +44,12 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Control/Concurrent/MVar/Lifted.hs"
 {-# LANGUAGE CPP
            , NoImplicitPrelude
            , FlexibleContexts
            , TupleSections #-}
 
-
 {-# LANGUAGE Trustworthy #-}
-
 
 {- |
 Module      :  Control.Concurrent.MVar.Lifted
@@ -175,19 +77,11 @@ module Control.Concurrent.MVar.Lifted
     , withMVar
     , modifyMVar_
     , modifyMVar
-
     , modifyMVarMasked_
     , modifyMVarMasked
-
-
     , mkWeakMVar
-
-
-
-
     , withMVarMasked
     , tryReadMVar
-
     ) where
 
 
@@ -207,18 +101,9 @@ import System.IO     ( IO )
 import           Control.Concurrent.MVar  ( MVar )
 import qualified Control.Concurrent.MVar as MVar
 import Control.Exception ( onException
-
                          , mask, mask_
-
-
-
                          )
-
 import System.Mem.Weak ( Weak )
-
-
-
-
 
 
 -- from transformers-base:
@@ -231,9 +116,6 @@ import Control.Monad.Trans.Control ( MonadBaseControl
                                    , liftBaseDiscard
                                    )
 
-
-# 1 "include/inlinable.h" 1
-# 93 "Control/Concurrent/MVar/Lifted.hs" 2
 
 --------------------------------------------------------------------------------
 -- * MVars
@@ -297,7 +179,6 @@ modifyMVar_ mv = modifyMVar mv . (fmap (, ()) .)
 -- | Generalized version of 'MVar.modifyMVar'.
 modifyMVar :: (MonadBaseControl IO m) => MVar a -> (a -> m (a, b)) -> m b
 
-
 modifyMVar mv f = control $ \runInIO -> mask $ \restore -> do
     aborted <- newIORef True
     let f' x = do
@@ -311,9 +192,7 @@ modifyMVar mv f = control $ \runInIO -> mask $ \restore -> do
     abort <- readIORef aborted
     when abort $ MVar.putMVar mv x
     return stM
-# 185 "Control/Concurrent/MVar/Lifted.hs"
 {-# INLINE modifyMVar #-}
-
 
 -- | Generalized version of 'MVar.modifyMVarMasked_'.
 modifyMVarMasked_ :: (MonadBaseControl IO m) => MVar a -> (a -> m a) -> m ()
@@ -337,8 +216,6 @@ modifyMVarMasked mv f = control $ \runInIO -> mask_ $ do
     return stM
 {-# INLINE modifyMVarMasked #-}
 
-
-
 -- | Generalized version of 'MVar.mkWeakMVar'.
 --
 -- Note any monadic side effects in @m@ of the \"finalizer\" computation are
@@ -346,8 +223,6 @@ modifyMVarMasked mv f = control $ \runInIO -> mask_ $ do
 mkWeakMVar :: MonadBaseControl IO m => MVar a -> m () -> m (Weak (MVar a))
 mkWeakMVar = liftBaseDiscard . MVar.mkWeakMVar
 {-# INLINE mkWeakMVar #-}
-# 228 "Control/Concurrent/MVar/Lifted.hs"
-
 
 -- | Generalized version of 'MVar.withMVarMasked'.
 withMVarMasked :: MonadBaseControl IO m => MVar a -> (a -> m b) -> m b

@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/HashMap/Base.hs" #-}
-# 1 "Data/HashMap/Base.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,97 +44,9 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Data/HashMap/Base.hs"
 {-# LANGUAGE BangPatterns, CPP, DeriveDataTypeable, MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
 {-# LANGUAGE TypeFamilies #-}
-
 {-# OPTIONS_GHC -fno-full-laziness -funbox-strict-fields #-}
 
 module Data.HashMap.Base
@@ -223,14 +125,10 @@ module Data.HashMap.Base
     , updateOrConcatWith
     ) where
 
-
-
-
 import Control.Applicative ((<$>), Applicative(pure))
 import Data.Monoid (Monoid(mempty, mappend))
 import Data.Traversable (Traversable(..))
 import Data.Word (Word)
-
 import Control.DeepSeq (NFData(rnf))
 import Control.Monad.ST (ST)
 import Data.Bits ((.&.), (.|.), complement)
@@ -249,12 +147,8 @@ import Data.HashMap.Unsafe (runST)
 import Data.HashMap.UnsafeShift (unsafeShiftL, unsafeShiftR)
 import Data.Typeable (Typeable)
 
-
 import GHC.Exts (isTrue#)
-
-
 import qualified GHC.Exts as Exts
-
 
 
 ------------------------------------------------------------------------
@@ -1195,9 +1089,7 @@ update16With' ary idx f = update16 ary idx $! f (A.index ary idx)
 -- array is not checked.
 clone16 :: A.Array e -> ST s (A.MArray s e)
 clone16 ary =
-
     A.thaw ary 0 16
-# 1078 "Data/HashMap/Base.hs"
 
 ------------------------------------------------------------------------
 -- Bit twiddling
@@ -1232,13 +1124,8 @@ fullNodeMask = complement (complement 0 `unsafeShiftL` maxChildren)
 -- | Check if two the two arguments are the same value.  N.B. This
 -- function might give false negatives (due to GC moving objects.)
 ptrEq :: a -> a -> Bool
-
-
-
 ptrEq x y = isTrue# (reallyUnsafePtrEquality# x y ==# 1#)
-
 {-# INLINE ptrEq #-}
-
 
 ------------------------------------------------------------------------
 -- IsList instance

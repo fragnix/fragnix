@@ -1,10 +1,5 @@
 {-# LINE 1 "src/Data/Semigroup.hs" #-}
-# 1 "src/Data/Semigroup.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -64,144 +54,17 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "src/Data/Semigroup.hs"
 {-# LANGUAGE CPP #-}
-
-
 
 {-# LANGUAGE DeriveDataTypeable #-}
 
-
-
-
 {-# LANGUAGE DefaultSignatures #-}
-
 {-# LANGUAGE Trustworthy #-}
-
-
-
-
-
-
 
 {-# LANGUAGE DeriveGeneric #-}
 
 
-
-
-
 {-# LANGUAGE ScopedTypeVariables #-}
-
 
 -----------------------------------------------------------------------------
 -- |
@@ -264,10 +127,7 @@ import Data.Traversable
 import Data.List.NonEmpty
 import Numeric.Natural
 
-
 import Control.DeepSeq (NFData(..))
-
-
 
 import Data.Sequence (Seq, (><))
 import Data.Set (Set)
@@ -275,48 +135,27 @@ import Data.IntSet (IntSet)
 import Data.Map (Map)
 import Data.IntMap (IntMap)
 
-
-
 import Data.ByteString as Strict
 import Data.ByteString.Lazy as Lazy
 
-
 import qualified Data.ByteString.Builder as ByteString
 
-
-
-
-
 import Data.ByteString.Short
-
-
-
 
 import qualified Data.Text as Strict
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Text.Lazy.Builder as Text
 
-
-
 import Data.Hashable
-
-
 
 import Data.HashMap.Lazy as Lazy
 import Data.HashSet
 
-
-
 import Data.Data
-
-
 
 import GHC.Generics
 
-
-
 import Data.Coerce
-
 
 infixr 6 <>
 
@@ -333,10 +172,8 @@ class Semigroup a where
   -- ('<>') = 'mappend'
   -- @
   (<>) :: a -> a -> a
-
   default (<>) :: Monoid a => a -> a -> a
   (<>) = mappend
-
 
   -- | Reduce a non-empty list with @\<\>@
   --
@@ -426,49 +263,24 @@ instance Semigroup a => Semigroup (Dual a) where
   times1p n (Dual a) = Dual (times1p n a)
 
 instance Semigroup (Endo a) where
-
   (<>) = coerce ((.) :: (a -> a) -> (a -> a) -> (a -> a))
 
-
-
-
 instance Semigroup All where
-
   (<>) = coerce (&&)
-
-
-
   times1p _ a = a
 
 instance Semigroup Any where
-
   (<>) = coerce (||)
-
-
-
   times1p _ a = a
 
 instance Num a => Semigroup (Sum a) where
-
   (<>) = coerce ((+) :: a -> a -> a)
 
-
-
-
 instance Num a => Semigroup (Product a) where
-
   (<>) = coerce ((*) :: a -> a -> a)
 
-
-
-
 instance Semigroup a => Semigroup (Const a b) where
-
   (<>) = coerce ((<>) :: a -> a -> a)
-
-
-
-
 
 instance Semigroup (Monoid.First a) where
   Monoid.First Nothing <> b = b
@@ -480,18 +292,13 @@ instance Semigroup (Monoid.Last a) where
   _ <> b                   = b
   times1p _ a = a
 
-
 instance Semigroup (NonEmpty a) where
   (a :| as) <> ~(b :| bs) = a :| (as ++ b : bs)
 
 newtype Min a = Min { getMin :: a } deriving
   ( Eq, Ord, Show, Read
-
   , Data, Typeable
-
-
   , Generic
-
   )
 
 instance Bounded a => Bounded (Min a) where
@@ -508,21 +315,11 @@ instance Enum a => Enum (Min a) where
   enumFromTo (Min a) (Min b) = Min <$> enumFromTo a b
   enumFromThenTo (Min a) (Min b) (Min c) = Min <$> enumFromThenTo a b c
 
-
 instance Hashable a => Hashable (Min a) where
-
   hashWithSalt p (Min a) = hashWithSalt p a
 
-
-
-
-
 instance Ord a => Semigroup (Min a) where
-
   (<>) = coerce (min :: a -> a -> a)
-
-
-
   times1p _ a = a
 
 instance (Ord a, Bounded a) => Monoid (Min a) where
@@ -552,19 +349,13 @@ instance Monad Min where
 instance MonadFix Min where
   mfix f = fix (f . getMin)
 
-
 instance NFData a => NFData (Min a) where
   rnf (Min a) = rnf a
 
-
 newtype Max a = Max { getMax :: a } deriving
   ( Eq, Ord, Show, Read
-
   , Data, Typeable
-
-
   , Generic
-
   )
 
 instance Bounded a => Bounded (Max a) where
@@ -581,21 +372,11 @@ instance Enum a => Enum (Max a) where
   enumFromTo (Max a) (Max b) = Max <$> enumFromTo a b
   enumFromThenTo (Max a) (Max b) (Max c) = Max <$> enumFromThenTo a b c
 
-
 instance Hashable a => Hashable (Max a) where
-
   hashWithSalt p (Max a) = hashWithSalt p a
 
-
-
-
-
 instance Ord a => Semigroup (Max a) where
-
   (<>) = coerce (max :: a -> a -> a)
-
-
-
   times1p _ a = a
 
 instance (Ord a, Bounded a) => Monoid (Max a) where
@@ -625,21 +406,15 @@ instance Monad Max where
 instance MonadFix Max where
   mfix f = fix (f . getMax)
 
-
 instance NFData a => NFData (Max a) where
   rnf (Max a) = rnf a
-
 
 -- | Use @'Option' ('First' a)@ to get the behavior of 'Data.Monoid.First' from @Data.Monoid@.
 newtype First a = First { getFirst :: a } deriving
   ( Eq, Ord, Show, Read
-
   , Data
   , Typeable
-
-
   , Generic
-
   )
 
 instance Bounded a => Bounded (First a) where
@@ -656,14 +431,8 @@ instance Enum a => Enum (First a) where
   enumFromTo (First a) (First b) = First <$> enumFromTo a b
   enumFromThenTo (First a) (First b) (First c) = First <$> enumFromThenTo a b c
 
-
 instance Hashable a => Hashable (First a) where
-
   hashWithSalt p (First a) = hashWithSalt p a
-
-
-
-
 
 instance Semigroup (First a) where
   a <> _ = a
@@ -692,20 +461,14 @@ instance Monad First where
 instance MonadFix First where
   mfix f = fix (f . getFirst)
 
-
 instance NFData a => NFData (First a) where
   rnf (First a) = rnf a
-
 
 -- | Use @'Option' ('Last' a)@ to get the behavior of 'Data.Monoid.Last' from @Data.Monoid@
 newtype Last a = Last { getLast :: a } deriving
   ( Eq, Ord, Show, Read
-
   , Data, Typeable
-
-
   , Generic
-
   )
 
 instance Bounded a => Bounded (Last a) where
@@ -722,14 +485,8 @@ instance Enum a => Enum (Last a) where
   enumFromTo (Last a) (Last b) = Last <$> enumFromTo a b
   enumFromThenTo (Last a) (Last b) (Last c) = Last <$> enumFromThenTo a b c
 
-
 instance Hashable a => Hashable (Last a) where
-
   hashWithSalt p (Last a) = hashWithSalt p a
-
-
-
-
 
 instance Semigroup (Last a) where
   _ <> b = b
@@ -759,13 +516,10 @@ instance Monad Last where
 instance MonadFix Last where
   mfix f = fix (f . getLast)
 
-
 instance NFData a => NFData (Last a) where
   rnf (Last a) = rnf a
 
-
 -- (==)/XNOR on Bool forms a 'Semigroup', but has no good name
-
 
 instance Semigroup Strict.ByteString where
   (<>) = mappend
@@ -773,17 +527,11 @@ instance Semigroup Strict.ByteString where
 instance Semigroup Lazy.ByteString where
   (<>) = mappend
 
-
 instance Semigroup ByteString.Builder where
   (<>) = mappend
 
-
-
 instance Semigroup ShortByteString where
   (<>) = mappend
-
-
-
 
 instance Semigroup Strict.Text where
   (<>) = mappend
@@ -794,8 +542,6 @@ instance Semigroup Lazy.Text where
 instance Semigroup Text.Builder where
   (<>) = mappend
 
-
-
 instance (Hashable k, Eq k) => Semigroup (Lazy.HashMap k a) where
   (<>) = mappend
 
@@ -803,34 +549,19 @@ instance (Hashable a, Eq a) => Semigroup (HashSet a) where
   (<>) = mappend
   times1p _ a = a
 
-
 -- | Provide a Semigroup for an arbitrary Monoid.
 newtype WrappedMonoid m = WrapMonoid
   { unwrapMonoid :: m } deriving
   ( Eq, Ord, Show, Read
-
   , Data, Typeable
-
-
   , Generic
-
   )
 
-
 instance Hashable a => Hashable (WrappedMonoid a) where
-
   hashWithSalt p (WrapMonoid a) = hashWithSalt p a
 
-
-
-
-
 instance Monoid m => Semigroup (WrappedMonoid m) where
-
   (<>) = coerce (mappend :: m -> m -> m)
-
-
-
 
 instance Monoid m => Monoid (WrappedMonoid m) where
   mempty = WrapMonoid mempty
@@ -850,10 +581,8 @@ instance Enum a => Enum (WrappedMonoid a) where
   enumFromTo (WrapMonoid a) (WrapMonoid b) = WrapMonoid <$> enumFromTo a b
   enumFromThenTo (WrapMonoid a) (WrapMonoid b) (WrapMonoid c) = WrapMonoid <$> enumFromThenTo a b c
 
-
 instance NFData m => NFData (WrappedMonoid m) where
   rnf (WrapMonoid a) = rnf a
-
 
 -- | Repeat a value @n@ times.
 --
@@ -873,22 +602,12 @@ timesN n x | n == 0    = mempty
 newtype Option a = Option
   { getOption :: Maybe a } deriving
   ( Eq, Ord, Show, Read
-
   , Data, Typeable
-
-
   , Generic
-
   )
 
-
 instance Hashable a => Hashable (Option a) where
-
   hashWithSalt p (Option a) = hashWithSalt p a
-
-
-
-
 
 instance Functor Option where
   fmap f (Option a) = Option (fmap f a)
@@ -926,21 +645,15 @@ instance Traversable Option where
   traverse f (Option (Just a)) = Option . Just <$> f a
   traverse _ (Option Nothing)  = pure (Option Nothing)
 
-
 instance NFData a => NFData (Option a) where
   rnf (Option a) = rnf a
-
 
 -- | Fold an 'Option' case-wise, just like 'maybe'.
 option :: b -> (a -> b) -> Option a -> b
 option n j (Option m) = maybe n j m
 
 instance Semigroup a => Semigroup (Option a) where
-
   (<>) = coerce ((<>) :: Maybe a -> Maybe a -> Maybe a)
-
-
-
 
 instance Semigroup a => Monoid (Option a) where
   mempty = Option Nothing
@@ -949,7 +662,6 @@ instance Semigroup a => Monoid (Option a) where
 -- | This lets you use a difference list of a 'Semigroup' as a 'Monoid'.
 diff :: Semigroup m => m -> Endo m
 diff = Endo . (<>)
-
 
 instance Semigroup (Seq a) where
   (<>) = (><)

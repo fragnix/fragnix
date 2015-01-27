@@ -1,10 +1,5 @@
 {-# LINE 1 "src/Data/List/NonEmpty.hs" #-}
-# 1 "src/Data/List/NonEmpty.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -64,140 +54,15 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "src/Data/List/NonEmpty.hs"
 {-# LANGUAGE CPP #-}
-
-
 
 {-# LANGUAGE Trustworthy #-}
 
-
-
-
-
-
-
 {-# LANGUAGE DeriveDataTypeable #-}
-
-
-
 
 {-# LANGUAGE DeriveGeneric #-}
 
-
-
 {-# LANGUAGE TypeFamilies #-}
-
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.List.NonEmpty
@@ -298,91 +163,59 @@ import Prelude hiding
 
 import Control.Applicative
 
-
 import Control.DeepSeq (NFData(..))
-
 
 import Control.Monad
 import Control.Monad.Fix
 
-
 import Control.Monad.Zip (MonadZip(..))
-
-
 
 import Data.Data
 
-
-
-
-
 import Data.Foldable hiding (toList)
-
 import qualified Data.Foldable as Foldable
 
-
 import Data.Hashable
-
 
 import qualified Data.List as List
 import Data.Monoid (mappend)
 import Data.Ord (comparing)
 import Data.Traversable
 
-
 import qualified GHC.Exts as Exts
-
 -- import Data.Semigroup hiding (Last)
 -- import Data.Semigroup.Foldable
 -- import Data.Semigroup.Traversable
 
-
 import GHC.Generics
-
 
 infixr 5 :|, <|
 
 data NonEmpty a = a :| [a] deriving
   ( Eq, Ord, Show, Read
-
   , Data, Typeable
-
-
   , Generic
-
   )
 
-
 instance Hashable a => Hashable (NonEmpty a) where
-
   hashWithSalt p (a :| as) = p `hashWithSalt` a `hashWithSalt` as
-
-
-
-
-
 
 instance Exts.IsList (NonEmpty a) where
   type Item (NonEmpty a) = a
   fromList = fromList
   toList = toList
 
-
-
 instance NFData a => NFData (NonEmpty a) where
   rnf (x :| xs) = rnf x `seq` rnf xs
-
 
 instance MonadFix NonEmpty where
   mfix f = case fix (f . head) of
              ~(x :| _) -> x :| mfix (tail . f)
 
-
 instance MonadZip NonEmpty where
   mzip     = zip
   mzipWith = zipWith
   munzip   = unzip
-
 
 length :: NonEmpty a -> Int
 length (_ :| xs) = 1 + Prelude.length xs
@@ -424,9 +257,7 @@ unfoldr f a = case f a of
 
 instance Functor NonEmpty where
   fmap f ~(a :| as) = f a :| fmap f as
-
   b <$ ~(_ :| as)   = b   :| (b <$ as)
-
 
 instance Applicative NonEmpty where
   pure a = a :| []

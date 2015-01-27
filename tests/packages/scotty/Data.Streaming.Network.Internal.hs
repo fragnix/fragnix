@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Streaming/Network/Internal.hs" #-}
-# 1 "Data/Streaming/Network/Internal.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -74,142 +64,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Data/Streaming/Network/Internal.hs"
 {-# LANGUAGE CPP #-}
 module Data.Streaming.Network.Internal
     ( ServerSettings (..)
@@ -217,11 +71,9 @@ module Data.Streaming.Network.Internal
     , HostPreference (..)
     , Message (..)
     , AppData (..)
-
     , ServerSettingsUnix (..)
     , ClientSettingsUnix (..)
     , AppDataUnix (..)
-
     ) where
 
 import Data.String (IsString (..))
@@ -278,7 +130,6 @@ instance IsString HostPreference where
     fromString "!6" = HostIPv6Only
     fromString s = Host s
 
-
 -- | Settings for a Unix domain sockets server.
 data ServerSettingsUnix = ServerSettingsUnix
     { serverPath :: !FilePath
@@ -295,7 +146,6 @@ data AppDataUnix = AppDataUnix
     { appReadUnix :: !(IO ByteString)
     , appWriteUnix :: !(ByteString -> IO ())
     }
-
 
 -- | Representation of a single UDP message
 data Message = Message { msgData :: {-# UNPACK #-} !ByteString

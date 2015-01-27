@@ -1,10 +1,5 @@
 {-# LINE 1 "System/Log/FastLogger/LogStr.hs" #-}
-# 1 "System/Log/FastLogger/LogStr.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -64,117 +54,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "System/Log/FastLogger/LogStr.hs"
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 
@@ -188,21 +67,14 @@ module System.Log.FastLogger.LogStr (
   , (<>)
   ) where
 
-
 import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as B
-
-
-
-
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as S8
 import Data.ByteString.Internal (ByteString(..))
 import qualified Data.ByteString.Lazy as BL
 import Data.Monoid (Monoid, mempty, mappend)
-
 import Data.Monoid ((<>))
-
 import Data.String (IsString(..))
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -212,23 +84,11 @@ import qualified Data.Text.Lazy.Encoding as TL
 ----------------------------------------------------------------
 
 
-
-
-
-
 toBuilder :: ByteString -> Builder
-
 toBuilder = B.byteString
 
-
-
-
 fromBuilder :: Builder -> ByteString
-
 fromBuilder = BL.toStrict . B.toLazyByteString
-
-
-
 
 ----------------------------------------------------------------
 

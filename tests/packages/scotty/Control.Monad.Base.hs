@@ -1,10 +1,5 @@
 {-# LINE 1 "src/Control/Monad/Base.hs" #-}
-# 1 "src/Control/Monad/Base.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,92 +44,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "src/Control/Monad/Base.hs"
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE UnicodeSyntax #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -147,13 +51,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-
 {-# LANGUAGE Safe #-}
-
-
-
-
-
 
 
 module Control.Monad.Base
@@ -180,18 +78,8 @@ import Control.Monad.Trans.Cont
 
 
 
-
-
-
-
-
-
-
-
-
 import qualified Control.Monad.ST.Lazy.Safe as L
 import qualified Control.Monad.ST.Safe as S
-
 
 import Control.Monad.STM (STM)
 
@@ -199,8 +87,6 @@ class (Applicative b, Applicative m, Monad b, Monad m)
       ⇒ MonadBase b m | m → b where
   -- | Lift a computation from the base monad
   liftBase ∷ b α → m α
-
-
 
 
 instance MonadBase (IO) (IO) where liftBase = id
@@ -212,13 +98,9 @@ instance MonadBase (Identity) (Identity) where liftBase = id
 
 instance MonadBase (STM) (STM) where liftBase = id
 
-# 85 "src/Control/Monad/Base.hs"
-
 
 instance MonadBase (L.ST s) (L.ST s) where liftBase = id
 instance MonadBase (S.ST s) (S.ST s) where liftBase = id
-
-
 
 
 -- | Can be used as a default implementation for 'liftBase'.
@@ -228,8 +110,6 @@ liftBaseDefault ∷ (MonadTrans t, MonadBase b m) ⇒ b α → t m α
 liftBaseDefault = lift . liftBase
 
 
-
-
 instance (MonadBase b m) ⇒ MonadBase b (IdentityT m) where liftBase = liftBaseDefault
 instance (MonadBase b m) ⇒ MonadBase b (MaybeT m) where liftBase = liftBaseDefault
 instance (MonadBase b m) ⇒ MonadBase b (ListT m) where liftBase = liftBaseDefault
@@ -237,12 +117,6 @@ instance (MonadBase b m) ⇒ MonadBase b (ReaderT r m) where liftBase = liftBase
 instance (MonadBase b m) ⇒ MonadBase b (L.StateT s m) where liftBase = liftBaseDefault
 instance (MonadBase b m) ⇒ MonadBase b (S.StateT s m) where liftBase = liftBaseDefault
 instance (MonadBase b m) ⇒ MonadBase b (ContT r m) where liftBase = liftBaseDefault
-
-
-
-
-
-
 
 
 instance (Monoid w, MonadBase b m) ⇒ MonadBase b ( L.WriterT w m) where liftBase = liftBaseDefault

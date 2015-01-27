@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Text/Internal/Fusion/Size.hs" #-}
-# 1 "Data/Text/Internal/Fusion/Size.hs"
-# 1 "<command-line>"
-# 10 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 10 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -60,107 +50,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 10 "<command-line>" 2
-# 1 "Data/Text/Internal/Fusion/Size.hs"
 {-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -fno-warn-missing-methods #-}
 -- |
@@ -197,9 +86,6 @@ module Data.Text.Internal.Fusion.Size
 
 import Data.Text.Internal (mul)
 
-
-
-
 data Size = Between {-# UNPACK #-} !Int {-# UNPACK #-} !Int -- ^ Lower and upper bounds on size.
           | Unknown                                         -- ^ Unknown size.
             deriving (Eq, Show)
@@ -211,26 +97,16 @@ exactly _ = Nothing
 
 exactSize :: Int -> Size
 exactSize n =
-
-
-
     Between n n
 {-# INLINE exactSize #-}
 
 maxSize :: Int -> Size
 maxSize n =
-
-
-
     Between 0 n
 {-# INLINE maxSize #-}
 
 betweenSize :: Int -> Int -> Size
 betweenSize m n =
-
-
-
-
     Between m n
 {-# INLINE betweenSize #-}
 

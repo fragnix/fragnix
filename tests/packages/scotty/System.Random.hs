@@ -1,10 +1,5 @@
 {-# LINE 1 "System/Random.hs" #-}
-# 1 "System/Random.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,99 +35,14 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "System/Random.hs"
 
 {-# LANGUAGE Trustworthy #-}
-
 
 -----------------------------------------------------------------------------
 -- |
@@ -173,16 +80,13 @@
 -----------------------------------------------------------------------------
 
 
-# 1 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h" 1
 
-# 15 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h"
 
 
 
 
 
 
-# 1 "/usr/local/lib/ghc-7.8.3/include/ghcautoconf.h" 1
 
 
 
@@ -507,184 +411,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 21 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h" 2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 99 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h"
-
-# 109 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h"
-
-
-
-
-
-
-
-
-
-
-
-# 41 "System/Random.hs" 2
 
 module System.Random
 	(
@@ -693,12 +419,7 @@ module System.Random
 
 	-- * Random number generators
 
-
-
-
-
 	  RandomGen(next, genRange, split)
-
 	-- ** Standard random number generators
 	, StdGen
 	, mkStdGen
@@ -729,59 +450,31 @@ import Data.Int
 import Data.Word
 import Foreign.C.Types
 
-
-
-
-
-
 import System.CPUTime	( getCPUTime )
 import Data.Time	( getCurrentTime, UTCTime(..) )
 import Data.Ratio       ( numerator, denominator )
-
 import Data.Char	( isSpace, chr, ord )
 import System.IO.Unsafe ( unsafePerformIO )
 import Data.IORef       ( IORef, newIORef, readIORef, writeIORef )
-
 import Data.IORef       ( atomicModifyIORef' )
-
-
-
 import Numeric		( readDec )
-
 
 import GHC.Exts         ( build )
 
 
-
-
-
-
-
-# 121 "System/Random.hs"
-
 -- The standard nhc98 implementation of Time.ClockTime does not match
 -- the extended one expected in this module, so we lash-up a quick
 -- replacement here.
-
-
-
-
-
 getTime :: IO (Integer, Integer)
 getTime = do
   utc <- getCurrentTime
   let daytime = toRational $ utctDayTime utc
   return $ quotRem (numerator daytime) (denominator daytime)
 
-
 -- | The class 'RandomGen' provides a common interface to random number
 -- generators.
 --
-
-
-
 -- Minimal complete definition: 'next' and 'split'.
-
 
 class RandomGen g where
 
@@ -811,11 +504,6 @@ class RandomGen g where
 
    -- default method
    genRange _ = (minBound, maxBound)
-
-
-
-
-
 
    -- |The 'split' operation allows one to obtain two distinct random number
    -- generators. This is very useful in functional programs (for example, when
@@ -857,9 +545,6 @@ data StdGen
 instance RandomGen StdGen where
   next  = stdNext
   genRange _ = stdRange
-
-
-
 
   split = stdSplit
 
@@ -988,10 +673,8 @@ instance Random Int16      where randomR = randomIvalIntegral; random = randomBo
 instance Random Int32      where randomR = randomIvalIntegral; random = randomBounded
 instance Random Int64      where randomR = randomIvalIntegral; random = randomBounded
 
-
 -- Word is a type synonym in nhc98.
 instance Random Word       where randomR = randomIvalIntegral; random = randomBounded
-
 instance Random Word8      where randomR = randomIvalIntegral; random = randomBounded
 instance Random Word16     where randomR = randomIvalIntegral; random = randomBounded
 instance Random Word32     where randomR = randomIvalIntegral; random = randomBounded

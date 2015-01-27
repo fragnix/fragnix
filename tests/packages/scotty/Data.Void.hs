@@ -1,10 +1,5 @@
 {-# LINE 1 "src-old/Data/Void.hs" #-}
-# 1 "src-old/Data/Void.hs"
-# 1 "<command-line>"
-# 10 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 10 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -56,113 +46,13 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 10 "<command-line>" 2
-# 1 "src-old/Data/Void.hs"
 {-# LANGUAGE CPP #-}
-
 {-# LANGUAGE Trustworthy #-}
-
-
 
 {-# LANGUAGE DeriveDataTypeable #-}
 
-
-
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
-
-
-
-
 
 -----------------------------------------------------------------------------
 -- |
@@ -186,31 +76,17 @@ import Data.Ix
 import Data.Hashable
 import Data.Semigroup (Semigroup(..))
 
-
 import Data.Data
-
-
 
 import GHC.Generics
 
-
-
 import Control.Exception
 
-
 -- | A logically uninhabited data type.
-
-
-
 newtype Void = Void Void
-
-
   deriving (Data, Typeable)
 
-
-
 deriving instance Generic Void
-
 
 instance Eq Void where
   _ == _ = True
@@ -254,6 +130,5 @@ instance Ix Void where
   index _ = absurd
   inRange _ = absurd
   rangeSize _ = 0
-
 
 instance Exception Void

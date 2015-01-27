@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Text/Unsafe.hs" #-}
-# 1 "Data/Text/Unsafe.hs"
-# 1 "<command-line>"
-# 10 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 10 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -60,107 +50,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 10 "<command-line>" 2
-# 1 "Data/Text/Unsafe.hs"
 {-# LANGUAGE CPP, MagicHash, UnboxedTuples #-}
 -- |
 -- Module      : Data.Text.Unsafe
@@ -189,9 +78,6 @@ module Data.Text.Unsafe
     , dropWord16
     ) where
 
-
-
-
 import Data.Text.Internal.Encoding.Utf16 (chr2)
 import Data.Text.Internal (Text(..))
 import Data.Text.Internal.Unsafe (inlineInterleaveST, inlinePerformIO)
@@ -215,9 +101,6 @@ unsafeHead (Text arr off _len)
 -- the programmer to provide a proof that the 'Text' is non-empty.
 unsafeTail :: Text -> Text
 unsafeTail t@(Text arr off len) =
-
-
-
     Text arr (off+d) (len-d)
   where d = iter_ t 0
 {-# INLINE unsafeTail #-}

@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Text/Encoding.hs" #-}
-# 1 "Data/Text/Encoding.hs"
-# 1 "<command-line>"
-# 10 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 10 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -60,112 +50,9 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 10 "<command-line>" 2
-# 1 "Data/Text/Encoding.hs"
 {-# LANGUAGE BangPatterns, CPP, ForeignFunctionInterface, GeneralizedNewtypeDeriving, MagicHash,
     UnliftedFFITypes #-}
-
 {-# LANGUAGE Trustworthy #-}
-
 -- |
 -- Module      : Data.Text.Encoding
 -- Copyright   : (c) 2009, 2010, 2011 Bryan O'Sullivan,
@@ -218,21 +105,14 @@ module Data.Text.Encoding
     , encodeUtf32LE
     , encodeUtf32BE
 
-
     -- * Encoding Text using ByteString Builders
     -- | /Note/ that these functions are only available if built against
     -- @bytestring >= 0.10.4.0@.
     , encodeUtf8Builder
     , encodeUtf8BuilderEscaped
-
     ) where
 
-
 import Control.Monad.ST.Unsafe (unsafeIOToST, unsafeSTToIO)
-
-
-
-
 
 import Data.Bits ((.&.))
 import Data.Text.Internal.Unsafe.Char (ord)
@@ -241,7 +121,6 @@ import qualified Data.ByteString.Builder.Internal as B hiding (empty, append)
 import qualified Data.ByteString.Builder.Prim as BP
 import qualified Data.ByteString.Builder.Prim.Internal as BP
 import qualified Data.Text.Internal.Encoding.Utf16 as U16
-
 
 import Control.Exception (evaluate, try)
 import Control.Monad.ST (runST)
@@ -266,18 +145,9 @@ import qualified Data.Text.Internal.Encoding.Fusion as E
 import qualified Data.Text.Internal.Fusion as F
 
 
-# 1 "include/text_cbits.h" 1
 
 
 
-
-
-
-
-
-
-
-# 106 "Data/Text/Encoding.hs" 2
 
 -- $strict
 --
@@ -491,7 +361,6 @@ decodeUtf8' = unsafeDupablePerformIO . try . evaluate . decodeUtf8With strictDec
 {-# INLINE decodeUtf8' #-}
 
 
-
 -- | Encode text to a ByteString 'B.Builder' using UTF-8 encoding.
 encodeUtf8Builder :: Text -> B.Builder
 encodeUtf8Builder = encodeUtf8BuilderEscaped (BP.liftFixedToBounded BP.word8)
@@ -552,7 +421,6 @@ encodeUtf8BuilderEscaped be =
                       outerLoop i (B.BufferRange op ope)
                   where
                     poke8 j v = poke (op `plusPtr` j) (fromIntegral v :: Word8)
-
 
 -- | Encode text using UTF-8 encoding.
 encodeUtf8 :: Text -> ByteString

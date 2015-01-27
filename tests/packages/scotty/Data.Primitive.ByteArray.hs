@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Primitive/ByteArray.hs" #-}
-# 1 "Data/Primitive/ByteArray.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -52,87 +42,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Data/Primitive/ByteArray.hs"
 {-# LANGUAGE CPP, MagicHash, UnboxedTuples, UnliftedFFITypes, DeriveDataTypeable #-}
 
 -- |
@@ -175,9 +84,7 @@ import Foreign.C.Types
 import Data.Word ( Word8 )
 import GHC.Base ( Int(..) )
 import GHC.Prim
-
     hiding (setByteArray#)
-
 
 import Data.Typeable ( Typeable )
 import Data.Data ( Data(..) )
@@ -284,10 +191,8 @@ writeByteArray
 writeByteArray (MutableByteArray arr#) (I# i#) x
   = primitive_ (writeByteArray# arr# i# x)
 
-
 unI# :: Int -> Int#
 unI# (I# n#) = n#
-
 
 -- | Copy a slice of an immutable byte array to a mutable byte array.
 copyByteArray
@@ -300,13 +205,7 @@ copyByteArray
                  -> m ()
 {-# INLINE copyByteArray #-}
 copyByteArray (MutableByteArray dst#) doff (ByteArray src#) soff sz
-
   = primitive_ (copyByteArray# src# (unI# soff) dst# (unI# doff) (unI# sz))
-
-
-
-
-
 
 -- | Copy a slice of a mutable byte array into another array. The two slices
 -- may not overlap.
@@ -322,13 +221,7 @@ copyMutableByteArray
 {-# INLINE copyMutableByteArray #-}
 copyMutableByteArray (MutableByteArray dst#) doff
                      (MutableByteArray src#) soff sz
-
   = primitive_ (copyMutableByteArray# src# (unI# soff) dst# (unI# doff) (unI# sz))
-
-
-
-
-
 
 -- | Copy a slice of a mutable byte array into another, potentially
 -- overlapping array.
@@ -371,7 +264,6 @@ fillByteArray
 {-# INLINE fillByteArray #-}
 fillByteArray = setByteArray
 
-# 250 "Data/Primitive/ByteArray.hs"
 
 foreign import ccall unsafe "primitive-memops.h hsprimitive_memmove"
   memmove_mba :: MutableByteArray# s -> CInt

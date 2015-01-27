@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Vector/Primitive.hs" #-}
-# 1 "Data/Vector/Primitive.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -56,97 +46,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Data/Vector/Primitive.hs"
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, TypeFamilies, ScopedTypeVariables, Rank2Types #-}
 
 -- |
@@ -317,9 +216,7 @@ import Text.Read     ( Read(..), readListPrecDefault )
 
 import Data.Monoid   ( Monoid(..) )
 
-
 import qualified GHC.Exts as Exts
-
 
 -- | Unboxed vectors of primitive types
 data Vector a = Vector {-# UNPACK #-} !Int
@@ -410,13 +307,11 @@ instance Prim a => Monoid (Vector a) where
   mconcat = concat
 
 
-
 instance Prim a => Exts.IsList (Vector a) where
   type Item (Vector a) = a
   fromList = fromList
   fromListN = fromListN
   toList = toList
-
 
 -- Length
 -- ------

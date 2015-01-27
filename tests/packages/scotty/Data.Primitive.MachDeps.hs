@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Primitive/MachDeps.hs" #-}
-# 1 "Data/Primitive/MachDeps.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -52,87 +42,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Data/Primitive/MachDeps.hs"
 {-# LANGUAGE CPP, MagicHash #-}
 -- |
 -- Module      : Data.Primitive.MachDeps
@@ -148,16 +57,13 @@
 module Data.Primitive.MachDeps where
 
 
-# 1 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h" 1
 
-# 15 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h"
 
 
 
 
 
 
-# 1 "/usr/local/lib/ghc-7.8.3/include/ghcautoconf.h" 1
 
 
 
@@ -482,184 +388,6 @@ module Data.Primitive.MachDeps where
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 21 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h" 2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 99 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h"
-
-# 109 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h"
-
-
-
-
-
-
-
-
-
-
-
-# 16 "Data/Primitive/MachDeps.hs" 2
 
 import GHC.Prim
 
@@ -760,11 +488,6 @@ aLIGNMENT_INT64 = 8
 sIZEOF_WORD64 = 8
 aLIGNMENT_WORD64 = 8
 
-
-
-
-
 type Word64_# = Word#
 type Int64_# = Int#
-
 

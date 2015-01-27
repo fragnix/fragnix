@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Vector/Unboxed.hs" #-}
-# 1 "Data/Vector/Unboxed.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -56,97 +46,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Data/Vector/Unboxed.hs"
 {-# LANGUAGE Rank2Types, TypeFamilies #-}
 
 -- |
@@ -337,16 +236,7 @@ import Text.Read     ( Read(..), readListPrecDefault )
 
 import Data.Monoid   ( Monoid(..) )
 
-
 import qualified GHC.Exts as Exts (IsList(..))
-
-
-
-# 1 "include/vector.h" 1
-
-
-
-
 
 
 
@@ -355,14 +245,6 @@ import qualified Data.Vector.Internal.Check as Ck
 
 
 
-
-
-
-
-
-
-
-# 196 "Data/Vector/Unboxed.hs" 2
 
 -- See http://trac.haskell.org/vector/ticket/12
 instance (Unbox a, Eq a) => Eq (Vector a) where
@@ -407,13 +289,11 @@ instance (Read a, Unbox a) => Read (Vector a) where
   readListPrec = readListPrecDefault
 
 
-
 instance (Unbox e) => Exts.IsList (Vector e) where
   type Item (Vector e) = e
   fromList = fromList
   fromListN = fromListN
   toList = toList
-
 
 
 -- Length information
@@ -1547,10 +1427,6 @@ copy :: (Unbox a, PrimMonad m) => MVector (PrimState m) a -> Vector a -> m ()
 copy = G.copy
 
 
-
-
-# 1 "internal/unbox-tuple-instances" 1
-# 118 "internal/unbox-tuple-instances"
 -- | /O(1)/ Zip 2 vectors
 zip :: (Unbox a, Unbox b) => Vector a -> Vector b -> Vector (a, b)
 {-# INLINE [1] zip #-}
@@ -1565,7 +1441,6 @@ unzip :: (Unbox a, Unbox b) => Vector (a, b) -> (Vector a,
                                                  Vector b)
 {-# INLINE unzip #-}
 unzip (V_2 n_ as bs) = (as, bs)
-# 280 "internal/unbox-tuple-instances"
 -- | /O(1)/ Zip 3 vectors
 zip3 :: (Unbox a, Unbox b, Unbox c) => Vector a ->
                                        Vector b ->
@@ -1587,7 +1462,6 @@ unzip3 :: (Unbox a,
            Unbox c) => Vector (a, b, c) -> (Vector a, Vector b, Vector c)
 {-# INLINE unzip3 #-}
 unzip3 (V_3 n_ as bs cs) = (as, bs, cs)
-# 486 "internal/unbox-tuple-instances"
 -- | /O(1)/ Zip 4 vectors
 zip4 :: (Unbox a, Unbox b, Unbox c, Unbox d) => Vector a ->
                                                 Vector b ->
@@ -1619,7 +1493,6 @@ unzip4 :: (Unbox a,
                                                Vector d)
 {-# INLINE unzip4 #-}
 unzip4 (V_4 n_ as bs cs ds) = (as, bs, cs, ds)
-# 743 "internal/unbox-tuple-instances"
 -- | /O(1)/ Zip 5 vectors
 zip5 :: (Unbox a,
          Unbox b,
@@ -1665,7 +1538,6 @@ unzip5 :: (Unbox a,
                                                   Vector e)
 {-# INLINE unzip5 #-}
 unzip5 (V_5 n_ as bs cs ds es) = (as, bs, cs, ds, es)
-# 1046 "internal/unbox-tuple-instances"
 -- | /O(1)/ Zip 6 vectors
 zip6 :: (Unbox a,
          Unbox b,
@@ -1719,5 +1591,4 @@ unzip6 :: (Unbox a,
                                                      Vector f)
 {-# INLINE unzip6 #-}
 unzip6 (V_6 n_ as bs cs ds es fs) = (as, bs, cs, ds, es, fs)
-# 1382 "Data/Vector/Unboxed.hs" 2
 

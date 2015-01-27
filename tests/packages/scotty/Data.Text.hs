@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Text.hs" #-}
-# 1 "Data/Text.hs"
-# 1 "<command-line>"
-# 10 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 10 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -60,115 +50,10 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 10 "<command-line>" 2
-# 1 "Data/Text.hs"
 {-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types, UnboxedTuples #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-
 {-# LANGUAGE Trustworthy #-}
-
-
 {-# LANGUAGE TypeFamilies #-}
-
 
 -- |
 -- Module      : Data.Text
@@ -361,12 +246,7 @@ import Prelude (Char, Bool(..), Int, Maybe(..), String,
                 Read(..), Show(..),
                 (&&), (||), (+), (-), (.), ($), ($!), (>>),
                 not, return, otherwise, quot)
-
 import Control.DeepSeq (NFData(rnf))
-
-
-
-
 import Data.Char (isSpace)
 import Data.Data (Data(gfoldl, toConstr, gunfold, dataTypeOf), constrIndex,
                   Constr, mkConstr, DataType, mkDataType, Fixity(Prefix))
@@ -388,19 +268,8 @@ import Data.Text.Internal.Unsafe.Char (unsafeChr, unsafeWrite)
 import qualified Data.Text.Internal.Functions as F
 import qualified Data.Text.Internal.Encoding.Utf16 as U16
 import Data.Text.Internal.Search (indices)
-
-
-
-
-
-
 import qualified GHC.CString as GHC
-
-
-
-
 import qualified GHC.Exts as Exts
-
 import GHC.Prim (Addr#)
 
 -- $strict
@@ -501,16 +370,12 @@ instance Monoid Text where
 instance IsString Text where
     fromString = pack
 
-
 instance Exts.IsList Text where
     type Item Text = Char
     fromList       = pack
     toList         = unpack
 
-
-
 instance NFData Text where rnf !_ = ()
-
 
 -- | This instance preserves data abstraction at the cost of inefficiency.
 -- We omit reflection services for the sake of data abstraction.
@@ -731,9 +596,6 @@ init (Text arr off len) | len <= 0                   = emptyError "init"
 -- fusion.
 null :: Text -> Bool
 null (Text _arr _off len) =
-
-
-
     len <= 0
 {-# INLINE [1] null #-}
 

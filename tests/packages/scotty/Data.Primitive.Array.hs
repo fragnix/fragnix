@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Primitive/Array.hs" #-}
-# 1 "Data/Primitive/Array.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -52,87 +42,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Data/Primitive/Array.hs"
 {-# LANGUAGE CPP, MagicHash, UnboxedTuples, DeriveDataTypeable, BangPatterns #-}
 
 -- |
@@ -255,11 +164,9 @@ copyArray :: PrimMonad m
           -> Int                             -- ^ number of elements to copy
           -> m ()
 {-# INLINE copyArray #-}
-
 -- NOTE: copyArray# and copyMutableArray# are slightly broken in GHC 7.6.* and earlier
 copyArray (MutableArray dst#) (I# doff#) (Array src#) (I# soff#) (I# len#)
   = primitive_ (copyArray# src# soff# dst# doff# len#)
-# 136 "Data/Primitive/Array.hs"
 
 -- | Copy a slice of a mutable array to another array. The two arrays may
 -- not be the same.
@@ -271,12 +178,10 @@ copyMutableArray :: PrimMonad m
           -> Int                             -- ^ number of elements to copy
           -> m ()
 {-# INLINE copyMutableArray #-}
-
 -- NOTE: copyArray# and copyMutableArray# are slightly broken in GHC 7.6.* and earlier
 copyMutableArray (MutableArray dst#) (I# doff#)
                  (MutableArray src#) (I# soff#) (I# len#)
   = primitive_ (copyMutableArray# src# soff# dst# doff# len#)
-# 161 "Data/Primitive/Array.hs"
 
 -- | Return a newly allocated Array with the specified subrange of the
 -- provided Array. The provided Array should contain the full subrange
@@ -286,15 +191,8 @@ cloneArray :: Array a -- ^ source array
            -> Int     -- ^ number of elements to copy
            -> Array a
 {-# INLINE cloneArray #-}
-
 cloneArray (Array arr#) (I# off#) (I# len#) 
   = case cloneArray# arr# off# len# of arr'# -> Array arr'#
-
-
-
-
-
-
 
 -- | Return a newly allocated MutableArray. with the specified subrange of
 -- the provided MutableArray. The provided MutableArray should contain the
@@ -305,11 +203,9 @@ cloneMutableArray :: PrimMonad m
         -> Int                          -- ^ number of elements to copy
         -> m (MutableArray (PrimState m) a)
 {-# INLINE cloneMutableArray #-}
-
 cloneMutableArray (MutableArray arr#) (I# off#) (I# len#) = primitive
    (\s# -> case cloneMutableArray# arr# off# len# s# of
              (# s'#, arr'# #) -> (# s'#, MutableArray arr'# #))
-# 204 "Data/Primitive/Array.hs"
 
 instance Typeable a => Data (Array a) where
   toConstr _ = error "toConstr"

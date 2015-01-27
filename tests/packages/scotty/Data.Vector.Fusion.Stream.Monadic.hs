@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Vector/Fusion/Stream/Monadic.hs" #-}
-# 1 "Data/Vector/Fusion/Stream/Monadic.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -56,97 +46,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Data/Vector/Fusion/Stream/Monadic.hs"
 {-# LANGUAGE ExistentialQuantification, Rank2Types, BangPatterns #-}
 
 -- |
@@ -242,16 +141,7 @@ import Prelude hiding ( length, null,
 import Data.Int  ( Int8, Int16, Int32, Int64 )
 import Data.Word ( Word8, Word16, Word32, Word, Word64 )
 
-
 import GHC.Exts ( SpecConstrAnnotation(..) )
-
-
-
-# 1 "include/vector.h" 1
-
-
-
-
 
 
 
@@ -261,23 +151,12 @@ import qualified Data.Vector.Internal.Check as Ck
 
 
 
-
-
-
-
-
-
-# 101 "Data/Vector/Fusion/Stream/Monadic.hs" 2
-
 data SPEC = SPEC | SPEC2
-
 {-# ANN type SPEC ForceSpecConstr #-}
-
 
 emptyStream :: String
 {-# NOINLINE emptyStream #-}
 emptyStream = "empty stream"
-
 
 
 -- | Result of taking a single step in a stream
@@ -1418,7 +1297,6 @@ enumFromTo_small x y = x `seq` y `seq` Stream step x (Exact n)
 
   #-}
 
-# 1264 "Data/Vector/Fusion/Stream/Monadic.hs"
 
 -- NOTE: We could implement a generic "too large" test:
 --
@@ -1454,15 +1332,8 @@ enumFromTo_int x y = x `seq` y `seq` Stream step x (Exact (len x y))
   enumFromTo = enumFromTo_int :: Monad m => Int -> Int -> Stream m Int
 
 
-
-
-
-
-
-
 "enumFromTo<Int32> [Stream]"
   enumFromTo = enumFromTo_int :: Monad m => Int32 -> Int32 -> Stream m Int32
-
 
 
   #-}
@@ -1493,13 +1364,6 @@ enumFromTo_big_word x y = x `seq` y `seq` Stream step x (Exact (len x y))
                         :: Monad m => Word64 -> Word64 -> Stream m Word64
 
 
-
-
-
-
-
-
-
 "enumFromTo<Integer> [Stream]"
   enumFromTo = enumFromTo_big_word
                         :: Monad m => Integer -> Integer -> Stream m Integer
@@ -1523,7 +1387,6 @@ enumFromTo_big_int x y = x `seq` y `seq` Stream step x (Exact (len x y))
     step x | x <= y    = return $ Yield x (x+1)
            | otherwise = return $ Done
 
-# 1378 "Data/Vector/Fusion/Stream/Monadic.hs"
 
 enumFromTo_char :: Monad m => Char -> Char -> Stream m Char
 {-# INLINE [1] enumFromTo_char #-}

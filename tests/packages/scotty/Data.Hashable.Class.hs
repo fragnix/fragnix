@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Hashable/Class.hs" #-}
-# 1 "Data/Hashable/Class.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -58,107 +48,9 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Data/Hashable/Class.hs"
 {-# LANGUAGE BangPatterns, CPP, ForeignFunctionInterface, MagicHash,
              ScopedTypeVariables, UnliftedFFITypes #-}
-
 {-# LANGUAGE DefaultSignatures, FlexibleContexts #-}
-
 
 ------------------------------------------------------------------------
 -- |
@@ -180,10 +72,8 @@ module Data.Hashable.Class
     (
       -- * Computing hash values
       Hashable(..)
-
       -- ** Support for generics
     , GHashable(..)
-
 
       -- * Creating new instances
     , hashUsing
@@ -218,31 +108,16 @@ import GHC.Prim (ThreadId#)
 import System.IO.Unsafe (unsafePerformIO)
 import System.Mem.StableName
 
-
 import GHC.Generics
-
-
 
 import Data.Typeable.Internal(TypeRep(..))
 import GHC.Fingerprint.Type(Fingerprint(..))
-
-
 
 import Foreign.C (CLong(..))
 import Foreign.C.Types (CInt(..))
 
 
-
-
-
-
-
-
-
-
 import qualified Data.ByteString.Short.Internal as BSI
-
-
 
 import GHC.Exts (Int(..))
 import GHC.Integer.GMP.Internals (Integer(..))
@@ -259,16 +134,13 @@ import GHC.Integer.GMP.Internals (Integer(..))
 
 
 
-# 1 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h" 1
 
-# 15 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h"
 
 
 
 
 
 
-# 1 "/usr/local/lib/ghc-7.8.3/include/ghcautoconf.h" 1
 
 
 
@@ -583,194 +455,6 @@ import GHC.Integer.GMP.Internals (Integer(..))
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 21 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h" 2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 99 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h"
-
-# 109 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h"
-
-
-
-
-
-
-
-
-
-
-
-# 106 "Data/Hashable/Class.hs" 2
 
 infixl 0 `hashWithSalt`
 
@@ -779,11 +463,7 @@ infixl 0 `hashWithSalt`
 
 -- | A default salt used in the implementation of 'hash'.
 defaultSalt :: Int
-
 defaultSalt = -2578643520546668380  -- 0xdc36d1615b7400a4
-
-
-
 {-# INLINE defaultSalt #-}
 
 -- | The class of types that can be converted to a hash value.
@@ -821,14 +501,12 @@ class Hashable a where
     hash :: a -> Int
     hash = hashWithSalt defaultSalt
 
-
     default hashWithSalt :: (Generic a, GHashable (Rep a)) => Int -> a -> Int
     hashWithSalt salt = ghashWithSalt salt . from
 
 -- | The class of types that can be generically hashed.
 class GHashable f where
     ghashWithSalt :: Int -> f a -> Int
-
 
 -- Since we support a generic implementation of 'hashWithSalt' we
 -- cannot also provide a default implementation for that method for
@@ -919,12 +597,9 @@ instance Hashable Char where
     hash = fromEnum
     hashWithSalt = defaultHashWithSalt
 
-# 264 "Data/Hashable/Class.hs"
 
-# 279 "Data/Hashable/Class.hs"
 
 instance Hashable Integer where
-# 291 "Data/Hashable/Class.hs"
     hash (S# int) = I# int
     hash n@(J# size# byteArray)
         | n >= minInt && n <= maxInt = fromInteger n :: Int
@@ -944,7 +619,6 @@ instance Hashable Integer where
                          `hashWithSalt` size
       where minInt = fromIntegral (minBound :: Int)
             maxInt = fromIntegral (maxBound :: Int)
-# 319 "Data/Hashable/Class.hs"
 
 instance (Integral a, Hashable a) => Hashable (Ratio a) where
     {-# SPECIALIZE instance Hashable (Ratio Integer) #-}
@@ -1048,15 +722,9 @@ instance Hashable B.ByteString where
 instance Hashable BL.ByteString where
     hashWithSalt = BL.foldlChunks hashWithSalt
 
-
 instance Hashable BSI.ShortByteString where
-
     hashWithSalt salt sbs@(BSI.SBS ba) =
-
-
-
         hashByteArrayWithSalt ba 0 (BSI.length sbs) salt
-
 
 instance Hashable T.Text where
     hashWithSalt salt (T.Text arr off len) =
@@ -1080,23 +748,13 @@ instance Hashable ThreadId where
 -- | Compute the hash of a TypeRep, in various GHC versions we can do this quickly.
 hashTypeRep :: TypeRep -> Int
 {-# INLINE hashTypeRep #-}
-
 -- Fingerprint is just the MD5, so taking any Int from it is fine
 hashTypeRep (TypeRep (Fingerprint x _) _ _) = fromIntegral x
-
-
-
-
-
 
 instance Hashable TypeRep where
     hash = hashTypeRep
     hashWithSalt = defaultHashWithSalt
     {-# INLINE hash #-}
-
-
-
-
 
 
 -- | Compute a hash value for the content of this pointer.

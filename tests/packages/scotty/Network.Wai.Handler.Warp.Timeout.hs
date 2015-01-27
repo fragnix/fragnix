@@ -1,10 +1,5 @@
 {-# LINE 1 "Network/Wai/Handler/Warp/Timeout.hs" #-}
-# 1 "Network/Wai/Handler/Warp/Timeout.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -86,172 +76,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Network/Wai/Handler/Warp/Timeout.hs"
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE MagicHash #-}
@@ -297,16 +121,7 @@ module Network.Wai.Handler.Warp.Timeout (
   ) where
 
 
-
-
-
-
 import Control.Concurrent (mkWeakThreadId, ThreadId)
-
-
-
-
-
 import Control.Concurrent (myThreadId)
 import qualified Control.Exception as E
 import GHC.Weak (Weak (..))
@@ -394,12 +209,6 @@ data TimeoutThread = TimeoutThread
 instance E.Exception TimeoutThread
 instance Show TimeoutThread where
     show TimeoutThread = "Thread killed by Warp's timeout reaper"
-
-
-
-
-
-
 
 
 ----------------------------------------------------------------

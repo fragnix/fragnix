@@ -1,10 +1,5 @@
 {-# LINE 1 "src/Control/Monad/Morph.hs" #-}
-# 1 "src/Control/Monad/Morph.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -52,87 +42,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "src/Control/Monad/Morph.hs"
 {-# LANGUAGE CPP, RankNTypes #-}
 
 {-| A monad morphism is a natural transformation:
@@ -209,9 +118,6 @@ module Control.Monad.Morph (
 
 import Control.Monad.Trans.Class (MonadTrans(lift))
 import qualified Control.Monad.Trans.Error         as E
-
-
-
 import qualified Control.Monad.Trans.Identity      as I
 import qualified Control.Monad.Trans.List          as L
 import qualified Control.Monad.Trans.Maybe         as M
@@ -226,10 +132,8 @@ import Data.Monoid (Monoid, mappend)
 import Data.Functor.Compose (Compose (Compose))
 import Data.Functor.Identity (runIdentity)
 import Data.Functor.Product (Product (Pair))
-
 import Control.Applicative.Backwards (Backwards (Backwards))
 import Control.Applicative.Lift (Lift (Pure, Other))
-
 
 -- For documentation
 import Control.Exception (try, IOException)
@@ -250,10 +154,6 @@ class MFunctor t where
 
 instance MFunctor (E.ErrorT e) where
     hoist nat m = E.ErrorT (nat (E.runErrorT m))
-
-
-
-
 
 
 instance MFunctor I.IdentityT where
@@ -292,14 +192,12 @@ instance Functor f => MFunctor (Compose f) where
 instance MFunctor (Product f) where
     hoist nat (Pair f g) = Pair f (nat g)
 
-
 instance MFunctor Backwards where
     hoist nat (Backwards f) = Backwards (nat f)
 
 instance MFunctor Lift where
     hoist _   (Pure a)  = Pure a
     hoist nat (Other f) = Other (nat f)
-
 
 -- | A function that @generalize@s the 'Identity' base monad to be any monad.
 generalize :: Monad m => Identity a -> m a
@@ -381,7 +279,6 @@ instance (E.Error e) => MMonad (E.ErrorT e) where
             Right (Left  e) -> Left e
             Right (Right a) -> Right a ) )
 
-# 258 "src/Control/Monad/Morph.hs"
 
 instance MMonad I.IdentityT where
     embed f m = f (I.runIdentityT m)

@@ -1,10 +1,5 @@
 {-# LINE 1 "src/Data/Unique/Really.hs" #-}
-# 1 "src/Data/Unique/Really.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -56,97 +46,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "src/Data/Unique/Really.hs"
 -- | An abstract interface to a unique symbol generator.
 module Data.Unique.Really (
     Unique, newUnique, hashUnique,
@@ -154,7 +53,6 @@ module Data.Unique.Really (
 
 import Control.Applicative
 import Data.Hashable
-
 
 
 import Control.Exception (evaluate)
@@ -176,7 +74,6 @@ newUnique = do
 
 hashUnique (Unique s) = hashStableName s
 
-# 54 "src/Data/Unique/Really.hs"
 
 -- | Creates a new object of type 'Unique'.
 -- The value returned will not compare equal to any other

@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/IP/Addr.hs" #-}
-# 1 "Data/IP/Addr.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -58,102 +48,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Data/IP/Addr.hs"
 {-# LANGUAGE CPP #-}
 module Data.IP.Addr where
 
@@ -167,9 +61,7 @@ import Network.Socket
 import Numeric (showHex, showInt)
 import System.ByteOrder
 import Text.Appar.String
-
 import GHC.Generics
-
 
 ----------------------------------------------------------------
 
@@ -185,11 +77,7 @@ True
 
 data IP = IPv4 { ipv4 :: IPv4 }
         | IPv6 { ipv6 :: IPv6 }
-
         deriving (Eq, Ord, Generic)
-
-
-
 
 instance Show IP where
     show (IPv4 ip) = show ip
@@ -209,11 +97,7 @@ type IPv6Addr = (Word32,Word32,Word32,Word32)
 192.0.2.1
 -}
 newtype IPv4 = IP4 IPv4Addr
-
   deriving (Eq, Ord,Generic)
-
-
-
 
 {-|
   The abstract data type to express an IPv6 address.
@@ -235,11 +119,7 @@ newtype IPv4 = IP4 IPv4Addr
 ::1
 -}
 newtype IPv6 = IP6 IPv6Addr
-
   deriving (Eq, Ord,Generic)
-
-
-
 
 ----------------------------------------------------------------
 --

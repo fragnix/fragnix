@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/DList.hs" #-}
-# 1 "Data/DList.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -52,95 +42,12 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Data/DList.hs"
 {-# OPTIONS_GHC -O2 #-}
 {-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
-
 -- For the IsList instance:
 {-# LANGUAGE TypeFamilies #-}
-
 
 -----------------------------------------------------------------------------
 -- |
@@ -194,16 +101,12 @@ import Data.Foldable (Foldable)
 import qualified Data.Foldable as F
 
 
-
 import Text.Read (Lexeme(Ident), lexP, parens, prec, readPrec, readListPrec,
                   readListPrecDefault)
-
 
 import GHC.Exts (IsList)
 -- This is for the IsList methods, which conflict with fromList, toList:
 import qualified GHC.Exts
-
-
 
 
 import Control.Applicative(Applicative(..), Alternative, (<|>))
@@ -328,18 +231,11 @@ instance Ord a => Ord (DList a) where
 -- The Read and Show instances were adapted from Data.Sequence.
 
 instance Read a => Read (DList a) where
-
   readPrec = parens $ prec 10 $ do
     Ident "fromList" <- lexP
     dl <- readPrec
     return (fromList dl)
   readListPrec = readListPrecDefault
-
-
-
-
-
-
 
 instance Show a => Show (DList a) where
   showsPrec p dl = showParen (p > 10) $
@@ -402,13 +298,11 @@ instance Foldable DList where
 
 -- CPP: foldl', foldr' added to Foldable in 7.6.1
 -- http://www.haskell.org/ghc/docs/7.6.1/html/users_guide/release-7-6-1.html
-
   foldl' f x  = List.foldl' f x . toList
   {-# INLINE foldl' #-}
 
   foldr' f x  = F.foldr' f x . toList
   {-# INLINE foldr' #-}
-
 
 instance NFData a => NFData (DList a) where
   rnf = rnf . toList
@@ -418,12 +312,10 @@ instance IsString (DList Char) where
   fromString = fromList
   {-# INLINE fromString #-}
 
-
 instance IsList (DList a) where
   type Item (DList a) = a
   fromList = fromList
   {-# INLINE fromList #-}
   toList = toList
   {-# INLINE toList #-}
-
 

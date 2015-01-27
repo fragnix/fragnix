@@ -1,10 +1,5 @@
 {-# LINE 1 "src/Data/Text/Lazy/Builder/Scientific.hs" #-}
-# 1 "src/Data/Text/Lazy/Builder/Scientific.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -64,117 +54,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "src/Data/Text/Lazy/Builder/Scientific.hs"
 {-# LANGUAGE CPP, MagicHash, OverloadedStrings #-}
 
 module Data.Text.Lazy.Builder.Scientific
@@ -192,14 +71,7 @@ import Data.Text.Lazy.Builder       (Builder, fromString, singleton, fromText)
 import Data.Text.Lazy.Builder.Int   (decimal)
 import qualified Data.Text as T     (replicate)
 import GHC.Base                     (Int(I#), Char(C#), chr#, ord#, (+#))
-
 import Data.Monoid                  ((<>))
-
-
-
-
-
-
 
 -- | A @Text@ @Builder@ which renders a scientific number to full
 -- precision, using standard decimal notation for arguments whose

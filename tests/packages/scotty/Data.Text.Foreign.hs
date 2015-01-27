@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Text/Foreign.hs" #-}
-# 1 "Data/Text/Foreign.hs"
-# 1 "<command-line>"
-# 10 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 10 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -60,107 +50,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 10 "<command-line>" 2
-# 1 "Data/Text/Foreign.hs"
 {-# LANGUAGE BangPatterns, CPP, GeneralizedNewtypeDeriving #-}
 -- |
 -- Module      : Data.Text.Foreign
@@ -195,14 +84,7 @@ module Data.Text.Foreign
     , takeWord16
     ) where
 
-
-
-
-
 import Control.Monad.ST.Unsafe (unsafeIOToST)
-
-
-
 import Data.ByteString.Unsafe (unsafePackCStringLen, unsafeUseAsCStringLen)
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import Data.Text.Internal (Text(..), empty)
@@ -239,9 +121,6 @@ fromPtr :: Ptr Word16           -- ^ source array
         -> IO Text
 fromPtr _   (I16 0)   = return empty
 fromPtr ptr (I16 len) =
-
-
-
     return $! Text arr 0 len
   where
     arr = A.run (A.new len >>= copy)

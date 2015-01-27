@@ -1,10 +1,5 @@
 {-# LINE 1 "src/Control/Monad/Catch/Pure.hs" #-}
-# 1 "src/Control/Monad/Catch/Pure.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,92 +44,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "src/Control/Monad/Catch/Pure.hs"
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -148,15 +52,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-
 {-# LANGUAGE Trustworthy #-}
-
-
-
-
-
-
-
 
 
 
@@ -188,11 +84,7 @@ module Control.Monad.Catch.Pure (
   , module Control.Monad.Catch
   ) where
 
-
 import Prelude hiding (foldr)
-
-
-
 
 import Control.Applicative
 import Control.Monad.Catch
@@ -303,9 +195,7 @@ instance Monad m => MonadMask (CatchT m) where
 instance MonadState s m => MonadState s (CatchT m) where
   get = lift get
   put = lift . put
-
   state = lift . state
-
 
 instance MonadReader e m => MonadReader e (CatchT m) where
   ask = lift ask
@@ -321,9 +211,7 @@ instance MonadWriter w m => MonadWriter w (CatchT m) where
     return $! case a of
         Left  l      -> (Left  l, id)
         Right (r, f) -> (Right r, f)
-
   writer aw = CatchT (Right `liftM` writer aw)
-
 
 instance MonadRWS r w s m => MonadRWS r w s (CatchT m)
 

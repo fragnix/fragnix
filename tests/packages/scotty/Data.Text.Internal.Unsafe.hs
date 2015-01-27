@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Text/Internal/Unsafe.hs" #-}
-# 1 "Data/Text/Internal/Unsafe.hs"
-# 1 "<command-line>"
-# 10 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 10 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -60,107 +50,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 10 "<command-line>" 2
-# 1 "Data/Text/Internal/Unsafe.hs"
 {-# LANGUAGE CPP, MagicHash, UnboxedTuples #-}
 {-# OPTIONS_HADDOCK not-home #-}
 
@@ -185,10 +74,8 @@ module Data.Text.Internal.Unsafe
     ) where
 
 import GHC.ST (ST(..))
-
 import GHC.IO (IO(IO))
 import GHC.Base (realWorld#)
-
 
 
 -- | Just like unsafePerformIO, but we inline it. Big performance gains as
@@ -198,11 +85,7 @@ import GHC.Base (realWorld#)
 --
 {-# INLINE inlinePerformIO #-}
 inlinePerformIO :: IO a -> a
-
 inlinePerformIO (IO m) = case m realWorld# of (# _, r #) -> r
-
-
-
 
 -- | Allow an 'ST' computation to be deferred lazily. When passed an
 -- action of type 'ST' @s@ @a@, the action will only be performed when

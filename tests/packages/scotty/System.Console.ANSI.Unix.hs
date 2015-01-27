@@ -1,10 +1,5 @@
 {-# LINE 1 "System/Console/ANSI/Unix.hs" #-}
-# 1 "System/Console/ANSI/Unix.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -52,91 +42,8 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "System/Console/ANSI/Unix.hs"
 {-# OPTIONS_HADDOCK hide #-}
 module System.Console.ANSI.Unix (
-
-# 1 "includes/Exports-Include.hs" 1
 -- * Basic data types
 module System.Console.ANSI.Common,
 
@@ -190,7 +97,6 @@ setTitleCode,
 
 -- * Checking if handle supports ANSI
 hSupportsANSI
-# 4 "System/Console/ANSI/Unix.hs" 2
     ) where
 
 import System.Console.ANSI.Common
@@ -200,8 +106,6 @@ import System.IO
 import Data.List
 
 
-
-# 1 "includes/Common-Include.hs" 1
 import System.Environment
 import Control.Applicative
 
@@ -346,7 +250,6 @@ hSupportsANSI h = (&&) <$> hIsTerminalDevice h <*> (not <$> isDumb)
   where
     -- cannot use lookupEnv since it only appeared in GHC 7.6
     isDumb = maybe False (== "dumb") . lookup "TERM" <$> getEnvironment
-# 14 "System/Console/ANSI/Unix.hs" 2
 
 
 -- | The reference I used for the ANSI escape characters in this module was <http://en.wikipedia.org/wiki/ANSI_escape_sequences>.

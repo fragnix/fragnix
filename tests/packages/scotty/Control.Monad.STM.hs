@@ -1,10 +1,5 @@
 {-# LINE 1 "Control/Monad/STM.hs" #-}
-# 1 "Control/Monad/STM.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -52,93 +42,10 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Control/Monad/STM.hs"
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE CPP, MagicHash, UnboxedTuples #-}
 
-
 {-# LANGUAGE Trustworthy #-}
-
 
 -----------------------------------------------------------------------------
 -- |
@@ -165,46 +72,25 @@
 module Control.Monad.STM (
         STM,
         atomically,
-
         always,
         alwaysSucceeds,
         retry,
         orElse,
         check,
-
         throwSTM,
         catchSTM
   ) where
 
-
-
-
-
-
-
 import GHC.Conc
-
 import GHC.Exts
 import Control.Monad.Fix
 
 
 
 
-
-
-
-
-
-
-
-
-# 80 "Control/Monad/STM.hs"
-
 check :: Bool -> STM ()
 check b = if b then return () else retry
 
-
-# 115 "Control/Monad/STM.hs"
 
 
 data STMret a = STMret (State# RealWorld) a

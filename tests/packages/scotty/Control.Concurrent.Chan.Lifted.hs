@@ -1,10 +1,5 @@
 {-# LINE 1 "Control/Concurrent/Chan/Lifted.hs" #-}
-# 1 "Control/Concurrent/Chan/Lifted.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,99 +44,11 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Control/Concurrent/Chan/Lifted.hs"
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-
 {-# LANGUAGE Trustworthy #-}
-
 
 {- |
 Module      :  Control.Concurrent.Chan.Lifted
@@ -186,9 +88,6 @@ import Prelude ( (.) )
 -- from transformers-base:
 import Control.Monad.Base ( MonadBase, liftBase )
 
-
-# 1 "include/inlinable.h" 1
-# 48 "Control/Concurrent/Chan/Lifted.hs" 2
 
 --------------------------------------------------------------------------------
 -- * Chans

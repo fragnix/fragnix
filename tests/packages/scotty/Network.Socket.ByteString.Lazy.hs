@@ -1,10 +1,5 @@
 {-# LINE 1 "Network/Socket/ByteString/Lazy.hs" #-}
-# 1 "Network/Socket/ByteString/Lazy.hs"
-# 1 "<command-line>"
-# 12 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 12 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,92 +44,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 12 "<command-line>" 2
-# 1 "Network/Socket/ByteString/Lazy.hs"
 {-# LANGUAGE BangPatterns, CPP, ForeignFunctionInterface #-}
 
 -- |
@@ -165,12 +69,10 @@
 --
 module Network.Socket.ByteString.Lazy
     (
-
     -- * Send data to a socket
       send
     , sendAll
     ,
-
 
     -- * Receive data from a socket
       getContents
@@ -187,7 +89,6 @@ import System.IO.Unsafe (unsafeInterleaveIO)
 import qualified Data.ByteString as S
 import qualified Network.Socket.ByteString as N
 
-
 import Control.Monad (unless)
 import Data.ByteString.Unsafe (unsafeUseAsCStringLen)
 import Foreign.Marshal.Array (allocaArray)
@@ -200,8 +101,6 @@ import Network.Socket.Internal
 import qualified Data.ByteString.Lazy as L
 
 import GHC.Conc (threadWaitWrite)
-
-
 
 -- -----------------------------------------------------------------------------
 -- Sending
@@ -252,7 +151,6 @@ sendAll sock bs = do
   sent <- send sock bs
   let bs' = L.drop sent bs
   unless (L.null bs') $ sendAll sock bs'
-
 
 -- -----------------------------------------------------------------------------
 -- Receiving

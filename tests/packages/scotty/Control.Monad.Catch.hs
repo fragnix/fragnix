@@ -1,10 +1,5 @@
 {-# LINE 1 "src/Control/Monad/Catch.hs" #-}
-# 1 "src/Control/Monad/Catch.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,92 +44,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "src/Control/Monad/Catch.hs"
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -149,15 +53,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 
-
 {-# LANGUAGE Trustworthy #-}
-
-
-
-
-
-
-
 
 
 --------------------------------------------------------------------
@@ -215,11 +111,7 @@ module Control.Monad.Catch (
   , SomeException(..)
   ) where
 
-
 import Prelude hiding (foldr)
-
-
-
 
 import Control.Exception (Exception(..), SomeException(..))
 import qualified Control.Exception as ControlException
@@ -232,9 +124,6 @@ import qualified Control.Monad.Trans.Writer.Strict as StrictW
 import Control.Monad.Trans.List (ListT(..), runListT)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import Control.Monad.Trans.Error (ErrorT(..), Error, runErrorT)
-
-
-
 import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Identity
 import Control.Monad.Reader as Reader
@@ -439,7 +328,6 @@ instance (Error e, MonadThrow m) => MonadThrow (ErrorT e m) where
 instance (Error e, MonadCatch m) => MonadCatch (ErrorT e m) where
   catch (ErrorT m) f = ErrorT $ catch m (runErrorT . f)
 
-# 308 "src/Control/Monad/Catch.hs"
 
 instance MonadThrow m => MonadThrow (ContT r m) where
   throwM = lift . throwM

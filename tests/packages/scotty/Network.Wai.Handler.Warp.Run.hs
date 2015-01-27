@@ -1,10 +1,5 @@
 {-# LINE 1 "Network/Wai/Handler/Warp/Run.hs" #-}
-# 1 "Network/Wai/Handler/Warp/Run.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -86,172 +76,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Network/Wai/Handler/Warp/Run.hs"
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -291,12 +115,8 @@ import Network.Wai.Handler.Warp.Types
 import Network.Wai.Internal (ResponseReceived (ResponseReceived))
 import System.IO.Error (isFullErrorType, ioeGetErrorType)
 
-
-
-
 import System.Posix.IO (FdOption(CloseOnExec), setFdOption)
 import Network.Socket (fdSocket)
-
 
 -- | Default action value for 'Connection'.
 socketConnection :: Socket -> IO Connection
@@ -314,10 +134,6 @@ socketConnection s = do
       , connBufferSize = bufferSize
       , connSendFileOverride = Override s
       }
-
-
-
-
 
 
 -- | Run an 'Application' on the given port. This calls 'runSettings' with
@@ -350,11 +166,7 @@ runSettingsSocket set socket app = do
     runSettingsConnection set getConn app
   where
     getConn = do
-
-
-
         (s, sa) <- accept socket
-
         setSocketCloseOnExec s
         conn <- socketConnection s
         return (conn, sa)
@@ -695,12 +507,8 @@ connSource Connection { connRecv = recv } th istatus = do
 
 -- Copied from: https://github.com/mzero/plush/blob/master/src/Plush/Server/Warp.hs
 setSocketCloseOnExec :: Socket -> IO ()
-
-
-
 setSocketCloseOnExec socket =
     setFdOption (fromIntegral $ fdSocket socket) CloseOnExec True
-
 
 gracefulShutdown :: Counter -> IO ()
 gracefulShutdown counter = do

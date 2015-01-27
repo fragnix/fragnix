@@ -1,10 +1,5 @@
 {-# LINE 1 "src/Data/Vault/ST/Strict.hs" #-}
-# 1 "src/Data/Vault/ST/Strict.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,99 +44,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "src/Data/Vault/ST/Strict.hs"
 
 
 
@@ -154,8 +51,6 @@
 -- Variant for the 'ST' monad.
 --
 -- The 'Vault' type in this module is strict in both keys and values.
-
-# 1 "src/Data/Vault/ST/ST.hs" 1
 module Data.Vault.ST.Strict (
     -- * Vault
     Vault, Key,
@@ -182,9 +77,6 @@ import Data.Unique.Really
     for the second implementation that doesn't need to
     bypass the type checker.
 -}
-
-
-# 1 "src/Data/Vault/ST/backends/GHC.hs" 1
 -- This implementation is specific to GHC
 -- und uses  unsafeCoerce  for reasons of efficiency.
 import GHC.Exts (Any)
@@ -226,10 +118,6 @@ lock (Key k) = Locker k . toAny
 unlock (Key k) (Locker k' a)
   | k == k' = Just $ fromAny a
   | otherwise = Nothing
-# 29 "src/Data/Vault/ST/ST.hs" 2
-
-
-
 
 {-----------------------------------------------------------------------------
     Vault
@@ -271,4 +159,3 @@ lock :: Key s a -> a -> Locker s
 
 -- | Retrieve the value from the 'Locker'.
 unlock :: Key s a -> Locker s -> Maybe a
-# 9 "src/Data/Vault/ST/Strict.hs" 2

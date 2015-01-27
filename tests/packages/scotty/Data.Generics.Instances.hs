@@ -1,10 +1,5 @@
 {-# LINE 1 "src/Data/Generics/Instances.hs" #-}
-# 1 "src/Data/Generics/Instances.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,89 +35,11 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "src/Data/Generics/Instances.hs"
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving, CPP #-}
 -----------------------------------------------------------------------------
 -- |
@@ -155,26 +69,16 @@ module Data.Generics.Instances () where
 
 import Data.Data
 
-
-
 import GHC.IO.Handle         -- So we can give Data instance for Handle
-
-
-
 import GHC.Stable            -- So we can give Data instance for StablePtr
 import GHC.ST                -- So we can give Data instance for ST
 import GHC.Conc              -- So we can give Data instance for TVar
 import Data.IORef            -- So we can give Data instance for IORef
 import Control.Concurrent    -- So we can give Data instance for MVar
-# 51 "src/Data/Generics/Instances.hs"
 
 -- Version compatibility issues caused by #2760
 myMkNoRepType :: String -> DataType
-
 myMkNoRepType = mkNoRepType
-
-
-
 
 
 ------------------------------------------------------------------------------
@@ -204,9 +108,7 @@ instance Data TyCon where
 
 
 ------------------------------------------------------------------------------
-
 deriving instance Typeable DataType
-
 
 instance Data DataType where
   toConstr _   = error "toConstr"
@@ -232,24 +134,20 @@ instance Typeable a => Data (StablePtr a) where
 
 ------------------------------------------------------------------------------
 
-
 instance Data ThreadId where
   toConstr _   = error "toConstr"
   gunfold _ _  = error "gunfold"
   dataTypeOf _ = myMkNoRepType "GHC.Conc.ThreadId"
 
 
-
 ------------------------------------------------------------------------------
 -- Dubious instances (7)
 ------------------------------------------------------------------------------
-
 
 instance Typeable a => Data (TVar a) where
   toConstr _   = error "toConstr"
   gunfold _ _  = error "gunfold"
   dataTypeOf _ = myMkNoRepType "GHC.Conc.TVar"
-
 
 
 ------------------------------------------------------------------------------
@@ -262,12 +160,10 @@ instance Typeable a => Data (MVar a) where
 
 ------------------------------------------------------------------------------
 
-
 instance Typeable a => Data (STM a) where
   toConstr _   = error "toConstr"
   gunfold _ _  = error "gunfold"
   dataTypeOf _ = myMkNoRepType "GHC.Conc.STM"
-
 
 
 ------------------------------------------------------------------------------

@@ -1,10 +1,5 @@
 {-# LINE 1 "Network/Wai/Handler/Warp/Recv.hs" #-}
-# 1 "Network/Wai/Handler/Warp/Recv.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -86,172 +76,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Network/Wai/Handler/Warp/Recv.hs"
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE CPP #-}
 
@@ -274,10 +98,6 @@ import System.Posix.Types (Fd(..))
 import Network.Wai.Handler.Warp.Buffer
 
 
-
-
-
-
 ----------------------------------------------------------------
 
 receive :: Socket -> Buffer -> Int -> IO ByteString
@@ -295,17 +115,9 @@ receive sock buf size = do
     buf' = castPtr buf
     size' = fromIntegral size
 
-
-
-
 receiveloop :: CInt -> Ptr CChar -> CSize -> IO CInt
-
 receiveloop sock buf size = do
-
-
-
     bytes <- c_recv sock buf size 0
-
     if bytes == -1 then do
         errno <- getErrno
         if errno == eAGAIN then do

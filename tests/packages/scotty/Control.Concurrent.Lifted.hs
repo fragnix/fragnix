@@ -1,10 +1,5 @@
 {-# LINE 1 "Control/Concurrent/Lifted.hs" #-}
-# 1 "Control/Concurrent/Lifted.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,97 +44,9 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Control/Concurrent/Lifted.hs"
 {-# LANGUAGE CPP, NoImplicitPrelude, FlexibleContexts, RankNTypes #-}
 
-
 {-# LANGUAGE Trustworthy #-}
-
 
 {- |
 Module      :  Control.Concurrent.Lifted
@@ -165,25 +67,17 @@ module Control.Concurrent.Lifted
       -- * Basic concurrency operations
     , myThreadId
     , fork
-
     , forkWithUnmask
-
-
     , forkFinally
-
     , killThread
     , throwTo
-
 
       -- ** Threads with affinity
     , forkOn
     , forkOnWithUnmask
     , getNumCapabilities
-
     , setNumCapabilities
-
     , threadCapability
-
 
       -- * Scheduling
     , yield
@@ -201,14 +95,6 @@ module Control.Concurrent.Lifted
     , module Control.Concurrent.QSemN.Lifted
 
 
-
-
-
-
-
-
-
-
       -- * Bound Threads
     , C.rtsSupportsBoundThreads
     , forkOS
@@ -216,10 +102,8 @@ module Control.Concurrent.Lifted
     , runInBoundThread
     , runInUnboundThread
 
-
       -- * Weak references to ThreadIds
     , mkWeakThreadId
-
     ) where
 
 
@@ -234,11 +118,9 @@ import Data.Int           ( Int )
 import Data.Function      ( ($) )
 import System.IO          ( IO )
 import System.Posix.Types ( Fd )
-
 import Control.Monad      ( (>>=) )
 import Data.Either        ( Either )
 import System.Mem.Weak    ( Weak )
-
 
 import           Control.Concurrent ( ThreadId )
 import qualified Control.Concurrent as C
@@ -249,27 +131,17 @@ import Control.Monad.Base ( MonadBase, liftBase )
 -- from monad-control:
 import Control.Monad.Trans.Control ( MonadBaseControl, liftBaseOp_, liftBaseDiscard )
 
-
 import Control.Monad.Trans.Control ( liftBaseWith )
 import Control.Monad               ( void )
-
 
 -- from lifted-base (this package):
 import Control.Concurrent.MVar.Lifted
 import Control.Concurrent.Chan.Lifted
 import Control.Concurrent.QSem.Lifted
 import Control.Concurrent.QSemN.Lifted
-
-
-
 import Control.Exception.Lifted ( throwTo
-
                                 , SomeException, try, mask
-
                                 )
-
-# 1 "include/inlinable.h" 1
-# 129 "Control/Concurrent/Lifted.hs" 2
 
 
 --------------------------------------------------------------------------------
@@ -290,7 +162,6 @@ fork :: MonadBaseControl IO m => m () -> m ThreadId
 fork = liftBaseDiscard C.forkIO
 {-# INLINE fork #-}
 
-
 -- | Generalized version of 'C.forkIOWithUnmask'.
 --
 -- Note that, while the forked computation @m ()@ has access to the captured
@@ -301,8 +172,6 @@ forkWithUnmask f = liftBaseWith $ \runInIO ->
                      C.forkIOWithUnmask $ \unmask ->
                        void $ runInIO $ f $ liftBaseOp_ unmask
 {-# INLINE forkWithUnmask #-}
-
-
 
 -- | Generalized version of 'C.forkFinally'.
 --
@@ -317,12 +186,10 @@ forkFinally action and_then =
       fork $ try (restore action) >>= and_then
 {-# INLINE forkFinally #-}
 
-
 -- | Generalized version of 'C.killThread'.
 killThread :: MonadBase IO m => ThreadId -> m ()
 killThread = liftBase . C.killThread
 {-# INLINE  killThread #-}
-
 
 -- | Generalized version of 'C.forkOn'.
 --
@@ -349,18 +216,15 @@ getNumCapabilities :: MonadBase IO m => m Int
 getNumCapabilities = liftBase C.getNumCapabilities
 {-# INLINE getNumCapabilities #-}
 
-
 -- | Generalized version of 'C.setNumCapabilities'.
 setNumCapabilities :: MonadBase IO m => Int -> m ()
 setNumCapabilities = liftBase . C.setNumCapabilities
 {-# INLINE setNumCapabilities #-}
 
-
 -- | Generalized version of 'C.threadCapability'.
 threadCapability :: MonadBase IO m => ThreadId -> m (Int, Bool)
 threadCapability = liftBase . C.threadCapability
 {-# INLINE threadCapability #-}
-
 
 -- | Generalized version of 'C.yield'.
 yield :: MonadBase IO m => m ()
@@ -382,7 +246,6 @@ threadWaitWrite :: MonadBase IO m => Fd -> m ()
 threadWaitWrite = liftBase . C.threadWaitWrite
 {-# INLINE threadWaitWrite #-}
 
-# 252 "Control/Concurrent/Lifted.hs"
 
 -- | Generalized version of 'C.forkOS'.
 --
@@ -407,7 +270,6 @@ runInBoundThread = liftBaseOp_ C.runInBoundThread
 runInUnboundThread :: MonadBaseControl IO m => m a -> m a
 runInUnboundThread = liftBaseOp_ C.runInUnboundThread
 {-# INLINE runInUnboundThread #-}
-
 
 -- | Generalized versio  of 'C.mkWeakThreadId'.
 mkWeakThreadId :: MonadBase IO m => ThreadId -> m (Weak ThreadId)

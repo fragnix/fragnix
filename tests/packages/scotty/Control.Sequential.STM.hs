@@ -1,10 +1,5 @@
 {-# LINE 1 "Control/Sequential/STM.hs" #-}
-# 1 "Control/Sequential/STM.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -52,98 +42,13 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Control/Sequential/STM.hs"
 -- Transactional memory for sequential implementations.
 -- Transactions do not run concurrently, but are atomic in the face
 -- of exceptions.
 
 {-# LANGUAGE CPP #-}
 
-
-
-
 {-# LANGUAGE Trustworthy #-}
-
 
 -- #hide
 module Control.Sequential.STM (
@@ -151,12 +56,7 @@ module Control.Sequential.STM (
         TVar, newTVar, newTVarIO, readTVar, readTVarIO, writeTVar
     ) where
 
-
-
-
-
 import Control.Applicative (Applicative(pure, (<*>)))
-
 import Control.Exception
 import Data.IORef
 

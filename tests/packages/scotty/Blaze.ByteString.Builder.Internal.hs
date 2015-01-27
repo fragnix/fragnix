@@ -1,10 +1,5 @@
 {-# LINE 1 "Blaze/ByteString/Builder/Internal.hs" #-}
-# 1 "Blaze/ByteString/Builder/Internal.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,96 +44,7 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Blaze/ByteString/Builder/Internal.hs"
 {-# LANGUAGE CPP, BangPatterns, Rank2Types #-}
-
-
-
 
 
 -- |
@@ -197,19 +98,11 @@ module Blaze.ByteString.Builder.Internal (
   , defaultMaximalCopySize
 ) where
 
-
 import Foreign                   (withForeignPtr, sizeOf, copyBytes, plusPtr, minusPtr)
 import Foreign.ForeignPtr.Unsafe (unsafeForeignPtrToPtr)
 
-
-
-
 import Control.Monad (unless)
-
 import System.IO.Unsafe (unsafeDupablePerformIO)
-
-
-
 
 import qualified Data.ByteString               as S
 import qualified Data.ByteString.Internal      as S
@@ -506,11 +399,7 @@ toByteStringIO = toByteStringIOWith defaultBufferSize
 {-# INLINE toByteStringIO #-}
 
 unsafeIO :: IO a -> a
-
 unsafeIO = unsafeDupablePerformIO
-
-
-
 
 -- | Run a 'Write' to produce a strict 'S.ByteString'.
 -- This is equivalent to @('toByteString' . 'fromWrite')@, but is more

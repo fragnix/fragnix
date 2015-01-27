@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Aeson/Generic.hs" #-}
-# 1 "Data/Aeson/Generic.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -82,168 +72,10 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Data/Aeson/Generic.hs"
 {-# LANGUAGE PatternGuards, Rank2Types, ScopedTypeVariables, CPP #-}
 
 -- TODO: Drop this when we remove support for Data.Attoparsec.Number
-
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
-
 
 -- |
 -- Module:      Data.Aeson.Generic
@@ -569,33 +401,21 @@ modError func err = error $ "Data.Aeson.Generic." ++ func ++ ": " ++ err
 -- Type extension for binary type constructors.
 
 -- | Flexible type extension
-
 ext2' :: (Data a, Typeable t)
-
-
-
      => c a
      -> (forall d1 d2. (Data d1, Data d2) => c (t d1 d2))
      -> c a
 ext2' def ext = maybe def id (dataCast2 ext)
 
 -- | Type extension of queries for type constructors
-
 ext2Q' :: (Data d, Typeable t)
-
-
-
       => (d -> q)
       -> (forall d1 d2. (Data d1, Data d2) => t d1 d2 -> q)
       -> d -> q
 ext2Q' def ext = unQ ((Q def) `ext2'` (Q ext))
 
 -- | Type extension of readers for type constructors
-
 ext2R' :: (Monad m, Data d, Typeable t)
-
-
-
       => m d
       -> (forall d1 d2. (Data d1, Data d2) => m (t d1 d2))
       -> m d

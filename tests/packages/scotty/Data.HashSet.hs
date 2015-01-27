@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/HashSet.hs" #-}
-# 1 "Data/HashSet.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,96 +44,8 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Data/HashSet.hs"
 {-# LANGUAGE CPP, DeriveDataTypeable #-}
-
 {-# LANGUAGE TypeFamilies #-}
-
 
 ------------------------------------------------------------------------
 -- |
@@ -208,9 +110,7 @@ import Control.DeepSeq (NFData(..))
 import Data.Data hiding (Typeable)
 import Data.HashMap.Base (HashMap, foldrWithKey)
 import Data.Hashable (Hashable)
-
 import Data.Monoid (Monoid(..))
-
 import GHC.Exts (build)
 import Prelude hiding (filter, foldr, map, null)
 import qualified Data.Foldable as Foldable
@@ -219,9 +119,7 @@ import qualified Data.List as List
 import Data.Typeable (Typeable)
 import Text.Read
 
-
 import qualified GHC.Exts as Exts
-
 
 -- | A set of values.  A set cannot contain duplicate values.
 newtype HashSet a = HashSet {
@@ -381,7 +279,6 @@ toList t = build (\ c z -> foldrWithKey ((const .) c) z (asMap t))
 fromList :: (Eq a, Hashable a) => [a] -> HashSet a
 fromList = HashSet . List.foldl' (\ m k -> H.insert k () m) H.empty
 {-# INLINE fromList #-}
-
 
 instance (Eq a, Hashable a) => Exts.IsList (HashSet a) where
     type Item (HashSet a) = a

@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Text/Internal/Encoding/Utf8.hs" #-}
-# 1 "Data/Text/Internal/Encoding/Utf8.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -74,142 +64,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Data/Text/Internal/Encoding/Utf8.hs"
 {-# LANGUAGE CPP, MagicHash, BangPatterns #-}
 
 -- |
@@ -246,12 +100,6 @@ module Data.Text.Internal.Encoding.Utf8
     ) where
 
 
-
-
-
-
-
-
 import Data.Bits ((.&.))
 import Data.Text.Internal.Unsafe.Char (ord)
 import Data.Text.Internal.Unsafe.Shift (shiftR)
@@ -269,9 +117,6 @@ between x y z = x >= y && x <= z
 
 ord2 :: Char -> (Word8,Word8)
 ord2 c =
-
-
-
     (x1,x2)
     where
       n  = ord c
@@ -280,9 +125,6 @@ ord2 c =
 
 ord3 :: Char -> (Word8,Word8,Word8)
 ord3 c =
-
-
-
     (x1,x2,x3)
     where
       n  = ord c
@@ -292,9 +134,6 @@ ord3 c =
 
 ord4 :: Char -> (Word8,Word8,Word8,Word8)
 ord4 c =
-
-
-
     (x1,x2,x3,x4)
     where
       n  = ord c

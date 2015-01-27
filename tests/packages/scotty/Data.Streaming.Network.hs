@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Streaming/Network.hs" #-}
-# 1 "Data/Streaming/Network.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -74,142 +64,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Data/Streaming/Network.hs"
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE BangPatterns #-}
@@ -220,47 +74,37 @@ module Data.Streaming.Network
     , HostPreference
     , Message (..)
     , AppData
-
     , ServerSettingsUnix
     , ClientSettingsUnix
     , AppDataUnix
-
       -- ** Smart constructors
     , serverSettingsTCP
     , serverSettingsTCPSocket
     , clientSettingsTCP
     , serverSettingsUDP
     , clientSettingsUDP
-
     , serverSettingsUnix
     , clientSettingsUnix
-
     , message
       -- ** Classes
     , HasPort (..)
     , HasAfterBind (..)
     , HasReadWrite (..)
-
     , HasPath (..)
-
       -- ** Setters
     , setPort
     , setHost
     , setAddrFamily
     , setAfterBind
     , setNeedLocalAddr
-
     , setPath
-
       -- ** Getters
     , getPort
     , getHost
     , getAddrFamily
     , getAfterBind
     , getNeedLocalAddr
-
     , getPath
-
     , appRead
     , appWrite
     , appSockAddr
@@ -289,13 +133,11 @@ module Data.Streaming.Network
     , bindPortUDP
     , bindRandomPortUDP
     , getSocketUDP
-
       -- ** Unix
     , bindPath
     , getSocketUnix
     , runUnixServer
     , runUnixClient
-
     ) where
 
 import qualified Network.Socket as NS
@@ -317,9 +159,6 @@ import Data.IORef (IORef, newIORef, atomicModifyIORef)
 import Data.Array.Unboxed ((!), UArray, listArray)
 import System.IO.Unsafe (unsafePerformIO)
 import System.Random (randomRIO)
-
-
-
 
 -- | Attempt to connect to the given host/port/address family using given @SocketType@.
 --
@@ -482,7 +321,6 @@ bindPortUDP = bindPortGen NS.Datagram
 bindRandomPortUDP :: HostPreference -> IO (Int, Socket)
 bindRandomPortUDP = bindRandomPortGen NS.Datagram
 
-
 -- | Attempt to connect to the given Unix domain socket path.
 getSocketUnix :: FilePath -> IO Socket
 getSocketUnix path = do
@@ -534,22 +372,8 @@ clientSettingsUnix path = ClientSettingsUnix
     }
 
 
-
-
-
-
-
-
-
 safeRecv :: Socket -> Int -> IO ByteString
-
 safeRecv = recv
-
-
-
-
-
-
 
 -- | Smart constructor.
 serverSettingsUDP
@@ -649,13 +473,7 @@ bindRandomPortTCP s = do
 -- second, and then try again.
 acceptSafe :: Socket -> IO (Socket, NS.SockAddr)
 acceptSafe socket =
-
     loop
-
-
-
-
-
   where
     loop =
         NS.accept socket `E.catch` \(_ :: IOException) -> do
@@ -696,7 +514,6 @@ setAddrFamily af cs = cs { clientAddrFamily = af }
 getAddrFamily :: ClientSettings -> NS.Family
 getAddrFamily = clientAddrFamily
 
-
 class HasPath a where
     pathLens :: Functor f => (FilePath -> f FilePath) -> a -> f a
 instance HasPath ServerSettingsUnix where
@@ -710,7 +527,6 @@ getPath = getConstant . pathLens Constant
 setPath :: HasPath a => FilePath -> a -> a
 setPath p = runIdentity . pathLens (const (Identity p))
 
-
 setNeedLocalAddr :: Bool -> ServerSettings -> ServerSettings
 setNeedLocalAddr x y = y { serverNeedLocalAddr = x }
 
@@ -721,10 +537,8 @@ class HasAfterBind a where
     afterBindLens :: Functor f => ((Socket -> IO ()) -> f (Socket -> IO ())) -> a -> f a
 instance HasAfterBind ServerSettings where
     afterBindLens f ss = fmap (\p -> ss { serverAfterBind = p }) (f (serverAfterBind ss))
-
 instance HasAfterBind ServerSettingsUnix where
     afterBindLens f ss = fmap (\p -> ss { serverAfterBindUnix = p }) (f (serverAfterBindUnix ss))
-
 
 getAfterBind :: HasAfterBind a => a -> (Socket -> IO ())
 getAfterBind = getConstant . afterBindLens Constant
@@ -803,18 +617,15 @@ class HasReadWrite a where
 instance HasReadWrite AppData where
     readLens f a = fmap (\x -> a { appRead' = x }) (f (appRead' a))
     writeLens f a = fmap (\x -> a { appWrite' = x }) (f (appWrite' a))
-
 instance HasReadWrite AppDataUnix where
     readLens f a = fmap (\x -> a { appReadUnix = x }) (f (appReadUnix a))
     writeLens f a = fmap (\x -> a { appWriteUnix = x }) (f (appWriteUnix a))
-
 
 appRead :: HasReadWrite a => a -> IO ByteString
 appRead = getConstant . readLens Constant
 
 appWrite :: HasReadWrite a => a -> ByteString -> IO ()
 appWrite = getConstant . writeLens Constant
-
 
 -- | Run an @Application@ with the given settings. This function will create a
 -- new listening socket, accept connections on it, and spawn a new thread for

@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Vector/Unboxed/Base.hs" #-}
-# 1 "Data/Vector/Unboxed/Base.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -56,101 +46,8 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Data/Vector/Unboxed/Base.hs"
 {-# LANGUAGE BangPatterns, MultiParamTypeClasses, TypeFamilies, FlexibleContexts #-}
-
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
-
 {-# OPTIONS_HADDOCK hide #-}
 
 -- |
@@ -183,18 +80,9 @@ import Data.Word ( Word, Word8, Word16, Word32, Word64 )
 import Data.Int  ( Int8, Int16, Int32, Int64 )
 import Data.Complex
 
-
 import Data.Typeable ( Typeable )
-# 48 "Data/Vector/Unboxed/Base.hs"
 
 import Data.Data     ( Data(..) )
-
-
-# 1 "include/vector.h" 1
-
-
-
-
 
 
 
@@ -203,14 +91,6 @@ import qualified Data.Vector.Internal.Check as Ck
 
 
 
-
-
-
-
-
-
-
-# 52 "Data/Vector/Unboxed/Base.hs" 2
 
 data family MVector s a
 data family Vector    a
@@ -228,10 +108,8 @@ instance NFData (MVector s a) where rnf !_ = ()
 -- -----------------
 -- Data and Typeable
 -- -----------------
-
 deriving instance Typeable Vector
 deriving instance Typeable MVector
-# 85 "Data/Vector/Unboxed/Base.hs"
 
 instance (Data a, Unbox a) => Data (Vector a) where
   gfoldl       = G.gfoldl
@@ -308,9 +186,7 @@ instance G.Vector Vector () where
 -- Primitive types
 -- ---------------
 
-# 186 "Data/Vector/Unboxed/Base.hs"
 
-# 202 "Data/Vector/Unboxed/Base.hs"
 
 newtype instance MVector s Int = MV_Int (P.MVector s Int)
 newtype instance Vector    Int = V_Int  (P.Vector    Int)
@@ -508,10 +384,6 @@ instance (RealFloat a, Unbox a) => G.Vector Vector (Complex a) where
 -- Tuples
 -- ------
 
-
-
-# 1 "internal/unbox-tuple-instances" 1
-
 data instance MVector s (a, b)
     = MV_2 {-# UNPACK #-} !Int !(MVector s a)
                                !(MVector s b)
@@ -613,7 +485,6 @@ instance (Unbox a, Unbox b) => G.Vector Vector (a, b) where
   elemseq _ (a, b)
       = G.elemseq (undefined :: Vector a) a
         . G.elemseq (undefined :: Vector b) b
-# 134 "internal/unbox-tuple-instances"
 data instance MVector s (a, b, c)
     = MV_3 {-# UNPACK #-} !Int !(MVector s a)
                                !(MVector s b)
@@ -738,7 +609,6 @@ instance (Unbox a,
       = G.elemseq (undefined :: Vector a) a
         . G.elemseq (undefined :: Vector b) b
         . G.elemseq (undefined :: Vector c) c
-# 303 "internal/unbox-tuple-instances"
 data instance MVector s (a, b, c, d)
     = MV_4 {-# UNPACK #-} !Int !(MVector s a)
                                !(MVector s b)
@@ -893,7 +763,6 @@ instance (Unbox a,
         . G.elemseq (undefined :: Vector b) b
         . G.elemseq (undefined :: Vector c) c
         . G.elemseq (undefined :: Vector d) d
-# 519 "internal/unbox-tuple-instances"
 data instance MVector s (a, b, c, d, e)
     = MV_5 {-# UNPACK #-} !Int !(MVector s a)
                                !(MVector s b)
@@ -1080,7 +949,6 @@ instance (Unbox a,
         . G.elemseq (undefined :: Vector c) c
         . G.elemseq (undefined :: Vector d) d
         . G.elemseq (undefined :: Vector e) e
-# 790 "internal/unbox-tuple-instances"
 data instance MVector s (a, b, c, d, e, f)
     = MV_6 {-# UNPACK #-} !Int !(MVector s a)
                                !(MVector s b)
@@ -1293,5 +1161,4 @@ instance (Unbox a,
         . G.elemseq (undefined :: Vector d) d
         . G.elemseq (undefined :: Vector e) e
         . G.elemseq (undefined :: Vector f) f
-# 401 "Data/Vector/Unboxed/Base.hs" 2
 

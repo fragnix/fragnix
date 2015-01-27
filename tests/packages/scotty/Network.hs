@@ -1,10 +1,5 @@
 {-# LINE 1 "Network.hs" #-}
-# 1 "Network.hs"
-# 1 "<command-line>"
-# 12 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 12 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,92 +44,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 12 "<command-line>" 2
-# 1 "Network.hs"
 {-# LANGUAGE CPP #-}
 -----------------------------------------------------------------------------
 -- |
@@ -160,7 +64,6 @@
 -----------------------------------------------------------------------------
 
 
-# 1 "include/HsNetworkConfig.h" 1
 
 
 
@@ -274,65 +177,9 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 21 "Network.hs" 2
 
 
 -- Use IPv6-capable function definitions if the OS supports it.
-
-
 
 module Network
     (
@@ -393,9 +240,7 @@ import qualified Control.Exception as Exception
 data PortID =
           Service String                -- Service Name eg "ftp"
         | PortNumber PortNumber         -- User defined Port Number
-
         | UnixSocket String             -- Unix family socket in file system
-
         deriving (Show, Eq)
 
 -- | Calling 'connectTo' creates a client side socket which is
@@ -407,14 +252,11 @@ connectTo :: HostName           -- Hostname
           -> PortID             -- Port Identifier
           -> IO Handle          -- Connected Socket
 
-
 -- IPv6 and IPv4.
 
 connectTo hostname (Service serv) = connect' hostname serv
 
 connectTo hostname (PortNumber port) = connect' hostname (show port)
-# 132 "Network.hs"
-
 
 connectTo _ (UnixSocket path) = do
     bracketOnError
@@ -424,8 +266,6 @@ connectTo _ (UnixSocket path) = do
           connect sock (SockAddrUnix path)
           socketToHandle sock ReadWriteMode
         )
-
-
 
 connect' :: HostName -> ServiceName -> IO Handle
 
@@ -446,7 +286,6 @@ connect' host serv = do
           socketToHandle sock ReadWriteMode
         )
 
-
 -- | Creates the server side socket which has been bound to the
 -- specified port.
 --
@@ -466,14 +305,11 @@ connect' host serv = do
 listenOn :: PortID      -- ^ Port Identifier
          -> IO Socket   -- ^ Listening Socket
 
-
 -- IPv6 and IPv4.
 
 listenOn (Service serv) = listen' serv
 
 listenOn (PortNumber port) = listen' (show port)
-# 218 "Network.hs"
-
 
 listenOn (UnixSocket path) =
     bracketOnError
@@ -485,8 +321,6 @@ listenOn (UnixSocket path) =
             listen sock maxListenQueue
             return sock
         )
-
-
 
 listen' :: ServiceName -> IO Socket
 
@@ -512,7 +346,6 @@ listen' serv = do
             listen sock maxListenQueue
             return sock
         )
-
 
 -- -----------------------------------------------------------------------------
 -- accept
@@ -543,29 +376,23 @@ accept sock@(MkSocket _ AF_INET _ _ _) = do
                 -- if getHostByName fails, we fall back to the IP address
  handle <- socketToHandle sock' ReadWriteMode
  return (handle, peer, port)
-
 accept sock@(MkSocket _ AF_INET6 _ _ _) = do
  (sock', addr) <- Socket.accept sock
  peer <- catchIO ((fromJust . fst) `liftM` getNameInfo [] True False addr) $
          \_ -> case addr of
                  SockAddrInet  _   a   -> inet_ntoa a
                  SockAddrInet6 _ _ a _ -> return (show a)
-
                  SockAddrUnix      a   -> return a
-
  handle <- socketToHandle sock' ReadWriteMode
  let port = case addr of
               SockAddrInet  p _     -> p
               SockAddrInet6 p _ _ _ -> p
               _                     -> -1
  return (handle, peer, port)
-
-
 accept sock@(MkSocket _ AF_UNIX _ _ _) = do
  ~(sock', (SockAddrUnix path)) <- Socket.accept sock
  handle <- socketToHandle sock' ReadWriteMode
  return (handle, path, -1)
-
 accept (MkSocket _ family _ _ _) =
   error $ "Sorry, address family " ++ (show family) ++ " is not supported!"
 
@@ -601,7 +428,6 @@ recvFrom :: HostName    -- Hostname
          -> PortID      -- Port Number
          -> IO String   -- Received Data
 
-
 recvFrom host port = do
     proto <- getProtocolNumber "tcp"
     let hints = defaultHints { addrFlags = [AI_ADDRCONFIG]
@@ -624,7 +450,6 @@ recvFrom host port = do
         | ha == hb = True
         | otherwise = a `oneOf` bs
     _ `oneOf` _ = False
-# 390 "Network.hs"
 
 -- ---------------------------------------------------------------------------
 -- Access function returning the port type/id of socket.
@@ -638,12 +463,8 @@ socketPort s = do
    portID sa =
     case sa of
      SockAddrInet port _      -> PortNumber port
-
      SockAddrInet6 port _ _ _ -> PortNumber port
-
-
      SockAddrUnix path        -> UnixSocket path
-
 
 -- ---------------------------------------------------------------------------
 -- Utils
@@ -693,11 +514,7 @@ the POSIX library:
 -}
 
 catchIO :: IO a -> (Exception.IOException -> IO a) -> IO a
-
 catchIO = Exception.catch
-
-
-
 
 -- Returns the first action from a list which does not throw an exception.
 -- If all the actions throw exceptions (and the list of actions is not empty),

@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/HashMap/Array.hs" #-}
-# 1 "Data/HashMap/Array.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,92 +44,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Data/HashMap/Array.hs"
 {-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types, UnboxedTuples #-}
 {-# OPTIONS_GHC -fno-full-laziness -funbox-strict-fields #-}
 
@@ -191,9 +95,7 @@ module Data.HashMap.Array
     ) where
 
 import qualified Data.Traversable as Traversable
-
 import Control.Applicative (Applicative)
-
 import Control.DeepSeq
 import Control.Monad.ST hiding (runST)
 -- GHC 7.7 exports toList/fromList from GHC.Exts
@@ -204,72 +106,44 @@ import GHC.Exts (Array#, Int(..), newArray#, readArray#, writeArray#,
                  MutableArray#)
 import GHC.ST (ST(..))
 
-
-
-
 import Prelude hiding (filter, foldr, length, map, read)
-
-
 
 import GHC.Exts (sizeofArray#, copyArray#, thawArray#, sizeofMutableArray#,
                  copyMutableArray#)
-
-
-
-
 
 
 import Data.HashMap.Unsafe (runST)
 
 ------------------------------------------------------------------------
 
-# 101 "Data/HashMap/Array.hs"
 
 data Array a = Array {
       unArray :: !(Array# a)
-
-
-
     }
 
 instance Show a => Show (Array a) where
     show = show . toList
 
-
 length :: Array a -> Int
 length ary = I# (sizeofArray# (unArray ary))
 {-# INLINE length #-}
 
-
 -- | Smart constructor
 array :: Array# a -> Int -> Array a
-
 array ary _n = Array ary
-
-
-
 {-# INLINE array #-}
 
 data MArray s a = MArray {
       unMArray :: !(MutableArray# s a)
-
-
-
     }
-
 
 lengthM :: MArray s a -> Int
 lengthM mary = I# (sizeofMutableArray# (unMArray mary))
 {-# INLINE lengthM #-}
 
-
 -- | Smart constructor
 marray :: MutableArray# s a -> Int -> MArray s a
-
 marray mary _n = MArray mary
-
-
-
 {-# INLINE marray #-}
 
 ------------------------------------------------------------------------
@@ -364,25 +238,21 @@ run2 k = runST (do
 
 -- | Unsafely copy the elements of an array. Array bounds are not checked.
 copy :: Array e -> Int -> MArray s e -> Int -> Int -> ST s ()
-
 copy !src !_sidx@(I# sidx#) !dst !_didx@(I# didx#) _n@(I# n#) =
     
     
         ST $ \ s# ->
         case copyArray# (unArray src) sidx# (unMArray dst) didx# n# s# of
             s2 -> (# s2, () #)
-# 260 "Data/HashMap/Array.hs"
 
 -- | Unsafely copy the elements of an array. Array bounds are not checked.
 copyM :: MArray s e -> Int -> MArray s e -> Int -> Int -> ST s ()
-
 copyM !src !_sidx@(I# sidx#) !dst !_didx@(I# didx#) _n@(I# n#) =
     
     
     ST $ \ s# ->
     case copyMutableArray# (unMArray src) sidx# (unMArray dst) didx# n# s# of
         s2 -> (# s2, () #)
-# 282 "Data/HashMap/Array.hs"
 
 -- | /O(n)/ Insert an element at the given position in this array,
 -- increasing its size by one.
@@ -457,18 +327,10 @@ undefinedElem = error "Data.HashMap.Array: Undefined element"
 {-# NOINLINE undefinedElem #-}
 
 thaw :: Array e -> Int -> Int -> ST s (MArray s e)
-
 thaw !ary !_o@(I# o#) !n@(I# n#) =
     
         ST $ \ s -> case thawArray# (unArray ary) o# n# s of
             (# s2, mary# #) -> (# s2, marray mary# n #)
-
-
-
-
-
-
-
 {-# INLINE thaw #-}
 
 -- | /O(n)/ Delete an element at the given position in this array,

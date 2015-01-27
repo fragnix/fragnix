@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Text/Lazy/Encoding.hs" #-}
-# 1 "Data/Text/Lazy/Encoding.hs"
-# 1 "<command-line>"
-# 10 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 10 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -60,111 +50,8 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 10 "<command-line>" 2
-# 1 "Data/Text/Lazy/Encoding.hs"
 {-# LANGUAGE BangPatterns,CPP #-}
-
 {-# LANGUAGE Trustworthy #-}
-
 -- |
 -- Module      : Data.Text.Lazy.Encoding
 -- Copyright   : (c) 2009, 2010 Bryan O'Sullivan
@@ -209,11 +96,9 @@ module Data.Text.Lazy.Encoding
     , encodeUtf32LE
     , encodeUtf32BE
 
-
     -- * Encoding Text using ByteString Builders
     , encodeUtf8Builder
     , encodeUtf8BuilderEscaped
-
     ) where
 
 import Control.Exception (evaluate, try)
@@ -223,14 +108,12 @@ import qualified Data.ByteString as S
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Internal as B
 import qualified Data.ByteString.Unsafe as B
-
 import Data.Word (Word8)
 import Data.Monoid (mappend, mempty)
 import qualified Data.ByteString.Builder as B
 import qualified Data.ByteString.Builder.Extra as B (safeStrategy, toLazyByteStringWith)
 import qualified Data.ByteString.Builder.Prim as BP
 import qualified Data.Text as T
-
 import qualified Data.Text.Encoding as TE
 import qualified Data.Text.Lazy as L
 import qualified Data.Text.Internal.Lazy.Encoding.Fusion as E
@@ -310,7 +193,6 @@ decodeUtf8' bs = unsafeDupablePerformIO $ do
 {-# INLINE decodeUtf8' #-}
 
 encodeUtf8 :: Text -> B.ByteString
-
 encodeUtf8    Empty       = B.empty
 encodeUtf8 lt@(Chunk t _) =
     B.toLazyByteStringWith strategy B.empty $ encodeUtf8Builder lt
@@ -331,10 +213,6 @@ encodeUtf8Builder =
 encodeUtf8BuilderEscaped :: BP.BoundedPrim Word8 -> Text -> B.Builder
 encodeUtf8BuilderEscaped prim =
     foldrChunks (\c b -> TE.encodeUtf8BuilderEscaped prim c `mappend` b) mempty
-
-
-
-
 
 
 -- | Decode text from little endian UTF-16 encoding.

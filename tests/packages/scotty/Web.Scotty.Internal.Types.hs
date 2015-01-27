@@ -1,10 +1,5 @@
 {-# LINE 1 "Web/Scotty/Internal/Types.hs" #-}
-# 1 "Web/Scotty/Internal/Types.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -80,157 +70,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Web/Scotty/Internal/Types.hs"
 {-# LANGUAGE CPP, GeneralizedNewtypeDeriving, FlexibleInstances, MultiParamTypeClasses, UndecidableInstances, TypeFamilies #-}
 module Web.Scotty.Internal.Types where
 
@@ -239,11 +78,7 @@ import           Blaze.ByteString.Builder (Builder)
 import           Control.Applicative
 import qualified Control.Exception as E
 import           Control.Monad.Base (MonadBase, liftBase, liftBaseDefault)
-
-
-
 import           Control.Monad.Error
-
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Trans.Control (MonadBaseControl, StM, liftBaseWith, restoreM, ComposeSt, defaultLiftBaseWith, defaultRestoreM, MonadTransControl, StT, liftWith, restoreT)
@@ -326,10 +161,8 @@ instance ScottyError e => ScottyError (ActionError e) where
     showError Next            = pack "Next"
     showError (ActionError e) = showError e
 
-
 instance ScottyError e => Error (ActionError e) where
     strMsg = stringError
-
 
 type ErrorHandler e m = Maybe (e -> ActionT e m ())
 
@@ -356,11 +189,7 @@ data ScottyResponse = SR { srStatus  :: Status
 instance Default ScottyResponse where
     def = SR status200 [] (ContentBuilder mempty)
 
-
-
-
 newtype ActionT e m a = ActionT { runAM :: ErrorT (ActionError e) (ReaderT ActionEnv (StateT ScottyResponse m)) a }
-
     deriving ( Functor, Applicative, Monad )
 
 instance (MonadIO m, ScottyError e) => MonadIO (ActionT e m) where
@@ -382,11 +211,7 @@ instance (MonadBase b m, ScottyError e) => MonadBase b (ActionT e m) where
 
 
 instance ScottyError e => MonadTransControl (ActionT e) where
-
-
-
      type StT (ActionT e) a = StT (StateT ScottyResponse) (StT (ReaderT ActionEnv) (StT (ErrorT (ActionError e)) a))
-
      liftWith = \f ->
         ActionT $  liftWith $ \run  ->
                    liftWith $ \run' ->

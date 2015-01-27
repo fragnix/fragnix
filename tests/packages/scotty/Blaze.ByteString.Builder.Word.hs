@@ -1,10 +1,5 @@
 {-# LINE 1 "Blaze/ByteString/Builder/Word.hs" #-}
-# 1 "Blaze/ByteString/Builder/Word.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,96 +44,7 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Blaze/ByteString/Builder/Word.hs"
 {-# LANGUAGE CPP #-}
-
-
-
 
 
 -- |
@@ -177,16 +78,13 @@
 --
 
 
-# 1 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h" 1
 
-# 15 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h"
 
 
 
 
 
 
-# 1 "/usr/local/lib/ghc-7.8.3/include/ghcautoconf.h" 1
 
 
 
@@ -509,186 +407,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 21 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h" 2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 99 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h"
-
-# 109 "/usr/local/lib/ghc-7.8.3/include/MachDeps.h"
-
-
-
-
-
-
-
-
-
-
-
-# 38 "Blaze/ByteString/Builder/Word.hs" 2
 
 module Blaze.ByteString.Builder.Word
     (
@@ -815,7 +533,6 @@ writeWord32le w = exactWrite 4 $ \p -> do
 
 -- | Write a 'Word64' in big endian format.
 writeWord64be :: Word64 -> Write
-# 182 "Blaze/ByteString/Builder/Word.hs"
 writeWord64be w = exactWrite 8 $ \p -> do
     poke p               (fromIntegral (shiftr_w64 w 56) :: Word8)
     poke (p `plusPtr` 1) (fromIntegral (shiftr_w64 w 48) :: Word8)
@@ -825,13 +542,11 @@ writeWord64be w = exactWrite 8 $ \p -> do
     poke (p `plusPtr` 5) (fromIntegral (shiftr_w64 w 16) :: Word8)
     poke (p `plusPtr` 6) (fromIntegral (shiftr_w64 w  8) :: Word8)
     poke (p `plusPtr` 7) (fromIntegral (w)               :: Word8)
-
 {-# INLINE writeWord64be #-}
 
 -- | Write a 'Word64' in little endian format.
 writeWord64le :: Word64 -> Write
 
-# 211 "Blaze/ByteString/Builder/Word.hs"
 writeWord64le w = exactWrite 8 $ \p -> do
     poke p               (fromIntegral (w)               :: Word8)
     poke (p `plusPtr` 1) (fromIntegral (shiftr_w64 w  8) :: Word8)
@@ -841,7 +556,6 @@ writeWord64le w = exactWrite 8 $ \p -> do
     poke (p `plusPtr` 5) (fromIntegral (shiftr_w64 w 40) :: Word8)
     poke (p `plusPtr` 6) (fromIntegral (shiftr_w64 w 48) :: Word8)
     poke (p `plusPtr` 7) (fromIntegral (shiftr_w64 w 56) :: Word8)
-
 {-# INLINE writeWord64le #-}
 
 -- on a little endian machine:

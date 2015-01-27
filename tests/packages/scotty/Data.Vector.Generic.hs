@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Vector/Generic.hs" #-}
-# 1 "Data/Vector/Generic.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -56,97 +46,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Data/Vector/Generic.hs"
 {-# LANGUAGE Rank2Types, MultiParamTypeClasses, FlexibleContexts,
              TypeFamilies, ScopedTypeVariables, BangPatterns #-}
 -- |
@@ -344,18 +243,7 @@ import Prelude hiding ( length, null,
 
 import qualified Text.Read as Read
 
-
 import Data.Typeable ( Typeable, gcast1 )
-
-
-
-
-
-# 1 "include/vector.h" 1
-
-
-
-
 
 
 
@@ -365,22 +253,8 @@ import qualified Data.Vector.Internal.Check as Ck
 
 
 
-
-
-
-
-
-
-# 205 "Data/Vector/Generic.hs" 2
-
 import Data.Data ( Data, DataType )
-
 import Data.Data ( mkNoRepType )
-
-
-
-
-
 
 -- Length information
 -- ------------------
@@ -2195,11 +2069,7 @@ mkType :: String -> DataType
 {-# INLINE mkType #-}
 mkType = mkNoRepType
 
-
 dataCast :: (Vector v a, Data a, Typeable v, Typeable t)
-
-
-
          => (forall d. Data  d => c (t d)) -> Maybe  (c (v a))
 {-# INLINE dataCast #-}
 dataCast f = gcast1 f

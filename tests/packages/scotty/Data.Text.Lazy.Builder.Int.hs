@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Text/Lazy/Builder/Int.hs" #-}
-# 1 "Data/Text/Lazy/Builder/Int.hs"
-# 1 "<command-line>"
-# 10 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 10 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -60,112 +50,9 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 10 "<command-line>" 2
-# 1 "Data/Text/Lazy/Builder/Int.hs"
 {-# LANGUAGE BangPatterns, CPP, MagicHash, RankNTypes, ScopedTypeVariables,
     UnboxedTuples #-}
-
 {-# LANGUAGE Trustworthy #-}
-
 
 -- Module:      Data.Text.Lazy.Builder.Int
 -- Copyright:   (c) 2013 Bryan O'Sullivan
@@ -196,20 +83,7 @@ import GHC.Num (quotRemInteger)
 import GHC.Types (Int(..))
 import Control.Monad.ST
 
-
-
 import GHC.Integer.GMP.Internals
-
-
-
-
-
-
-
-
-
-
-
 
 
 decimal :: Integral a => a -> Builder
@@ -360,13 +234,8 @@ hexDigit n
 data T = T !Integer !Int
 
 integer :: Int -> Integer -> Builder
-
 integer 10 (S# i#) = decimal (I# i#)
 integer 16 (S# i#) = hexadecimal (I# i#)
-
-
-
-
 integer base i
     | i < 0     = singleton '-' <> go (-i)
     | otherwise = go i

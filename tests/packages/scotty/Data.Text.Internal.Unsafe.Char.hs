@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Text/Internal/Unsafe/Char.hs" #-}
-# 1 "Data/Text/Internal/Unsafe/Char.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -74,142 +64,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Data/Text/Internal/Unsafe/Char.hs"
 {-# LANGUAGE CPP, MagicHash #-}
 
 -- |
@@ -237,9 +91,6 @@ module Data.Text.Internal.Unsafe.Char
     , unsafeWrite
     -- , unsafeWriteRev
     ) where
-
-
-
 
 import Control.Monad.ST (ST)
 import Data.Bits ((.&.))
@@ -269,15 +120,9 @@ unsafeChr32 (W32# w#) = C# (chr# (word2Int# w#))
 unsafeWrite :: A.MArray s -> Int -> Char -> ST s Int
 unsafeWrite marr i c
     | n < 0x10000 = do
-
-
-
         A.unsafeWrite marr i (fromIntegral n)
         return 1
     | otherwise = do
-
-
-
         A.unsafeWrite marr i lo
         A.unsafeWrite marr (i+1) hi
         return 2

@@ -1,10 +1,5 @@
 {-# LINE 1 "Network/Wai/Logger/Apache.hs" #-}
-# 1 "Network/Wai/Logger/Apache.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -74,142 +64,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Network/Wai/Logger/Apache.hs"
 {-# LANGUAGE OverloadedStrings, CPP #-}
 
 module Network.Wai.Logger.Apache (
@@ -218,19 +72,12 @@ module Network.Wai.Logger.Apache (
   ) where
 
 
-
-
-
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
 import Data.CaseInsensitive (CI)
 import Data.List (find)
 import Data.Maybe (fromMaybe)
-
 import Data.Monoid ((<>))
-
-
-
 import Network.HTTP.Types (Status, statusCode)
 import Network.Wai (Request(..))
 import Network.Wai.Logger.Date
@@ -272,9 +119,6 @@ apacheLogStr ipsrc tmstr req status msize =
   <> toLogStr (lookupRequestField' "user-agent" req)
   <> "\"\n"
   where
-
-
-
 
 lookupRequestField' :: CI ByteString -> Request -> ByteString
 lookupRequestField' k req = fromMaybe "" . lookup k $ requestHeaders req

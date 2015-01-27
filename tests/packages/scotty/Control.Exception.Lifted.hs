@@ -1,10 +1,5 @@
 {-# LINE 1 "Control/Exception/Lifted.hs" #-}
-# 1 "Control/Exception/Lifted.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -54,104 +44,14 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Control/Exception/Lifted.hs"
 {-# LANGUAGE CPP
            , NoImplicitPrelude
            , ExistentialQuantification
            , FlexibleContexts #-}
 
-
 {-# LANGUAGE RankNTypes #-} -- for mask
 
-
-
 {-# LANGUAGE Trustworthy #-}
-
 
 {- |
 Module      :  Control.Exception.Lifted
@@ -189,19 +89,10 @@ module Control.Exception.Lifted
       -- ** Asynchronous exception control
       -- |The following functions allow a thread to control delivery of
       -- asynchronous exceptions during a critical region.
-
     , mask, mask_
     , uninterruptibleMask, uninterruptibleMask_
     , getMaskingState
-
     , allowInterrupt
-
-
-
-
-
-
-
 
       -- * Brackets
     , bracket, bracket_, bracketOnError
@@ -225,37 +116,22 @@ import System.IO.Error ( IOError )
 import System.IO       ( IO )
 
 
-
-
-
 import Control.Exception hiding
     ( throwIO, ioError, throwTo
     , catch, catches, Handler(..), catchJust
     , handle, handleJust
     , try, tryJust
     , evaluate
-
     , mask, mask_
     , uninterruptibleMask, uninterruptibleMask_
     , getMaskingState
-
     , allowInterrupt
-
-
-
-
-
-
-
     , bracket, bracket_, bracketOnError
     , finally, onException
     )
 import qualified Control.Exception  as E
 import qualified Control.Concurrent as C
 import           Control.Concurrent ( ThreadId )
-
-
-
 
 
 -- from transformers-base:
@@ -267,12 +143,6 @@ import Control.Monad.Trans.Control ( MonadBaseControl, StM
                                    , control, liftBaseOp_
                                    )
 
-
-
-
-
-# 1 "include/inlinable.h" 1
-# 132 "Control/Exception/Lifted.hs" 2
 
 --------------------------------------------------------------------------------
 -- * Throwing exceptions
@@ -405,7 +275,6 @@ evaluate = liftBase . E.evaluate
 -- ** Asynchronous exception control
 --------------------------------------------------------------------------------
 
-
 -- |Generalized version of 'E.mask'.
 mask :: MonadBaseControl IO m => ((forall a. m a -> m a) -> m b) -> m b
 mask f = control $ \runInBase ->
@@ -436,14 +305,11 @@ getMaskingState :: MonadBase IO m => m MaskingState
 getMaskingState = liftBase E.getMaskingState
 {-# INLINE getMaskingState #-}
 
-
 -- |Generalized version of 'E.allowInterrupt'.
 allowInterrupt :: MonadBase IO m => m ()
 allowInterrupt = liftBase E.allowInterrupt
 {-# INLINE allowInterrupt #-}
-# 312 "Control/Exception/Lifted.hs"
 
-# 321 "Control/Exception/Lifted.hs"
 
 
 --------------------------------------------------------------------------------

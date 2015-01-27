@@ -1,10 +1,5 @@
 {-# LINE 1 "Control/Monad/Trans/Resource/Internal.hs" #-}
-# 1 "Control/Monad/Trans/Resource/Internal.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -66,122 +56,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Control/Monad/Trans/Resource/Internal.hs"
 {-# OPTIONS_HADDOCK not-home #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
@@ -233,15 +107,10 @@ import qualified Control.Monad.Trans.State.Strict  as Strict ( StateT )
 import qualified Control.Monad.Trans.Writer.Strict as Strict ( WriterT )
 
 import Control.Monad.IO.Class (MonadIO (..))
-
-
-
 import qualified Control.Exception as E
 import Control.Monad.ST (ST)
 import Control.Monad.Catch (MonadThrow (..), MonadCatch (..)
-
     , MonadMask (..)
-
     )
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -252,17 +121,9 @@ import Data.Word(Word)
 import Prelude hiding (catch)
 import Data.Acquire.Internal (ReleaseType (..))
 
-
 import Control.Monad.ST.Unsafe (unsafeIOToST)
 
-
-
-
-
 import qualified Control.Monad.ST.Lazy.Unsafe as LazyUnsafe
-
-
-
 
 import qualified Control.Monad.ST.Lazy as Lazy
 
@@ -334,9 +195,7 @@ instance MonadThrow m => MonadThrow (ResourceT m) where
 instance MonadCatch m => MonadCatch (ResourceT m) where
   catch (ResourceT m) c =
       ResourceT $ \r -> m r `catch` \e -> unResourceT (c e) r
-
 instance MonadMask m => MonadMask (ResourceT m) where
-
   mask a = ResourceT $ \e -> mask $ \u -> unResourceT (a $ q u) e
     where q u (ResourceT b) = ResourceT (u . b)
   uninterruptibleMask a =
@@ -375,9 +234,7 @@ instance MMonad ResourceT where
 --
 -- Since 0.3.0
 newtype ResourceT m a = ResourceT { unResourceT :: I.IORef ReleaseMap -> m a }
-
         deriving Typeable
-# 211 "Control/Monad/Trans/Resource/Internal.hs"
 
 -- | Indicates either an error in the library, or misuse of it (e.g., a
 -- @ResourceT@'s state is accessed after being released).
@@ -421,34 +278,18 @@ instance MonadBase b m => MonadBase b (ResourceT m) where
     liftBase = lift . liftBase
 
 instance MonadTransControl ResourceT where
-
     type StT ResourceT a = a
     liftWith f = ResourceT $ \r -> f $ \(ResourceT t) -> t r
     restoreT = ResourceT . const
-
-
-
-
-
     {-# INLINE liftWith #-}
     {-# INLINE restoreT #-}
 
 instance MonadBaseControl b m => MonadBaseControl b (ResourceT m) where
-
      type StM (ResourceT m) a = StM m a
      liftBaseWith f = ResourceT $ \reader' ->
          liftBaseWith $ \runInBase ->
              f $ runInBase . (\(ResourceT r) -> r reader'  )
      restoreM = ResourceT . const . restoreM
-
-
-
-
-
-
-
-
-
 
 instance (MonadResource m) => MonadResource (IdentityT m) where liftResourceT = lift . liftResourceT
 instance (MonadResource m) => MonadResource (ListT m) where liftResourceT = lift . liftResourceT
@@ -462,8 +303,6 @@ instance (Monoid w, MonadResource m) => MonadResource ( RWST r w s m) where lift
 instance (Monoid w, MonadResource m) => MonadResource ( Strict.RWST r w s m) where liftResourceT = lift . liftResourceT
 instance (MonadResource m) => MonadResource (Strict.StateT s m) where liftResourceT = lift . liftResourceT
 instance (Monoid w, MonadResource m) => MonadResource ( Strict.WriterT w m) where liftResourceT = lift . liftResourceT
-
-
 
 stateAlloc :: I.IORef ReleaseMap -> IO ()
 stateAlloc istate = do

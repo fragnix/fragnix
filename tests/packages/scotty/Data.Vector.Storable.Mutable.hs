@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Vector/Storable/Mutable.hs" #-}
-# 1 "Data/Vector/Storable/Mutable.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -56,97 +46,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Data/Vector/Storable/Mutable.hs"
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, ScopedTypeVariables #-}
 
 -- |
@@ -214,9 +113,7 @@ import Data.Vector.Storable.Internal
 import Foreign.Storable
 import Foreign.ForeignPtr
 
-
 import GHC.ForeignPtr (mallocPlainForeignPtrBytes)
-
 
 import Foreign.Ptr
 import Foreign.Marshal.Array ( advancePtr, copyArray, moveArray )
@@ -235,27 +132,12 @@ import Prelude hiding ( length, null, replicate, reverse, map, read,
 import Data.Typeable ( Typeable )
 
 
-# 1 "include/vector.h" 1
-
-
-
-
-
-
 
 import qualified Data.Vector.Internal.Check as Ck
 
 
 
 
-
-
-
-
-
-
-
-# 89 "Data/Vector/Storable/Mutable.hs" 2
 
 -- | Mutable 'Storable'-based vectors
 data MVector s a = MVector {-# UNPACK #-} !Int
@@ -351,14 +233,10 @@ storableSetAsPrim n fp x y = withForeignPtr fp $ \(Ptr p) -> do
 {-# INLINE mallocVector #-}
 mallocVector :: Storable a => Int -> IO (ForeignPtr a)
 mallocVector =
-
     doMalloc undefined
         where
           doMalloc :: Storable b => b -> Int -> IO (ForeignPtr b)
           doMalloc dummy size = mallocPlainForeignPtrBytes (size * sizeOf dummy)
-
-
-
 
 -- Length information
 -- ------------------

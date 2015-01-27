@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Vector.hs" #-}
-# 1 "Data/Vector.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -56,97 +46,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Data/Vector.hs"
 {-# LANGUAGE CPP
            , FlexibleInstances
            , MultiParamTypeClasses
@@ -341,9 +240,7 @@ import qualified Control.Applicative as Applicative
 import qualified Data.Foldable as Foldable
 import qualified Data.Traversable as Traversable
 
-
 import qualified GHC.Exts as Exts
-
 
 -- | Boxed vectors, supporting efficient slicing.
 data Vector a = Vector {-# UNPACK #-} !Int
@@ -364,13 +261,11 @@ instance Read a => Read (Vector a) where
   readPrec = G.readPrec
   readListPrec = readListPrecDefault
 
-
 instance Exts.IsList (Vector a) where
   type Item (Vector a) = a
   fromList = fromList
   fromListN = fromListN
   toList = toList
-
 
 instance Data a => Data (Vector a) where
   gfoldl       = G.gfoldl

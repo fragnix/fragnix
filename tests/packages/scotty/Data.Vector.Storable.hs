@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Vector/Storable.hs" #-}
-# 1 "Data/Vector/Storable.hs"
-# 1 "<command-line>"
-# 9 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 9 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -56,97 +46,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 9 "<command-line>" 2
-# 1 "Data/Vector/Storable.hs"
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, TypeFamilies, Rank2Types, ScopedTypeVariables #-}
 
 -- |
@@ -322,16 +221,7 @@ import Text.Read     ( Read(..), readListPrecDefault )
 
 import Data.Monoid   ( Monoid(..) )
 
-
 import qualified GHC.Exts as Exts
-
-
-
-# 1 "include/vector.h" 1
-
-
-
-
 
 
 
@@ -340,14 +230,6 @@ import qualified Data.Vector.Internal.Check as Ck
 
 
 
-
-
-
-
-
-
-
-# 181 "Data/Vector/Storable.hs" 2
 
 -- | 'Storable'-based vectors
 data Vector a = Vector {-# UNPACK #-} !Int
@@ -438,13 +320,11 @@ instance Storable a => Monoid (Vector a) where
   mconcat = concat
 
 
-
 instance Storable a => Exts.IsList (Vector a) where
   type Item (Vector a) = a
   fromList = fromList
   fromListN = fromListN
   toList = toList
-
 
 
 -- Length

@@ -1,10 +1,5 @@
 {-# LINE 1 "Data/Streaming/Process.hs" #-}
-# 1 "Data/Streaming/Process.hs"
-# 1 "<command-line>"
-# 8 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
 
-# 17 "/usr/include/stdc-predef.h" 3 4
 
 
 
@@ -19,9 +14,7 @@
 
 
 
-# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
 
-# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
 
 
 
@@ -34,7 +27,6 @@
 
 
 
-# 31 "/usr/include/stdc-predef.h" 2 3 4
 
 
 
@@ -43,8 +35,6 @@
 
 
 
-# 8 "<command-line>" 2
-# 1 "./dist/dist-sandbox-d76e0d17/build/autogen/cabal_macros.h" 1
 
 
 
@@ -74,142 +64,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 8 "<command-line>" 2
-# 1 "Data/Streaming/Process.hs"
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 -- | A full tutorial for this module is available on FP School of Haskell:
@@ -256,13 +110,9 @@ import           System.Exit                     (ExitCode (ExitSuccess))
 import           System.IO                       (hClose)
 import           System.Process
 
-
 import qualified System.Process.Internals        as PI
 
-
-
 import           Control.Concurrent.STM          (tryReadTMVar)
-# 64 "Data/Streaming/Process.hs"
 
 -- | Use the @Handle@ provided by the @CreateProcess@ value. This would allow
 -- you, for example, to open up a @Handle@ to a file, set it as @std_out@, and
@@ -348,11 +198,7 @@ streamingProcess cp = liftIO $ do
         (getStdout, stdoutStream) = osStdStream
         (getStderr, stderrStream) = osStdStream
 
-
     (stdinH, stdoutH, stderrH, ph) <- PI.createProcess_ "streamingProcess" cp
-
-
-
         { std_in = fromMaybe (std_in cp) stdinStream
         , std_out = fromMaybe (std_out cp) stdoutStream
         , std_err = fromMaybe (std_err cp) stderrStream
