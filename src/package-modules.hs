@@ -16,6 +16,7 @@ main = do
     exitCode <- rawSystem "cabal" [
         "install","--force-reinstalls",
         "--gcc-option=-I/usr/lib/ghc/include",
+        "--hsc2hs-options=-D__GLASGOW_HASKELL__",
         "--haskell-suite","-w","haskell-modules",
         "--prefix=" ++ (currentdirectory </> "fragnix" </> "temp"),
         "--package-db=" ++ (currentdirectory </> "fragnix" </> "temp" </> "packages.db"),

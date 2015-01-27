@@ -138,8 +138,10 @@ compile builddirectory maybelanguage exts cppoptions packagename _ _ filenames =
                 createDirectoryIfMissing True (dropFileName modulefilepath)
                 writeFile modulefilepath roleStrippedFile
             ParseFailed location message -> putStrLn (unlines [
-                "PARSE FAILED: " ++ show location ++ " " ++ show message,
-                roleStrippedFile]))
+                    "ORIGINAL FILE: " ++ show location ++ " " ++ show message,
+                    file,
+                    "PREPROCESSED FILE: " ++ show location ++ " " ++ show message,
+                    roleStrippedFile]))
 
 moduleName :: Module SrcSpanInfo -> String
 moduleName (Module _ (Just (ModuleHead _ (ModuleName _ modulename) _ _)) _ _ _) = modulename
