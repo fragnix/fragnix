@@ -108,7 +108,8 @@ globalExtensions :: [Extension]
 globalExtensions = [
     EnableExtension MultiParamTypeClasses,
     EnableExtension NondecreasingIndentation,
-    EnableExtension FunctionalDependencies]
+    EnableExtension ExplicitForAll,
+    EnableExtension PatternGuards]
 
 extractDeclarations :: Module (Scoped SrcSpan) -> [Declaration]
 extractDeclarations annotatedast =
