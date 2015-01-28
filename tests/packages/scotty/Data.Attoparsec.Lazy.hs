@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Attoparsec/Lazy.hs" #-}
 -- |
 -- Module      :  Data.Attoparsec.Lazy

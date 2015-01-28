@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Attoparsec/Char8.hs" #-}
 -- |
 -- Module      :  Data.Attoparsec.Char8

@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/UrlMap.hs" #-}
 {-# LANGUAGE OverloadedStrings, TypeSynonymInstances, FlexibleInstances #-}
 {-# LANGUAGE ExistentialQuantification #-}

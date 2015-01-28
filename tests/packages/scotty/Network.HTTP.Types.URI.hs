@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/HTTP/Types/URI.hs" #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Network.HTTP.Types.URI

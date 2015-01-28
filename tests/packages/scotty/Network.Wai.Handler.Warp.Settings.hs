@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/Handler/Warp/Settings.hs" #-}
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables, ViewPatterns #-}
 {-# LANGUAGE PatternGuards, RankNTypes #-}

@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/Handler/Warp/Counter.hs" #-}
 module Network.Wai.Handler.Warp.Counter (
     Counter

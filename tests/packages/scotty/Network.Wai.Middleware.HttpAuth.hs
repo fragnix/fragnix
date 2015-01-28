@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/Middleware/HttpAuth.hs" #-}
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 -- | Implements HTTP Basic Authentication.

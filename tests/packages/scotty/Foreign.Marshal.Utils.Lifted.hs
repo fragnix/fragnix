@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Foreign/Marshal/Utils/Lifted.hs" #-}
 
 

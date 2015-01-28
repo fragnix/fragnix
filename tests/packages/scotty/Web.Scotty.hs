@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Web/Scotty.hs" #-}
 {-# LANGUAGE OverloadedStrings, RankNTypes #-}
 -- | It should be noted that most of the code snippets below depend on the

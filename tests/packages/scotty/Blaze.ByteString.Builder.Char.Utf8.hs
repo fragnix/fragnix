@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Blaze/ByteString/Builder/Char/Utf8.hs" #-}
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 -- ignore warning from 'import Data.Text.Encoding'

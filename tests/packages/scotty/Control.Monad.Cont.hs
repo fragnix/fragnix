@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
 {-# LINE 1 "Control/Monad/Cont.hs" #-}
 {- |
 Module      :  Control.Monad.Cont

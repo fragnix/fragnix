@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/HTTP/Types/Status.hs" #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Network.HTTP.Types.Status

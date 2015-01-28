@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98, CPP, DeriveDataTypeable, ForeignFunctionInterface, TypeSynonymInstances #-}
 {-# LINE 1 "Network/Socket/ByteString/Internal.hs" #-}
 
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/EventSource/EventStream.hs" #-}
 {-# LANGUAGE OverloadedStrings #-}
 {- code adapted by Mathias Billman originaly from Chris Smith https://github.com/cdsmith/gloss-web -}

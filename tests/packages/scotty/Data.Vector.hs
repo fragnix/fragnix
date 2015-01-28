@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell2010, CPP, DeriveDataTypeable #-}
 {-# LINE 1 "Data/Vector.hs" #-}
 
 

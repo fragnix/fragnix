@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98, BangPatterns #-}
 {-# LINE 1 "Data/ByteString/Search/DFA.hs" #-}
 {-# LANGUAGE BangPatterns #-}
 -- |

@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/HTTP/Types/Version.hs" #-}
 module Network.HTTP.Types.Version
 (

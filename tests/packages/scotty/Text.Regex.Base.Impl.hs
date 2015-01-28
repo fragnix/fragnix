@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98, MultiParamTypeClasses, FunctionalDependencies, TypeSynonymInstances, FlexibleInstances, FlexibleContexts #-}
 {-# LINE 1 "Text/Regex/Base/Impl.hs" #-}
 -----------------------------------------------------------------------------
 -- |

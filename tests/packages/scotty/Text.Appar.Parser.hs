@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Text/Appar/Parser.hs" #-}
 {-# LANGUAGE OverloadedStrings #-}
 

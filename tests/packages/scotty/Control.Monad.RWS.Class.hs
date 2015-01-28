@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
 {-# LINE 1 "Control/Monad/RWS/Class.hs" #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- Search for UndecidableInstances to see why this is needed

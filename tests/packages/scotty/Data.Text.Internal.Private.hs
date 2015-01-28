@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Text/Internal/Private.hs" #-}
 {-# LANGUAGE BangPatterns, Rank2Types, UnboxedTuples #-}
 

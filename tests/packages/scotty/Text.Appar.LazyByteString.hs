@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Text/Appar/LazyByteString.hs" #-}
 {-|
 Simple 'Applicative' parser whose input is lazy 'ByteString'.

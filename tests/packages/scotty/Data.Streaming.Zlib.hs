@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Streaming/Zlib.hs" #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 -- | This is a middle-level wrapper around the zlib C API. It allows you to

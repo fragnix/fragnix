@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/Handler/Warp/Conduit.hs" #-}
 module Network.Wai.Handler.Warp.Conduit where
 

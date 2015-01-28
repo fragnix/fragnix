@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Attoparsec/Text/Lazy.hs" #-}
 {-# OPTIONS_GHC -fno-warn-warnings-deprecations #-}
 -- |

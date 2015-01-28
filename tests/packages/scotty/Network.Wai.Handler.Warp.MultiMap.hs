@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/Handler/Warp/MultiMap.hs" #-}
 module Network.Wai.Handler.Warp.MultiMap (
     MMap

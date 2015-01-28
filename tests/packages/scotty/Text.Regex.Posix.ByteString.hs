@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98, MultiParamTypeClasses, FunctionalDependencies, CPP, ForeignFunctionInterface, GeneralizedNewtypeDeriving, FlexibleContexts, TypeSynonymInstances, FlexibleInstances #-}
 {-# LINE 1 "Text/Regex/Posix/ByteString.hs" #-}
 
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Control/Debounce.hs" #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 -- | Debounce an action, ensuring it doesn't occur more than once for a given

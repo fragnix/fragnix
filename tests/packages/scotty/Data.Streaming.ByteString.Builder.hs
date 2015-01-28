@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Streaming/ByteString/Builder.hs" #-}
 -- | Provides @toByteStringIO*@ like "Blaze.ByteString.Builder"s, for "Data.ByteString.Builder".
 --

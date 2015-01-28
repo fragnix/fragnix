@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/Middleware/AcceptOverride.hs" #-}
 {-# LANGUAGE OverloadedStrings #-}
 

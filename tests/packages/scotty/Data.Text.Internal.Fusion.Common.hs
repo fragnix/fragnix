@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Text/Internal/Fusion/Common.hs" #-}
 {-# LANGUAGE BangPatterns, MagicHash, Rank2Types #-}
 -- |

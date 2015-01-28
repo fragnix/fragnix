@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Text/Internal/Encoding/Utf32.hs" #-}
 -- |
 -- Module      : Data.Text.Internal.Encoding.Utf32

@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/HTTP/Date/Converter.hs" #-}
 {-# LANGUAGE BangPatterns #-}
 module Network.HTTP.Date.Converter (epochTimeToHTTPDate) where

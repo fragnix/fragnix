@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "System/EasyFile.hs" #-}
 {-|
 This is a module of cross-platform file handling for Unix\/Mac\/Windows.

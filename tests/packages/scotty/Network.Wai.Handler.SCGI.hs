@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/Handler/SCGI.hs" #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 module Network.Wai.Handler.SCGI

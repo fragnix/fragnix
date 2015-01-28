@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/ByteString/Base64/Lazy.hs" #-}
 
 

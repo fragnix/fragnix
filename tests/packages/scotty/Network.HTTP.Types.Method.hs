@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/HTTP/Types/Method.hs" #-}
 module Network.HTTP.Types.Method
 (

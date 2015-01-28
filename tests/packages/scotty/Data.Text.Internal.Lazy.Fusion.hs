@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Text/Internal/Lazy/Fusion.hs" #-}
 {-# LANGUAGE BangPatterns #-}
 -- |

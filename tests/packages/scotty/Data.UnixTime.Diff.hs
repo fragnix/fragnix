@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/UnixTime/Diff.hs" #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 

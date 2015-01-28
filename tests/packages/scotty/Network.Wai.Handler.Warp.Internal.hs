@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/Handler/Warp/Internal.hs" #-}
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
 module Network.Wai.Handler.Warp.Internal

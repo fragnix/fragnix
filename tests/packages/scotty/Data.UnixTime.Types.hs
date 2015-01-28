@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "dist/dist-sandbox-d76e0d17/build/Data/UnixTime/Types.hs" #-}
 {-# LINE 1 "Data/UnixTime/Types.hsc" #-}
 module Data.UnixTime.Types where

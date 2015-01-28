@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/Handler/Warp/Header.hs" #-}
 {-# LANGUAGE OverloadedStrings, FlexibleContexts #-}
 

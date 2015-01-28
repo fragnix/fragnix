@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98, CPP, ForeignFunctionInterface #-}
 {-# LINE 1 "dist/dist-sandbox-d76e0d17/build/Codec/Compression/Zlib/Stream.hs" #-}
 
 

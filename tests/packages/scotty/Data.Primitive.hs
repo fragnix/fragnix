@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Primitive.hs" #-}
 {-# LANGUAGE MagicHash #-}
 {-# OPTIONS_GHC -fno-warn-duplicate-exports #-}

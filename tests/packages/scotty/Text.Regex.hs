@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98, MultiParamTypeClasses, FunctionalDependencies #-}
 {-# LINE 1 "Text/Regex.hs" #-}
 {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
 -----------------------------------------------------------------------------

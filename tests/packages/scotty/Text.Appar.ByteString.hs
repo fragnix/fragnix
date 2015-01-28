@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Text/Appar/ByteString.hs" #-}
 {-|
 Simple 'Applicative' parser whose input is strict 'ByteString'.

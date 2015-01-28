@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Text/Appar/Input.hs" #-}
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 

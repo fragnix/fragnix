@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/HTTP/Types/QueryLike.hs" #-}
 {-# LANGUAGE FlexibleInstances #-}
 module Network.HTTP.Types.QueryLike

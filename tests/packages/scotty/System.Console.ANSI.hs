@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98, CPP, ForeignFunctionInterface #-}
 {-# LINE 1 "System/Console/ANSI.hs" #-}
 
 

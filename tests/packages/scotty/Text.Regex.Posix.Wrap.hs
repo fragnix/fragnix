@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98, MultiParamTypeClasses, FunctionalDependencies, CPP, ForeignFunctionInterface, GeneralizedNewtypeDeriving, FlexibleContexts, TypeSynonymInstances, FlexibleInstances #-}
 {-# LINE 1 "dist/dist-sandbox-d76e0d17/build/Text/Regex/Posix/Wrap.hs" #-}
 
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell2010, DeriveGeneric #-}
 {-# LINE 1 "Data/IP.hs" #-}
 {-|
   Data structures to express IPv4, IPv6 and IP range.

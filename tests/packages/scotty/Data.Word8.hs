@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Word8.hs" #-}
 -- | Word8 library to be used with Data.ByteString.
 -- All function assumes that 'Word8' is encoded in Latin-1 (ISO-8859-1).

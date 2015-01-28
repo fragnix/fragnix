@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "dist/dist-sandbox-d76e0d17/build/Network/Sendfile/Linux.hs" #-}
 {-# LINE 1 "Network/Sendfile/Linux.hsc" #-}
 {-# LANGUAGE ForeignFunctionInterface #-}

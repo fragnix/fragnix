@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Attoparsec/ByteString/FastSet.hs" #-}
 {-# LANGUAGE BangPatterns, MagicHash #-}
 

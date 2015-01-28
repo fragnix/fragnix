@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Text/Internal/Fusion/Types.hs" #-}
 {-# LANGUAGE BangPatterns, ExistentialQuantification #-}
 -- |

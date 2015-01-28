@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Text/Internal/Fusion/CaseMapping.hs" #-}
 {-# LANGUAGE Rank2Types #-}
 -- AUTOMATICALLY GENERATED - DO NOT EDIT

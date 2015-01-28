@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/HTTP/Date.hs" #-}
 {-|
   Fast parser and formatter for HTTP Date.

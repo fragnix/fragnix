@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/Middleware/Autohead.hs" #-}
 {-# LANGUAGE OverloadedStrings #-}
 -- | Automatically produce responses to HEAD requests based on the underlying

@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Control/Monad/Primitive.hs" #-}
 
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Attoparsec/ByteString/Internal.hs" #-}
 {-# LANGUAGE BangPatterns, GADTs, OverloadedStrings, RecordWildCards #-}
 -- |

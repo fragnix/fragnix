@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/HashMap/Unsafe.hs" #-}
 {-# LANGUAGE MagicHash, Rank2Types, UnboxedTuples #-}
 

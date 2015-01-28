@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "System/Log/FastLogger/File.hs" #-}
 module System.Log.FastLogger.File where
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "src/System/PosixCompat/Unistd.hs" #-}
 
 

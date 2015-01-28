@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/Middleware/Vhost.hs" #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Network.Wai.Middleware.Vhost (vhost, redirectWWW, redirectTo, redirectToLogged) where

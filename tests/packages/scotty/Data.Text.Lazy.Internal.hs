@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Text/Lazy/Internal.hs" #-}
 {-# LANGUAGE BangPatterns, DeriveDataTypeable #-}
 -- |

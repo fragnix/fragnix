@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Hashable/Generic.hs" #-}
 {-# LANGUAGE BangPatterns, FlexibleInstances, KindSignatures,
              ScopedTypeVariables, TypeOperators #-}

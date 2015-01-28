@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Attoparsec/Text/Buffer.hs" #-}
 {-# LANGUAGE BangPatterns, MagicHash, RankNTypes, RecordWildCards,
     UnboxedTuples #-}

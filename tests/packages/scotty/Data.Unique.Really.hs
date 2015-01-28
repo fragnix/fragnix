@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98, CPP #-}
 {-# LINE 1 "src/Data/Unique/Really.hs" #-}
 
 

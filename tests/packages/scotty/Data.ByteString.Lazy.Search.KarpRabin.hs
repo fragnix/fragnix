@@ -1,3 +1,4 @@
+{-# LANGUAGE Haskell98, BangPatterns #-}
 {-# LINE 1 "Data/ByteString/Lazy/Search/KarpRabin.hs" #-}
 {-# LANGUAGE BangPatterns #-}
 -- |
