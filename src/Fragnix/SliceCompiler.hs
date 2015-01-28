@@ -13,8 +13,9 @@ import Language.Haskell.Exts.Syntax (
     CName(ConName),Namespace(NoNamespace))
 import Language.Haskell.Exts.SrcLoc (noLoc)
 import Language.Haskell.Exts.Parser (
-    parseModuleWithMode,ParseMode(parseFilename,extensions),defaultParseMode,
+    parseModuleWithMode,ParseMode(parseFilename,extensions,fixities),defaultParseMode,
     fromParseResult)
+import Language.Haskell.Exts.Fixity (baseFixities)
 import Language.Haskell.Exts.Pretty (prettyPrint)
 import Language.Haskell.Exts.Extension (
     parseExtension,Extension(EnableExtension),KnownExtension(NondecreasingIndentation))
@@ -65,7 +66,8 @@ parseDeclaration sliceID ghcextensions declaration = decl where
     Module _ _ _ _ _ _ [decl] = fromParseResult (parseModuleWithMode parseMode (unpack declaration))
     parseMode = defaultParseMode {
         parseFilename = show sliceID,
-        extensions = EnableExtension NondecreasingIndentation : map (parseExtension . unpack) ghcextensions}
+        extensions = EnableExtension NondecreasingIndentation : map (parseExtension . unpack) ghcextensions,
+        fixities = Just baseFixities}
 
 usageImport :: Usage -> ImportDecl
 usageImport (Usage maybeQualification usedName symbolSource) =

@@ -65,7 +65,7 @@ moduleDeclarationsWithEnvironment environment modules = declarations where
         annotatedModule <- annotatedModules
         let (_,moduleExtensions) = getModuleExtensions annotatedModule
         Declaration genre _ ast boundsymbols mentionedsymbols <- extractDeclarations annotatedModule
-        return (Declaration genre (moduleExtensions ++ globalExtensions) ast boundsymbols mentionedsymbols)
+        return (Declaration genre moduleExtensions ast boundsymbols mentionedsymbols)
     annotatedModules = flip evalState environment (do
         resolve modules
         forM modules annotate)
