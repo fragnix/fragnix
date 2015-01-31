@@ -16,7 +16,7 @@ import Test.Tasty.Golden (goldenVsFileDiff)
 import Test.Tasty.Golden.Manage (defaultMain)
 
 import Language.Haskell.Exts (prettyPrint)
-import Language.Haskell.Names (ppSymbol)
+import Language.Haskell.Names (symbolName)
 
 import Control.Monad (forM_,forM)
 import qualified Data.Map as Map (toList)
@@ -70,7 +70,7 @@ testModules folder = do
     let environment = updateEnvironment symbolSlices (moduleSymbols builtinEnvironment modules)
         moduleSymbolResults = do
             (moduleName,symbols) <- Map.toList environment
-            return (prettyPrint moduleName ++ " " ++ unwords (map ppSymbol symbols))
+            return (prettyPrint moduleName ++ " " ++ unwords (map (prettyPrint . symbolName) symbols))
 
     let sliceIDs = [sliceID | Slice sliceID _ _ _ <- slices]
     exitCodes <- forM sliceIDs (\sliceID -> sliceCompiler sliceID)
