@@ -34,6 +34,8 @@ import Distribution.HaskellSuite.Modules (
 
 
 import Data.Set (Set)
+import qualified Data.Set as Set (
+    toList)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map (
     lookup,insert,union,(!),fromList)
@@ -65,11 +67,13 @@ moduleDeclarationsWithEnvironment environment modules = declarations where
         annotatedModule <- annotatedModules
         let (_,moduleExtensions) = getModuleExtensions annotatedModule
         Declaration genre _ ast boundsymbols mentionedsymbols <- extractDeclarations annotatedModule
-        return (Declaration genre (moduleExtensions ++ globalExtensions) ast boundsymbols mentionedsymbols)
+        return (Declaration genre moduleExtensions ast boundsymbols mentionedsymbols)
     annotatedModules = flip evalState environment (do
         resolve modules
         forM modules annotate)
 
+moduleNameErrors :: Environment -> [Module SrcSpan] -> [Error SrcSpan]
+moduleNameErrors environment modules = Set.toList (flip evalState environment (resolve modules))
 
 -- | Get the exports of the given modules resolved against the given environment.
 moduleSymbols :: Environment -> [Module SrcSpan] -> Environment

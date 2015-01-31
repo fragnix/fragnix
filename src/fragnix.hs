@@ -7,9 +7,12 @@ import Fragnix.Environment (
     environmentPath,builtinEnvironmentPath,
     findMainSliceIDs)
 import Fragnix.ModuleDeclarations (
-    parse,moduleDeclarationsWithEnvironment,moduleSymbols)
+    parse,moduleDeclarationsWithEnvironment,
+    moduleNameErrors,moduleSymbols)
 import Fragnix.DeclarationSlices (declarationSlices)
 import Fragnix.SliceCompiler (sliceCompilerMain)
+
+import Language.Haskell.Names (ppError)
 
 import Control.Monad (forM_,forM)
 import qualified Data.Map as Map (union)
@@ -29,6 +32,9 @@ main = do
 
     let declarations = moduleDeclarationsWithEnvironment environment modules
     writeDeclarations "fragnix/temp/declarations/declarations.json" declarations
+
+    let nameErrors = moduleNameErrors environment modules
+    forM_ nameErrors (\nameError -> putStrLn ("Warning: " ++ ppError nameError))
 
     let (slices,symbolSlices) = declarationSlices declarations
     forM_ slices writeSlice
