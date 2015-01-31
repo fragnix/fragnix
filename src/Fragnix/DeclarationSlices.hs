@@ -5,14 +5,14 @@ import Fragnix.Declaration (
     Declaration(Declaration),Genre(TypeSignature,ClassInstance,InfixFixity))
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
-    Usage(Usage),UsedName(..),Reference(OtherSlice,Primitive))
+    Usage(Usage),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Primitive))
 
 import Language.Haskell.Names (
     Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,symbolName,symbolModule))
 import qualified Language.Haskell.Exts as Name (
     Name(Ident,Symbol))
 import Language.Haskell.Exts (
-    ModuleName(ModuleName),prettyExtension,Name,prettyPrint,
+    ModuleName(ModuleName),prettyExtension,prettyPrint,
     Extension(EnableExtension),KnownExtension(Safe,CPP,Trustworthy))
 
 import Data.Graph.Inductive (
@@ -244,10 +244,11 @@ replaceUsageID f (Usage qualification usedName (OtherSlice tempID))
 replaceUsageID _ usage = usage
 
 symbolUsedName :: Symbol -> UsedName
-symbolUsedName (Constructor _ constructorname typename) = constructorNameUsed typename constructorname
+symbolUsedName (Constructor _ constructorName typeName) =
+    ConstructorName (fromName typeName) (fromName constructorName)
 symbolUsedName symbol
-    | isValue symbol = valueNameUsed (symbolName symbol)
-    | otherwise = typeNameUsed (symbolName symbol)
+    | isValue symbol = ValueName (fromName (symbolName symbol))
+    | otherwise = TypeName (fromName (symbolName symbol))
 
 isValue :: Symbol -> Bool
 isValue symbol = case symbol of
@@ -268,23 +269,9 @@ isType symbol = case symbol of
     NewType {} -> True
     _ -> False
 
-valueNameUsed :: Name -> UsedName
-valueNameUsed (Name.Ident name) = ValueIdentifier (pack name)
-valueNameUsed (Name.Symbol name) = ValueOperator (pack name)
-
-typeNameUsed :: Name -> UsedName
-typeNameUsed (Name.Ident name) = TypeIdentifier (pack name)
-typeNameUsed (Name.Symbol name) = TypeOperator (pack name)
-
-constructorNameUsed :: Name -> Name -> UsedName
-constructorNameUsed (Name.Ident typename) (Name.Ident constructorname) =
-    ConstructorIdentifier (pack typename) (pack constructorname)
-constructorNameUsed (Name.Ident typename) (Name.Symbol constructorname) =
-    ConstructorOperator (pack typename) (pack constructorname)
-constructorNameUsed (Name.Symbol typename) (Name.Ident constructorname) =
-    ConstructorIdentifier (pack typename) (pack constructorname)
-constructorNameUsed (Name.Symbol typename) (Name.Symbol constructorname) =
-    ConstructorOperator (pack typename) (pack constructorname)
+fromName :: Name.Name -> Name
+fromName (Name.Ident name) = Identifier (pack name)
+fromName (Name.Symbol name) = Operator (pack name)
 
 data Dependency =
     UsesSymbol (Maybe ModuleName) Symbol |

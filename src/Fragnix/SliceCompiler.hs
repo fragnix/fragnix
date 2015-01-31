@@ -2,7 +2,9 @@ module Fragnix.SliceCompiler where
 
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Usage(Usage),
-    Reference(OtherSlice,Primitive),UsedName(..),readSlice)
+    Reference(OtherSlice,Primitive),
+    UsedName(ValueName,TypeName,ConstructorName,Instance),Name(Identifier,Operator),
+    readSlice)
 
 import Prelude hiding (writeFile)
 
@@ -77,18 +79,16 @@ usageImport (Usage maybeQualification usedName symbolSource) =
         qualified = maybe False (const True) maybeQualification
         maybeAlias = fmap (ModuleName . unpack) maybeQualification
         importSpec = case usedName of
-            ValueIdentifier name -> [IVar NoNamespace (Ident (unpack name))]
-            ValueOperator name -> [IVar NoNamespace (Symbol (unpack name))]
-            TypeIdentifier name -> [IAbs (Ident (unpack name))]
-            TypeOperator name -> [IAbs (Symbol (unpack name))]
-            ConstructorIdentifier typeName name ->
-                [IThingWith (Ident (unpack typeName)) [(ConName (Ident (unpack name)))]]
-            ConstructorOperator typeName name ->
-                [IThingWith (Ident (unpack typeName)) [(ConName (Symbol (unpack name)))]]
+            ValueName name -> [IVar NoNamespace (toName name)]
+            TypeName name -> [IAbs (toName name)]
+            ConstructorName typeName name ->
+                [IThingWith (toName typeName) [ConName (toName name)]]
             Instance -> []
         sourceImport = case usedName of
             Instance -> True
             _ -> False
+        toName (Identifier name) = Ident (unpack name)
+        toName (Operator name) = Symbol (unpack name)
 
     in ImportDecl noLoc moduleName qualified sourceImport False Nothing maybeAlias (Just (False,importSpec))
 

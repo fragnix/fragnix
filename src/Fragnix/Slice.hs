@@ -33,19 +33,23 @@ data Usage = Usage (Maybe Qualification) UsedName Reference
 data Reference = OtherSlice SliceID | Primitive OriginalModule
 
 data UsedName =
-    ValueIdentifier Text |
-    ValueOperator Text |
-    TypeIdentifier Text |
-    TypeOperator Text |
-    ConstructorIdentifier Text Text |
-    ConstructorOperator Text Text |
+    ValueName Name |
+    TypeName Name |
+    ConstructorName TypeName Name |
     Instance
+
+data Name = Identifier Text | Operator Text
+
+type TypeName = Name
 
 type SliceID = Integer
 type SourceCode = Text
 type Qualification = Text
 type OriginalModule = Text
 type GHCExtension = Text
+
+
+-- Slice instances
 
 deriving instance Show Slice
 
@@ -61,6 +65,8 @@ instance FromJSON Slice where
         Slice <$> o .: "sliceID" <*> o .: "language" <*> o .: "fragment" <*> o .: "usages")
 
 
+-- Language instances
+
 deriving instance Show Language
 deriving instance Generic Language
 
@@ -73,6 +79,8 @@ instance FromJSON Language where
 instance Hashable Language
 
 
+-- Fragment instances
+
 deriving instance Show Fragment
 deriving instance Generic Fragment
 
@@ -84,6 +92,8 @@ instance FromJSON Fragment where
 
 instance Hashable Fragment
 
+
+-- Usage instances
 
 deriving instance Show Usage
 deriving instance Eq Usage
@@ -102,37 +112,33 @@ instance FromJSON Usage where
 instance Hashable Usage
 
 
+-- Used name instances
+
 deriving instance Show UsedName
 deriving instance Eq UsedName
 deriving instance Ord UsedName
 deriving instance Generic UsedName
 
 instance ToJSON UsedName  where
-    toJSON (ValueIdentifier name) = object ["valueIdentifier" .= name]
-    toJSON (ValueOperator name) = object ["valueOperator" .= name]
-    toJSON (TypeIdentifier name) = object ["typeIdentifier" .= name]
-    toJSON (TypeOperator name) = object ["typeOperator" .= name]
-    toJSON (ConstructorIdentifier typeName name) = object [
-        "typeName" .= typeName,
-        "constructorIdentifier" .= name]
-    toJSON (ConstructorOperator typeName name) = object [
-        "typeName" .= typeName,
-        "constructorOperator" .= name]
+    toJSON (ValueName name) = object ["valueName" .= name]
+    toJSON (TypeName name) = object ["typeName" .= name]
+    toJSON (ConstructorName typeName name) = object [
+        "constructorTypeName" .= typeName,
+        "constructorName" .= name]
     toJSON Instance = object [
         "instance" .= ("" :: Text)]
 
 instance FromJSON UsedName where
     parseJSON = withObject "used name" (\o ->
-        ValueIdentifier <$> o .: "valueIdentifier" <|>
-        ValueOperator <$> o .: "valueOperator" <|>
-        TypeIdentifier <$> o .: "typeIdentifier" <|>
-        TypeOperator <$> o .: "typeOperator" <|>
-        ConstructorIdentifier <$> o .: "typeName" <*> o .: "constructorIdentifier" <|>
-        ConstructorOperator <$> o .: "typeName" <*> o .: "constructorOperator" <|>
+        ValueName <$> o .: "valueName" <|>
+        TypeName <$> o .: "typeName" <|>
+        ConstructorName <$> o .: "constructorTypeName" <*> o .: "constructorName" <|>
         (const Instance :: Text -> UsedName) <$> o .: "instance")
 
 instance Hashable UsedName
 
+
+-- Reference instances
 
 deriving instance Show Reference
 deriving instance Eq Reference
@@ -148,6 +154,27 @@ instance FromJSON Reference where
         Primitive <$> o .: "originalModule")
 
 instance Hashable Reference
+
+
+-- Name instances
+
+deriving instance Show Name
+deriving instance Eq Name
+deriving instance Ord Name
+deriving instance Generic Name
+
+instance ToJSON Name where
+    toJSON (Identifier name) = object ["identifier" .= name]
+    toJSON (Operator name) = object ["operator" .= name]
+
+instance FromJSON Name where
+    parseJSON = withObject "name" (\o ->
+        Identifier <$> o .: "identifier" <|>
+        Operator <$> o .: "operator")
+
+instance Hashable Name
+
+-- Slice parse errors
 
 data SliceParseError = SliceParseError SliceID String
 
