@@ -1,5 +1,49 @@
 {-# LANGUAGE Haskell98, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
 {-# LINE 1 "Control/Monad/State/Class.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- Search for UndecidableInstances to see why this is needed
 
@@ -26,11 +70,13 @@
 module Control.Monad.State.Class (
     MonadState(..),
     modify,
-    gets,
+    modify',
+    gets
   ) where
 
 import Control.Monad.Trans.Cont
 import Control.Monad.Trans.Error
+import Control.Monad.Trans.Except
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.List
 import Control.Monad.Trans.Maybe
@@ -65,6 +111,7 @@ class Monad m => MonadState s m | m -> s where
       let ~(a, s') = f s
       put s'
       return a
+    {-# MINIMAL state | get, put #-}
 
 -- | Monadic state transformer.
 --
@@ -79,6 +126,11 @@ class Monad m => MonadState s m | m -> s where
 --    with an @Int@ state.
 modify :: MonadState s m => (s -> s) -> m ()
 modify f = state (\s -> ((), f s))
+
+-- | A variant of 'modify' in which the computation is strict in the
+-- new state.
+modify' :: MonadState s m => (s -> s) -> m ()
+modify' f = state (\s -> let s' = f s in s' `seq` ((), s'))
 
 -- | Gets specific component of the state, using a projection function
 -- supplied.
@@ -119,6 +171,11 @@ instance MonadState s m => MonadState s (ContT r m) where
     state = lift . state
 
 instance (Error e, MonadState s m) => MonadState s (ErrorT e m) where
+    get = lift get
+    put = lift . put
+    state = lift . state
+
+instance MonadState s m => MonadState s (ExceptT e m) where
     get = lift get
     put = lift . put
     state = lift . state

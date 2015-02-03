@@ -80,7 +80,7 @@ module Web.Scotty.Route
 
 import           Control.Arrow ((***))
 import           Control.Concurrent.MVar
-import           Control.Monad.Error
+import           Control.Monad.Except
 import qualified Control.Monad.State as MS
 
 import qualified Data.ByteString.Char8 as B

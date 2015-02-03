@@ -71,8 +71,6 @@
 
 
 
-
-
 {-# LANGUAGE CPP, DefaultSignatures, EmptyDataDecls, FlexibleInstances,
     FunctionalDependencies, KindSignatures, OverlappingInstances,
     ScopedTypeVariables, TypeOperators, UndecidableInstances,

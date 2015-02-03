@@ -60,7 +60,8 @@ module Control.Monad.Cont (
     mapCont,
     withCont,
     -- * The ContT monad transformer
-    ContT(..),
+    ContT(ContT),
+    runContT,
     mapContT,
     withContT,
     module Control.Monad,

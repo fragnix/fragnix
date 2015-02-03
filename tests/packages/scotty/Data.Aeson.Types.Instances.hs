@@ -71,8 +71,6 @@
 
 
 
-
-
 {-# LANGUAGE CPP, DeriveDataTypeable, FlexibleContexts, FlexibleInstances,
     GeneralizedNewtypeDeriving, IncoherentInstances, OverlappingInstances,
     OverloadedStrings, UndecidableInstances, ViewPatterns #-}
@@ -145,7 +143,7 @@ import Data.Traversable (traverse)
 import Data.Vector (Vector)
 import Data.Word (Word, Word8, Word16, Word32, Word64)
 import Foreign.Storable (Storable)
-import System.Locale (defaultTimeLocale, dateTimeFmt)
+import Data.Time.Format(defaultTimeLocale, dateTimeFmt)
 import qualified Data.HashMap.Strict as H
 import qualified Data.HashSet as HashSet
 import qualified Data.IntMap as IntMap

@@ -19,11 +19,11 @@ version :: Version
 version = Version {versionBranch = [3,0,7], versionTags = []}
 bindir, libdir, datadir, libexecdir, sysconfdir :: FilePath
 
-bindir     = "/home/pschuster/Projects/demo/bin"
-libdir     = "/home/pschuster/Projects/demo/lib/x86_64-linux-ghc-7.8.3/warp-3.0.7"
-datadir    = "/home/pschuster/Projects/demo/share/x86_64-linux-ghc-7.8.3/warp-3.0.7"
-libexecdir = "/home/pschuster/Projects/demo/libexec"
-sysconfdir = "/home/pschuster/Projects/demo/etc"
+bindir     = "/home/pschuster/Projects/demo/.cabal-sandbox/bin"
+libdir     = "/home/pschuster/Projects/demo/.cabal-sandbox/lib/x86_64-linux-ghc-7.8.3/warp-3.0.7"
+datadir    = "/home/pschuster/Projects/demo/.cabal-sandbox/share/x86_64-linux-ghc-7.8.3/warp-3.0.7"
+libexecdir = "/home/pschuster/Projects/demo/.cabal-sandbox/libexec"
+sysconfdir = "/home/pschuster/Projects/demo/.cabal-sandbox/etc"
 
 getBinDir, getLibDir, getDataDir, getLibexecDir, getSysconfDir :: IO FilePath
 getBinDir = catchIO (getEnv "warp_bindir") (\_ -> return bindir)

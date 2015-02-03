@@ -71,8 +71,6 @@
 
 
 
-
-
 {-# LANGUAGE CPP, FlexibleInstances, IncoherentInstances, NamedFieldPuns,
     NoImplicitPrelude, OverlappingInstances, TemplateHaskell,
     UndecidableInstances #-}

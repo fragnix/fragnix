@@ -54,6 +54,8 @@
 
 {-# LANGUAGE Safe #-}
 
+-- Hide warnings for the deprecated ErrorT transformer:
+{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-}
 
 module Control.Monad.Base
   ( MonadBase(..)
@@ -77,6 +79,7 @@ import qualified Control.Monad.Trans.RWS.Strict as S
 import Control.Monad.Trans.Error
 import Control.Monad.Trans.Cont
 
+import Control.Monad.Trans.Except
 
 
 import qualified Control.Monad.ST.Lazy.Safe as L
@@ -118,6 +121,7 @@ instance (MonadBase b m) ⇒ MonadBase b (ReaderT r m) where liftBase = liftBase
 instance (MonadBase b m) ⇒ MonadBase b (L.StateT s m) where liftBase = liftBaseDefault
 instance (MonadBase b m) ⇒ MonadBase b (S.StateT s m) where liftBase = liftBaseDefault
 instance (MonadBase b m) ⇒ MonadBase b (ContT r m) where liftBase = liftBaseDefault
+instance (MonadBase b m) ⇒ MonadBase b (ExceptT e m) where liftBase = liftBaseDefault
 
 
 instance (Monoid w, MonadBase b m) ⇒ MonadBase b ( L.WriterT w m) where liftBase = liftBaseDefault

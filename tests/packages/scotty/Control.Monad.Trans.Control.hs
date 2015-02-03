@@ -58,6 +58,8 @@
 
 {-# LANGUAGE Safe #-}
 
+-- Hide warnings for the deprecated ErrorT transformer:
+{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-}
 
 {- |
 Module      :  Control.Monad.Trans.Control
@@ -122,6 +124,7 @@ import Control.Monad.Trans.State    ( StateT   (StateT),    runStateT )
 import Control.Monad.Trans.Writer   ( WriterT  (WriterT),   runWriterT )
 import Control.Monad.Trans.RWS      ( RWST     (RWST),      runRWST )
 
+import Control.Monad.Trans.Except   ( ExceptT  (ExceptT),   runExceptT )
 
 import qualified Control.Monad.Trans.RWS.Strict    as Strict ( RWST   (RWST),    runRWST )
 import qualified Control.Monad.Trans.State.Strict  as Strict ( StateT (StateT),  runStateT )
@@ -245,6 +248,12 @@ instance Error e => MonadTransControl (ErrorT e) where
     {-# INLINABLE liftWith #-}
     {-# INLINABLE restoreT #-}
 
+instance MonadTransControl (ExceptT e) where
+    type StT (ExceptT e) a = Either e a
+    liftWith f = ExceptT $ liftM return $ f $ runExceptT
+    restoreT = ExceptT
+    {-# INLINABLE liftWith #-}
+    {-# INLINABLE restoreT #-}
 
 instance MonadTransControl ListT where
     type StT ListT a = [a]
@@ -444,6 +453,7 @@ instance (     MonadBaseControl b m) => MonadBaseControl b (ReaderT r m) where {
 instance (     MonadBaseControl b m) => MonadBaseControl b (Strict.StateT s m) where {                             type StM (Strict.StateT s m) a = ComposeSt (Strict.StateT s) m a;     liftBaseWith = defaultLiftBaseWith;       restoreM     = defaultRestoreM;           {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
 instance (     MonadBaseControl b m) => MonadBaseControl b (       StateT s m) where {                             type StM (       StateT s m) a = ComposeSt (       StateT s) m a;     liftBaseWith = defaultLiftBaseWith;       restoreM     = defaultRestoreM;           {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
 
+instance (     MonadBaseControl b m) => MonadBaseControl b (ExceptT e m) where {                             type StM (ExceptT e m) a = ComposeSt (ExceptT e) m a;     liftBaseWith = defaultLiftBaseWith;       restoreM     = defaultRestoreM;           {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
 
 instance (Error e, MonadBaseControl b m) => MonadBaseControl b (         ErrorT e m) where {                             type StM (         ErrorT e m) a = ComposeSt (         ErrorT e) m a;     liftBaseWith = defaultLiftBaseWith;       restoreM     = defaultRestoreM;           {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}
 instance (Monoid w, MonadBaseControl b m) => MonadBaseControl b ( Strict.WriterT w m) where {                             type StM ( Strict.WriterT w m) a = ComposeSt ( Strict.WriterT w) m a;     liftBaseWith = defaultLiftBaseWith;       restoreM     = defaultRestoreM;           {-# INLINABLE liftBaseWith #-};           {-# INLINABLE restoreM #-}}

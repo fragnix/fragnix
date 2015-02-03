@@ -29,7 +29,8 @@ module Control.Monad.RWS.Strict (
     mapRWS,
     withRWS,
     -- * The RWST monad transformer
-    RWST(..),
+    RWST(RWST),
+    runRWST,
     evalRWST,
     execRWST,
     mapRWST,
@@ -47,7 +48,7 @@ import Control.Monad.RWS.Class
 import Control.Monad.Trans
 import Control.Monad.Trans.RWS.Strict (
     RWS, rws, runRWS, evalRWS, execRWS, mapRWS, withRWS,
-    RWST(..), evalRWST, execRWST, mapRWST, withRWST)
+    RWST(RWST), runRWST, evalRWST, execRWST, mapRWST, withRWST)
 
 import Control.Monad
 import Control.Monad.Fix

@@ -77,12 +77,14 @@ The Error monad (also called the Exception monad).
   inspired by the Haskell Monad Template Library from
     Andy Gill (<http://web.cecs.pdx.edu/~andy/>)
 -}
-module Control.Monad.Error (
+module Control.Monad.Error
+  {-# DEPRECATED "Use Control.Monad.Except instead" #-} (
     -- * Monads with error handling
     MonadError(..),
     Error(..),
     -- * The ErrorT monad transformer
-    ErrorT(..),
+    ErrorT(ErrorT),
+    runErrorT,
     mapErrorT,
     module Control.Monad,
     module Control.Monad.Fix,
@@ -96,7 +98,7 @@ module Control.Monad.Error (
 
 import Control.Monad.Error.Class
 import Control.Monad.Trans
-import Control.Monad.Trans.Error (ErrorT(..), mapErrorT)
+import Control.Monad.Trans.Error (ErrorT(ErrorT), runErrorT, mapErrorT)
 
 import Control.Monad
 import Control.Monad.Fix

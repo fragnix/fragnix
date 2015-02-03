@@ -1,5 +1,49 @@
 {-# LANGUAGE Haskell98, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
 {-# LINE 1 "Control/Monad/Reader/Class.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- Search for UndecidableInstances to see why this is needed
 {- |
@@ -45,6 +89,7 @@ module Control.Monad.Reader.Class (
     ) where
 
 import Control.Monad.Trans.Cont as Cont
+import Control.Monad.Trans.Except
 import Control.Monad.Trans.Error
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.List
@@ -70,8 +115,10 @@ import Data.Monoid
 -- Note, the partially applied function type @(->) r@ is a simple reader monad.
 -- See the @instance@ declaration below.
 class Monad m => MonadReader r m | m -> r where
+    {-# MINIMAL (ask | reader), local #-}
     -- | Retrieves the monad environment.
     ask   :: m r
+    ask = reader id
 
     -- | Executes a computation in a modified environment.
     local :: (r -> r) -- ^ The function to modify the environment.
@@ -128,6 +175,11 @@ instance MonadReader r' m => MonadReader r' (ContT r m) where
 instance (Error e, MonadReader r m) => MonadReader r (ErrorT e m) where
     ask   = lift ask
     local = mapErrorT . local
+    reader = lift . reader
+
+instance MonadReader r m => MonadReader r (ExceptT e m) where
+    ask   = lift ask
+    local = mapExceptT . local
     reader = lift . reader
 
 instance MonadReader r m => MonadReader r (IdentityT m) where

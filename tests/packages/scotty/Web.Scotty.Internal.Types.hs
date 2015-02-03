@@ -79,7 +79,7 @@ import           Blaze.ByteString.Builder (Builder)
 import           Control.Applicative
 import qualified Control.Exception as E
 import           Control.Monad.Base (MonadBase, liftBase, liftBaseDefault)
-import           Control.Monad.Error
+import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Trans.Control (MonadBaseControl, StM, liftBaseWith, restoreM, ComposeSt, defaultLiftBaseWith, defaultRestoreM, MonadTransControl, StT, liftWith, restoreT)
@@ -162,8 +162,6 @@ instance ScottyError e => ScottyError (ActionError e) where
     showError Next            = pack "Next"
     showError (ActionError e) = showError e
 
-instance ScottyError e => Error (ActionError e) where
-    strMsg = stringError
 
 type ErrorHandler e m = Maybe (e -> ActionT e m ())
 
@@ -190,7 +188,7 @@ data ScottyResponse = SR { srStatus  :: Status
 instance Default ScottyResponse where
     def = SR status200 [] (ContentBuilder mempty)
 
-newtype ActionT e m a = ActionT { runAM :: ErrorT (ActionError e) (ReaderT ActionEnv (StateT ScottyResponse m)) a }
+newtype ActionT e m a = ActionT { runAM :: ExceptT (ActionError e) (ReaderT ActionEnv (StateT ScottyResponse m)) a }
     deriving ( Functor, Applicative, Monad )
 
 instance (MonadIO m, ScottyError e) => MonadIO (ActionT e m) where
@@ -212,7 +210,7 @@ instance (MonadBase b m, ScottyError e) => MonadBase b (ActionT e m) where
 
 
 instance ScottyError e => MonadTransControl (ActionT e) where
-     type StT (ActionT e) a = StT (StateT ScottyResponse) (StT (ReaderT ActionEnv) (StT (ErrorT (ActionError e)) a))
+     type StT (ActionT e) a = StT (StateT ScottyResponse) (StT (ReaderT ActionEnv) (StT (ExceptT (ActionError e)) a))
      liftWith = \f ->
         ActionT $  liftWith $ \run  ->
                    liftWith $ \run' ->

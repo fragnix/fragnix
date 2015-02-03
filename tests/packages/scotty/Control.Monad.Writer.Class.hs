@@ -1,5 +1,49 @@
 {-# LANGUAGE Haskell98, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
 {-# LINE 1 "Control/Monad/Writer/Class.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- Search for UndecidableInstances to see why this is needed
 
@@ -29,6 +73,7 @@ module Control.Monad.Writer.Class (
   ) where
 
 import Control.Monad.Trans.Error as Error
+import Control.Monad.Trans.Except as Except
 import Control.Monad.Trans.Identity as Identity
 import Control.Monad.Trans.Maybe as Maybe
 import Control.Monad.Trans.Reader
@@ -60,6 +105,7 @@ import Data.Monoid
 -- the written object.
 
 class (Monoid w, Monad m) => MonadWriter w m | m -> w where
+    {-# MINIMAL (writer | tell), listen, pass #-}
     -- | @'writer' (a,w)@ embeds a simple writer action.
     writer :: (a,w) -> m a
     writer ~(a, w) = do
@@ -132,6 +178,12 @@ instance (Error e, MonadWriter w m) => MonadWriter w (ErrorT e m) where
     tell   = lift . tell
     listen = Error.liftListen listen
     pass   = Error.liftPass pass
+
+instance MonadWriter w m => MonadWriter w (ExceptT e m) where
+    writer = lift . writer
+    tell   = lift . tell
+    listen = Except.liftListen listen
+    pass   = Except.liftPass pass
 
 instance MonadWriter w m => MonadWriter w (IdentityT m) where
     writer = lift . writer

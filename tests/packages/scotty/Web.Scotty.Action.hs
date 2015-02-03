@@ -105,7 +105,7 @@ module Web.Scotty.Action
 
 import           Blaze.ByteString.Builder   (fromLazyByteString)
 
-import           Control.Monad.Error
+import           Control.Monad.Except
 import           Control.Monad.Reader
 import qualified Control.Monad.State        as MS
 
@@ -131,7 +131,7 @@ runAction :: (ScottyError e, Monad m) => ErrorHandler e m -> ActionEnv -> Action
 runAction h env action = do
     (e,r) <- flip MS.runStateT def
            $ flip runReaderT env
-           $ runErrorT
+           $ runExceptT
            $ runAM
            $ action `catchError` (defH h)
     return $ either (const Nothing) (const $ Just $ mkResponse r) e

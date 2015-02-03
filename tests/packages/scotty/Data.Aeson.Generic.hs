@@ -71,8 +71,6 @@
 
 
 
-
-
 {-# LANGUAGE PatternGuards, Rank2Types, ScopedTypeVariables, CPP #-}
 
 -- TODO: Drop this when we remove support for Data.Attoparsec.Number

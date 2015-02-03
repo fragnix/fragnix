@@ -24,6 +24,7 @@ module Control.Monad.State.Lazy (
     -- * MonadState class
     MonadState(..),
     modify,
+    modify',
     gets,
     -- * The State monad
     State,
@@ -33,7 +34,8 @@ module Control.Monad.State.Lazy (
     mapState,
     withState,
     -- * The StateT monad transformer
-    StateT(..),
+    StateT(StateT),
+    runStateT,
     evalStateT,
     execStateT,
     mapStateT,
@@ -50,7 +52,7 @@ import Control.Monad.State.Class
 import Control.Monad.Trans
 import Control.Monad.Trans.State.Lazy
         (State, runState, evalState, execState, mapState, withState,
-         StateT(..), evalStateT, execStateT, mapStateT, withStateT)
+         StateT(StateT), runStateT, evalStateT, execStateT, mapStateT, withStateT)
 
 import Control.Monad
 import Control.Monad.Fix

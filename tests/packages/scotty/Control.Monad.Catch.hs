@@ -125,6 +125,7 @@ import qualified Control.Monad.Trans.Writer.Strict as StrictW
 import Control.Monad.Trans.List (ListT(..), runListT)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import Control.Monad.Trans.Error (ErrorT(..), Error, runErrorT)
+import Control.Monad.Trans.Except (ExceptT(..), runExceptT)
 import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Identity
 import Control.Monad.Reader as Reader
@@ -329,6 +330,12 @@ instance (Error e, MonadThrow m) => MonadThrow (ErrorT e m) where
 instance (Error e, MonadCatch m) => MonadCatch (ErrorT e m) where
   catch (ErrorT m) f = ErrorT $ catch m (runErrorT . f)
 
+-- | Throws exceptions into the base monad.
+instance MonadThrow m => MonadThrow (ExceptT e m) where
+  throwM = lift . throwM
+-- | Catches exceptions from the base monad.
+instance MonadCatch m => MonadCatch (ExceptT e m) where
+  catch (ExceptT m) f = ExceptT $ catch m (runExceptT . f)
 
 instance MonadThrow m => MonadThrow (ContT r m) where
   throwM = lift . throwM
