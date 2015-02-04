@@ -1,0 +1,2 @@
+void myregfree(void *);
+
