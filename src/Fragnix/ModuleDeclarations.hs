@@ -11,7 +11,7 @@ import qualified Language.Haskell.Exts as UnAnn (
     QName(Qual,UnQual),ModuleName(ModuleName))
 import Language.Haskell.Exts.Annotated (
     Module,ModuleName,Decl(..),
-    parseFileWithMode,defaultParseMode,ParseMode(..),baseFixities,
+    parseFileContentsWithMode,defaultParseMode,ParseMode(..),baseFixities,
     ParseResult(ParseOk,ParseFailed),
     SrcSpan,srcInfoSpan,SrcLoc(SrcLoc),
     prettyPrint,
@@ -46,7 +46,7 @@ import Control.Applicative (Applicative)
 import Data.Maybe (mapMaybe)
 import Data.Text (pack)
 import Data.Foldable (toList)
-import Data.List (nub)
+import Data.List (nub,isPrefixOf)
 
 
 -- | Given a list of filepaths to valid Haskell modules produces a list of all
@@ -85,19 +85,27 @@ moduleSymbols environment modules = Map.fromList (do
 
 parse :: FilePath -> IO (Module SrcSpan)
 parse path = do
+    fileContents <- readFile path
     let parseMode = defaultParseMode {
             parseFilename = path,
             extensions = globalExtensions,
             fixities = Just baseFixities}
-    parseresult <- parseFileWithMode parseMode path
+        parseresult = parseFileContentsWithMode parseMode (stripRoles fileContents)
     case parseresult of
         ParseOk ast -> return (fmap srcInfoSpan ast)
         ParseFailed (SrcLoc filename line column) message -> error (unlines [
-            "Failed to parse module.",
-            "Filename: " ++ filename,
-            "Line: " ++ show line,
-            "Column: " ++ show column,
-            "Error: " ++ message])
+            "failed to parse module.",
+            "filename: " ++ filename,
+            "line: " ++ show line,
+            "column: " ++ show column,
+            "error: " ++ message])
+
+-- | haskell-src-exts parser is not yet able to parse role annotations.
+stripRoles :: String -> String
+stripRoles = unlines . map replaceRoleLine . lines where
+    replaceRoleLine line
+        | "type role" `isPrefixOf` line = ""
+        | otherwise = line
 
 resolve :: [Module SrcSpan] -> State Environment (Set (Error SrcSpan))
 resolve asts = runFragnixModule (computeInterfaces language globalExtensions asts)
