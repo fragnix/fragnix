@@ -1,6 +1,5 @@
 {-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "GHC/Weak.lhs" #-}
-#line 1 "GHC/Weak.lhs"
 
 {-# LANGUAGE Unsafe #-}
 {-# LANGUAGE NoImplicitPrelude

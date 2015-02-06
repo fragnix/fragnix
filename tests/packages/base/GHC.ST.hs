@@ -1,6 +1,5 @@
 {-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "GHC/ST.lhs" #-}
-#line 1 "GHC/ST.lhs"
 
 {-# LANGUAGE Unsafe #-}
 {-# LANGUAGE NoImplicitPrelude, MagicHash, UnboxedTuples, RankNTypes #-}

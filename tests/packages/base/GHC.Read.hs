@@ -1,6 +1,5 @@
 {-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "GHC/Read.lhs" #-}
-#line 1 "GHC/Read.lhs"
 
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE NoImplicitPrelude, StandaloneDeriving, ScopedTypeVariables #-}

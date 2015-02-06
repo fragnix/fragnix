@@ -1,6 +1,5 @@
 {-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "GHC/Exception.lhs" #-}
-#line 1 "GHC/Exception.lhs"
 
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE NoImplicitPrelude

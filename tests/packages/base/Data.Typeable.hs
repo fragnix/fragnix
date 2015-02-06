@@ -97,7 +97,6 @@ module Data.Typeable
   ) where
 
 import Data.Typeable.Internal hiding (mkTyCon)
-import Data.Type.Equality
 
 import Unsafe.Coerce
 import Data.Maybe

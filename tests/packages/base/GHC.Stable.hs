@@ -1,6 +1,5 @@
 {-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "GHC/Stable.lhs" #-}
-#line 1 "GHC/Stable.lhs"
 
 {-# LANGUAGE Unsafe, DeriveDataTypeable #-}
 {-# LANGUAGE NoImplicitPrelude
