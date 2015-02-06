@@ -19,8 +19,7 @@ import Language.Haskell.Exts.Parser (
     fromParseResult)
 import Language.Haskell.Exts.Fixity (baseFixities)
 import Language.Haskell.Exts.Pretty (prettyPrint)
-import Language.Haskell.Exts.Extension (
-    parseExtension,Extension(EnableExtension),KnownExtension(NondecreasingIndentation))
+import Language.Haskell.Exts.Extension (parseExtension)
 
 import Data.Text.IO (writeFile)
 import Data.Text (Text,pack,unpack)
@@ -68,7 +67,7 @@ parseDeclaration sliceID ghcextensions declaration = decl where
     Module _ _ _ _ _ _ [decl] = fromParseResult (parseModuleWithMode parseMode (unpack declaration))
     parseMode = defaultParseMode {
         parseFilename = show sliceID,
-        extensions = EnableExtension NondecreasingIndentation : map (parseExtension . unpack) ghcextensions,
+        extensions = map (parseExtension . unpack) ghcextensions,
         fixities = Just baseFixities}
 
 usageImport :: Usage -> ImportDecl
