@@ -199,5 +199,10 @@ addRoleAnnotation code = case Map.lookup (last (lines code)) roleAnnotations of
 
 roleAnnotations :: Map String String
 roleAnnotations = Map.fromList [
-    ("data UArray i e = UArray !i !i !Int ByteArray#","type role UArray representational phantom")]
+    ("data UArray i e = UArray !i !i !Int ByteArray#",
+        "type role UArray representational phantom"),
+    ("data StorableArray i e = StorableArray !i !i Int !(ForeignPtr e)",
+        "type role StorableArray representational phantom"),
+    ("data STUArray s i e = STUArray !i !i !Int (MutableByteArray# s)",
+        "type role STUArray nominal representational phantom")]
 
