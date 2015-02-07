@@ -8,7 +8,7 @@ import Fragnix.Environment (
     loadEnvironment,environmentPath,builtinEnvironmentPath)
 
 import qualified Language.Haskell.Exts as UnAnn (
-    QName(Qual,UnQual),ModuleName(ModuleName))
+    QName(Qual,UnQual),ModuleName(ModuleName),Name(Ident))
 import Language.Haskell.Exts.Annotated (
     Module,ModuleName,Decl(..),
     parseFileContentsWithMode,defaultParseMode,ParseMode(..),baseFixities,
@@ -166,13 +166,20 @@ declaredSymbols modulnameast annotatedast = getTopDeclSymbols GlobalTable.empty 
 
 -- | All symbols the given declaration mentions together with a qualifiaction
 -- if they are used qualified. Foreign imports have an implicit dependency on
--- the constructors of all mentioned newtypes.
+-- the constructors of all mentioned newtypes. If they are a newtype around
+-- another newtype they also have an implicitly dependency on it. This inner
+-- newtype is usually 'CInt'. As a hack we just add it.
 mentionedSymbols :: Decl (Scoped SrcSpan) -> [(Symbol,Maybe UnAnn.ModuleName)]
-mentionedSymbols decl@(ForImp _ _ _ _ _ _) = newtypeconstructors ++ mentionedsymbols where
+mentionedSymbols decl@(ForImp _ _ _ _ _ _) = mentionedsymbols ++ newtypeconstructors ++ cIntSymbols where
     mentionedsymbols = nub (concatMap scopeSymbol (toList decl))
     newtypeconstructors = do
         (NewType symbolmodule symbolname,_) <- mentionedsymbols
         return (Constructor symbolmodule symbolname symbolname,Nothing)
+    cIntSymbols = [
+        (NewType cIntModule cIntName,Nothing),
+        (Constructor cIntModule cIntName cIntName,Nothing)]
+    cIntModule = UnAnn.ModuleName "Foreign.C.Types"
+    cIntName = UnAnn.Ident "CInt"
 mentionedSymbols decl = nub (concatMap scopeSymbol (toList decl))
 
 -- | Get all references to global symbols from the given scope annotation.
