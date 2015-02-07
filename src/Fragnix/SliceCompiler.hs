@@ -10,7 +10,8 @@ import Prelude hiding (writeFile)
 
 import Language.Haskell.Exts.Syntax (
     Module(Module),ModuleName(ModuleName),ModulePragma(LanguagePragma),
-    Decl(InstDecl,DataDecl,GDataDecl,PatBind,FunBind,ForImp,DerivDecl),Name(Ident,Symbol),
+    Decl(InstDecl,DataDecl,GDataDecl,PatBind,FunBind,ForImp,DerivDecl,TypeSig),
+    Name(Ident,Symbol),
     ImportDecl(ImportDecl,importSrc,importModule),ImportSpec(IVar,IAbs,IThingWith),
     CName(ConName),Namespace(NoNamespace))
 import Language.Haskell.Exts.SrcLoc (noLoc)
@@ -124,8 +125,8 @@ bootDecl (PatBind _ _ _ _) =
     []
 bootDecl (FunBind _) =
     []
-bootDecl (ForImp _ _ _ _ _ _) =
-    []
+bootDecl (ForImp srcloc _ _ _ name typ) =
+    [TypeSig srcloc [name] typ]
 bootDecl decl = [decl]
 
 -- | Directory for generated modules
@@ -204,5 +205,9 @@ roleAnnotations = Map.fromList [
     ("data StorableArray i e = StorableArray !i !i Int !(ForeignPtr e)",
         "type role StorableArray representational phantom"),
     ("data STUArray s i e = STUArray !i !i !Int (MutableByteArray# s)",
-        "type role STUArray nominal representational phantom")]
+        "type role STUArray nominal representational phantom"),
+    ("newtype IOUArray i e = IOUArray (STUArray RealWorld i e)",
+        "type role IOUArray representational phantom"),
+    ("newtype Constant a b = Constant{getConstant :: a}",
+        "type role Constant representational phantom")]
 
