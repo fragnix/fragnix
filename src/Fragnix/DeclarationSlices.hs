@@ -13,7 +13,8 @@ import qualified Language.Haskell.Exts as Name (
     Name(Ident,Symbol))
 import Language.Haskell.Exts (
     ModuleName(ModuleName),prettyExtension,prettyPrint,
-    Extension(EnableExtension),KnownExtension(Safe,CPP,Trustworthy))
+    Extension(EnableExtension,UnknownExtension),
+    KnownExtension(Safe,CPP,Trustworthy))
 
 import Data.Graph.Inductive (
     scc,lab,insEdges,insNodes,empty)
@@ -135,7 +136,7 @@ buildTempSlice tempEnvironment instanceMap (node,declarations) =
             Declaration _ ghcextensions _ _ _ <- declarations
             ghcextension <- ghcextensions
             -- disregard the Safe and CPP extensions
-            guard (not (ghcextension `elem` map EnableExtension [Safe,Trustworthy,CPP]))
+            guard (not (ghcextension `elem` unwantedExtensions))
             return (pack (prettyExtension ghcextension))))
 
         fragments = Fragment (do
@@ -171,6 +172,11 @@ buildTempSlice tempEnvironment instanceMap (node,declarations) =
             instanceSliceTempID <- concat (maybeToList (Map.lookup boundSymbol instanceMap))
             return (Usage Nothing Instance (OtherSlice (fromIntegral instanceSliceTempID)))
 
+-- | Some extensions are already handled or cannot be handled by us.
+unwantedExtensions :: [Extension]
+unwantedExtensions =
+    map EnableExtension [Safe,Trustworthy,CPP] ++
+    [UnknownExtension "RoleAnnotations"]
 
 -- | Arrange a list of declarations so that the signature is directly above the corresponding
 -- binding declaration

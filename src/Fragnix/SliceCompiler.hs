@@ -30,6 +30,8 @@ import System.Process (rawSystem)
 import System.Exit (ExitCode)
 import Control.Exception (SomeException,catch,evaluate)
 
+import Data.Map (Map)
+import qualified Data.Map as Map(fromList,lookup)
 import Control.Monad (forM_,unless)
 import Data.Maybe (mapMaybe)
 import Data.Char (isDigit)
@@ -157,11 +159,12 @@ writeSliceModule slice@(Slice sliceID _ _ _) = (do
     writeFile (sliceModulePath sliceID) slicecontent)
         `catch` (print :: SomeException -> IO ())
 
--- | Write an hs-boot file that contains only the module header. Used to break
--- import cycles for instances.
+-- | Write an hs-boot file that contains a stripped down version of the
+-- slice's module. Used to break import cycles for instances. We need to
+-- hackily add role annotations for GHC 7.8.3.
 writeSliceHSBoot :: Slice -> IO ()
 writeSliceHSBoot slice@(Slice sliceID _ _ _) = (do
-    emptyslicecontent <- evaluate (pack (prettyPrint (sliceHSBootModule slice)))
+    emptyslicecontent <- evaluate (pack (addRoleAnnotation (prettyPrint (sliceHSBootModule slice))))
     writeFile (sliceHSBootPath sliceID) emptyslicecontent)
         `catch` (print :: SomeException -> IO ())
 
@@ -185,3 +188,16 @@ usedInstanceSlices (Slice _ _ _ usages) = [sliceID | Usage _ Instance (OtherSlic
 
 doesSliceModuleExist :: SliceID -> IO Bool
 doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)
+
+addRoleAnnotation :: String -> String
+addRoleAnnotation code = case Map.lookup (last (lines code)) roleAnnotations of
+    Nothing -> code
+    Just roleAnnotation -> unlines [
+        "{-# LANGUAGE RoleAnnotations #-}",
+        code,
+        roleAnnotation]
+
+roleAnnotations :: Map String String
+roleAnnotations = Map.fromList [
+    ("data UArray i e = UArray !i !i !Int ByteArray#","type role UArray representational phantom")]
+
