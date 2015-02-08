@@ -2,7 +2,8 @@
 module Fragnix.DeclarationSlices where
 
 import Fragnix.Declaration (
-    Declaration(Declaration),Genre(TypeSignature,ClassInstance,InfixFixity))
+    Declaration(Declaration),
+    Genre(TypeSignature,ClassInstance,InfixFixity,DerivingInstance))
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
     Usage(Usage),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Primitive))
@@ -88,30 +89,47 @@ sliceInstances fragmentNodes = Map.fromListWith (++) (do
 -- from signatures, fixities and instances.
 declarationGraph :: [Declaration] -> Gr Declaration Dependency
 declarationGraph declarations =
-    insEdges (signatureedges ++ usedsymboledges ++ fixityEdges) (
+    insEdges (signatureedges ++ usedsymboledges ++ fixityEdges ++ standaloneDerivingEdges) (
         insNodes declarationnodes empty) where
+
+    -- A list of pairs of node ID and declaration
     declarationnodes = zip [-1,-2..] declarations
+
+    -- A map from bound symbol to node ID
     boundmap = Map.fromList (do
         (node,declaration) <- declarationnodes
         let Declaration _ _ _ boundsymbols _ = declaration
         boundsymbol <- boundsymbols
         return (boundsymbol,node))
+
+    -- Dependency edges that come from usage of a symbol
     usedsymboledges = do
         (node,declaration) <- declarationnodes
         let Declaration _ _ _ _ mentionedsymbols = declaration
         (mentionedsymbol,maybequalification) <- mentionedsymbols
         usednode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (node,usednode,UsesSymbol maybequalification mentionedsymbol)
+
+    -- Each declaration depends on its type signature
     signatureedges = do
         (signaturenode,Declaration TypeSignature _ _ _ mentionedsymbols) <- declarationnodes
         mentionedsymbol@(Value _ _) <- map fst mentionedsymbols
         declarationnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (declarationnode,signaturenode,Signature)
+
+    -- Each declaration depends on its fixity declarations
     fixityEdges = do
         (fixitynode,Declaration InfixFixity _ _ _ mentionedsymbols) <- declarationnodes
         mentionedsymbol <- map fst mentionedsymbols
         bindingnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (bindingnode,fixitynode,Fixity)
+
+    -- Every declaration depends on all its standalone deriving declarations.
+    standaloneDerivingEdges = do
+        (standaloneDerivingNode,Declaration DerivingInstance _ _ _ mentionedSymbols) <- declarationnodes
+        mentionedSymbol <- map fst mentionedSymbols
+        bindingNode <- maybeToList (Map.lookup mentionedSymbol boundmap)
+        return (bindingNode,standaloneDerivingNode,StandaloneDeriving)
 
 
 -- | A list of strongly connected components from a given graph.
@@ -125,7 +143,7 @@ fragmentSCCs graph = do
 
 -- | Take a temporary environment, an instance map and a pair of a node and a fragment.
 -- Return a slice with a temporary ID that might contain references to temporary IDs.
--- The nodes must have negative IDs starting from -1 to distinguis temporary from permanent
+-- The nodes must have negative IDs starting from -1 to distinguish temporary from permanent
 -- slice IDs.
 buildTempSlice :: Map Symbol TempID -> Map Symbol [TempID] -> (TempID,[Declaration]) -> Slice
 buildTempSlice tempEnvironment instanceMap (node,declarations) =
@@ -282,5 +300,6 @@ fromName (Name.Symbol name) = Operator (pack name)
 data Dependency =
     UsesSymbol (Maybe ModuleName) Symbol |
     Signature |
-    Fixity
+    Fixity |
+    StandaloneDeriving
         deriving (Eq,Ord,Show)

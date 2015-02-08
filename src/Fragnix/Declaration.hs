@@ -19,8 +19,17 @@ import Data.Maybe (fromMaybe)
 data Declaration = Declaration Genre [Extension] DeclarationAST DeclaredSymbols MentionedSymbols
     deriving (Show,Eq,Ord)
 
-data Genre = Value | TypeSignature | Type | TypeClass | ClassInstance | InfixFixity | Other
-    deriving (Show,Eq,Ord,Read)
+data Genre =
+    Value |
+    TypeSignature |
+    Type |
+    TypeClass |
+    ClassInstance |
+    InfixFixity |
+    DerivingInstance |
+    Other
+        deriving (Show,Eq,Ord,Read)
+
 type DeclarationAST   = Text
 type DeclaredSymbols  = [Symbol]
 type MentionedSymbols = [(Symbol,Maybe ModuleName)]
