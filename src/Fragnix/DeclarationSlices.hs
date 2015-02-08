@@ -74,7 +74,9 @@ sliceInstances fragmentNodes = Map.fromListWith (++) (do
             boundSymbols)
 
     (tempID,declarations) <- fragmentNodes
-    Declaration ClassInstance _ _ _ mentionedsymbols <- declarations
+    declaration <- declarations
+    guard (isInstance declaration)
+    let Declaration _ _ _ _ mentionedsymbols = declaration
 
     let classSymbol = do
             classSymbolMentionedLast <- listToMaybe (reverse (filter isClass (map fst mentionedsymbols)))
@@ -331,6 +333,11 @@ isType symbol = case symbol of
     Data {} -> True
     NewType {} -> True
     _ -> False
+
+isInstance :: Declaration -> Bool
+isInstance (Declaration ClassInstance _ _ _ _) = True
+isInstance (Declaration DerivingInstance _ _ _ _) = True
+isInstance _ = False
 
 fromName :: Name.Name -> Name
 fromName (Name.Ident name) = Identifier (pack name)
