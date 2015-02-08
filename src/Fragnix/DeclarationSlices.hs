@@ -106,7 +106,7 @@ sliceConstructors fragmentNodes = Map.fromListWith (++) (do
 -- from signatures, fixities and instances.
 declarationGraph :: [Declaration] -> Gr Declaration Dependency
 declarationGraph declarations =
-    insEdges (signatureedges ++ usedsymboledges ++ fixityEdges ++ standaloneDerivingEdges) (
+    insEdges (signatureedges ++ usedsymboledges ++ fixityEdges) (
         insNodes declarationnodes empty) where
 
     -- A list of pairs of node ID and declaration
@@ -141,13 +141,6 @@ declarationGraph declarations =
         bindingnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (bindingnode,fixitynode,Fixity)
 
-    -- Every declaration depends on all its standalone deriving declarations.
-    standaloneDerivingEdges = do
-        (standaloneDerivingNode,Declaration DerivingInstance _ _ _ mentionedSymbols) <- declarationnodes
-        mentionedSymbol <- map fst mentionedSymbols
-        bindingNode <- maybeToList (Map.lookup mentionedSymbol boundmap)
-        return (bindingNode,standaloneDerivingNode,StandaloneDeriving)
-
 
 -- | A list of strongly connected components from a given graph.
 fragmentSCCs :: Gr a b -> [(TempID,[a])]
@@ -178,7 +171,7 @@ buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
             Declaration _ _ ast _ _ <- arrange declarations
             return ast)
 
-        usages = nub (mentionedUsages ++ instanceUsages ++ coerceConstructorUsages)
+        usages = nub (mentionedUsages ++ instanceUsages ++ implicitConstructorUsages)
 
         -- A usage for every mentioned symbol
         mentionedUsages = nub (do
@@ -212,16 +205,27 @@ buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
         -- If a declarations mentions 'coerce' it needs a constructor for the coerced type.
         -- As a rough approximation we add for each mentioned newtype a
         -- constructor with the same name
-        coerceConstructorUsages = do
-            Declaration _ _ _ _ mentionedsymbols <- declarations
-            (mentionedsymbol,_) <- mentionedsymbols
-
-            guard (symbolName mentionedsymbol == Name.Ident "coerce")
-
-            (newtypeSymbol@(NewType _ _),_) <- mentionedsymbols
-            constructorSymbol <- concat (maybeToList (Map.lookup newtypeSymbol constructorMap))
+        implicitConstructorUsages = do
+            declaration <- declarations
+            guard (needsConstructors declaration)
+            let Declaration _ _ _ _ mentionedSymbols = declaration
+            typeSymbol <- filter isType (map fst mentionedSymbols)
+            constructorSymbol <- concat (maybeToList (Map.lookup typeSymbol constructorMap))
             constructorSliceTempID <- maybeToList (Map.lookup constructorSymbol tempEnvironment)
-            return (Usage Nothing (symbolUsedName constructorSymbol) (OtherSlice (fromIntegral constructorSliceTempID)))
+            let reference = OtherSlice (fromIntegral constructorSliceTempID)
+            return (Usage Nothing (symbolUsedName constructorSymbol) reference)
+
+
+-- | Some declarations implicitly require the constructors for all mentioned
+-- types. The declarations that need this are: standalone deriving, foreign
+-- imports and any declarations mentioning coerce.
+needsConstructors :: Declaration -> Bool
+needsConstructors (Declaration DerivingInstance _ _ _ _) =
+    True
+needsConstructors (Declaration _ _ _ _ mentionedSymbols) =
+    any ((==(Name.Ident "coerce")) . symbolName . fst) mentionedSymbols
+needsConstructors _ = False
+
 
 
 -- | Some extensions are already handled or cannot be handled by us.
@@ -292,7 +296,8 @@ computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,usages,langu
 
 -- | Replace every occurence of a temporary ID in the given slice with the final ID.
 replaceSliceID :: (TempID -> SliceID) -> TempSlice -> Slice
-replaceSliceID f (Slice tempID language fragment usages) = Slice (f tempID) language fragment (map (replaceUsageID f) usages)
+replaceSliceID f (Slice tempID language fragment usages) =
+    Slice (f tempID) language fragment (map (replaceUsageID f) usages)
 
 -- | Replace every occurence of a temporary ID in the given usage with the final ID.
 -- A temporary as opposed to a slice ID is smaller than zero.
@@ -334,6 +339,5 @@ fromName (Name.Symbol name) = Operator (pack name)
 data Dependency =
     UsesSymbol (Maybe ModuleName) Symbol |
     Signature |
-    Fixity |
-    StandaloneDeriving
+    Fixity
         deriving (Eq,Ord,Show)
