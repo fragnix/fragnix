@@ -209,5 +209,9 @@ roleAnnotations = Map.fromList [
     ("newtype IOUArray i e = IOUArray (STUArray RealWorld i e)",
         "type role IOUArray representational phantom"),
     ("newtype Constant a b = Constant{getConstant :: a}",
-        "type role Constant representational phantom")]
+        "type role Constant representational phantom"),
+    ("                           {-# UNPACK #-} !(ForeignPtr a)",
+        "type role MVector phantom phantom"),
+    ("                           {-# UNPACK #-} !(MutableByteArray s)",
+        "type role MVector nominal phantom")]
 
