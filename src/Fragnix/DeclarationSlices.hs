@@ -164,10 +164,25 @@ buildTempSlice tempEnvironment instanceMap (node,declarations) =
         usages = nub (mentionedUsages ++ instanceUsages ++ coerceConstructorUsages)
 
         -- A usage for every mentioned symbol
-        mentionedUsages = do
+        mentionedUsages = nub (do
             Declaration _ _ _ _ mentionedsymbols <- declarations
-            (mentionedSymbol,maybeQualification) <- mentionedsymbols
-            maybeToList (symbolUsage tempEnvironment tempID maybeQualification mentionedSymbol)
+            (mentionedsymbol,maybequalification) <- mentionedsymbols
+
+            let maybeQualificationText = fmap (pack . prettyPrint) maybequalification
+                usedName = symbolUsedName mentionedsymbol
+                -- Look up reference to other slice from this graph
+                -- if it fails the symbol must be from the environment
+                maybeReference = case Map.lookup mentionedsymbol tempEnvironment of
+                    -- If the symbol is from the environment it is either builtin or refers to an existing slice
+                    Nothing -> Just (moduleReference (symbolModule (mentionedsymbol)))
+                    -- If the symbol is from this fragment we generate no reference
+                    Just referenceNode -> if referenceNode == node
+                        then Nothing
+                        else Just (OtherSlice (fromIntegral referenceNode))
+                
+            reference <- maybeToList maybeReference
+
+            return (Usage maybeQualificationText usedName reference))
 
         -- We want every class to import all its instances
         -- For builtin classes we want the data type to import the instances
@@ -186,26 +201,9 @@ buildTempSlice tempEnvironment instanceMap (node,declarations) =
             guard (symbolName mentionedsymbol == Name.Ident "coerce")
             (NewType newtypeModule newtypeName,_) <- mentionedsymbols
             let constructor = Constructor newtypeModule newtypeName newtypeName
-            maybeToList (symbolUsage tempEnvironment tempID Nothing constructor)
+                reference = undefined
+            return (Usage Nothing (symbolUsedName constructor) reference)
 
-
-symbolUsage :: Map Symbol TempID -> TempID -> Maybe ModuleName -> Symbol -> Maybe Usage
-symbolUsage tempEnvironment tempID maybeQualification symbol = do
-    let maybeQualificationText = fmap (pack . prettyPrint) maybeQualification
-        usedName = symbolUsedName symbol
-        -- Look up reference to other slice from this graph
-        -- if it fails the symbol must be from the environment
-        maybeReference = case Map.lookup symbol tempEnvironment of
-            -- If the symbol is from the environment it is either builtin or refers to an existing slice
-            Nothing -> Just (moduleReference (symbolModule symbol))
-            -- If the symbol is from this fragment we generate no reference
-            Just referenceID -> if referenceID == tempID
-                then Nothing
-                else Just (OtherSlice (fromIntegral referenceID))
-        
-    reference <- maybeReference
-
-    return (Usage maybeQualificationText usedName reference)
 
 -- | Some extensions are already handled or cannot be handled by us.
 unwantedExtensions :: [Extension]
