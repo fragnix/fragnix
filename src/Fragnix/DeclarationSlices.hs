@@ -147,7 +147,7 @@ fragmentSCCs graph = do
 -- slice IDs.
 buildTempSlice :: Map Symbol TempID -> Map Symbol [TempID] -> (TempID,[Declaration]) -> Slice
 buildTempSlice tempEnvironment instanceMap (node,declarations) =
-    Slice tempID language fragments (mentionedUsages ++ instanceUsages) where
+    Slice tempID language fragments usages where
         tempID = fromIntegral node
 
         language = Language (nub (do
@@ -161,26 +161,13 @@ buildTempSlice tempEnvironment instanceMap (node,declarations) =
             Declaration _ _ ast _ _ <- arrange declarations
             return ast)
 
+        usages = nub (mentionedUsages ++ instanceUsages ++ coerceConstructorUsages)
+
         -- A usage for every mentioned symbol
-        mentionedUsages = nub (do
+        mentionedUsages = do
             Declaration _ _ _ _ mentionedsymbols <- declarations
-            (mentionedsymbol,maybequalification) <- mentionedsymbols
-
-            let maybeQualificationText = fmap (pack . prettyPrint) maybequalification
-                usedName = symbolUsedName mentionedsymbol
-                -- Look up reference to other slice from this graph
-                -- if it fails the symbol must be from the environment
-                maybeReference = case Map.lookup mentionedsymbol tempEnvironment of
-                    -- If the symbol is from the environment it is either builtin or refers to an existing slice
-                    Nothing -> Just (moduleReference (symbolModule (mentionedsymbol)))
-                    -- If the symbol is from this fragment we generate no reference
-                    Just referenceNode -> if referenceNode == node
-                        then Nothing
-                        else Just (OtherSlice (fromIntegral referenceNode))
-                
-            reference <- maybeToList maybeReference
-
-            return (Usage maybeQualificationText usedName reference))
+            (mentionedSymbol,maybeQualification) <- mentionedsymbols
+            maybeToList (symbolUsage tempEnvironment tempID maybeQualification mentionedSymbol)
 
         -- We want every class to import all its instances
         -- For builtin classes we want the data type to import the instances
@@ -189,6 +176,36 @@ buildTempSlice tempEnvironment instanceMap (node,declarations) =
             boundSymbol <- boundSymbols
             instanceSliceTempID <- concat (maybeToList (Map.lookup boundSymbol instanceMap))
             return (Usage Nothing Instance (OtherSlice (fromIntegral instanceSliceTempID)))
+
+        -- If a declarations mentions 'coerce' it needs a constructor for the coerced type.
+        -- As a rough approximation we add for each mentioned newtype a
+        -- constructor with the same name
+        coerceConstructorUsages = do
+            Declaration _ _ _ _ mentionedsymbols <- declarations
+            (mentionedsymbol,_) <- mentionedsymbols
+            guard (symbolName mentionedsymbol == Name.Ident "coerce")
+            (NewType newtypeModule newtypeName,_) <- mentionedsymbols
+            let constructor = Constructor newtypeModule newtypeName newtypeName
+            maybeToList (symbolUsage tempEnvironment tempID Nothing constructor)
+
+
+symbolUsage :: Map Symbol TempID -> TempID -> Maybe ModuleName -> Symbol -> Maybe Usage
+symbolUsage tempEnvironment tempID maybeQualification symbol = do
+    let maybeQualificationText = fmap (pack . prettyPrint) maybeQualification
+        usedName = symbolUsedName symbol
+        -- Look up reference to other slice from this graph
+        -- if it fails the symbol must be from the environment
+        maybeReference = case Map.lookup symbol tempEnvironment of
+            -- If the symbol is from the environment it is either builtin or refers to an existing slice
+            Nothing -> Just (moduleReference (symbolModule symbol))
+            -- If the symbol is from this fragment we generate no reference
+            Just referenceID -> if referenceID == tempID
+                then Nothing
+                else Just (OtherSlice (fromIntegral referenceID))
+        
+    reference <- maybeReference
+
+    return (Usage maybeQualificationText usedName reference)
 
 -- | Some extensions are already handled or cannot be handled by us.
 unwantedExtensions :: [Extension]
