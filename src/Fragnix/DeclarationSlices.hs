@@ -39,10 +39,15 @@ import Data.List (nub,(\\))
 -- module name.
 declarationSlices :: [Declaration] -> ([Slice],Map Symbol Symbol)
 declarationSlices declarations = (slices,symbolSlices) where
+
     fragmentNodes = fragmentSCCs (declarationGraph declarations)
+
     sliceBindingsMap = sliceBindings fragmentNodes
     sliceInstancesMap = sliceInstances fragmentNodes
-    tempSlices = map (buildTempSlice sliceBindingsMap sliceInstancesMap) fragmentNodes
+    constructorMap = sliceConstructors fragmentNodes
+
+
+    tempSlices = map (buildTempSlice sliceBindingsMap sliceInstancesMap constructorMap) fragmentNodes
     tempSliceIDMap = tempSliceIDs tempSlices
     slices = map (replaceSliceID ((Map.!) tempSliceIDMap)) tempSlices
     symbolSlices = Map.mapWithKey (symbolOrigin tempSliceIDMap) sliceBindingsMap
@@ -82,6 +87,18 @@ sliceInstances fragmentNodes = Map.fromListWith (++) (do
     symbol <- maybeToList (classSymbol <|> typeSymbol)
 
     return (symbol,[tempID]))
+
+
+-- | Create a map from symbol to all its constructors.
+sliceConstructors :: [(TempID,[Declaration])] -> Map Symbol [Symbol]
+sliceConstructors fragmentNodes = Map.fromListWith (++) (do
+    (_,declarations) <- fragmentNodes
+    Declaration _ _ _ boundSymbols _ <- declarations
+    constructor@(Constructor _ _ typeName) <- boundSymbols
+    typeSymbol <- boundSymbols
+    guard (isType typeSymbol)
+    guard (symbolName typeSymbol == typeName)
+    return (typeSymbol,[constructor]))
 
 
 -- | Create a dependency graph between all declarations in the given list. Dependency edges
@@ -141,19 +158,19 @@ fragmentSCCs graph = do
     return (sccnode,scclabels)
 
 
--- | Take a temporary environment, an instance map and a pair of a node and a fragment.
+-- | Take a temporary environment, an instance map, a constructor map and a pair of a node and a fragment.
 -- Return a slice with a temporary ID that might contain references to temporary IDs.
 -- The nodes must have negative IDs starting from -1 to distinguish temporary from permanent
 -- slice IDs.
-buildTempSlice :: Map Symbol TempID -> Map Symbol [TempID] -> (TempID,[Declaration]) -> Slice
-buildTempSlice tempEnvironment instanceMap (node,declarations) =
+buildTempSlice :: Map Symbol TempID -> Map Symbol [TempID] -> Map Symbol [Symbol] -> (TempID,[Declaration]) -> Slice
+buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
     Slice tempID language fragments usages where
         tempID = fromIntegral node
 
         language = Language (nub (do
             Declaration _ ghcextensions _ _ _ <- declarations
             ghcextension <- ghcextensions
-            -- disregard the Safe and CPP extensions
+            -- disregard the Safe, Trustworthy, CPP and roles extensions
             guard (not (ghcextension `elem` unwantedExtensions))
             return (pack (prettyExtension ghcextension))))
 
@@ -198,11 +215,13 @@ buildTempSlice tempEnvironment instanceMap (node,declarations) =
         coerceConstructorUsages = do
             Declaration _ _ _ _ mentionedsymbols <- declarations
             (mentionedsymbol,_) <- mentionedsymbols
+
             guard (symbolName mentionedsymbol == Name.Ident "coerce")
-            (NewType newtypeModule newtypeName,_) <- mentionedsymbols
-            let constructor = Constructor newtypeModule newtypeName newtypeName
-                reference = undefined
-            return (Usage Nothing (symbolUsedName constructor) reference)
+
+            (newtypeSymbol@(NewType _ _),_) <- mentionedsymbols
+            constructorSymbol <- concat (maybeToList (Map.lookup newtypeSymbol constructorMap))
+            constructorSliceTempID <- maybeToList (Map.lookup constructorSymbol tempEnvironment)
+            return (Usage Nothing (symbolUsedName constructorSymbol) (OtherSlice (fromIntegral constructorSliceTempID)))
 
 
 -- | Some extensions are already handled or cannot be handled by us.
