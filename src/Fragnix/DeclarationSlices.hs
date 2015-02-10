@@ -226,8 +226,6 @@ needsConstructors (Declaration DerivingInstance _ _ _ _) =
     True
 needsConstructors (Declaration _ _ _ _ mentionedSymbols) =
     any ((==(Name.Ident "coerce")) . symbolName . fst) mentionedSymbols
-needsConstructors _ = False
-
 
 
 -- | Some extensions are already handled or cannot be handled by us.
