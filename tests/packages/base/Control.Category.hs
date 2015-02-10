@@ -66,6 +66,7 @@ module Control.Category where
 
 import qualified Prelude
 import Data.Type.Coercion
+import Data.Type.Equality
 import GHC.Prim (coerce)
 
 infixr 9 .

@@ -33,5 +33,6 @@ import GHC.Base
 --
 -- NB: This definition *must* be kept in sync with `TysWiredIn.parrTyCon'!
 --
+data [::] e = PArr !Int (Array# e)
 
-type PArr e = PArr !Int (Array# e)   -- this synonym is to get access to '[::]' without using the special syntax
+type PArr = [::]   -- this synonym is to get access to '[::]' without using the special syntax
