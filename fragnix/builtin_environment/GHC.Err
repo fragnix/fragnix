@@ -1,1 +1,1 @@
-[{"name":"absentErr","module":"GHC.Err","entity":"value"},{"name":"divZeroError","module":"GHC.Err","entity":"value"},{"name":"ratioZeroDenominatorError","module":"GHC.Err","entity":"value"},{"name":"overflowError","module":"GHC.Err","entity":"value"},{"name":"error","module":"GHC.Err","entity":"value"},{"name":"undefined","module":"GHC.Err","entity":"value"}]
+[{"name":"absentErr","module":"GHC.Err","entity":"value"},{"name":"error","module":"GHC.Err","entity":"value"},{"name":"undefined","module":"GHC.Err","entity":"value"}]
