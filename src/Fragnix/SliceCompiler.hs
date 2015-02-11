@@ -10,7 +10,7 @@ import Prelude hiding (writeFile)
 
 import Language.Haskell.Exts.Syntax (
     Module(Module),ModuleName(ModuleName),ModulePragma(LanguagePragma),
-    Decl(InstDecl,DataDecl,GDataDecl,PatBind,FunBind,ForImp,DerivDecl,TypeSig),
+    Decl(InstDecl,DataDecl,GDataDecl,PatBind,FunBind,ForImp,DerivDecl,TypeSig,DataInsDecl,GDataInsDecl),
     Name(Ident,Symbol),
     ImportDecl(ImportDecl,importSrc,importModule),ImportSpec(IVar,IAbs,IThingWith),
     CName(ConName),Namespace(NoNamespace))
@@ -127,6 +127,10 @@ bootDecl (FunBind _) =
     []
 bootDecl (ForImp srcloc _ _ _ name typ) =
     [TypeSig srcloc [name] typ]
+bootDecl (DataInsDecl _ _ _ _ _) =
+    []
+bootDecl (GDataInsDecl _ _ _ _ _ _) =
+    []
 bootDecl decl = [decl]
 
 -- | Directory for generated modules
