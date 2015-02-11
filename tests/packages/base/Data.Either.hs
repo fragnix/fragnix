@@ -34,7 +34,6 @@ import GHC.Show
 import GHC.Read
 
 import Data.Typeable
-import Data.Type.Equality
 
 {-
 -- just for testing

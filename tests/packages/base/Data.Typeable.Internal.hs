@@ -110,7 +110,6 @@ import GHC.Ptr          ( Ptr, FunPtr )
 -- import GHC.Stable
 import GHC.Arr          ( Array, STArray )
 import Data.Type.Coercion
-import Data.Type.Equality
 -- import Data.Int
 
 import GHC.Fingerprint.Type

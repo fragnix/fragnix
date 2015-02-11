@@ -59,13 +59,18 @@
 module GHC.Types (
         Bool(..), Char(..), Int(..), Word(..),
         Float(..), Double(..),
-        Ordering(..), IO(..)
+        Ordering(..), IO(..),
+        isTrue#
     ) where
 
 import GHC.Prim
 
 
 data {-# CTYPE "HsBool" #-} Bool = False | True
+
+{-# INLINE isTrue# #-}
+isTrue# :: Int# -> Bool   -- See Note [Optimizing isTrue#]
+isTrue# x = tagToEnum# x
 
 {- | The character type 'Char' is an enumeration whose values represent
 Unicode (or equivalently ISO\/IEC 10646) characters (see
