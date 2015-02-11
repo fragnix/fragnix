@@ -946,7 +946,7 @@ timesInteger (S# i) (S# j)         = if isTrue# (mulIntMayOflo# i j ==# 0#)
                                      else case int2Integer# i of
                                           (# s, d #) -> mpzToInteger (timesIntegerInt# s d j)
 timesInteger (S# 0#)     _         = S# 0#
-timesInteger (S# -1#)    i2        = negateInteger i2
+timesInteger (S# 1#)    i2        = negateInteger i2
 timesInteger (S# 1#)     i2        = i2
 timesInteger (S# i1)    (J# s2 d2) = mpzToInteger (timesIntegerInt# s2 d2 i1)
 timesInteger i1@(J# _ _) i2@(S# _) = timesInteger i2 i1 -- swap args & retry

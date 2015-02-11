@@ -34,7 +34,7 @@ data Proxy t = Proxy
 
 -- | A concrete, promotable proxy type, for use at the kind level
 -- There are no instances for this because it is intended at the kind level only
-data KProxy (t :: *) = KProxy
+data KProxy t = KProxy
 
 instance Eq (Proxy s) where
   _ == _ = True
