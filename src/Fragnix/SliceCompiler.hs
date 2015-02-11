@@ -11,7 +11,8 @@ import Prelude hiding (writeFile)
 import Language.Haskell.Exts.Syntax (
     Module(Module),ModuleName(ModuleName),ModulePragma(LanguagePragma),
     Decl(InstDecl,DataDecl,GDataDecl,PatBind,FunBind,ForImp,DerivDecl,TypeSig,DataInsDecl,GDataInsDecl),
-    Name(Ident,Symbol),
+    Name(Ident,Symbol),QName(UnQual),
+    ExportSpec(EThingAll),
     ImportDecl(ImportDecl,importSrc,importModule),ImportSpec(IVar,IAbs,IThingWith),
     CName(ConName),Namespace(NoNamespace))
 import Language.Haskell.Exts.SrcLoc (noLoc)
@@ -56,14 +57,17 @@ sliceCompiler sliceID = do
 
 assemble :: Slice -> Module
 assemble (Slice sliceID language fragment usages) =
-    let decls = case fragment of
-            Fragment declarations -> map (parseDeclaration sliceID ghcextensions) declarations
+    let Fragment declarations = fragment
+        decls = map (parseDeclaration sliceID ghcextensions) declarations
         moduleName = ModuleName (sliceModuleName sliceID)
         Language ghcextensions = language
         languagepragmas = [Ident "NoImplicitPrelude"] ++ (map (Ident . unpack) ghcextensions)
         pragmas = [LanguagePragma noLoc languagepragmas]
         imports = map usageImport usages
-    in Module noLoc moduleName pragmas Nothing Nothing imports decls
+        -- We need an export list to export the data family even
+        -- though a slice only contains the data family instance
+        exports = dataFamilyInstanceExports decls imports
+    in Module noLoc moduleName pragmas Nothing exports imports decls
 
 parseDeclaration :: SliceID -> [Text] -> Text -> Decl
 parseDeclaration sliceID ghcextensions declaration = decl where
@@ -93,6 +97,17 @@ usageImport (Usage maybeQualification usedName symbolSource) =
         toName (Operator name) = Symbol (unpack name)
 
     in ImportDecl noLoc moduleName qualified sourceImport False Nothing maybeAlias (Just (False,importSpec))
+
+
+-- | We export every type that we import in a data family instance slice
+dataFamilyInstanceExports :: [Decl] -> [ImportDecl] -> Maybe [ExportSpec]
+dataFamilyInstanceExports [DataInsDecl _ _ _ _ _] imports = Just (do
+    ImportDecl _ _ _ _ _ _ _ (Just (False,[IAbs typeName])) <- imports
+    return (EThingAll (UnQual typeName)))
+dataFamilyInstanceExports [GDataInsDecl _ _ _ _ _ _] imports = Just (do
+    ImportDecl _ _ _ _ _ _ _ (Just (False,[IAbs typeName])) <- imports
+    return (EThingAll (UnQual typeName)))
+dataFamilyInstanceExports _ _ = Nothing
 
 sliceHSBootModule :: Slice -> Module
 sliceHSBootModule slice = bootModule (assemble slice)
