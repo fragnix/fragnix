@@ -255,5 +255,9 @@ roleAnnotations = Map.fromList [
     ("                           {-# UNPACK #-} !(ForeignPtr a)",
         "type role MVector phantom phantom"),
     ("                           {-# UNPACK #-} !(MutableByteArray s)",
-        "type role MVector nominal phantom")]
+        "type role MVector nominal phantom"),
+    ("                       {-# UNPACK #-} !(ForeignPtr a)",
+        "type role Vector phantom"),
+    ("                       {-# UNPACK #-} !ByteArray",
+        "type role Vector phantom")]
 
