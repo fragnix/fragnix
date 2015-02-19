@@ -112,17 +112,35 @@ dataFamilyInstanceExports _ _ = Nothing
 sliceHSBootModule :: Slice -> Module
 sliceHSBootModule slice = bootModule (assemble slice)
 
+-- Create a boot module from an ordinary module
+-- WORKAROUND: We can not put data family constructors into hs-boot files.
+-- https://ghc.haskell.org/trac/ghc/ticket/8441
+-- hs-boot files contain source imports for constructors.
+-- We remove constructor imports from hs-boot files that contain only instances.
 bootModule :: Module -> Module
+bootModule (Module srcloc moduleName pragmas warnings exports imports (decls@[InstDecl _ _ _ _ _ _ _])) =
+    Module srcloc moduleName pragmas warnings exports bootImports bootDecls where
+        bootImports = mapMaybe bootInstanceImport imports
+        bootDecls = concatMap bootDecl decls
 bootModule (Module srcloc moduleName pragmas warnings exports imports decls) = 
     Module srcloc moduleName pragmas warnings exports bootImports bootDecls where
         bootImports = mapMaybe bootImport imports
         bootDecls = concatMap bootDecl decls
 
 -- | Remove all source imports and make all other imports source except those
--- from builtin modules
+-- from builtin modules.
 bootImport :: ImportDecl -> Maybe ImportDecl
 bootImport importDecl
     | importSrc importDecl = Nothing
+    | isSliceModule (importModule importDecl) = Just (importDecl {importSrc = True})
+    | otherwise = Just importDecl
+
+-- | Remove all source imports and make all other imports source except those
+-- from builtin modules. Also remove constructor imports
+bootInstanceImport :: ImportDecl -> Maybe ImportDecl
+bootInstanceImport importDecl
+    | importSrc importDecl = Nothing
+    | isConstructorImport importDecl = Nothing
     | isSliceModule (importModule importDecl) = Just (importDecl {importSrc = True})
     | otherwise = Just importDecl
 
@@ -172,6 +190,11 @@ sliceModuleName sliceID = "F" ++ show sliceID
 isSliceModule :: ModuleName -> Bool
 isSliceModule (ModuleName ('F':rest)) = all isDigit rest
 isSliceModule _ = False
+
+-- | Does the import import a constructor
+isConstructorImport :: ImportDecl -> Bool
+isConstructorImport (ImportDecl _ _ _ _ _ _ _ (Just (False,[IThingWith _ _]))) = True
+isConstructorImport _ = False
 
 writeSliceModule :: Slice -> IO ()
 writeSliceModule slice@(Slice sliceID _ _ _) = (do
