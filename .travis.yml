@@ -6,6 +6,13 @@ before_install:
   - cabal install alex happy
   - cp ~/.cabal/bin/alex ./
   - cp ~/.cabal/bin/happy ./
+  - git clone -b fragnix https://github.com/phischu/haskell-names
+  - git clone -b fragnix https://github.com/phischu/haskell-src-exts
+install:
+  - cabal sandbox init
+  - cabal sandbox add-source ./haskell-src-exts
+  - cabal sandbox add-source ./haskell-names
+  - cabal install --only-dependencies --enable-tests
 script:
   - cabal configure --enable-tests
   - cabal build
