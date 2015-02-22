@@ -5,7 +5,7 @@ import Fragnix.ModuleDeclarations (
     parse,moduleDeclarationsWithEnvironment,moduleSymbols)
 import Fragnix.Declaration (writeDeclarations)
 import Fragnix.DeclarationSlices (declarationSlices)
-import Fragnix.Slice (Slice(Slice),writeSlice)
+import Fragnix.Slice (Slice(Slice),writeSliceDefault)
 import Fragnix.Environment (
     updateEnvironment,
     loadEnvironment,builtinEnvironmentPath)
@@ -65,7 +65,7 @@ testModules folder = do
     writeDeclarations "fragnix/temp/declarations/declarations.json" declarations
 
     let (slices,symbolSlices) = declarationSlices declarations
-    forM_ slices writeSlice
+    forM_ slices writeSliceDefault
 
     let environment = updateEnvironment symbolSlices (moduleSymbols builtinEnvironment modules)
         moduleSymbolResults = do

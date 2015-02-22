@@ -19,8 +19,8 @@ import Control.Exception (Exception,throwIO)
 import Data.Typeable(Typeable)
 
 import Data.ByteString.Lazy (writeFile,readFile)
-import System.FilePath ((</>))
-import System.Directory (createDirectoryIfMissing,doesFileExist)
+import System.FilePath ((</>),dropFileName)
+import System.Directory (createDirectoryIfMissing)
 
 data Slice = Slice SliceID Language Fragment [Usage]
 
@@ -176,28 +176,31 @@ instance Hashable Name
 
 -- Slice parse errors
 
-data SliceParseError = SliceParseError SliceID String
+data SliceParseError = SliceParseError FilePath String
 
 deriving instance Typeable SliceParseError
 deriving instance Show SliceParseError
 
 instance Exception SliceParseError
 
-writeSlice :: Slice -> IO ()
-writeSlice slice@(Slice sliceID _ _ _) = do
-    createDirectoryIfMissing True sliceDirectory
-    writeFile (slicePath sliceID) (encode slice)
+writeSlice :: FilePath -> Slice -> IO ()
+writeSlice slicePath slice = do
+    createDirectoryIfMissing True (dropFileName slicePath)
+    writeFile slicePath (encode slice)
 
-readSlice :: SliceID -> IO Slice
-readSlice sliceID = do
-    sliceFile <- readFile (slicePath sliceID)
-    either (throwIO . SliceParseError sliceID) return (eitherDecode sliceFile)
+writeSliceDefault :: Slice -> IO ()
+writeSliceDefault slice@(Slice sliceID _ _ _) = writeSlice (sliceDefaultPath sliceID) slice
 
-doesSliceExist :: SliceID -> IO Bool
-doesSliceExist sliceID = doesFileExist (slicePath sliceID)
+readSlice :: FilePath -> IO Slice
+readSlice slicePath = do
+    sliceFile <- readFile slicePath
+    either (throwIO . SliceParseError slicePath) return (eitherDecode sliceFile)
 
-slicePath :: SliceID -> FilePath
-slicePath sliceID = sliceDirectory </> show sliceID
+readSliceDefault :: SliceID -> IO Slice
+readSliceDefault sliceID = readSlice (sliceDefaultPath sliceID)
+
+sliceDefaultPath :: SliceID -> FilePath
+sliceDefaultPath sliceID = sliceDirectory </> show sliceID
 
 sliceDirectory :: FilePath
 sliceDirectory = "fragnix" </> "slices"

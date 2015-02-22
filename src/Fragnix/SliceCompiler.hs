@@ -4,7 +4,7 @@ import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Usage(Usage),
     Reference(OtherSlice,Primitive),
     UsedName(ValueName,TypeName,ConstructorName,Instance),Name(Identifier,Operator),
-    readSlice)
+    readSliceDefault)
 
 import Prelude hiding (writeFile)
 
@@ -218,7 +218,7 @@ writeSliceModuleTransitive :: SliceID -> IO ()
 writeSliceModuleTransitive sliceID = do
     exists <- doesSliceModuleExist sliceID
     unless exists (do
-        slice <- readSlice sliceID
+        slice <- readSliceDefault sliceID
         writeSliceHSBoot slice
         writeSliceModule slice
         forM_ (usedSlices slice) writeSliceModuleTransitive)
