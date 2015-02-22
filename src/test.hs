@@ -7,8 +7,8 @@ import Fragnix.Declaration (writeDeclarations)
 import Fragnix.DeclarationSlices (declarationSlices)
 import Fragnix.Slice (Slice(Slice),writeSliceDefault)
 import Fragnix.Environment (
-    updateEnvironment,
     loadEnvironment,builtinEnvironmentPath)
+import Fragnix.SliceSymbols (updateEnvironment)
 import Fragnix.SliceCompiler (sliceCompiler)
 
 import Test.Tasty (testGroup,TestTree)

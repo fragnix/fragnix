@@ -3,9 +3,10 @@ module Main where
 import Fragnix.Declaration (writeDeclarations)
 import Fragnix.Slice (writeSliceDefault)
 import Fragnix.Environment (
-    loadEnvironment,updateEnvironment,persistEnvironment,
-    environmentPath,builtinEnvironmentPath,
-    findMainSliceIDs)
+    loadEnvironment,persistEnvironment,
+    environmentPath,builtinEnvironmentPath)
+import Fragnix.SliceSymbols (
+    writeSliceSymbols,updateEnvironment,findMainSliceIDs)
 import Fragnix.ModuleDeclarations (
     parse,moduleDeclarationsWithEnvironment,
     moduleNameErrors,moduleSymbols)
@@ -41,6 +42,8 @@ main = do
 
     let updatedEnvironment = updateEnvironment symbolSlices (moduleSymbols environment modules)
     persistEnvironment environmentPath updatedEnvironment
+
+    writeSliceSymbols symbolSlices
 
     case findMainSliceIDs symbolSlices of
         [] -> putStrLn "No main symbol in modules."
