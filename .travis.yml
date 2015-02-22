@@ -3,7 +3,8 @@ ghc: 7.8
 notifications:
   email: false
 before_install:
-  - cabal install alex happy
+  - cabal install alex happy cpphs
+  - cp ~/.cabal/bin/cpphs ./
   - cp ~/.cabal/bin/alex ./
   - cp ~/.cabal/bin/happy ./
   - git clone -b fragnix https://github.com/phischu/haskell-names
