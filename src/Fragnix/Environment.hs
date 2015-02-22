@@ -1,5 +1,6 @@
 module Fragnix.Environment where
 
+import Fragnix.Slice (SliceID)
 
 import Language.Haskell.Names (
     Symbol(symbolName,symbolModule))
@@ -11,7 +12,7 @@ import Language.Haskell.Exts (
 import Data.Map (
     Map)
 import qualified Data.Map as Map (
-    fromList,toList,elems,findWithDefault,map)
+    fromList,toList,lookup,map)
 import System.FilePath (
     (</>))
 import System.Directory (
@@ -44,13 +45,23 @@ environmentPath = "fragnix" </> "environment"
 builtinEnvironmentPath :: FilePath
 builtinEnvironmentPath = "fragnix" </> "builtin_environment"
 
-findMainSliceIDs :: Map Symbol Symbol -> [Integer]
-findMainSliceIDs symbolSlices = do
-    symbol <- Map.elems symbolSlices
-    guard (symbolName symbol == Ident "main")
-    ModuleName moduleName <- return (symbolModule symbol)
-    return (read moduleName)
 
-updateEnvironment :: Map Symbol Symbol -> Environment -> Environment
-updateEnvironment symbolSlices environment = Map.map (map (\symbol ->
-    Map.findWithDefault symbol symbol symbolSlices)) environment
+-- | Find the possible IDs of the main slice in a map from symbol to slice.
+findMainSliceIDs :: Map Symbol SliceID -> [SliceID]
+findMainSliceIDs symbolSlices = do
+    (symbol,sliceID) <- Map.toList symbolSlices
+    guard (symbolName symbol == Ident "main")
+    return sliceID
+
+-- | Replace in the given environment the original module of all symbols
+-- with the ID of the binding slice.
+updateEnvironment :: Map Symbol SliceID -> Environment -> Environment
+updateEnvironment symbolSlices environment =
+    Map.map (map (updateSymbol symbolSlices)) environment
+
+-- | When the given symbol is in the map replace its original module with
+-- the SliceID from the map.
+updateSymbol :: Map Symbol SliceID -> Symbol -> Symbol
+updateSymbol symbolSlices symbol = case Map.lookup symbol symbolSlices of
+    Nothing -> symbol
+    Just sliceID -> symbol { symbolModule = ModuleName (show sliceID) }

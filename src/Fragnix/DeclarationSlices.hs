@@ -27,7 +27,7 @@ import Control.Applicative ((<|>))
 import Data.Text (pack)
 import Data.Char (isDigit)
 import Data.Map (Map)
-import qualified Data.Map as Map (lookup,fromList,fromListWith,(!),mapWithKey)
+import qualified Data.Map as Map (lookup,fromList,fromListWith,(!),map)
 import qualified Data.Set as Set (fromList,member)
 import Data.Maybe (maybeToList,fromJust,listToMaybe)
 import Data.Hashable (hash)
@@ -37,7 +37,7 @@ import Data.List (nub,(\\))
 -- | Extract all slices from the given list of declarations. Also return a map
 -- from a symbol to a new symbol where the original slice is encoded into the
 -- module name.
-declarationSlices :: [Declaration] -> ([Slice],Map Symbol Symbol)
+declarationSlices :: [Declaration] -> ([Slice],Map Symbol SliceID)
 declarationSlices declarations = (slices,symbolSlices) where
 
     fragmentNodes = fragmentSCCs (declarationGraph declarations)
@@ -50,7 +50,7 @@ declarationSlices declarations = (slices,symbolSlices) where
     tempSlices = map (buildTempSlice sliceBindingsMap sliceInstancesMap constructorMap) fragmentNodes
     tempSliceIDMap = tempSliceIDs tempSlices
     slices = map (replaceSliceID ((Map.!) tempSliceIDMap)) tempSlices
-    symbolSlices = Map.mapWithKey (symbolOrigin tempSliceIDMap) sliceBindingsMap
+    symbolSlices = Map.map (\tempID -> tempSliceIDMap Map.! tempID) sliceBindingsMap
 
 
 -- | Build a Map from symbol to temporary ID that binds this symbol.
@@ -257,12 +257,6 @@ moduleReference :: ModuleName -> Reference
 moduleReference (ModuleName moduleName)
     | all isDigit moduleName = OtherSlice (read moduleName)
     | otherwise = Primitive (pack moduleName)
-
--- | Lookup the given temporary ID and encode the resulting slice ID as
--- the module of the given symbol.
-symbolOrigin :: Map TempID SliceID -> Symbol -> TempID -> Symbol
-symbolOrigin tempSliceIDMap symbol tempID = symbol {
-    symbolModule = ModuleName (show (tempSliceIDMap Map.! tempID))}
 
 -- | A temporary ID before slices can be hashed.
 type TempID = Integer
