@@ -2,7 +2,7 @@ module Fragnix.SliceCompiler where
 
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Use(Use),
-    Reference(OtherSlice,Primitive),
+    Reference(OtherSlice,Builtin),
     UsedName(ValueName,TypeName,ConstructorName,Instance),Name(Identifier,Operator),
     readSliceDefault)
 
@@ -81,7 +81,7 @@ useImport :: Use -> ImportDecl
 useImport (Use maybeQualification usedName symbolSource) =
     let moduleName = case symbolSource of
             OtherSlice sliceID -> ModuleName (sliceModuleName sliceID)
-            Primitive originalModule -> ModuleName (unpack originalModule)
+            Builtin originalModule -> ModuleName (unpack originalModule)
         qualified = maybe False (const True) maybeQualification
         maybeAlias = fmap (ModuleName . unpack) maybeQualification
         importSpec = case usedName of

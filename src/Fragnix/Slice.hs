@@ -30,7 +30,7 @@ data Fragment = Fragment [SourceCode]
 
 data Use = Use (Maybe Qualification) UsedName Reference
 
-data Reference = OtherSlice SliceID | Primitive OriginalModule
+data Reference = OtherSlice SliceID | Builtin OriginalModule
 
 data UsedName =
     ValueName Name |
@@ -146,12 +146,12 @@ deriving instance Generic Reference
 
 instance ToJSON Reference where
     toJSON (OtherSlice sliceID) = object ["otherSlice" .= sliceID]
-    toJSON (Primitive originalModule) = object ["originalModule" .= originalModule]
+    toJSON (Builtin originalModule) = object ["builtinModule" .= originalModule]
 
 instance FromJSON Reference where
     parseJSON = withObject "reference" (\o ->
         OtherSlice <$> o .: "otherSlice" <|>
-        Primitive <$> o .: "originalModule")
+        Builtin <$> o .: "builtinModule")
 
 instance Hashable Reference
 

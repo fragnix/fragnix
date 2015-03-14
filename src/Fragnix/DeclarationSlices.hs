@@ -6,7 +6,7 @@ import Fragnix.Declaration (
     Genre(TypeSignature,ClassInstance,InfixFixity,DerivingInstance))
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
-    Use(Use),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Primitive))
+    Use(Use),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Builtin))
 
 import Language.Haskell.Names (
     Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,symbolName,symbolModule))
@@ -256,7 +256,7 @@ arrange declarations = arrangements ++ (declarations \\ arrangements) where
 moduleReference :: ModuleName -> Reference
 moduleReference (ModuleName moduleName)
     | all isDigit moduleName = OtherSlice (read moduleName)
-    | otherwise = Primitive (pack moduleName)
+    | otherwise = Builtin (pack moduleName)
 
 -- | A temporary ID before slices can be hashed.
 type TempID = Integer
