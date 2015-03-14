@@ -1,7 +1,7 @@
 module Fragnix.SliceCompiler where
 
 import Fragnix.Slice (
-    Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Usage(Usage),
+    Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Use(Use),
     Reference(OtherSlice,Primitive),
     UsedName(ValueName,TypeName,ConstructorName,Instance),Name(Identifier,Operator),
     readSliceDefault)
@@ -56,14 +56,14 @@ sliceCompiler sliceID = do
     rawSystem "ghc" ["-v0","-w","-ifragnix/temp/compilationunits",sliceModulePath sliceID]
 
 assemble :: Slice -> Module
-assemble (Slice sliceID language fragment usages) =
+assemble (Slice sliceID language fragment uses) =
     let Fragment declarations = fragment
         decls = map (parseDeclaration sliceID ghcextensions) declarations
         moduleName = ModuleName (sliceModuleName sliceID)
         Language ghcextensions = language
         languagepragmas = [Ident "NoImplicitPrelude"] ++ (map (Ident . unpack) ghcextensions)
         pragmas = [LanguagePragma noLoc languagepragmas]
-        imports = map usageImport usages
+        imports = map useImport uses
         -- We need an export list to export the data family even
         -- though a slice only contains the data family instance
         exports = dataFamilyInstanceExports decls imports
@@ -77,8 +77,8 @@ parseDeclaration sliceID ghcextensions declaration = decl where
         extensions = map (parseExtension . unpack) ghcextensions,
         fixities = Just baseFixities}
 
-usageImport :: Usage -> ImportDecl
-usageImport (Usage maybeQualification usedName symbolSource) =
+useImport :: Use -> ImportDecl
+useImport (Use maybeQualification usedName symbolSource) =
     let moduleName = case symbolSource of
             OtherSlice sliceID -> ModuleName (sliceModuleName sliceID)
             Primitive originalModule -> ModuleName (unpack originalModule)
@@ -224,10 +224,10 @@ writeSliceModuleTransitive sliceID = do
         forM_ (usedSlices slice) writeSliceModuleTransitive)
 
 usedSlices :: Slice -> [SliceID]
-usedSlices (Slice _ _ _ usages) = [sliceID | Usage _ _ (OtherSlice sliceID) <- usages]
+usedSlices (Slice _ _ _ uses) = [sliceID | Use _ _ (OtherSlice sliceID) <- uses]
 
 usedInstanceSlices :: Slice -> [SliceID]
-usedInstanceSlices (Slice _ _ _ usages) = [sliceID | Usage _ Instance (OtherSlice sliceID) <- usages]
+usedInstanceSlices (Slice _ _ _ uses) = [sliceID | Use _ Instance (OtherSlice sliceID) <- uses]
 
 doesSliceModuleExist :: SliceID -> IO Bool
 doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)

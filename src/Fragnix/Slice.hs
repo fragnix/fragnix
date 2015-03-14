@@ -22,13 +22,13 @@ import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>),dropFileName)
 import System.Directory (createDirectoryIfMissing)
 
-data Slice = Slice SliceID Language Fragment [Usage]
+data Slice = Slice SliceID Language Fragment [Use]
 
 data Language = Language [GHCExtension]
 
 data Fragment = Fragment [SourceCode]
 
-data Usage = Usage (Maybe Qualification) UsedName Reference
+data Use = Use (Maybe Qualification) UsedName Reference
 
 data Reference = OtherSlice SliceID | Primitive OriginalModule
 
@@ -54,15 +54,15 @@ type GHCExtension = Text
 deriving instance Show Slice
 
 instance ToJSON Slice where
-    toJSON (Slice sliceID language fragment usages) = object [
+    toJSON (Slice sliceID language fragment uses) = object [
         "sliceID" .= sliceID,
         "language" .= language,
         "fragment" .= fragment,
-        "usages" .= usages]
+        "uses" .= uses]
 
 instance FromJSON Slice where
     parseJSON = withObject "slice" (\o ->
-        Slice <$> o .: "sliceID" <*> o .: "language" <*> o .: "fragment" <*> o .: "usages")
+        Slice <$> o .: "sliceID" <*> o .: "language" <*> o .: "fragment" <*> o .: "uses")
 
 
 -- Language instances
@@ -93,23 +93,23 @@ instance FromJSON Fragment where
 instance Hashable Fragment
 
 
--- Usage instances
+-- Use instances
 
-deriving instance Show Usage
-deriving instance Eq Usage
-deriving instance Generic Usage
+deriving instance Show Use
+deriving instance Eq Use
+deriving instance Generic Use
 
-instance ToJSON Usage where
-    toJSON (Usage qualification usedName reference) = object [
+instance ToJSON Use where
+    toJSON (Use qualification usedName reference) = object [
         "qualification" .= qualification,
         "usedName" .= usedName,
         "reference" .= reference]
 
-instance FromJSON Usage where
-    parseJSON = withObject "usage" (\o ->
-        Usage <$> o .: "qualification" <*> o .: "usedName" <*> o .: "reference")
+instance FromJSON Use where
+    parseJSON = withObject "use" (\o ->
+        Use <$> o .: "qualification" <*> o .: "usedName" <*> o .: "reference")
 
-instance Hashable Usage
+instance Hashable Use
 
 
 -- Used name instances

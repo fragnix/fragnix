@@ -6,7 +6,7 @@ import Fragnix.Declaration (
     Genre(TypeSignature,ClassInstance,InfixFixity,DerivingInstance))
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
-    Usage(Usage),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Primitive))
+    Use(Use),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Primitive))
 
 import Language.Haskell.Names (
     Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,symbolName,symbolModule))
@@ -121,7 +121,7 @@ declarationGraph declarations =
         boundsymbol <- boundsymbols
         return (boundsymbol,node))
 
-    -- Dependency edges that come from usage of a symbol
+    -- Dependency edges that come from use of a symbol
     usedsymboledges = do
         (node,declaration) <- declarationnodes
         let Declaration _ _ _ _ mentionedsymbols = declaration
@@ -159,7 +159,7 @@ fragmentSCCs graph = do
 -- slice IDs.
 buildTempSlice :: Map Symbol TempID -> Map Symbol [TempID] -> Map Symbol [Symbol] -> (TempID,[Declaration]) -> Slice
 buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
-    Slice tempID language fragments usages where
+    Slice tempID language fragments uses where
         tempID = fromIntegral node
 
         language = Language (nub (do
@@ -173,10 +173,10 @@ buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
             Declaration _ _ ast _ _ <- arrange declarations
             return ast)
 
-        usages = nub (mentionedUsages ++ instanceUsages ++ implicitConstructorUsages)
+        uses = nub (mentionedUses ++ instanceUses ++ implicitConstructorUses)
 
-        -- A usage for every mentioned symbol
-        mentionedUsages = nub (do
+        -- A use for every mentioned symbol
+        mentionedUses = nub (do
             Declaration _ _ _ _ mentionedsymbols <- declarations
             (mentionedsymbol,maybequalification) <- mentionedsymbols
 
@@ -194,20 +194,20 @@ buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
                 
             reference <- maybeToList maybeReference
 
-            return (Usage maybeQualificationText usedName reference))
+            return (Use maybeQualificationText usedName reference))
 
         -- We want every class to import all its instances
         -- For builtin classes we want the data type to import the instances
-        instanceUsages = do
+        instanceUses = do
             Declaration _ _ _ boundSymbols _ <- declarations
             boundSymbol <- boundSymbols
             instanceSliceTempID <- concat (maybeToList (Map.lookup boundSymbol instanceMap))
-            return (Usage Nothing Instance (OtherSlice (fromIntegral instanceSliceTempID)))
+            return (Use Nothing Instance (OtherSlice (fromIntegral instanceSliceTempID)))
 
         -- If a declarations mentions 'coerce' it needs a constructor for the coerced type.
         -- As a rough approximation we add for each mentioned newtype a
         -- constructor with the same name
-        implicitConstructorUsages = do
+        implicitConstructorUses = do
             declaration <- declarations
             guard (needsConstructors declaration)
             let Declaration _ _ _ _ mentionedSymbols = declaration
@@ -215,7 +215,7 @@ buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
             constructorSymbol <- concat (maybeToList (Map.lookup typeSymbol constructorMap))
             constructorSliceTempID <- maybeToList (Map.lookup constructorSymbol tempEnvironment)
             let reference = OtherSlice (fromIntegral constructorSliceTempID)
-            return (Usage Nothing (symbolUsedName constructorSymbol) reference)
+            return (Use Nothing (symbolUsedName constructorSymbol) reference)
 
 
 -- | Some declarations implicitly require the constructors for all mentioned
@@ -280,25 +280,25 @@ sliceMap tempSlices = Map.fromList (do
 
 -- | Hash the slice with the given temporary ID.
 computeHash :: Map TempID TempSlice -> TempID -> SliceID
-computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,usages,language))) where
-    Just (Slice _ language fragment tempUsages) = Map.lookup tempID tempSliceMap
-    usages = map (replaceUsageID (computeHash tempSliceMap)) tempUsagesWithoutInstances
-    tempUsagesWithoutInstances = do
-        usage@(Usage _ usedName _) <- tempUsages
+computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,uses,language))) where
+    Just (Slice _ language fragment tempUses) = Map.lookup tempID tempSliceMap
+    uses = map (replaceUseID (computeHash tempSliceMap)) tempUsesWithoutInstances
+    tempUsesWithoutInstances = do
+        use@(Use _ usedName _) <- tempUses
         guard (not (usedName == Instance))
-        return usage
+        return use
 
 -- | Replace every occurence of a temporary ID in the given slice with the final ID.
 replaceSliceID :: (TempID -> SliceID) -> TempSlice -> Slice
-replaceSliceID f (Slice tempID language fragment usages) =
-    Slice (f tempID) language fragment (map (replaceUsageID f) usages)
+replaceSliceID f (Slice tempID language fragment uses) =
+    Slice (f tempID) language fragment (map (replaceUseID f) uses)
 
--- | Replace every occurence of a temporary ID in the given usage with the final ID.
+-- | Replace every occurence of a temporary ID in the given use with the final ID.
 -- A temporary as opposed to a slice ID is smaller than zero.
-replaceUsageID :: (TempID -> SliceID) -> Usage -> Usage
-replaceUsageID f (Usage qualification usedName (OtherSlice tempID))
-    | tempID < 0 = (Usage qualification usedName (OtherSlice (f tempID)))
-replaceUsageID _ usage = usage
+replaceUseID :: (TempID -> SliceID) -> Use -> Use
+replaceUseID f (Use qualification usedName (OtherSlice tempID))
+    | tempID < 0 = (Use qualification usedName (OtherSlice (f tempID)))
+replaceUseID _ use = use
 
 symbolUsedName :: Symbol -> UsedName
 symbolUsedName (Constructor _ constructorName typeName) =
