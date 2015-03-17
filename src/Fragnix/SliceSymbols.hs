@@ -5,34 +5,16 @@ import Fragnix.Environment (Environment)
 
 import Language.Haskell.Names (
     Symbol(symbolName,symbolModule))
-import Language.Haskell.Names.Interfaces (
-    writeInterface)
 import Language.Haskell.Exts (
     ModuleName(ModuleName),Name(Ident))
 
 import Data.Map (
     Map)
 import qualified Data.Map as Map (
-    toList,lookup,map,fromListWith)
-import System.Directory (
-    createDirectoryIfMissing)
-import System.FilePath (
-    (</>),dropFileName)
+    toList,lookup,map)
 import Control.Monad (
-    forM_,guard)
+    guard)
 
-writeSliceSymbols :: Map Symbol SliceID -> IO ()
-writeSliceSymbols symbolSlices = do
-    let sliceSymbols = Map.fromListWith (++) (do
-            (symbol,sliceID) <- Map.toList symbolSlices
-            return (sliceID,[symbol]))
-    forM_ (Map.toList sliceSymbols) (\(sliceID,symbols) -> do
-        let path = sliceSymbolPath sliceID
-        createDirectoryIfMissing True (dropFileName path)
-        writeInterface path symbols)
-
-sliceSymbolPath :: SliceID -> FilePath
-sliceSymbolPath sliceID = "fragnix" </> "names" </> show sliceID
 
 -- | Find the possible IDs of the main slice in a map from symbol to slice.
 findMainSliceIDs :: Map Symbol SliceID -> [SliceID]
