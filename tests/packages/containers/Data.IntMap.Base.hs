@@ -1,107 +1,404 @@
-{-# LINE 1 "./Data/IntMap/Base.hs" #-}
-{-# LINE 1 "dist/dist-sandbox-235ea54e/build/autogen/cabal_macros.h" #-}
-                                                                
+{-# LANGUAGE Haskell98 #-}
+{-# LINE 1 "Data/IntMap/Base.hs" #-}
 
-                           
 
 
 
 
 
 
-                          
 
 
 
 
 
 
-                             
 
 
 
 
 
 
-                     
 
 
 
 
 
 
-                       
 
 
 
 
 
 
-                  
 
 
 
 
 
 
-                    
 
 
 
 
 
 
-                        
 
 
 
 
 
 
-                         
-
-
-
-
-
-
-                       
-
-
-
-
-
-
-                   
-
-
-
-
-
-
-                      
-
-
-
-
-
-
-                          
-
-
-
-
-
-
-
-{-# LINE 2 "./Data/IntMap/Base.hs" #-}
-{-# LINE 1 "./Data/IntMap/Base.hs" #-}
 {-# LANGUAGE CPP #-}
-
 {-# LANGUAGE MagicHash, DeriveDataTypeable, StandaloneDeriving #-}
-
-
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -----------------------------------------------------------------------------
 -- |
@@ -305,37 +602,32 @@ module Data.IntMap.Base (
     , shorter
     , branchMask
     , highestBitMask
-    , foldlStrict
     ) where
 
 import Control.Applicative (Applicative(pure, (<*>)), (<$>))
+import Data.Monoid (Monoid(..))
+import Data.Traversable (Traversable(traverse))
+import Data.Word (Word)
+
 import Control.DeepSeq (NFData(rnf))
 import Control.Monad (liftM)
 import Data.Bits
 import qualified Data.Foldable as Foldable
 import Data.Maybe (fromMaybe)
-import Data.Monoid (Monoid(..))
-import Data.Traversable (Traversable(traverse))
 import Data.Typeable
-import Data.Word (Word)
 import Prelude hiding (lookup, map, filter, foldr, foldl, null)
 
-import Data.BitUtil
 import Data.IntSet.Base (Key)
 import qualified Data.IntSet.Base as IntSet
-import Data.StrictPair
-
+import Data.Utils.BitUtil
+import Data.Utils.StrictFold
+import Data.Utils.StrictPair
 
 import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix),
                   DataType, mkDataType)
 import GHC.Exts (build)
+import qualified GHC.Exts as GHCExts
 import Text.Read
-
-
--- Use macros to define strictness of functions.
--- STRICT_x_OF_y denotes an y-ary function strict in the x-th parameter.
--- We do not use BangPatterns, because they are not in any standard and we
--- want the compilers to be compiled by as many compilers as possible.
 
 
 -- A "Nat" is a natural machine word (an unsigned Int)
@@ -396,7 +688,7 @@ instance Monoid (IntMap a) where
     mconcat = unions
 
 instance Foldable.Foldable IntMap where
-  fold t = go t
+  fold = go
     where go Nil = mempty
           go (Tip _ v) = v
           go (Bin _ _ l r) = go l `mappend` go r
@@ -411,6 +703,11 @@ instance Foldable.Foldable IntMap where
           go (Bin _ _ l r) = go l `mappend` go r
   {-# INLINE foldMap #-}
 
+  foldl' = foldl'
+  {-# INLINE foldl' #-}
+  foldr' = foldr'
+  {-# INLINE foldr' #-}
+
 instance Traversable IntMap where
     traverse f = traverseWithKey (\_ -> f)
     {-# INLINE traverse #-}
@@ -419,7 +716,6 @@ instance NFData a => NFData (IntMap a) where
     rnf Nil = ()
     rnf (Tip _ v) = rnf v
     rnf (Bin _ _ l r) = rnf l `seq` rnf r
-
 
 
 {--------------------------------------------------------------------
@@ -443,7 +739,6 @@ fromListConstr = mkConstr intMapDataType "fromList" [] Prefix
 
 intMapDataType :: DataType
 intMapDataType = mkDataType "Data.IntMap.Base.IntMap" [fromListConstr]
-
 
 
 {--------------------------------------------------------------------
@@ -1339,6 +1634,11 @@ map f t
       Tip k x     -> Tip k (f x)
       Nil         -> Nil
 
+{-# NOINLINE [1] map #-}
+{-# RULES
+"map/map" forall f g xs . map f (map g xs) = map (f . g) xs
+ #-}
+
 -- | /O(n)/. Map a function over all values in the map.
 --
 -- > let f key x = (show key) ++ ":" ++ x
@@ -1350,6 +1650,16 @@ mapWithKey f t
       Bin p m l r -> Bin p m (mapWithKey f l) (mapWithKey f r)
       Tip k x     -> Tip k (f k x)
       Nil         -> Nil
+
+{-# NOINLINE [1] mapWithKey #-}
+{-# RULES
+"mapWithKey/mapWithKey" forall f g xs . mapWithKey f (mapWithKey g xs) =
+  mapWithKey (\k a -> f k (g k a)) xs
+"mapWithKey/map" forall f g xs . mapWithKey f (map g xs) =
+  mapWithKey (\k a -> f k (g a)) xs
+"map/mapWithKey" forall f g xs . map f (mapWithKey g xs) =
+  mapWithKey (\k a -> f (g k a)) xs
+ #-}
 
 -- | /O(n)/.
 -- @'traverseWithKey' f s == 'fromList' <$> 'traverse' (\(k, v) -> (,) k <$> f k v) ('toList' m)@
@@ -1868,6 +2178,11 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
+instance GHCExts.IsList (IntMap a) where
+  type Item (IntMap a) = (Key,a)
+  fromList = fromList
+  toList   = toList
+
 -- | /O(n)/. Convert the map to a list of key\/value pairs. Subject to list
 -- fusion.
 --
@@ -1894,7 +2209,6 @@ toDescList :: IntMap a -> [(Key,a)]
 toDescList = foldlWithKey (\xs k x -> (k,x):xs) []
 
 -- List fusion for the list generating functions.
-
 -- The foldrFB and foldlFB are fold{r,l}WithKey equivalents, used for list fusion.
 -- They are important to convert unfused methods back, see mapFB in prelude.
 foldrFB :: (Key -> a -> b -> b) -> b -> IntMap a -> b
@@ -1926,7 +2240,6 @@ foldlFB = foldlWithKey
 {-# RULES "IntMap.toAscListBack" [1] foldrFB (\k x xs -> (k, x) : xs) [] = toAscList #-}
 {-# RULES "IntMap.toDescList" [~1] forall m . toDescList m = build (\c n -> foldlFB (\xs k x -> c (k,x) xs) n m) #-}
 {-# RULES "IntMap.toDescListBack" [1] foldlFB (\xs k x -> (k, x) : xs) [] = toDescList #-}
-
 
 
 -- | /O(n*min(n,W))/. Create a map from a list of key\/value pairs.
@@ -2005,7 +2318,7 @@ fromAscListWithKey f (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
 --
 -- > fromDistinctAscList [(3,"b"), (5,"a")] == fromList [(3, "b"), (5, "a")]
 
-fromDistinctAscList :: [(Key,a)] -> IntMap a
+fromDistinctAscList :: forall a. [(Key,a)] -> IntMap a
 fromDistinctAscList []         = Nil
 fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
   where
@@ -2078,7 +2391,6 @@ instance Show a => Show (IntMap a) where
   Read
 --------------------------------------------------------------------}
 instance (Read e) => Read (IntMap e) where
-
   readPrec = parens $ prec 10 $ do
     Ident "fromList" <- lexP
     xs <- readPrec
@@ -2086,84 +2398,10 @@ instance (Read e) => Read (IntMap e) where
 
   readListPrec = readListPrecDefault
 
-
-
-
-
-
-
 {--------------------------------------------------------------------
   Typeable
 --------------------------------------------------------------------}
 
-{-# LINE 1 "include/Typeable.h" #-}
-{- --------------------------------------------------------------------------
-// Macros to help make Typeable instances.
-//
-// INSTANCE_TYPEABLEn(tc,tcname,"tc") defines
-//
-//      instance Typeable/n/ tc
-//      instance Typeable a => Typeable/n-1/ (tc a)
-//      instance (Typeable a, Typeable b) => Typeable/n-2/ (tc a b)
-//      ...
-//      instance (Typeable a1, ..., Typeable an) => Typeable (tc a1 ... an)
-// --------------------------------------------------------------------------
--}
-
-
-
-
-
-
---  // For GHC, we can use DeriveDataTypeable + StandaloneDeriving to
---  // generate the instances.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{-# LINE 2002 "./Data/IntMap/Base.hs" #-}
 deriving instance Typeable IntMap
 
 {--------------------------------------------------------------------
@@ -2235,13 +2473,6 @@ branchMask p1 p2
 {--------------------------------------------------------------------
   Utilities
 --------------------------------------------------------------------}
-
-foldlStrict :: (a -> b -> a) -> a -> [b] -> a
-foldlStrict f = go
-  where
-    go z []     = z
-    go z (x:xs) = let z' = f z x in z' `seq` go z' xs
-{-# INLINE foldlStrict #-}
 
 -- | /O(1)/.  Decompose a map into pieces based on the structure of the underlying
 -- tree.  This function is useful for consuming a map in parallel.

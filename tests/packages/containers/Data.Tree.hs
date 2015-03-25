@@ -1,107 +1,402 @@
-{-# LINE 1 "./Data/Tree.hs" #-}
-{-# LINE 1 "dist/dist-sandbox-235ea54e/build/autogen/cabal_macros.h" #-}
-                                                                
+{-# LANGUAGE Haskell98 #-}
+{-# LINE 1 "Data/Tree.hs" #-}
 
-                           
 
 
 
 
 
 
-                          
 
 
 
 
 
 
-                             
 
 
 
 
 
 
-                     
 
 
 
 
 
 
-                       
 
 
 
 
 
 
-                  
 
 
 
 
 
 
-                    
 
 
 
 
 
 
-                        
 
 
 
 
 
 
-                         
-
-
-
-
-
-
-                       
-
-
-
-
-
-
-                   
-
-
-
-
-
-
-                      
-
-
-
-
-
-
-                          
-
-
-
-
-
-
-
-{-# LINE 2 "./Data/Tree.hs" #-}
-{-# LINE 1 "./Data/Tree.hs" #-}
 {-# LANGUAGE CPP #-}
-
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
+{-# LANGUAGE Trustworthy #-}
 
 
-{-# LANGUAGE Safe #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -----------------------------------------------------------------------------
 -- |
@@ -130,15 +425,15 @@ module Data.Tree(
     ) where
 
 import Control.Applicative (Applicative(..), (<$>))
-import Control.Monad
+import Data.Foldable (Foldable(foldMap), toList)
 import Data.Monoid (Monoid(..))
+import Data.Traversable (Traversable(traverse))
+
+import Control.Monad (liftM)
 import Data.Sequence (Seq, empty, singleton, (<|), (|>), fromList,
             ViewL(..), ViewR(..), viewl, viewr)
-import Data.Foldable (Foldable(foldMap), toList)
-import Data.Traversable (Traversable(traverse))
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
-
 
 import Data.Data (Data)
 
@@ -148,85 +443,16 @@ data Tree a = Node {
         rootLabel :: a,         -- ^ label value
         subForest :: Forest a   -- ^ zero or more child trees
     }
-
   deriving (Eq, Read, Show, Data)
-
-
-
 type Forest a = [Tree a]
 
-{-# LINE 1 "include/Typeable.h" #-}
-{- --------------------------------------------------------------------------
-// Macros to help make Typeable instances.
-//
-// INSTANCE_TYPEABLEn(tc,tcname,"tc") defines
-//
-//      instance Typeable/n/ tc
-//      instance Typeable a => Typeable/n-1/ (tc a)
-//      instance (Typeable a, Typeable b) => Typeable/n-2/ (tc a b)
-//      ...
-//      instance (Typeable a1, ..., Typeable an) => Typeable (tc a1 ... an)
-// --------------------------------------------------------------------------
--}
-
-
-
-
-
-
---  // For GHC, we can use DeriveDataTypeable + StandaloneDeriving to
---  // generate the instances.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{-# LINE 61 "./Data/Tree.hs" #-}
 deriving instance Typeable Tree
 
 instance Functor Tree where
-    fmap f (Node x ts) = Node (f x) (map (fmap f) ts)
+    fmap = fmapTree
+
+fmapTree :: (a -> b) -> Tree a -> Tree b
+fmapTree f (Node x ts) = Node (f x) (map (fmapTree f) ts)
 
 instance Applicative Tree where
     pure x = Node x []
@@ -243,6 +469,7 @@ instance Traversable Tree where
 
 instance Foldable Tree where
     foldMap f (Node x ts) = f x `mappend` foldMap (foldMap f) ts
+
 
 instance NFData a => NFData (Tree a) where
     rnf (Node x ts) = rnf x `seq` rnf ts
@@ -294,9 +521,7 @@ unfoldTreeM f b = do
     return (Node a ts)
 
 -- | Monadic forest builder, in depth-first order
-
 unfoldForestM :: Monad m => (b -> m (a, [b])) -> [b] -> m (Forest a)
-
 unfoldForestM f = Prelude.mapM (unfoldTreeM f)
 
 -- | Monadic tree builder, in breadth-first order,

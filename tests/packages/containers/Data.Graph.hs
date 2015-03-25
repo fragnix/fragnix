@@ -1,107 +1,402 @@
-{-# LINE 1 "./Data/Graph.hs" #-}
-{-# LINE 1 "dist/dist-sandbox-235ea54e/build/autogen/cabal_macros.h" #-}
-                                                                
+{-# LANGUAGE Haskell98 #-}
+{-# LINE 1 "Data/Graph.hs" #-}
 
-                           
 
 
 
 
 
 
-                          
 
 
 
 
 
 
-                             
 
 
 
 
 
 
-                     
 
 
 
 
 
 
-                       
 
 
 
 
 
 
-                  
 
 
 
 
 
 
-                    
 
 
 
 
 
 
-                        
 
 
 
 
 
 
-                         
-
-
-
-
-
-
-                       
-
-
-
-
-
-
-                   
-
-
-
-
-
-
-                      
-
-
-
-
-
-
-                          
-
-
-
-
-
-
-
-{-# LINE 2 "./Data/Graph.hs" #-}
-{-# LINE 1 "./Data/Graph.hs" #-}
 {-# LANGUAGE CPP #-}
-
 {-# LANGUAGE Rank2Types #-}
-
-
 {-# LANGUAGE Trustworthy #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -----------------------------------------------------------------------------
 -- |
@@ -156,17 +451,9 @@ module Data.Graph(
     ) where
 
 
-
-
-
 -- Extensions
-
 import Control.Monad.ST
 import Data.Array.ST (STArray, newArray, readArray, writeArray)
-
-
-
-
 import Data.Tree (Tree(Node), Forest)
 
 -- std interfaces
@@ -342,7 +629,7 @@ graphFromEdges edges0
                                    EQ -> Just mid
                                    GT -> findVertex (mid+1) b
                               where
-                                mid = (a + b) `div` 2
+                                mid = a + (b - a) `div` 2
 
 -------------------------------------------------------------------------
 --                                                                      -
@@ -382,7 +669,6 @@ chop (Node v ts : us)
 
 -- A monad holding a set of vertices visited so far.
 
-
 -- Use the ST monad if available, for constant-time primitives.
 
 newtype SetM s a = SetM { runSetM :: STArray s Vertex Bool -> ST s a }
@@ -414,36 +700,6 @@ contains v    = SetM $ \ m -> readArray m v
 
 include      :: Vertex -> SetM s ()
 include v     = SetM $ \ m -> writeArray m v True
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 -------------------------------------------------------------------------

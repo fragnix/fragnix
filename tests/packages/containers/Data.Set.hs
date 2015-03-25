@@ -1,104 +1,401 @@
-{-# LINE 1 "./Data/Set.hs" #-}
-{-# LINE 1 "dist/dist-sandbox-235ea54e/build/autogen/cabal_macros.h" #-}
-                                                                
+{-# LANGUAGE Haskell98 #-}
+{-# LINE 1 "Data/Set.hs" #-}
 
-                           
 
 
 
 
 
 
-                          
 
 
 
 
 
 
-                             
 
 
 
 
 
 
-                     
 
 
 
 
 
 
-                       
 
 
 
 
 
 
-                  
 
 
 
 
 
 
-                    
 
 
 
 
 
 
-                        
 
 
 
 
 
 
-                         
-
-
-
-
-
-
-                       
-
-
-
-
-
-
-                   
-
-
-
-
-
-
-                      
-
-
-
-
-
-
-                          
-
-
-
-
-
-
-
-{-# LINE 2 "./Data/Set.hs" #-}
-{-# LINE 1 "./Data/Set.hs" #-}
 {-# LANGUAGE CPP #-}
-
 {-# LANGUAGE Safe #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -----------------------------------------------------------------------------
 -- |
@@ -133,6 +430,10 @@
 -- 'union' or 'insert'.  Of course, left-biasing can only be observed
 -- when equality is an equivalence relation instead of structural
 -- equality.
+--
+-- /Warning/: The size of the set must not exceed @maxBound::Int@. Violation of
+-- this condition is not detected and if the size limit is exceeded, its
+-- behaviour is undefined.
 -----------------------------------------------------------------------------
 
 module Data.Set (
@@ -140,11 +441,7 @@ module Data.Set (
             -- $strictness
 
             -- * Set type
-
               Set          -- instance Eq,Ord,Show,Read,Data,Typeable
-
-
-
 
             -- * Operators
             , (\\)
@@ -226,13 +523,6 @@ module Data.Set (
             , showTree
             , showTreeWith
             , valid
-
-
-
-
-
-
-
 
             ) where
 

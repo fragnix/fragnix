@@ -1,104 +1,401 @@
-{-# LINE 1 "./Data/Map/Strict.hs" #-}
-{-# LINE 1 "dist/dist-sandbox-235ea54e/build/autogen/cabal_macros.h" #-}
-                                                                
+{-# LANGUAGE Haskell98 #-}
+{-# LINE 1 "Data/Map/Strict.hs" #-}
 
-                           
 
 
 
 
 
 
-                          
 
 
 
 
 
 
-                             
 
 
 
 
 
 
-                     
 
 
 
 
 
 
-                       
 
 
 
 
 
 
-                  
 
 
 
 
 
 
-                    
 
 
 
 
 
 
-                        
 
 
 
 
 
 
-                         
-
-
-
-
-
-
-                       
-
-
-
-
-
-
-                   
-
-
-
-
-
-
-                      
-
-
-
-
-
-
-                          
-
-
-
-
-
-
-
-{-# LINE 2 "./Data/Map/Strict.hs" #-}
-{-# LINE 1 "./Data/Map/Strict.hs" #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE Trustworthy #-}
 
-{-# LANGUAGE Safe #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -----------------------------------------------------------------------------
 -- |
@@ -139,6 +436,10 @@
 -- first argument are always preferred to the second, for example in
 -- 'union' or 'insert'.
 --
+-- /Warning/: The size of the map must not exceed @maxBound::Int@. Violation of
+-- this condition is not detected and if the size limit is exceeded, its
+-- behaviour is undefined.
+--
 -- Operation comments contain the operation time complexity in
 -- the Big-O notation (<http://en.wikipedia.org/wiki/Big_O_notation>).
 --
@@ -155,11 +456,7 @@ module Data.Map.Strict
     -- $strictness
 
     -- * Map type
-
     Map              -- instance Eq,Show,Read
-
-
-
 
     -- * Operators
     , (!), (\\)
@@ -310,13 +607,6 @@ module Data.Map.Strict
     , showTreeWith
     , valid
 
-
-
-
-
-
-
-
     ) where
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
@@ -367,19 +657,10 @@ import Data.Map.Base hiding
     , updateMaxWithKey
     )
 import qualified Data.Set.Base as Set
-import Data.StrictPair
+import Data.Utils.StrictFold
+import Data.Utils.StrictPair
+
 import Data.Bits (shiftL, shiftR)
-
--- Use macros to define strictness of functions.  STRICT_x_OF_y
--- denotes an y-ary function strict in the x-th parameter. Similarly
--- STRICT_x_y_OF_z denotes an z-ary function strict in the x-th and
--- y-th parameter.  We do not use BangPatterns, because they are not
--- in any standard and we want the compilers to be compiled by as many
--- compilers as possible.
-
-
-
-
 
 
 -- $strictness
@@ -420,11 +701,7 @@ findWithDefault def k = k `seq` go
       LT -> go l
       GT -> go r
       EQ -> x
-
 {-# INLINABLE findWithDefault #-}
-
-
-
 
 {--------------------------------------------------------------------
   Construction
@@ -456,18 +733,15 @@ insert :: Ord k => k -> a -> Map k a -> Map k a
 insert = go
   where
     go :: Ord k => k -> a -> Map k a -> Map k a
-    go arg1 arg2 _ | arg1 `seq` arg2 `seq` False = undefined
+    go arg _ _ | arg `seq` False = undefined
+    go _ arg _ | arg `seq` False = undefined
     go kx x Tip = singleton kx x
     go kx x (Bin sz ky y l r) =
         case compare kx ky of
             LT -> balanceL ky y (go kx x l) r
             GT -> balanceR ky y l (go kx x r)
             EQ -> Bin sz kx x l r
-
 {-# INLINABLE insert #-}
-
-
-
 
 -- | /O(log n)/. Insert with a function, combining new value and old value.
 -- @'insertWith' f key value mp@
@@ -481,11 +755,7 @@ insert = go
 
 insertWith :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWith f = insertWithKey (\_ x' y' -> f x' y')
-
 {-# INLINABLE insertWith #-}
-
-
-
 
 -- | /O(log n)/. Insert with a function, combining key, new value and old value.
 -- @'insertWithKey' f key value mp@
@@ -512,11 +782,7 @@ insertWithKey = go
             GT -> balanceR ky y l (go f kx x r)
             EQ -> let x' = f kx x y
                   in x' `seq` Bin sy kx x' l r
-
 {-# INLINABLE insertWithKey #-}
-
-
-
 
 -- | /O(log n)/. Combines insert operation with old value retrieval.
 -- The expression (@'insertLookupWithKey' f k x map@)
@@ -550,11 +816,7 @@ insertLookupWithKey f0 kx0 x0 t0 = toPair $ go f0 kx0 x0 t0
                   in found :*: balanceR ky y l r'
             EQ -> let x' = f kx x y
                   in x' `seq` (Just y :*: Bin sy kx x' l r)
-
 {-# INLINABLE insertLookupWithKey #-}
-
-
-
 
 {--------------------------------------------------------------------
   Deletion
@@ -570,11 +832,7 @@ insertLookupWithKey f0 kx0 x0 t0 = toPair $ go f0 kx0 x0 t0
 
 adjust :: Ord k => (a -> a) -> k -> Map k a -> Map k a
 adjust f = adjustWithKey (\_ x -> f x)
-
 {-# INLINABLE adjust #-}
-
-
-
 
 -- | /O(log n)/. Adjust a value at a specific key. When the key is not
 -- a member of the map, the original map is returned.
@@ -586,11 +844,7 @@ adjust f = adjustWithKey (\_ x -> f x)
 
 adjustWithKey :: Ord k => (k -> a -> a) -> k -> Map k a -> Map k a
 adjustWithKey f = updateWithKey (\k' x' -> Just (f k' x'))
-
 {-# INLINABLE adjustWithKey #-}
-
-
-
 
 -- | /O(log n)/. The expression (@'update' f k map@) updates the value @x@
 -- at @k@ (if it is in the map). If (@f x@) is 'Nothing', the element is
@@ -603,11 +857,7 @@ adjustWithKey f = updateWithKey (\k' x' -> Just (f k' x'))
 
 update :: Ord k => (a -> Maybe a) -> k -> Map k a -> Map k a
 update f = updateWithKey (\_ x -> f x)
-
 {-# INLINABLE update #-}
-
-
-
 
 -- | /O(log n)/. The expression (@'updateWithKey' f k map@) updates the
 -- value @x@ at @k@ (if it is in the map). If (@f k x@) is 'Nothing',
@@ -633,11 +883,7 @@ updateWithKey = go
            EQ -> case f kx x of
                    Just x' -> x' `seq` Bin sx kx x' l r
                    Nothing -> glue l r
-
 {-# INLINABLE updateWithKey #-}
-
-
-
 
 -- | /O(log n)/. Lookup and update. See also 'updateWithKey'.
 -- The function returns changed value, if it is updated.
@@ -664,11 +910,7 @@ updateLookupWithKey f0 k0 t0 = toPair $ go f0 k0 t0
                EQ -> case f kx x of
                        Just x' -> x' `seq` (Just x' :*: Bin sx kx x' l r)
                        Nothing -> (Just x :*: glue l r)
-
 {-# INLINABLE updateLookupWithKey #-}
-
-
-
 
 -- | /O(log n)/. The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence thereof.
 -- 'alter' can be used to insert, delete, or update a value in a 'Map'.
@@ -698,11 +940,7 @@ alter = go
                EQ -> case f (Just x) of
                        Just x' -> x' `seq` Bin sx kx x' l r
                        Nothing -> glue l r
-
 {-# INLINABLE alter #-}
-
-
-
 
 {--------------------------------------------------------------------
   Indexing
@@ -793,9 +1031,7 @@ updateMaxWithKey f (Bin _ kx x l r)    = balanceL kx x l (updateMaxWithKey f r)
 unionsWith :: Ord k => (a->a->a) -> [Map k a] -> Map k a
 unionsWith f ts
   = foldlStrict (unionWith f) empty ts
-
 {-# INLINABLE unionsWith #-}
-
 
 {--------------------------------------------------------------------
   Union with a combining function
@@ -807,9 +1043,7 @@ unionsWith f ts
 unionWith :: Ord k => (a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWith f m1 m2
   = unionWithKey (\_ x y -> f x y) m1 m2
-
 {-# INLINABLE unionWith #-}
-
 
 -- | /O(n+m)/.
 -- Union with a combining function. The implementation uses the efficient /hedge-union/ algorithm.
@@ -819,9 +1053,7 @@ unionWith f m1 m2
 
 unionWithKey :: Ord k => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) id id t1 t2
-
 {-# INLINABLE unionWithKey #-}
-
 
 {--------------------------------------------------------------------
   Difference
@@ -841,9 +1073,7 @@ unionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) id id t1 t2
 differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWith f m1 m2
   = differenceWithKey (\_ x y -> f x y) m1 m2
-
 {-# INLINABLE differenceWith #-}
-
 
 -- | /O(n+m)/. Difference with a combining function. When two equal keys are
 -- encountered, the combining function is applied to the key and both values.
@@ -857,9 +1087,7 @@ differenceWith f m1 m2
 
 differenceWithKey :: Ord k => (k -> a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
-
 {-# INLINABLE differenceWithKey #-}
-
 
 
 {--------------------------------------------------------------------
@@ -874,9 +1102,7 @@ differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWith f m1 m2
   = intersectionWithKey (\_ x y -> f x y) m1 m2
-
 {-# INLINABLE intersectionWith #-}
-
 
 -- | /O(n+m)/. Intersection with a combining function.  The implementation uses
 -- an efficient /hedge/ algorithm comparable with /hedge-union/.
@@ -887,9 +1113,7 @@ intersectionWith f m1 m2
 
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (const Tip) (const Tip) t1 t2
-
 {-# INLINABLE intersectionWithKey #-}
-
 
 
 {--------------------------------------------------------------------
@@ -1022,6 +1246,10 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 map :: (a -> b) -> Map k a -> Map k b
 map _ Tip = Tip
 map f (Bin sx kx x l r) = let x' = f x in x' `seq` Bin sx kx x' (map f l) (map f r)
+{-# NOINLINE [1] map #-}
+{-# RULES
+"map/map" forall f g xs . map f (map g xs) = map (f . g) xs
+ #-}
 
 -- | /O(n)/. Map a function over all values in the map.
 --
@@ -1030,8 +1258,19 @@ map f (Bin sx kx x l r) = let x' = f x in x' `seq` Bin sx kx x' (map f l) (map f
 
 mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
 mapWithKey _ Tip = Tip
-mapWithKey f (Bin sx kx x l r) = let x' = f kx x
-                                 in x' `seq` Bin sx kx x' (mapWithKey f l) (mapWithKey f r)
+mapWithKey f (Bin sx kx x l r) =
+  let x' = f kx x
+  in x' `seq` Bin sx kx x' (mapWithKey f l) (mapWithKey f r)
+
+{-# NOINLINE [1] mapWithKey #-}
+{-# RULES
+"mapWithKey/mapWithKey" forall f g xs . mapWithKey f (mapWithKey g xs) =
+  mapWithKey (\k a -> f k (g k a)) xs
+"mapWithKey/map" forall f g xs . mapWithKey f (map g xs) =
+  mapWithKey (\k a -> f k (g a)) xs
+"map/mapWithKey" forall f g xs . map f (mapWithKey g xs) =
+  mapWithKey (\k a -> f (g k a)) xs
+ #-}
 
 -- | /O(n)/. The function 'mapAccum' threads an accumulating
 -- argument through the map in ascending order of keys.
@@ -1085,9 +1324,7 @@ mapAccumRWithKey f a (Bin sx kx x l r) =
 
 mapKeysWith :: Ord k2 => (a -> a -> a) -> (k1->k2) -> Map k1 a -> Map k2 a
 mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
-
 {-# INLINABLE mapKeysWith #-}
-
 
 {--------------------------------------------------------------------
   Conversions
@@ -1157,9 +1394,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (Bin 1 kx0
                       (l, ys@((ky, y):yss), _) | not_ordered ky yss -> (l, [], ys)
                                                | otherwise -> case create (s `shiftR` 1) yss of
                                                    (r, zs, ws) -> y `seq` (link ky y l r, zs, ws)
-
 {-# INLINABLE fromList #-}
-
 
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWith'.
 --
@@ -1169,9 +1404,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (Bin 1 kx0
 fromListWith :: Ord k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromListWith f xs
   = fromListWithKey (\_ x y -> f x y) xs
-
 {-# INLINABLE fromListWith #-}
-
 
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWithKey'.
 --
@@ -1184,9 +1417,7 @@ fromListWithKey f xs
   = foldlStrict ins empty xs
   where
     ins t (k,x) = insertWithKey f k x t
-
 {-# INLINABLE fromListWithKey #-}
-
 
 {--------------------------------------------------------------------
   Building trees from ascending/descending lists can be done in linear time.
@@ -1206,9 +1437,7 @@ fromListWithKey f xs
 fromAscList :: Eq k => [(k,a)] -> Map k a
 fromAscList xs
   = fromAscListWithKey (\_ x _ -> x) xs
-
 {-# INLINABLE fromAscList #-}
-
 
 -- | /O(n)/. Build a map from an ascending list in linear time with a combining function for equal keys.
 -- /The precondition (input list is ascending) is not checked./
@@ -1220,9 +1449,7 @@ fromAscList xs
 fromAscListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromAscListWith f xs
   = fromAscListWithKey (\_ x y -> f x y) xs
-
 {-# INLINABLE fromAscListWith #-}
-
 
 -- | /O(n)/. Build a map from an ascending list in linear time with a
 -- combining function for equal keys.
@@ -1248,9 +1475,7 @@ fromAscListWithKey f xs
   combineEq' z@(kz,zz) (x@(kx,xx):xs')
     | kx==kz    = let yy = f kx xx zz in yy `seq` combineEq' (kx,yy) xs'
     | otherwise = z:combineEq' x xs'
-
 {-# INLINABLE fromAscListWithKey #-}
-
 
 -- | /O(n)/. Build a map from an ascending list of distinct elements in linear time.
 -- /The precondition is not checked./

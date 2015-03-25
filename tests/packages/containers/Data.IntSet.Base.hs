@@ -1,107 +1,403 @@
-{-# LINE 1 "./Data/IntSet/Base.hs" #-}
-{-# LINE 1 "dist/dist-sandbox-235ea54e/build/autogen/cabal_macros.h" #-}
-                                                                
+{-# LANGUAGE Haskell98 #-}
+{-# LINE 1 "Data/IntSet/Base.hs" #-}
 
-                           
 
 
 
 
 
 
-                          
 
 
 
 
 
 
-                             
 
 
 
 
 
 
-                     
 
 
 
 
 
 
-                       
 
 
 
 
 
 
-                  
 
 
 
 
 
 
-                    
 
 
 
 
 
 
-                        
 
 
 
 
 
 
-                         
-
-
-
-
-
-
-                       
-
-
-
-
-
-
-                   
-
-
-
-
-
-
-                      
-
-
-
-
-
-
-                          
-
-
-
-
-
-
-
-{-# LINE 2 "./Data/IntSet/Base.hs" #-}
-{-# LINE 1 "./Data/IntSet/Base.hs" #-}
 {-# LANGUAGE CPP #-}
-
 {-# LANGUAGE MagicHash, BangPatterns, DeriveDataTypeable, StandaloneDeriving #-}
-
-
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE TypeFamilies #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -----------------------------------------------------------------------------
 -- |
@@ -257,599 +553,25 @@ module Data.IntSet.Base (
     , bitmapOf
     ) where
 
--- We want to be able to compile without cabal. Nevertheless
--- #if defined(MIN_VERSION_base) && (  (4) <  4 ||   (4) == 4 && (5) <  7 ||   (4) == 4 && (5) == 7 && (0) <= 0)
--- does not work, because if MIN_VERSION_base is undefined,
--- the last condition is syntactically wrong.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import Control.DeepSeq (NFData)
+import Control.DeepSeq (NFData(rnf))
 import Data.Bits
 import qualified Data.List as List
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Monoid(..))
-import Data.Typeable
 import Data.Word (Word)
+import Data.Typeable
 import Prelude hiding (filter, foldr, foldl, null, map)
 
-import Data.BitUtil
-import Data.StrictPair
-
+import Data.Utils.BitUtil
+import Data.Utils.StrictFold
+import Data.Utils.StrictPair
 
 import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix), DataType, mkDataType)
 import Text.Read
 
-
-
 import GHC.Exts (Int(..), build)
+import qualified GHC.Exts as GHCExts
 import GHC.Prim (indexInt8OffAddr#)
-
-
--- On GHC, include MachDeps.h to get WORD_SIZE_IN_BITS macro.
-
-{-# LINE 1 "/usr/lib/ghc/include/MachDeps.h" #-}
-                                                                                
-  
-                                     
-   
-                                                                     
-                       
-  
-                                                
-                                               
-  
-                                                                
-                                                                            
-  
-                                                                                
-
-
-
-
-                                        
-{-# LINE 1 "/usr/lib/ghc/include/ghcautoconf.h" #-}
-
-
-                                                             
-                                                                  
-
-                                                          
-                                     
-
-                                
-
-
-                                  
-
-
-                                 
-
-
-                               
-
-
-                                
-
-
-                                     
-
-
-                                 
-
-
-                                         
-
-
-                                        
-
-
-                                         
-
-
-                                              
-
-
-                                          
-
-
-                                  
-
-
-                                                                         
-                                                                              
-     
-                              
-
-                                      
-                     
-
-                                                                     
-                            
-                                  
-
-                           
-
-
-                                                               
-
-
-                                                                            
-     
-
-
-                                                      
-                       
-
-                                      
-
-
-                                                           
-
-
-                                                     
-
-
-                                                        
-
-
-                                                                        
-            
-
-
-                                                         
-
-
-                                                        
-
-
-                                                        
-
-
-                                                     
-
-
-                                                        
-
-
-                                                  
-
-
-                                                      
-                          
-
-                                                               
-                                   
-
-                                                       
-
-
-                                                          
-
-
-                                                      
-
-
-                                                           
-
-
-                                                        
-                        
-
-                                                   
-
-
-                                                              
-                           
-
-                                               
-
-
-                                                      
-
-
-                                                         
-
-
-                                                         
-
-
-                                                         
-
-
-                                                         
-
-
-                                                  
-                         
-
-                                                        
-                         
-
-                                                                         
-
-
-                                                          
-
-
-                                                      
-
-
-                                                        
-
-
-                                                               
-
-
-                                                       
-
-
-                                                              
-
-
-                                                       
-
-
-                                                          
-
-
-                                                         
-
-
-                                                         
-
-
-                                                         
-
-
-                                                          
-
-
-                                                         
-
-
-                                                             
-                                         
-
-                                                     
-
-
-                                                             
-                              
-
-                                                              
-
-
-                                                           
-
-
-                                                               
-
-
-                                                             
-
-
-                                                           
-
-
-                                                            
-
-
-                                                             
-                              
-
-                                                            
-
-
-                                                           
-
-
-                                                            
-
-
-                                                              
-
-
-                                                           
-
-
-                                                          
-
-
-                                                          
-
-
-                                                           
-
-
-                                                   
-
-
-                                                       
-
-
-                                                         
-
-
-                                                        
-
-
-                                                   
-
-
-                                                        
-                         
-
-                                                          
-                           
-
-                                                     
-                         
-
-                                                          
-                           
-
-                                  
-
-
-                                   
-
-
-                                                              
-                                  
-
-                                                                            
-     
-                               
-
-                                                                              
-                              
-
-                                              
-                         
-
-                                                          
-                           
-
-                                                          
-                            
-
-                                               
-                        
-
-                                            
-                            
-
-                                                                     
-
-
-                                                
-
-
-                                                  
-
-
-                                                 
-
-
-                                               
-
-
-                                                
-
-
-                                                     
-
-
-                                                 
-
-
-                                                         
-
-
-                                                        
-
-
-                                                         
-
-
-                                                              
-
-
-                                                          
-
-
-                                                  
-
-
-                                                                  
-                                                                  
-                                    
-                                                     
-                                                    
-                                                      
-                            
-
-                                                      
-
-
-                                                                           
-
-
-                                                                          
-
-
-                                                                             
-                                         
-
-
-                                                                           
-                                                                     
-
-
-
-
-
-
-                              
-
-
-
-                                                   
-
-
-
-
-                                                                       
-                              
-
-                                                 
-                         
-
-                
-                                    
-
-                
-                                    
-
-                                                            
-                  
-
-                                                       
-                  
-
-                                                                
-                   
-
-                                                
-                  
-
-
-
-
-{-# LINE 21 "/usr/lib/ghc/include/MachDeps.h" #-}
-
-                                                             
-                                                           
-                                                                     
-                                                
-  
-                                                                      
-                                                            
-   
-
-                                     
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{-# LINE 207 "./Data/IntSet/Base.hs" #-}
-
-
--- Use macros to define strictness of functions.
--- STRICT_x_OF_y denotes an y-ary function strict in the x-th parameter.
--- We do not use BangPatterns, because they are not in any standard and we
--- want the compilers to be compiled by as many compilers as possible.
-
-
-
 
 
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
@@ -909,7 +631,6 @@ instance Monoid IntSet where
     mconcat = unions
 
 
-
 {--------------------------------------------------------------------
   A Data instance
 --------------------------------------------------------------------}
@@ -930,7 +651,6 @@ fromListConstr = mkConstr intSetDataType "fromList" [] Prefix
 
 intSetDataType :: DataType
 intSetDataType = mkDataType "Data.IntSet.Base.IntSet" [fromListConstr]
-
 
 
 {--------------------------------------------------------------------
@@ -1573,6 +1293,11 @@ elems
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
+instance GHCExts.IsList IntSet where
+  type Item IntSet = Key
+  fromList = fromList
+  toList   = toList
+
 -- | /O(n)/. Convert the set to a list of elements. Subject to list fusion.
 toList :: IntSet -> [Key]
 toList
@@ -1589,7 +1314,6 @@ toDescList :: IntSet -> [Key]
 toDescList = foldl (flip (:)) []
 
 -- List fusion for the list generating functions.
-
 -- The foldrFB and foldlFB are foldr and foldl equivalents, used for list fusion.
 -- They are important to convert unfused to{Asc,Desc}List back, see mapFB in prelude.
 foldrFB :: (Key -> b -> b) -> b -> IntSet -> b
@@ -1615,7 +1339,6 @@ foldlFB = foldl
 {-# RULES "IntSet.toAscListBack" [1] foldrFB (:) [] = toAscList #-}
 {-# RULES "IntSet.toDescList" [~1] forall s . toDescList s = build (\c n -> foldlFB (\xs x -> c x xs) n s) #-}
 {-# RULES "IntSet.toDescListBack" [1] foldlFB (\xs x -> x : xs) [] = toDescList #-}
-
 
 
 -- | /O(n*min(n,W))/. Create a set from a list of integers.
@@ -1706,7 +1429,6 @@ instance Show IntSet where
   Read
 --------------------------------------------------------------------}
 instance Read IntSet where
-
   readPrec = parens $ prec 10 $ do
     Ident "fromList" <- lexP
     xs <- readPrec
@@ -1714,84 +1436,10 @@ instance Read IntSet where
 
   readListPrec = readListPrecDefault
 
-
-
-
-
-
-
 {--------------------------------------------------------------------
   Typeable
 --------------------------------------------------------------------}
 
-{-# LINE 1 "include/Typeable.h" #-}
-{- --------------------------------------------------------------------------
-// Macros to help make Typeable instances.
-//
-// INSTANCE_TYPEABLEn(tc,tcname,"tc") defines
-//
-//      instance Typeable/n/ tc
-//      instance Typeable a => Typeable/n-1/ (tc a)
-//      instance (Typeable a, Typeable b) => Typeable/n-2/ (tc a b)
-//      ...
-//      instance (Typeable a1, ..., Typeable an) => Typeable (tc a1 ... an)
-// --------------------------------------------------------------------------
--}
-
-
-
-
-
-
---  // For GHC, we can use DeriveDataTypeable + StandaloneDeriving to
---  // generate the instances.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{-# LINE 1091 "./Data/IntSet/Base.hs" #-}
 deriving instance Typeable IntSet
 
 {--------------------------------------------------------------------
@@ -1801,7 +1449,7 @@ deriving instance Typeable IntSet
 -- The IntSet constructors consist only of strict fields of Ints and
 -- IntSets, thus the default NFData instance which evaluates to whnf
 -- should suffice
-instance NFData IntSet
+instance NFData IntSet where rnf x = seq x ()
 
 {--------------------------------------------------------------------
   Debugging
@@ -1918,11 +1566,7 @@ tip kx bm = Tip kx bm
 ----------------------------------------------------------------------}
 
 suffixBitMask :: Int
-
 suffixBitMask = finiteBitSize (undefined::Word) - 1
-
-
-
 {-# INLINE suffixBitMask #-}
 
 prefixBitMask :: Int
@@ -2013,7 +1657,6 @@ foldr'Bits :: Int -> (Int -> a -> a) -> a -> Nat -> a
 {-# INLINE foldrBits #-}
 {-# INLINE foldr'Bits #-}
 
-
 {----------------------------------------------------------------------
   For lowestBitSet we use wordsize-dependant implementation based on
   multiplication and DeBrujn indeces, which was proposed by Edward Kmett
@@ -2032,15 +1675,9 @@ indexOfTheOnlyBit :: Nat -> Int
 indexOfTheOnlyBit bitmask =
   I# (lsbArray `indexInt8OffAddr#` unboxInt (intFromNat ((bitmask * magic) `shiftRL` offset)))
   where unboxInt (I# i) = i
-
-
-
-
-
         magic = 0x07EDD5E59A4E28C2
         offset = 58
         !lsbArray = "\63\0\58\1\59\47\53\2\60\39\48\27\54\33\42\3\61\51\37\40\49\18\28\20\55\30\34\11\43\14\22\4\62\57\46\52\38\26\32\41\50\36\17\19\29\10\13\21\56\45\25\31\35\16\9\12\44\24\15\8\23\7\6\5"#
-
 -- The lsbArray gets inlined to every call site of indexOfTheOnlyBit.
 -- That cannot be easily avoided, as GHC forbids top-level Addr# literal.
 -- One could go around that by supplying getLsbArray :: () -> Addr# marked
@@ -2054,20 +1691,12 @@ lowestBitMask x = x .&. negate x
 
 -- Reverse the order of bits in the Nat.
 revNat :: Nat -> Nat
-
-
-
-
-
-
-
 revNat x1 = case ((x1 `shiftRL` 1) .&. 0x5555555555555555) .|. ((x1 .&. 0x5555555555555555) `shiftLL` 1) of
               x2 -> case ((x2 `shiftRL` 2) .&. 0x3333333333333333) .|. ((x2 .&. 0x3333333333333333) `shiftLL` 2) of
                  x3 -> case ((x3 `shiftRL` 4) .&. 0x0F0F0F0F0F0F0F0F) .|. ((x3 .&. 0x0F0F0F0F0F0F0F0F) `shiftLL` 4) of
                    x4 -> case ((x4 `shiftRL` 8) .&. 0x00FF00FF00FF00FF) .|. ((x4 .&. 0x00FF00FF00FF00FF) `shiftLL` 8) of
                      x5 -> case ((x5 `shiftRL` 16) .&. 0x0000FFFF0000FFFF) .|. ((x5 .&. 0x0000FFFF0000FFFF) `shiftLL` 16) of
                        x6 -> ( x6 `shiftRL` 32             ) .|. ( x6               `shiftLL` 32);
-
 
 lowestBitSet x = indexOfTheOnlyBit (lowestBitMask x)
 
@@ -2100,62 +1729,6 @@ foldr'Bits prefix f z bitmap = go (revNat bitmap) z
                                     bi -> bi `seq` go (bm `xor` bitmask) ((f $! (prefix+(64-1)-bi)) acc)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 {----------------------------------------------------------------------
   [bitcount] as posted by David F. Place to haskell-cafe on April 11, 2006,
   based on the code on
@@ -2169,25 +1742,13 @@ foldr'Bits prefix f z bitmap = go (revNat bitmap) z
 ----------------------------------------------------------------------}
 
 bitcount :: Int -> Word -> Int
-
 bitcount a x = a + popCount x
-
-
-
-
-
 {-# INLINE bitcount #-}
 
 
 {--------------------------------------------------------------------
   Utilities
 --------------------------------------------------------------------}
-foldlStrict :: (a -> b -> a) -> a -> [b] -> a
-foldlStrict f = go
-  where
-    go z []     = z
-    go z (x:xs) = let z' = f z x in z' `seq` go z' xs
-{-# INLINE foldlStrict #-}
 
 -- | /O(1)/.  Decompose a set into pieces based on the structure of the underlying
 -- tree.  This function is useful for consuming a set in parallel.

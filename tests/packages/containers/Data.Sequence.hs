@@ -1,113 +1,411 @@
-{-# LINE 1 "./Data/Sequence.hs" #-}
-{-# LINE 1 "dist/dist-sandbox-235ea54e/build/autogen/cabal_macros.h" #-}
-                                                                
+{-# LANGUAGE Haskell98 #-}
+{-# LINE 1 "Data/Sequence.hs" #-}
 
-                           
 
 
 
 
 
 
-                          
 
 
 
 
 
 
-                             
 
 
 
 
 
 
-                     
 
 
 
 
 
 
-                       
 
 
 
 
 
 
-                  
 
 
 
 
 
 
-                    
 
 
 
 
 
 
-                        
 
 
 
 
 
 
-                         
-
-
-
-
-
-
-                       
-
-
-
-
-
-
-                   
-
-
-
-
-
-
-                      
-
-
-
-
-
-
-                          
-
-
-
-
-
-
-
-{-# LINE 2 "./Data/Sequence.hs" #-}
-{-# LINE 1 "./Data/Sequence.hs" #-}
 {-# LANGUAGE CPP #-}
-
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
-
-
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE TypeFamilies #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Sequence
 -- Copyright   :  (c) Ross Paterson 2005
 --                (c) Louis Wasserman 2009
+--                (c) Bertram Felgenhauer, David Feuer, Ross Paterson, and
+--                    Milan Straka 2014
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  experimental
@@ -120,7 +418,7 @@
 --
 -- An amortized running time is given for each operation, with /n/ referring
 -- to the length of the sequence and /i/ being the integral index used by
--- some operations.  These bounds hold even in a persistent (shared) setting.
+-- some operations. These bounds hold even in a persistent (shared) setting.
 --
 -- The implementation uses 2-3 finger trees annotated with sizes,
 -- as described in section 4.2 of
@@ -128,20 +426,23 @@
 --    * Ralf Hinze and Ross Paterson,
 --      \"Finger trees: a simple general-purpose data structure\",
 --      /Journal of Functional Programming/ 16:2 (2006) pp 197-217.
---      <http://www.soi.city.ac.uk/~ross/papers/FingerTree.html>
+--      <http://staff.city.ac.uk/~ross/papers/FingerTree.html>
 --
 -- /Note/: Many of these operations have the same names as similar
--- operations on lists in the "Prelude".  The ambiguity may be resolved
+-- operations on lists in the "Prelude". The ambiguity may be resolved
 -- using either qualification or the @hiding@ clause.
+--
+-- /Warning/: The size of a 'Seq' must not exceed @maxBound::Int@.  Violation
+-- of this condition is not detected and if the size limit is exceeded, the
+-- behaviour of the sequence is undefined.  This is unlikely to occur in most
+-- applications, but some care may be required when using '><', '<*>', '*>', or
+-- '>>', particularly repeatedly and particularly in combination with
+-- 'replicate' or 'fromFunction'.
 --
 -----------------------------------------------------------------------------
 
 module Data.Sequence (
-
     Seq,
-
-
-
     -- * Construction
     empty,          -- :: Seq a
     singleton,      -- :: a -> Seq a
@@ -149,6 +450,8 @@ module Data.Sequence (
     (|>),           -- :: Seq a -> a -> Seq a
     (><),           -- :: Seq a -> Seq a -> Seq a
     fromList,       -- :: [a] -> Seq a
+    fromFunction,   -- :: Int -> (Int -> a) -> Seq a
+    fromArray,      -- :: Ix i => Array i a -> Seq a
     -- ** Repetition
     replicate,      -- :: Int -> a -> Seq a
     replicateA,     -- :: Applicative f => Int -> f a -> f (Seq a)
@@ -226,12 +529,6 @@ module Data.Sequence (
     zipWith3,       -- :: (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> Seq d
     zip4,           -- :: Seq a -> Seq b -> Seq c -> Seq d -> Seq (a, b, c, d)
     zipWith4,       -- :: (a -> b -> c -> d -> e) -> Seq a -> Seq b -> Seq c -> Seq d -> Seq e
-
-
-
-
-
-
     ) where
 
 import Prelude hiding (
@@ -247,19 +544,31 @@ import Control.DeepSeq (NFData(rnf))
 import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
-import Data.Foldable
+import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), foldl', toList)
 import Data.Traversable
 import Data.Typeable
 
-
+-- GHC specific stuff
 import GHC.Exts (build)
 import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
 import Data.Data
 
+-- Array stuff, with GHC.Arr on GHC
+import Data.Array (Ix, Array)
+import qualified Data.Array
+import qualified GHC.Arr
+
+-- Coercion on GHC 7.8+
+import Data.Coerce
+import qualified GHC.Exts
+
+-- Identity functor on base 4.8 (GHC 7.10+)
+
 
 infixr 5 `consTree`
 infixl 5 `snocTree`
+infixr 5 `appendTree0`
 
 infixr 5 ><
 infixr 5 <|, :<
@@ -272,12 +581,18 @@ class Sized a where
 newtype Seq a = Seq (FingerTree (Elem a))
 
 instance Functor Seq where
-    fmap f (Seq xs) = Seq (fmap (fmap f) xs)
-
+    fmap = fmapSeq
     x <$ s = replicate (length s) x
 
+fmapSeq :: (a -> b) -> Seq a -> Seq b
+fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
+{-# NOINLINE [1] fmapSeq #-}
+{-# RULES
+"fmapSeq/fmapSeq" forall f g xs . fmapSeq f (fmapSeq g xs) = fmapSeq (f . g) xs
+ #-}
 
 instance Foldable Seq where
+    foldMap f (Seq xs) = foldMap (foldMap f) xs
     foldr f z (Seq xs) = foldr (flip (foldr f)) z xs
     foldl f z (Seq xs) = foldl (foldl f) z xs
 
@@ -286,6 +601,7 @@ instance Foldable Seq where
 
     foldl1 f (Seq xs) = getElem (foldl1 f' xs)
       where f' (Elem x) (Elem y) = Elem (f x y)
+
 
 instance Traversable Seq where
     traverse f (Seq xs) = Seq <$> traverse (traverse f) xs
@@ -297,11 +613,241 @@ instance Monad Seq where
     return = singleton
     xs >>= f = foldl' add empty xs
       where add ys x = ys >< f x
+    (>>) = (*>)
 
 instance Applicative Seq where
     pure = singleton
-    fs <*> xs = foldl' add empty fs
+
+    Seq Empty <*> xs = xs `seq` empty
+    fs <*> Seq Empty = fs `seq` empty
+    fs <*> Seq (Single (Elem x)) = fmap ($ x) fs
+    fs <*> xs
+      | length fs < 4 = foldl' add empty fs
       where add ys f = ys >< fmap f xs
+    fs <*> xs | length xs < 4 = apShort fs xs
+    fs <*> xs = apty fs xs
+
+    xs *> ys = replicateSeq (length xs) ys
+
+-- <*> when the length of the first argument is at least two and
+-- the length of the second is two or three.
+apShort :: Seq (a -> b) -> Seq a -> Seq b
+apShort (Seq fs) xs = Seq $ case toList xs of
+            [a,b] -> ap2FT fs (a,b)
+            [a,b,c] -> ap3FT fs (a,b,c)
+            _ -> error "apShort: not 2-3"
+
+ap2FT :: FingerTree (Elem (a->b)) -> (a,a) -> FingerTree (Elem b)
+ap2FT fs (x,y) = Deep (size fs * 2)
+                      (Two (Elem $ firstf x) (Elem $ firstf y))
+                      (mapMulFT 2 (\(Elem f) -> Node2 2 (Elem (f x)) (Elem (f y))) m)
+                      (Two (Elem $ lastf x) (Elem $ lastf y))
+  where
+    (Elem firstf, m, Elem lastf) = trimTree fs
+
+ap3FT :: FingerTree (Elem (a->b)) -> (a,a,a) -> FingerTree (Elem b)
+ap3FT fs (x,y,z) = Deep (size fs * 3)
+                        (Three (Elem $ firstf x) (Elem $ firstf y) (Elem $ firstf z))
+                        (mapMulFT 3 (\(Elem f) -> Node3 3 (Elem (f x)) (Elem (f y)) (Elem (f z))) m)
+                        (Three (Elem $ lastf x) (Elem $ lastf y) (Elem $ lastf z))
+  where
+    (Elem firstf, m, Elem lastf) = trimTree fs
+
+-- <*> when the length of each argument is at least four.
+apty :: Seq (a -> b) -> Seq a -> Seq b
+apty (Seq fs) (Seq xs@Deep{}) = Seq $
+    Deep (s' * size fs)
+         (fmap (fmap firstf) pr')
+         (aptyMiddle (fmap firstf) (fmap lastf) fmap fs' xs')
+         (fmap (fmap lastf) sf')
+  where
+    (Elem firstf, fs', Elem lastf) = trimTree fs
+    xs'@(Deep s' pr' _m' sf') = rigidify xs
+apty _ _ = error "apty: expects a Deep constructor"
+
+-- | 'aptyMiddle' does most of the hard work of computing @fs<*>xs@.
+-- It produces the center part of a finger tree, with a prefix corresponding
+-- to the prefix of @xs@ and a suffix corresponding to the suffix of @xs@
+-- omitted; the missing suffix and prefix are added by the caller.
+-- For the recursive call, it squashes the prefix and the suffix into
+-- the center tree. Once it gets to the bottom, it turns the tree into
+-- a 2-3 tree, applies 'mapMulFT' to produce the main body, and glues all
+-- the pieces together.
+aptyMiddle
+  :: Sized c =>
+     (c -> d)
+     -> (c -> d)
+     -> ((a -> b) -> c -> d)
+     -> FingerTree (Elem (a -> b))
+     -> FingerTree c
+     -> FingerTree (Node d)
+-- Not at the bottom yet
+aptyMiddle firstf
+           lastf
+           map23
+           fs
+           (Deep s pr (Deep sm prm mm sfm) sf)
+    = Deep (sm + s * (size fs + 1)) -- note: sm = s - size pr - size sf
+           (fmap (fmap firstf) prm)
+           (aptyMiddle (fmap firstf)
+                       (fmap lastf)
+                       (\f -> fmap (map23 f))
+                       fs
+                       (Deep s (squashL pr prm) mm (squashR sfm sf)))
+           (fmap (fmap lastf) sfm)
+
+-- At the bottom. Note that these appendTree0 calls are very cheap, because in
+-- each case, one of the arguments is guaranteed to be Empty or Single.
+aptyMiddle firstf
+           lastf
+           map23
+           fs
+           (Deep s pr m sf)
+      = fmap (fmap firstf) m `appendTree0`
+        ((fmap firstf (digitToNode sf)
+            `consTree` middle)
+            `snocTree` fmap lastf (digitToNode pr))
+        `appendTree0`  fmap (fmap lastf) m
+    where middle = case trimTree $ mapMulFT s (\(Elem f) -> fmap (fmap (map23 f)) converted) fs of
+                     (firstMapped, restMapped, lastMapped) ->
+                        Deep (size firstMapped + size restMapped + size lastMapped)
+                             (nodeToDigit firstMapped) restMapped (nodeToDigit lastMapped)
+          converted = case m of
+                                    Empty -> Node2 s lconv rconv
+                                    Single q -> Node3 s lconv q rconv
+                                    Deep{} -> error "aptyMiddle: impossible"
+          lconv = digitToNode pr
+          rconv = digitToNode sf
+
+aptyMiddle _ _ _ _ _ = error "aptyMiddle: expected Deep finger tree"
+
+{-# SPECIALIZE
+ aptyMiddle
+  :: (Node c -> d)
+     -> (Node c -> d)
+     -> ((a -> b) -> Node c -> d)
+     -> FingerTree (Elem (a -> b))
+     -> FingerTree (Node c)
+     -> FingerTree (Node d)
+ #-}
+{-# SPECIALIZE
+ aptyMiddle
+  :: (Elem c -> d)
+     -> (Elem c -> d)
+     -> ((a -> b) -> Elem c -> d)
+     -> FingerTree (Elem (a -> b))
+     -> FingerTree (Elem c)
+     -> FingerTree (Node d)
+ #-}
+
+digitToNode :: Sized a => Digit a -> Node a
+digitToNode (Two a b) = node2 a b
+digitToNode (Three a b c) = node3 a b c
+digitToNode _ = error "digitToNode: not representable as a node"
+
+type Digit23 = Digit
+type Digit12 = Digit
+
+-- Squash the first argument down onto the left side of the second.
+squashL :: Sized a => Digit23 a -> Digit12 (Node a) -> Digit23 (Node a)
+squashL (Two a b) (One n) = Two (node2 a b) n
+squashL (Two a b) (Two n1 n2) = Three (node2 a b) n1 n2
+squashL (Three a b c) (One n) = Two (node3 a b c) n
+squashL (Three a b c) (Two n1 n2) = Three (node3 a b c) n1 n2
+squashL _ _ = error "squashL: wrong digit types"
+
+-- Squash the second argument down onto the right side of the first
+squashR :: Sized a => Digit12 (Node a) -> Digit23 a -> Digit23 (Node a)
+squashR (One n) (Two a b) = Two n (node2 a b)
+squashR (Two n1 n2) (Two a b) = Three n1 n2 (node2 a b)
+squashR (One n) (Three a b c) = Two n (node3 a b c)
+squashR (Two n1 n2) (Three a b c) = Three n1 n2 (node3 a b c)
+squashR _ _ = error "squashR: wrong digit types"
+
+-- | /O(m*n)/ (incremental) Takes an /O(m)/ function and a finger tree of size
+-- /n/ and maps the function over the tree leaves. Unlike the usual 'fmap', the
+-- function is applied to the "leaves" of the 'FingerTree' (i.e., given a
+-- @FingerTree (Elem a)@, it applies the function to elements of type @Elem
+-- a@), replacing the leaves with subtrees of at least the same height, e.g.,
+-- @Node(Node(Elem y))@. The multiplier argument serves to make the annotations
+-- match up properly.
+mapMulFT :: Int -> (a -> b) -> FingerTree a -> FingerTree b
+mapMulFT _ _ Empty = Empty
+mapMulFT _mul f (Single a) = Single (f a)
+mapMulFT mul f (Deep s pr m sf) = Deep (mul * s) (fmap f pr) (mapMulFT mul (mapMulNode mul f) m) (fmap f sf)
+
+mapMulNode :: Int -> (a -> b) -> Node a -> Node b
+mapMulNode mul f (Node2 s a b)   = Node2 (mul * s) (f a) (f b)
+mapMulNode mul f (Node3 s a b c) = Node3 (mul * s) (f a) (f b) (f c)
+
+
+trimTree :: Sized a => FingerTree a -> (a, FingerTree a, a)
+trimTree Empty = error "trim: empty tree"
+trimTree Single{} = error "trim: singleton"
+trimTree t = case splitTree 0 t of
+                 Split _ hd r ->
+                   case splitTree (size r - 1) r of
+                     Split m tl _ -> (hd, m, tl)
+
+-- | /O(log n)/ (incremental) Takes the extra flexibility out of a 'FingerTree'
+-- to make it a genuine 2-3 finger tree. The result of 'rigidify' will have
+-- only 'Two' and 'Three' digits at the top level and only 'One' and 'Two'
+-- digits elsewhere.  It gives an error if the tree has fewer than four
+-- elements.
+rigidify :: Sized a => FingerTree a -> FingerTree a
+-- Note that 'rigidify' may call itself, but it will do so at most
+-- once: each call to 'rigidify' will either fix the whole tree or fix one digit
+-- and leave the other alone. The patterns below just fix up the top level of
+-- the tree; 'rigidify' delegates the hard work to 'thin'.
+
+-- The top of the tree is fine.
+rigidify (Deep s pr@Two{} m sf@Three{}) = Deep s pr (thin m) sf
+rigidify (Deep s pr@Three{} m sf@Three{}) = Deep s pr (thin m) sf
+rigidify (Deep s pr@Two{} m sf@Two{}) = Deep s pr (thin m) sf
+rigidify (Deep s pr@Three{} m sf@Two{}) = Deep s pr (thin m) sf
+
+-- One of the Digits is a Four.
+rigidify (Deep s (Four a b c d) m sf) =
+   rigidify $ Deep s (Two a b) (node2 c d `consTree` m) sf
+rigidify (Deep s pr m (Four a b c d)) =
+   rigidify $ Deep s pr (m `snocTree` node2 a b) (Two c d)
+
+-- One of the Digits is a One. If the middle is empty, we can only rigidify the
+-- tree if the other Digit is a Three.
+rigidify (Deep s (One a) Empty (Three b c d)) = Deep s (Two a b) Empty (Two c d)
+rigidify (Deep s (One a) m sf) = rigidify $ case viewLTree m of
+   Just2 (Node2 _ b c) m' -> Deep s (Three a b c) m' sf
+   Just2 (Node3 _ b c d) m' -> Deep s (Two a b) (node2 c d `consTree` m') sf
+   Nothing2 -> error "rigidify: small tree"
+rigidify (Deep s (Three a b c) Empty (One d)) = Deep s (Two a b) Empty (Two c d)
+rigidify (Deep s pr m (One e)) = rigidify $ case viewRTree m of
+   Just2 m' (Node2 _ a b) -> Deep s pr m' (Three a b e)
+   Just2 m' (Node3 _ a b c) -> Deep s pr (m' `snocTree` node2 a b) (Two c e)
+   Nothing2 -> error "rigidify: small tree"
+rigidify Empty = error "rigidify: empty tree"
+rigidify Single{} = error "rigidify: singleton"
+
+-- | /O(log n)/ (incremental) Rejigger a finger tree so the digits are all ones
+-- and twos.
+thin :: Sized a => FingerTree a -> FingerTree a
+-- Note that 'thin12' will produce a 'Deep' constructor immediately before
+-- recursively calling 'thin'.
+thin Empty = Empty
+thin (Single a) = Single a
+thin t@(Deep s pr m sf) =
+  case pr of
+    One{} -> thin12 t
+    Two{} -> thin12 t
+    Three a b c  -> thin12 $ Deep s (One a) (node2 b c `consTree` m) sf
+    Four a b c d -> thin12 $ Deep s (Two a b) (node2 c d `consTree` m) sf
+
+thin12 :: Sized a => FingerTree a -> FingerTree a
+thin12 (Deep s pr m sf@One{}) = Deep s pr (thin m) sf
+thin12 (Deep s pr m sf@Two{}) = Deep s pr (thin m) sf
+thin12 (Deep s pr m (Three a b c)) = Deep s pr (thin $ m `snocTree` node2 a b) (One c)
+thin12 (Deep s pr m (Four a b c d)) = Deep s pr (thin $ m `snocTree` node2 a b) (Two c d)
+thin12 _ = error "thin12 expects a Deep FingerTree."
+
 
 instance MonadPlus Seq where
     mzero = empty
@@ -317,17 +863,11 @@ instance Eq a => Eq (Seq a) where
 instance Ord a => Ord (Seq a) where
     compare xs ys = compare (toList xs) (toList ys)
 
-
-
-
-
 instance Show a => Show (Seq a) where
     showsPrec p xs = showParen (p > 10) $
         showString "fromList " . shows (toList xs)
 
-
 instance Read a => Read (Seq a) where
-
     readPrec = parens $ prec 10 $ do
         Ident "fromList" <- lexP
         xs <- readPrec
@@ -335,86 +875,11 @@ instance Read a => Read (Seq a) where
 
     readListPrec = readListPrecDefault
 
-
-
-
-
-
-
 instance Monoid (Seq a) where
     mempty = empty
     mappend = (><)
 
-{-# LINE 1 "include/Typeable.h" #-}
-{- --------------------------------------------------------------------------
-// Macros to help make Typeable instances.
-//
-// INSTANCE_TYPEABLEn(tc,tcname,"tc") defines
-//
-//      instance Typeable/n/ tc
-//      instance Typeable a => Typeable/n-1/ (tc a)
-//      instance (Typeable a, Typeable b) => Typeable/n-2/ (tc a b)
-//      ...
-//      instance (Typeable a1, ..., Typeable an) => Typeable (tc a1 ... an)
-// --------------------------------------------------------------------------
--}
-
-
-
-
-
-
---  // For GHC, we can use DeriveDataTypeable + StandaloneDeriving to
---  // generate the instances.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{-# LINE 251 "./Data/Sequence.hs" #-}
 deriving instance Typeable Seq
-
 
 instance Data a => Data (Seq a) where
     gfoldl f z s    = case viewl s of
@@ -441,16 +906,12 @@ consConstr  = mkConstr seqDataType "<|" [] Infix
 seqDataType :: DataType
 seqDataType = mkDataType "Data.Sequence.Seq" [emptyConstr, consConstr]
 
-
 -- Finger trees
 
 data FingerTree a
     = Empty
     | Single a
     | Deep {-# UNPACK #-} !Int !(Digit a) (FingerTree (Node a)) !(Digit a)
-
-
-
 
 instance Sized a => Sized (FingerTree a) where
     {-# SPECIALIZE instance Sized (FingerTree (Elem a)) #-}
@@ -460,6 +921,11 @@ instance Sized a => Sized (FingerTree a) where
     size (Deep v _ _ _)     = v
 
 instance Foldable FingerTree where
+    foldMap _ Empty = mempty
+    foldMap f (Single x) = f x
+    foldMap f (Deep _ pr m sf) =
+        foldMap f pr `mappend` (foldMap (foldMap f) m `mappend` foldMap f sf)
+
     foldr _ z Empty = z
     foldr f z (Single x) = x `f` z
     foldr f z (Deep _ pr m sf) =
@@ -496,20 +962,20 @@ instance Traversable FingerTree where
 instance NFData a => NFData (FingerTree a) where
     rnf (Empty) = ()
     rnf (Single x) = rnf x
-    rnf (Deep _ pr m sf) = rnf pr `seq` rnf m `seq` rnf sf
+    rnf (Deep _ pr m sf) = rnf pr `seq` rnf sf `seq` rnf m
 
 {-# INLINE deep #-}
 deep            :: Sized a => Digit a -> FingerTree (Node a) -> Digit a -> FingerTree a
 deep pr m sf    =  Deep (size pr + size m + size sf) pr m sf
 
 {-# INLINE pullL #-}
-pullL :: Sized a => Int -> FingerTree (Node a) -> Digit a -> FingerTree a
+pullL :: Int -> FingerTree (Node a) -> Digit a -> FingerTree a
 pullL s m sf = case viewLTree m of
     Nothing2        -> digitToTree' s sf
     Just2 pr m'     -> Deep s (nodeToDigit pr) m' sf
 
 {-# INLINE pullR #-}
-pullR :: Sized a => Int -> Digit a -> FingerTree (Node a) -> FingerTree a
+pullR :: Int -> Digit a -> FingerTree (Node a) -> FingerTree a
 pullR s pr m = case viewRTree m of
     Nothing2        -> digitToTree' s pr
     Just2 m' sf     -> Deep s pr m' (nodeToDigit sf)
@@ -534,10 +1000,12 @@ data Digit a
     | Three a a a
     | Four a a a a
 
-
-
-
 instance Foldable Digit where
+    foldMap f (One a) = f a
+    foldMap f (Two a b) = f a `mappend` f b
+    foldMap f (Three a b c) = f a `mappend` (f b `mappend` f c)
+    foldMap f (Four a b c d) = f a `mappend` (f b `mappend` (f c `mappend` f d))
+
     foldr f z (One a) = a `f` z
     foldr f z (Two a b) = a `f` (b `f` z)
     foldr f z (Three a b c) = a `f` (b `f` (c `f` z))
@@ -604,10 +1072,10 @@ data Node a
     = Node2 {-# UNPACK #-} !Int a a
     | Node3 {-# UNPACK #-} !Int a a a
 
-
-
-
 instance Foldable Node where
+    foldMap f (Node2 _ a b) = f a `mappend` f b
+    foldMap f (Node3 _ a b c) = f a `mappend` (f b `mappend` f c)
+
     foldr f z (Node2 _ a b) = a `f` (b `f` z)
     foldr f z (Node3 _ a b c) = a `f` (b `f` (c `f` z))
 
@@ -648,16 +1116,15 @@ nodeToDigit (Node3 _ a b c) = Three a b c
 
 newtype Elem a  =  Elem { getElem :: a }
 
-
-
-
 instance Sized (Elem a) where
     size _ = 1
 
 instance Functor Elem where
-    fmap f (Elem x) = Elem (f x)
+-- This cuts the time for <*> by around a fifth.
+    fmap = coerce
 
 instance Foldable Elem where
+    foldMap f (Elem x) = f x
     foldr f z (Elem x) = f x z
     foldl f z (Elem x) = f z x
 
@@ -670,19 +1137,14 @@ instance NFData a => NFData (Elem a) where
 -------------------------------------------------------
 -- Applicative construction
 -------------------------------------------------------
+newtype Identity a = Identity {runIdentity :: a}
 
-newtype Id a = Id {runId :: a}
+instance Functor Identity where
+    fmap f (Identity x) = Identity (f x)
 
-instance Functor Id where
-    fmap f (Id x) = Id (f x)
-
-instance Monad Id where
-    return = Id
-    m >>= k = k (runId m)
-
-instance Applicative Id where
-    pure = return
-    (<*>) = ap
+instance Applicative Identity where
+    pure = Identity
+    Identity f <*> Identity x = Identity (f x)
 
 -- | This is essentially a clone of Control.Monad.State.Strict.
 newtype State s a = State {runState :: s -> (s, a)}
@@ -704,39 +1166,32 @@ instance Applicative (State s) where
 execState :: State s a -> s -> a
 execState m x = snd (runState m x)
 
--- | A helper method: a strict version of mapAccumL.
-mapAccumL' :: Traversable t => (a -> b -> (a, c)) -> a -> t b -> (a, t c)
-mapAccumL' f s t = runState (traverse (State . flip f) t) s
-
 -- | 'applicativeTree' takes an Applicative-wrapped construction of a
 -- piece of a FingerTree, assumed to always have the same size (which
 -- is put in the second argument), and replicates it as many times as
 -- specified.  This is a generalization of 'replicateA', which itself
 -- is a generalization of many Data.Sequence methods.
 {-# SPECIALIZE applicativeTree :: Int -> Int -> State s a -> State s (FingerTree a) #-}
-{-# SPECIALIZE applicativeTree :: Int -> Int -> Id a -> Id (FingerTree a) #-}
--- Special note: the Id specialization automatically does node sharing,
+{-# SPECIALIZE applicativeTree :: Int -> Int -> Identity a -> Identity (FingerTree a) #-}
+-- Special note: the Identity specialization automatically does node sharing,
 -- reducing memory usage of the resulting tree to /O(log n)/.
 applicativeTree :: Applicative f => Int -> Int -> f a -> f (FingerTree a)
 applicativeTree n mSize m = mSize `seq` case n of
     0 -> pure Empty
-    1 -> liftA Single m
+    1 -> fmap Single m
     2 -> deepA one emptyTree one
     3 -> deepA two emptyTree one
     4 -> deepA two emptyTree two
     5 -> deepA three emptyTree two
     6 -> deepA three emptyTree three
-    7 -> deepA four emptyTree three
-    8 -> deepA four emptyTree four
-    _ -> let (q, r) = n `quotRem` 3 in q `seq` case r of
-        0 -> deepA three (applicativeTree (q - 2) mSize' n3) three
-        1 -> deepA four (applicativeTree (q - 2) mSize' n3) three
-        _ -> deepA four (applicativeTree (q - 2) mSize' n3) four
+    _ -> case n `quotRem` 3 of
+           (q,0) -> deepA three (applicativeTree (q - 2) mSize' n3) three
+           (q,1) -> deepA two (applicativeTree (q - 1) mSize' n3) two
+           (q,_) -> deepA three (applicativeTree (q - 1) mSize' n3) two
   where
-    one = liftA One m
+    one = fmap One m
     two = liftA2 Two m m
     three = liftA3 Three m m m
-    four = liftA3 Four m m m <*> m
     deepA = liftA3 (Deep (n * mSize))
     mSize' = 3 * mSize
     n3 = liftA3 (Node3 mSize') m m m
@@ -757,7 +1212,7 @@ singleton x     =  Seq (Single (Elem x))
 -- | /O(log n)/. @replicate n x@ is a sequence consisting of @n@ copies of @x@.
 replicate       :: Int -> a -> Seq a
 replicate n x
-  | n >= 0      = runId (replicateA n (Id x))
+  | n >= 0      = runIdentity (replicateA n (Identity x))
   | otherwise   = error "replicate takes a nonnegative integer argument"
 
 -- | 'replicateA' is an 'Applicative' version of 'replicate', and makes
@@ -776,6 +1231,19 @@ replicateM :: Monad m => Int -> m a -> m (Seq a)
 replicateM n x
   | n >= 0      = unwrapMonad (replicateA n (WrapMonad x))
   | otherwise   = error "replicateM takes a nonnegative integer argument"
+
+-- | @'replicateSeq' n xs@ concatenates @n@ copies of @xs@.
+replicateSeq :: Int -> Seq a -> Seq a
+replicateSeq n s
+  | n < 0     = error "replicateSeq takes a nonnegative integer argument"
+  | n == 0    = empty
+  | otherwise = go n s
+  where
+    -- Invariant: k >= 1
+    go 1 xs = xs
+    go k xs | even k    = kxs
+            | otherwise = xs >< kxs
+            where kxs = go (k `quot` 2) $! (xs >< xs)
 
 -- | /O(1)/. Add an element to the left end of a sequence.
 -- Mnemonic: a triangle with the single element at the pointy end.
@@ -821,7 +1289,9 @@ Seq xs >< Seq ys = Seq (appendTree0 xs ys)
 
 -- The appendTree/addDigits gunk below is machine generated
 
-appendTree0 :: FingerTree (Elem a) -> FingerTree (Elem a) -> FingerTree (Elem a)
+{-# SPECIALIZE appendTree0 :: FingerTree (Elem a) -> FingerTree (Elem a) -> FingerTree (Elem a) #-}
+{-# SPECIALIZE appendTree0 :: FingerTree (Node a) -> FingerTree (Node a) -> FingerTree (Node a) #-}
+appendTree0 :: Sized a => FingerTree a -> FingerTree a -> FingerTree a
 appendTree0 Empty xs =
     xs
 appendTree0 xs Empty =
@@ -833,7 +1303,9 @@ appendTree0 xs (Single x) =
 appendTree0 (Deep s1 pr1 m1 sf1) (Deep s2 pr2 m2 sf2) =
     Deep (s1 + s2) pr1 (addDigits0 m1 sf1 pr2 m2) sf2
 
-addDigits0 :: FingerTree (Node (Elem a)) -> Digit (Elem a) -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> FingerTree (Node (Elem a))
+{-# SPECIALIZE addDigits0 :: FingerTree (Node (Elem a)) -> Digit (Elem a) -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> FingerTree (Node (Elem a)) #-}
+{-# SPECIALIZE addDigits0 :: FingerTree (Node (Node a)) -> Digit (Node a) -> Digit (Node a) -> FingerTree (Node (Node a)) -> FingerTree (Node (Node a)) #-}
+addDigits0 :: Sized a => FingerTree (Node a) -> Digit a -> Digit a -> FingerTree (Node a) -> FingerTree (Node a)
 addDigits0 m1 (One a) (One b) m2 =
     appendTree1 m1 (node2 a b) m2
 addDigits0 m1 (One a) (Two b c) m2 =
@@ -1094,11 +1566,7 @@ data Maybe2 a b = Nothing2 | Just2 a b
 data ViewL a
     = EmptyL        -- ^ empty sequence
     | a :< Seq a    -- ^ leftmost element and the rest of the sequence
-
     deriving (Eq, Ord, Show, Read, Data)
-
-
-
 
 deriving instance Typeable ViewL
 
@@ -1145,11 +1613,7 @@ data ViewR a
     = EmptyR        -- ^ empty sequence
     | Seq a :> a    -- ^ the sequence minus the rightmost element,
             -- and the rightmost element
-
     deriving (Eq, Ord, Show, Read, Data)
-
-
-
 
 deriving instance Typeable ViewR
 
@@ -1159,6 +1623,9 @@ instance Functor ViewR where
     fmap f (xs :> x)    = fmap f xs :> f x
 
 instance Foldable ViewR where
+    foldMap _ EmptyR = mempty
+    foldMap f (xs :> x) = foldMap f xs `mappend` f x
+
     foldr _ z EmptyR = z
     foldr f z (xs :> x) = foldr f (f x z) xs
 
@@ -1243,22 +1710,19 @@ index (Seq xs) i
 
 data Place a = Place {-# UNPACK #-} !Int a
 
-
-
-
 {-# SPECIALIZE lookupTree :: Int -> FingerTree (Elem a) -> Place (Elem a) #-}
 {-# SPECIALIZE lookupTree :: Int -> FingerTree (Node a) -> Place (Node a) #-}
 lookupTree :: Sized a => Int -> FingerTree a -> Place a
 lookupTree _ Empty = error "lookupTree of empty tree"
 lookupTree i (Single x) = Place i x
-lookupTree i (Deep _ pr m sf)
+lookupTree i (Deep totalSize pr m sf)
   | i < spr     =  lookupDigit i pr
   | i < spm     =  case lookupTree (i - spr) m of
                    Place i' xs -> lookupNode i' xs
   | otherwise   =  lookupDigit (i - spm) sf
   where
     spr     = size pr
-    spm     = spr + size m
+    spm     = totalSize - size sf
 
 {-# SPECIALIZE lookupNode :: Int -> Node (Elem a) -> Place (Elem a) #-}
 {-# SPECIALIZE lookupNode :: Int -> Node (Node a) -> Place (Node a) #-}
@@ -1370,11 +1834,114 @@ adjustDigit f i (Four a b c d)
     sab     = sa + size b
     sabc    = sab + size c
 
--- | A generalization of 'fmap', 'mapWithIndex' takes a mapping function
--- that also depends on the element's index, and applies it to every
+-- | /O(n)/. A generalization of 'fmap', 'mapWithIndex' takes a mapping
+-- function that also depends on the element's index, and applies it to every
 -- element in the sequence.
 mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
-mapWithIndex f xs = snd (mapAccumL' (\ i x -> (i + 1, f i x)) 0 xs)
+mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)) 0 xs'
+ where
+  {-# SPECIALIZE mapWithIndexTree :: (Int -> Elem y -> b) -> Int -> FingerTree (Elem y) -> FingerTree b #-}
+  {-# SPECIALIZE mapWithIndexTree :: (Int -> Node y -> b) -> Int -> FingerTree (Node y) -> FingerTree b #-}
+  mapWithIndexTree :: Sized a => (Int -> a -> b) -> Int -> FingerTree a -> FingerTree b
+  mapWithIndexTree _ s Empty = s `seq` Empty
+  mapWithIndexTree f s (Single xs) = Single $ f s xs
+  mapWithIndexTree f s (Deep n pr m sf) = sPspr `seq` sPsprm `seq`
+          Deep n
+               (mapWithIndexDigit f s pr)
+               (mapWithIndexTree (mapWithIndexNode f) sPspr m)
+               (mapWithIndexDigit f sPsprm sf)
+    where
+      sPspr = s + size pr
+      sPsprm = s + n - size sf
+
+  {-# SPECIALIZE mapWithIndexDigit :: (Int -> Elem y -> b) -> Int -> Digit (Elem y) -> Digit b #-}
+  {-# SPECIALIZE mapWithIndexDigit :: (Int -> Node y -> b) -> Int -> Digit (Node y) -> Digit b #-}
+  mapWithIndexDigit :: Sized a => (Int -> a -> b) -> Int -> Digit a -> Digit b
+  mapWithIndexDigit f s (One a) = One (f s a)
+  mapWithIndexDigit f s (Two a b) = sPsa `seq` Two (f s a) (f sPsa b)
+    where
+      sPsa = s + size a
+  mapWithIndexDigit f s (Three a b c) = sPsa `seq` sPsab `seq`
+                                      Three (f s a) (f sPsa b) (f sPsab c)
+    where
+      sPsa = s + size a
+      sPsab = sPsa + size b
+  mapWithIndexDigit f s (Four a b c d) = sPsa `seq` sPsab `seq` sPsabc `seq`
+                          Four (f s a) (f sPsa b) (f sPsab c) (f sPsabc d)
+    where
+      sPsa = s + size a
+      sPsab = sPsa + size b
+      sPsabc = sPsab + size c
+
+  {-# SPECIALIZE mapWithIndexNode :: (Int -> Elem y -> b) -> Int -> Node (Elem y) -> Node b #-}
+  {-# SPECIALIZE mapWithIndexNode :: (Int -> Node y -> b) -> Int -> Node (Node y) -> Node b #-}
+  mapWithIndexNode :: Sized a => (Int -> a -> b) -> Int -> Node a -> Node b
+  mapWithIndexNode f s (Node2 ns a b) = sPsa `seq` Node2 ns (f s a) (f sPsa b)
+    where
+      sPsa = s + size a
+  mapWithIndexNode f s (Node3 ns a b c) = sPsa `seq` sPsab `seq`
+                                     Node3 ns (f s a) (f sPsa b) (f sPsab c)
+    where
+      sPsa = s + size a
+      sPsab = sPsa + size b
+
+{-# NOINLINE [1] mapWithIndex #-}
+{-# RULES
+"mapWithIndex/mapWithIndex" forall f g xs . mapWithIndex f (mapWithIndex g xs) =
+  mapWithIndex (\k a -> f k (g k a)) xs
+"mapWithIndex/fmapSeq" forall f g xs . mapWithIndex f (fmapSeq g xs) =
+  mapWithIndex (\k a -> f k (g a)) xs
+"fmapSeq/mapWithIndex" forall f g xs . fmapSeq f (mapWithIndex g xs) =
+  mapWithIndex (\k a -> f (g k a)) xs
+ #-}
+
+-- | /O(n)/. Convert a given sequence length and a function representing that
+-- sequence into a sequence.
+fromFunction :: Int -> (Int -> a) -> Seq a
+fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with negative len"
+                   | len == 0 = empty
+                   | otherwise = Seq $ create (lift_elem f) 1 0 len
+  where
+    create :: (Int -> a) -> Int -> Int -> Int -> FingerTree a
+    create b{-tree_builder-} s{-tree_size-} i{-start_index-} trees = i `seq` s `seq` case trees of
+       1 -> Single $ b i
+       2 -> Deep (2*s) (One (b i)) Empty (One (b (i+s)))
+       3 -> Deep (3*s) (createTwo i) Empty (One (b (i+2*s)))
+       4 -> Deep (4*s) (createTwo i) Empty (createTwo (i+2*s))
+       5 -> Deep (5*s) (createThree i) Empty (createTwo (i+3*s))
+       6 -> Deep (6*s) (createThree i) Empty (createThree (i+3*s))
+       _ -> case trees `quotRem` 3 of
+           (trees', 1) -> Deep (trees*s) (createTwo i)
+                              (create mb (3*s) (i+2*s) (trees'-1))
+                              (createTwo (i+(2+3*(trees'-1))*s))
+           (trees', 2) -> Deep (trees*s) (createThree i)
+                              (create mb (3*s) (i+3*s) (trees'-1))
+                              (createTwo (i+(3+3*(trees'-1))*s))
+           (trees', _) -> Deep (trees*s) (createThree i)
+                              (create mb (3*s) (i+3*s) (trees'-2))
+                              (createThree (i+(3+3*(trees'-2))*s))
+      where
+        createTwo j = Two (b j) (b (j + s))
+        {-# INLINE createTwo #-}
+        createThree j = Three (b j) (b (j + s)) (b (j + 2*s))
+        {-# INLINE createThree #-}
+        mb j = Node3 (3*s) (b j) (b (j + s)) (b (j + 2*s))
+        {-# INLINE mb #-}
+
+    lift_elem :: (Int -> a) -> (Int -> Elem a)
+    lift_elem g = coerce g
+    {-# INLINE lift_elem #-}
+
+-- | /O(n)/. Create a sequence consisting of the elements of an 'Array'.
+-- Note that the resulting sequence elements may be evaluated lazily (as on GHC),
+-- so you must force the entire structure to be sure that the original array
+-- can be garbage-collected.
+fromArray :: Ix i => Array i a -> Seq a
+fromArray a = fromFunction (GHC.Arr.numElements a) (GHC.Arr.unsafeAt a)
+ where
+  -- The following definition uses (Ix i) constraing, which is needed for the
+  -- other fromArray definition.
+  _ = Data.Array.rangeSize (Data.Array.bounds a)
 
 -- Splitting
 
@@ -1383,14 +1950,14 @@ mapWithIndex f xs = snd (mapAccumL' (\ i x -> (i + 1, f i x)) 0 xs)
 -- If the sequence contains fewer than @i@ elements, the whole sequence
 -- is returned.
 take            :: Int -> Seq a -> Seq a
-take i          =  fst . splitAt i
+take i          =  fst . splitAt' i
 
 -- | /O(log(min(i,n-i)))/. Elements of a sequence after the first @i@.
 -- If @i@ is negative, @'drop' i s@ yields the whole sequence.
 -- If the sequence contains fewer than @i@ elements, the empty sequence
 -- is returned.
 drop            :: Int -> Seq a -> Seq a
-drop i          =  snd . splitAt i
+drop i          =  snd . splitAt' i
 
 -- | /O(log(min(i,n-i)))/. Split a sequence at a given position.
 -- @'splitAt' i s = ('take' i s, 'drop' i s)@.
@@ -1398,18 +1965,20 @@ splitAt                 :: Int -> Seq a -> (Seq a, Seq a)
 splitAt i (Seq xs)      =  (Seq l, Seq r)
   where (l, r)          =  split i xs
 
+-- | /O(log(min(i,n-i))) A strict version of 'splitAt'.
+splitAt'                 :: Int -> Seq a -> (Seq a, Seq a)
+splitAt' i (Seq xs)      = case split i xs of
+                             (l, r) -> (Seq l, Seq r)
+
 split :: Int -> FingerTree (Elem a) ->
     (FingerTree (Elem a), FingerTree (Elem a))
 split i Empty   = i `seq` (Empty, Empty)
 split i xs
-  | size xs > i = (l, consTree x r)
+  | size xs > i = case splitTree i xs of
+                    Split l x r -> (l, consTree x r)
   | otherwise   = (xs, Empty)
-  where Split l x r = splitTree i xs
 
 data Split t a = Split t a t
-
-
-
 
 {-# SPECIALIZE splitTree :: Int -> FingerTree (Elem a) -> Split (FingerTree (Elem a)) (Elem a) #-}
 {-# SPECIALIZE splitTree :: Int -> FingerTree (Node a) -> Split (FingerTree (Node a)) (Node a) #-}
@@ -1553,7 +2122,7 @@ initsNode (Node3 s a b c) = Node3 s (One a) (Two a b) (Three a b c)
 {-# SPECIALIZE tailsTree :: (FingerTree (Node a) -> Node b) -> FingerTree (Node a) -> FingerTree (Node b) #-}
 -- | Given a function to apply to tails of a tree, applies that function
 -- to every tail of the specified tree.
-tailsTree :: (Sized a, Sized b) => (FingerTree a -> b) -> FingerTree a -> FingerTree b
+tailsTree :: Sized a => (FingerTree a -> b) -> FingerTree a -> FingerTree b
 tailsTree _ Empty = Empty
 tailsTree f (Single x) = Single (f (Single x))
 tailsTree f (Deep n pr m sf) =
@@ -1568,7 +2137,7 @@ tailsTree f (Deep n pr m sf) =
 {-# SPECIALIZE initsTree :: (FingerTree (Node a) -> Node b) -> FingerTree (Node a) -> FingerTree (Node b) #-}
 -- | Given a function to apply to inits of a tree, applies that function
 -- to every init of the specified tree.
-initsTree :: (Sized a, Sized b) => (FingerTree a -> b) -> FingerTree a -> FingerTree b
+initsTree :: Sized a => (FingerTree a -> b) -> FingerTree a -> FingerTree b
 initsTree _ Empty = Empty
 initsTree f (Single x) = Single (f (Single x))
 initsTree f (Deep n pr m sf) =
@@ -1705,35 +2274,58 @@ findIndexR p = listToMaybe' . findIndicesR p
 -- | @'findIndicesL' p@ finds all indices of elements that satisfy @p@,
 -- in ascending order.
 findIndicesL :: (a -> Bool) -> Seq a -> [Int]
-
 findIndicesL p xs = build (\ c n -> let g i x z = if p x then c i z else z in
                 foldrWithIndex g n xs)
-
-
-
-
 
 {-# INLINE findIndicesR #-}
 -- | @'findIndicesR' p@ finds all indices of elements that satisfy @p@,
 -- in descending order.
 findIndicesR :: (a -> Bool) -> Seq a -> [Int]
-
 findIndicesR p xs = build (\ c n ->
     let g z i x = if p x then c i z else z in foldlWithIndex g n xs)
-
-
-
-
 
 ------------------------------------------------------------------------
 -- Lists
 ------------------------------------------------------------------------
 
+-- The implementation below, by Ross Paterson, avoids the rebuilding
+-- the previous (|>)-based implementation suffered from.
+
 -- | /O(n)/. Create a sequence from a finite list of elements.
 -- There is a function 'toList' in the opposite direction for all
 -- instances of the 'Foldable' class, including 'Seq'.
 fromList        :: [a] -> Seq a
-fromList        =  Data.List.foldl' (|>) empty
+fromList = Seq . mkTree 1 . map_elem
+  where
+    {-# SPECIALIZE mkTree :: Int -> [Elem a] -> FingerTree (Elem a) #-}
+    {-# SPECIALIZE mkTree :: Int -> [Node a] -> FingerTree (Node a) #-}
+    mkTree :: (Sized a) => Int -> [a] -> FingerTree a
+    mkTree arg _ | arg `seq` False = undefined
+    mkTree _ [] = Empty
+    mkTree _ [x1] = Single x1
+    mkTree s [x1, x2] = Deep (2*s) (One x1) Empty (One x2)
+    mkTree s [x1, x2, x3] = Deep (3*s) (One x1) Empty (Two x2 x3)
+    mkTree s (x1:x2:x3:x4:xs) = case getNodes (3*s) x4 xs of
+      (ns, sf) -> case mkTree (3*s) ns of
+        m -> m `seq` Deep (3*size x1 + size m + size sf) (Three x1 x2 x3) m sf
+
+    getNodes :: Int -> a -> [a] -> ([Node a], Digit a)
+    getNodes arg _ _ | arg `seq` False = undefined
+    getNodes _ x1 [] = ([], One x1)
+    getNodes _ x1 [x2] = ([], Two x1 x2)
+    getNodes _ x1 [x2, x3] = ([], Three x1 x2 x3)
+    getNodes s x1 (x2:x3:x4:xs) = (Node3 s x1 x2 x3:ns, d)
+       where (ns, d) = getNodes s x4 xs
+
+    map_elem :: [a] -> [Elem a]
+    map_elem xs = coerce xs
+    {-# INLINE map_elem #-}
+
+instance GHC.Exts.IsList (Seq a) where
+    type Item (Seq a) = a
+    fromList = fromList
+    fromListN = fromList2
+    toList = toList
 
 ------------------------------------------------------------------------
 -- Reverse
@@ -1763,6 +2355,129 @@ reverseNode f (Node2 s a b) = Node2 s (f b) (f a)
 reverseNode f (Node3 s a b c) = Node3 s (f c) (f b) (f a)
 
 ------------------------------------------------------------------------
+-- Mapping with a splittable value
+------------------------------------------------------------------------
+
+-- For zipping, it is useful to build a result by
+-- traversing a sequence while splitting up something else.  For zipping, we
+-- traverse the first sequence while splitting up the second.
+--
+-- What makes all this crazy code a good idea:
+--
+-- Suppose we zip together two sequences of the same length:
+--
+-- zs = zip xs ys
+--
+-- We want to get reasonably fast indexing into zs immediately, rather than
+-- needing to construct the entire thing first, as the previous implementation
+-- required. The first aspect is that we build the result "outside-in" or
+-- "top-down", rather than left to right. That gives us access to both ends
+-- quickly. But that's not enough, by itself, to give immediate access to the
+-- center of zs. For that, we need to be able to skip over larger segments of
+-- zs, delaying their construction until we actually need them. The way we do
+-- this is to traverse xs, while splitting up ys according to the structure of
+-- xs. If we have a Deep _ pr m sf, we split ys into three pieces, and hand off
+-- one piece to the prefix, one to the middle, and one to the suffix of the
+-- result. The key point is that we don't need to actually do anything further
+-- with those pieces until we actually need them; the computations to split
+-- them up further and zip them with their matching pieces can be delayed until
+-- they're actually needed. We do the same thing for Digits (splitting into
+-- between one and four pieces) and Nodes (splitting into two or three). The
+-- ultimate result is that we can index into, or split at, any location in zs
+-- in polylogarithmic time *immediately*, while still being able to force all
+-- the thunks in O(n) time.
+--
+-- Benchmark info, and alternatives:
+--
+-- The old zipping code used mapAccumL to traverse the first sequence while
+-- cutting down the second sequence one piece at a time.
+--
+-- An alternative way to express that basic idea is to convert both sequences
+-- to lists, zip the lists, and then convert the result back to a sequence.
+-- I'll call this the "listy" implementation.
+--
+-- I benchmarked two operations: Each started by zipping two sequences
+-- constructed with replicate and/or fromList. The first would then immediately
+-- index into the result. The second would apply deepseq to force the entire
+-- result.  The new implementation worked much better than either of the others
+-- on the immediate indexing test, as expected. It also worked better than the
+-- old implementation for all the deepseq tests. For short sequences, the listy
+-- implementation outperformed all the others on the deepseq test. However, the
+-- splitting implementation caught up and surpassed it once the sequences grew
+-- long enough. It seems likely that by avoiding rebuilding, it interacts
+-- better with the cache hierarchy.
+--
+-- David Feuer, with excellent guidance from Carter Schonwald, December 2014
+
+-- | /O(n)/. Constructs a new sequence with the same structure as an existing
+-- sequence using a user-supplied mapping function along with a splittable
+-- value and a way to split it. The value is split up lazily according to the
+-- structure of the sequence, so one piece of the value is distributed to each
+-- element of the sequence. The caller should provide a splitter function that
+-- takes a number, @n@, and a splittable value, breaks off a chunk of size @n@
+-- from the value, and returns that chunk and the remainder as a pair. The
+-- following examples will hopefully make the usage clear:
+--
+-- > zipWith :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
+-- > zipWith f s1 s2 = splitMap splitAt (\b a -> f a (b `index` 0)) s2' s1'
+-- >   where
+-- >     minLen = min (length s1) (length s2)
+-- >     s1' = take minLen s1
+-- >     s2' = take minLen s2
+--
+-- > mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
+-- > mapWithIndex f = splitMap (\n i -> (i, n+i)) f 0
+splitMap :: (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Seq a -> Seq b
+splitMap splt' = go
+ where
+  go f s (Seq xs) = Seq $ splitMapTree splt' (\s' (Elem a) -> Elem (f s' a)) s xs
+
+  {-# SPECIALIZE splitMapTree :: (Int -> s -> (s,s)) -> (s -> Elem y -> b) -> s -> FingerTree (Elem y) -> FingerTree b #-}
+  {-# SPECIALIZE splitMapTree :: (Int -> s -> (s,s)) -> (s -> Node y -> b) -> s -> FingerTree (Node y) -> FingerTree b #-}
+  splitMapTree :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> FingerTree a -> FingerTree b
+  splitMapTree _    _ _ Empty = Empty
+  splitMapTree _    f s (Single xs) = Single $ f s xs
+  splitMapTree splt f s (Deep n pr m sf) = Deep n (splitMapDigit splt f prs pr) (splitMapTree splt (splitMapNode splt f) ms m) (splitMapDigit splt f sfs sf)
+    where
+      (prs, r) = splt (size pr) s
+      (ms, sfs) = splt (n - size pr - size sf) r
+
+  {-# SPECIALIZE splitMapDigit :: (Int -> s -> (s,s)) -> (s -> Elem y -> b) -> s -> Digit (Elem y) -> Digit b #-}
+  {-# SPECIALIZE splitMapDigit :: (Int -> s -> (s,s)) -> (s -> Node y -> b) -> s -> Digit (Node y) -> Digit b #-}
+  splitMapDigit :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Digit a -> Digit b
+  splitMapDigit _    f s (One a) = One (f s a)
+  splitMapDigit splt f s (Two a b) = Two (f first a) (f second b)
+    where
+      (first, second) = splt (size a) s
+  splitMapDigit splt f s (Three a b c) = Three (f first a) (f second b) (f third c)
+    where
+      (first, r) = splt (size a) s
+      (second, third) = splt (size b) r
+  splitMapDigit splt f s (Four a b c d) = Four (f first a) (f second b) (f third c) (f fourth d)
+    where
+      (first, s') = splt (size a) s
+      (middle, fourth) = splt (size b + size c) s'
+      (second, third) = splt (size b) middle
+
+  {-# SPECIALIZE splitMapNode :: (Int -> s -> (s,s)) -> (s -> Elem y -> b) -> s -> Node (Elem y) -> Node b #-}
+  {-# SPECIALIZE splitMapNode :: (Int -> s -> (s,s)) -> (s -> Node y -> b) -> s -> Node (Node y) -> Node b #-}
+  splitMapNode :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Node a -> Node b
+  splitMapNode splt f s (Node2 ns a b) = Node2 ns (f first a) (f second b)
+    where
+      (first, second) = splt (size a) s
+  splitMapNode splt f s (Node3 ns a b c) = Node3 ns (f first a) (f second b) (f third c)
+    where
+      (first, r) = splt (size a) s
+      (second, third) = splt (size b) r
+
+{-# INLINE splitMap #-}
+
+getSingleton :: Seq a -> a
+getSingleton (Seq (Single (Elem a))) = a
+getSingleton (Seq Empty) = error "getSingleton: Empty"
+getSingleton _ = error "getSingleton: Not a singleton."
+
+------------------------------------------------------------------------
 -- Zipping
 ------------------------------------------------------------------------
 
@@ -1777,17 +2492,15 @@ zip = zipWith (,)
 -- For example, @zipWith (+)@ is applied to two sequences to take the
 -- sequence of corresponding sums.
 zipWith :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
-zipWith f xs ys
-  | length xs <= length ys      = zipWith' f xs ys
-  | otherwise                   = zipWith' (flip f) ys xs
-
--- like 'zipWith', but assumes length xs <= length ys
-zipWith' :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
-zipWith' f xs ys = snd (mapAccumL k ys xs)
+zipWith f s1 s2 = zipWith' f s1' s2'
   where
-    k kys x = case viewl kys of
-           (z :< zs) -> (zs, f x z)
-           EmptyL    -> error "zipWith': unexpected EmptyL"
+    minLen = min (length s1) (length s2)
+    s1' = take minLen s1
+    s2' = take minLen s2
+
+-- | A version of zipWith that assumes the sequences have the same length.
+zipWith' :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
+zipWith' f s1 s2 = splitMap splitAt' (\s a -> f a (getSingleton s)) s2 s1
 
 -- | /O(min(n1,n2,n3))/.  'zip3' takes three sequences and returns a
 -- sequence of triples, analogous to 'zip'.
@@ -1798,7 +2511,15 @@ zip3 = zipWith3 (,,)
 -- three elements, as well as three sequences and returns a sequence of
 -- their point-wise combinations, analogous to 'zipWith'.
 zipWith3 :: (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> Seq d
-zipWith3 f s1 s2 s3 = zipWith ($) (zipWith f s1 s2) s3
+zipWith3 f s1 s2 s3 = zipWith' ($) (zipWith' f s1' s2') s3'
+  where
+    minLen = minimum [length s1, length s2, length s3]
+    s1' = take minLen s1
+    s2' = take minLen s2
+    s3' = take minLen s3
+
+zipWith3' :: (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> Seq d
+zipWith3' f s1 s2 s3 = zipWith' ($) (zipWith' f s1 s2) s3
 
 -- | /O(min(n1,n2,n3,n4))/.  'zip4' takes four sequences and returns a
 -- sequence of quadruples, analogous to 'zip'.
@@ -1809,7 +2530,13 @@ zip4 = zipWith4 (,,,)
 -- four elements, as well as four sequences and returns a sequence of
 -- their point-wise combinations, analogous to 'zipWith'.
 zipWith4 :: (a -> b -> c -> d -> e) -> Seq a -> Seq b -> Seq c -> Seq d -> Seq e
-zipWith4 f s1 s2 s3 s4 = zipWith ($) (zipWith ($) (zipWith f s1 s2) s3) s4
+zipWith4 f s1 s2 s3 s4 = zipWith' ($) (zipWith3' f s1' s2' s3') s4'
+  where
+    minLen = minimum [length s1, length s2, length s3, length s4]
+    s1' = take minLen s1
+    s2' = take minLen s2
+    s3' = take minLen s3
+    s4' = take minLen s4
 
 ------------------------------------------------------------------------
 -- Sorting
@@ -1889,7 +2616,7 @@ unstableSortBy cmp (Seq xs) =
         toPQ cmp (\ (Elem x) -> PQueue x Nil) xs
 
 -- | fromList2, given a list and its length, constructs a completely
--- balanced Seq whose elements are that list using the applicativeTree
+-- balanced Seq whose elements are that list using the replicateA
 -- generalization.
 fromList2 :: Int -> [a] -> Seq a
 fromList2 n = execState (replicateA n (State ht))
@@ -1902,31 +2629,6 @@ data PQueue e = PQueue e (PQL e)
 data PQL e = Nil | {-# UNPACK #-} !(PQueue e) :& PQL e
 
 infixr 8 :&
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 -- | 'unrollPQ', given a comparator function, unrolls a 'PQueue' into

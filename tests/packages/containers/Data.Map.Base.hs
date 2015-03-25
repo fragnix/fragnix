@@ -1,107 +1,404 @@
-{-# LINE 1 "./Data/Map/Base.hs" #-}
-{-# LINE 1 "dist/dist-sandbox-235ea54e/build/autogen/cabal_macros.h" #-}
-                                                                
+{-# LANGUAGE Haskell98 #-}
+{-# LINE 1 "Data/Map/Base.hs" #-}
 
-                           
 
 
 
 
 
 
-                          
 
 
 
 
 
 
-                             
 
 
 
 
 
 
-                     
 
 
 
 
 
 
-                       
 
 
 
 
 
 
-                  
 
 
 
 
 
 
-                    
 
 
 
 
 
 
-                        
 
 
 
 
 
 
-                         
-
-
-
-
-
-
-                       
-
-
-
-
-
-
-                   
-
-
-
-
-
-
-                      
-
-
-
-
-
-
-                          
-
-
-
-
-
-
-
-{-# LINE 2 "./Data/Map/Base.hs" #-}
-{-# LINE 1 "./Data/Map/Base.hs" #-}
 {-# LANGUAGE CPP #-}
-
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
-
-
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE RoleAnnotations #-}
+{-# LANGUAGE TypeFamilies #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -----------------------------------------------------------------------------
 -- |
@@ -356,38 +653,29 @@ module Data.Map.Base (
     , glue
     , trim
     , trimLookupLo
-    , foldlStrict
     , MaybeS(..)
     , filterGt
     , filterLt
     ) where
 
 import Control.Applicative (Applicative(..), (<$>))
+import Data.Monoid (Monoid(..))
+import Data.Traversable (Traversable(traverse))
+
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits (shiftL, shiftR)
 import qualified Data.Foldable as Foldable
-import Data.Monoid (Monoid(..))
-import Data.StrictPair
-import Data.Traversable (Traversable(traverse))
 import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null)
 
 import qualified Data.Set.Base as Set
-
+import Data.Utils.StrictFold
+import Data.Utils.StrictPair
 
 import GHC.Exts ( build )
+import qualified GHC.Exts as GHCExts
 import Text.Read
 import Data.Data
-
-
--- Use macros to define strictness of functions.
--- STRICT_x_OF_y denotes an y-ary function strict in the x-th parameter.
--- We do not use BangPatterns, because they are not in any standard and we
--- want the compilers to be compiled by as many compilers as possible.
-
-
-
-
 
 
 {--------------------------------------------------------------------
@@ -403,16 +691,12 @@ infixl 9 !,\\ --
 
 (!) :: Ord k => Map k a -> k -> a
 m ! k = find k m
-
 {-# INLINABLE (!) #-}
-
 
 -- | Same as 'difference'.
 (\\) :: Ord k => Map k a -> Map k b -> Map k a
 m1 \\ m2 = difference m1 m2
-
 {-# INLINABLE (\\) #-}
-
 
 {--------------------------------------------------------------------
   Size balanced trees.
@@ -425,14 +709,12 @@ data Map k a  = Bin {-# UNPACK #-} !Size !k a !(Map k a) !(Map k a)
 
 type Size     = Int
 
-
-
+type role Map nominal representational
 
 instance (Ord k) => Monoid (Map k v) where
     mempty  = empty
     mappend = union
     mconcat = unions
-
 
 
 {--------------------------------------------------------------------
@@ -456,7 +738,6 @@ fromListConstr = mkConstr mapDataType "fromList" [] Prefix
 
 mapDataType :: DataType
 mapDataType = mkDataType "Data.Map.Base.Map" [fromListConstr]
-
 
 
 {--------------------------------------------------------------------
@@ -521,11 +802,7 @@ lookup = go
       LT -> go k l
       GT -> go k r
       EQ -> Just x
-
 {-# INLINABLE lookup #-}
-
-
-
 
 -- | /O(log n)/. Is the key a member of the map? See also 'notMember'.
 --
@@ -540,11 +817,7 @@ member = go
       LT -> go k l
       GT -> go k r
       EQ -> True
-
 {-# INLINABLE member #-}
-
-
-
 
 -- | /O(log n)/. Is the key not a member of the map? See also 'member'.
 --
@@ -553,11 +826,7 @@ member = go
 
 notMember :: Ord k => k -> Map k a -> Bool
 notMember k m = not $ member k m
-
 {-# INLINABLE notMember #-}
-
-
-
 
 -- | /O(log n)/. Find the value at a key.
 -- Calls 'error' when the element can not be found.
@@ -570,11 +839,7 @@ find = go
       LT -> go k l
       GT -> go k r
       EQ -> x
-
 {-# INLINABLE find #-}
-
-
-
 
 -- | /O(log n)/. The expression @('findWithDefault' def k map)@ returns
 -- the value at key @k@ or returns default value @def@
@@ -591,11 +856,7 @@ findWithDefault = go
       LT -> go def k l
       GT -> go def k r
       EQ -> x
-
 {-# INLINABLE findWithDefault #-}
-
-
-
 
 -- | /O(log n)/. Find largest key smaller than the given one and return the
 -- corresponding (key, value) pair.
@@ -614,11 +875,7 @@ lookupLT = goNothing
     goJust _ kx' x' Tip = Just (kx', x')
     goJust k kx' x' (Bin _ kx x l r) | k <= kx = goJust k kx' x' l
                                      | otherwise = goJust k kx x r
-
 {-# INLINABLE lookupLT #-}
-
-
-
 
 -- | /O(log n)/. Find smallest key greater than the given one and return the
 -- corresponding (key, value) pair.
@@ -637,11 +894,7 @@ lookupGT = goNothing
     goJust _ kx' x' Tip = Just (kx', x')
     goJust k kx' x' (Bin _ kx x l r) | k < kx = goJust k kx x l
                                      | otherwise = goJust k kx' x' r
-
 {-# INLINABLE lookupGT #-}
-
-
-
 
 -- | /O(log n)/. Find largest key smaller or equal to the given one and return
 -- the corresponding (key, value) pair.
@@ -663,11 +916,7 @@ lookupLE = goNothing
     goJust k kx' x' (Bin _ kx x l r) = case compare k kx of LT -> goJust k kx' x' l
                                                             EQ -> Just (kx, x)
                                                             GT -> goJust k kx x r
-
 {-# INLINABLE lookupLE #-}
-
-
-
 
 -- | /O(log n)/. Find smallest key greater or equal to the given one and return
 -- the corresponding (key, value) pair.
@@ -689,11 +938,7 @@ lookupGE = goNothing
     goJust k kx' x' (Bin _ kx x l r) = case compare k kx of LT -> goJust k kx x l
                                                             EQ -> Just (kx, x)
                                                             GT -> goJust k kx' x' r
-
 {-# INLINABLE lookupGE #-}
-
-
-
 
 {--------------------------------------------------------------------
   Construction
@@ -740,11 +985,7 @@ insert = go
             LT -> balanceL ky y (go kx x l) r
             GT -> balanceR ky y l (go kx x r)
             EQ -> Bin sz kx x l r
-
 {-# INLINABLE insert #-}
-
-
-
 
 -- Insert a new key and value in the map if it is not already present.
 -- Used by `union`.
@@ -761,11 +1002,7 @@ insertR = go
             LT -> balanceL ky y (go kx x l) r
             GT -> balanceR ky y l (go kx x r)
             EQ -> t
-
 {-# INLINABLE insertR #-}
-
-
-
 
 -- | /O(log n)/. Insert with a function, combining new value and old value.
 -- @'insertWith' f key value mp@
@@ -779,11 +1016,7 @@ insertR = go
 
 insertWith :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWith f = insertWithKey (\_ x' y' -> f x' y')
-
 {-# INLINABLE insertWith #-}
-
-
-
 
 -- | /O(log n)/. Insert with a function, combining key, new value and old value.
 -- @'insertWithKey' f key value mp@
@@ -809,11 +1042,7 @@ insertWithKey = go
             LT -> balanceL ky y (go f kx x l) r
             GT -> balanceR ky y l (go f kx x r)
             EQ -> Bin sy kx (f kx x y) l r
-
 {-# INLINABLE insertWithKey #-}
-
-
-
 
 -- | /O(log n)/. Combines insert operation with old value retrieval.
 -- The expression (@'insertLookupWithKey' f k x map@)
@@ -846,11 +1075,7 @@ insertLookupWithKey = go
             GT -> let (found, r') = go f kx x r
                   in (found, balanceR ky y l r')
             EQ -> (Just y, Bin sy kx (f kx x y) l r)
-
 {-# INLINABLE insertLookupWithKey #-}
-
-
-
 
 {--------------------------------------------------------------------
   Deletion
@@ -874,11 +1099,7 @@ delete = go
             LT -> balanceR kx x (go k l) r
             GT -> balanceL kx x l (go k r)
             EQ -> glue l r
-
 {-# INLINABLE delete #-}
-
-
-
 
 -- | /O(log n)/. Update a value at a specific key with the result of the provided function.
 -- When the key is not
@@ -890,11 +1111,7 @@ delete = go
 
 adjust :: Ord k => (a -> a) -> k -> Map k a -> Map k a
 adjust f = adjustWithKey (\_ x -> f x)
-
 {-# INLINABLE adjust #-}
-
-
-
 
 -- | /O(log n)/. Adjust a value at a specific key. When the key is not
 -- a member of the map, the original map is returned.
@@ -906,11 +1123,7 @@ adjust f = adjustWithKey (\_ x -> f x)
 
 adjustWithKey :: Ord k => (k -> a -> a) -> k -> Map k a -> Map k a
 adjustWithKey f = updateWithKey (\k' x' -> Just (f k' x'))
-
 {-# INLINABLE adjustWithKey #-}
-
-
-
 
 -- | /O(log n)/. The expression (@'update' f k map@) updates the value @x@
 -- at @k@ (if it is in the map). If (@f x@) is 'Nothing', the element is
@@ -923,11 +1136,7 @@ adjustWithKey f = updateWithKey (\k' x' -> Just (f k' x'))
 
 update :: Ord k => (a -> Maybe a) -> k -> Map k a -> Map k a
 update f = updateWithKey (\_ x -> f x)
-
 {-# INLINABLE update #-}
-
-
-
 
 -- | /O(log n)/. The expression (@'updateWithKey' f k map@) updates the
 -- value @x@ at @k@ (if it is in the map). If (@f k x@) is 'Nothing',
@@ -953,11 +1162,7 @@ updateWithKey = go
            EQ -> case f kx x of
                    Just x' -> Bin sx kx x' l r
                    Nothing -> glue l r
-
 {-# INLINABLE updateWithKey #-}
-
-
-
 
 -- | /O(log n)/. Lookup and update. See also 'updateWithKey'.
 -- The function returns changed value, if it is updated.
@@ -982,11 +1187,7 @@ updateLookupWithKey = go
                EQ -> case f kx x of
                        Just x' -> (Just x',Bin sx kx x' l r)
                        Nothing -> (Just x,glue l r)
-
 {-# INLINABLE updateLookupWithKey #-}
-
-
-
 
 -- | /O(log n)/. The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence thereof.
 -- 'alter' can be used to insert, delete, or update a value in a 'Map'.
@@ -1016,11 +1217,7 @@ alter = go
                EQ -> case f (Just x) of
                        Just x' -> Bin sx kx x' l r
                        Nothing -> glue l r
-
 {-# INLINABLE alter #-}
-
-
-
 
 {--------------------------------------------------------------------
   Indexing
@@ -1047,9 +1244,7 @@ findIndex = go 0
       LT -> go idx k l
       GT -> go (idx + size l + 1) k r
       EQ -> idx + size l
-
 {-# INLINABLE findIndex #-}
-
 
 -- | /O(log n)/. Lookup the /index/ of a key, which is its zero-based index in
 -- the sequence sorted by keys. The index is a number from /0/ up to, but not
@@ -1072,9 +1267,7 @@ lookupIndex = go 0
       LT -> go idx k l
       GT -> go (idx + size l + 1) k r
       EQ -> Just $! idx + size l
-
 {-# INLINABLE lookupIndex #-}
-
 
 -- | /O(log n)/. Retrieve an element by its /index/, i.e. by its zero-based
 -- index in the sequence sorted by keys. If the /index/ is out of range (less
@@ -1261,6 +1454,7 @@ minView x   = Just (first snd $ deleteFindMin x)
 
 -- | /O(log n)/. Retrieves the value associated with maximal key of the
 -- map, and the map stripped of that element, or 'Nothing' if passed an
+-- empty map.
 --
 -- > maxView (fromList [(5,"a"), (3,"b")]) == Just ("a", singleton 3 "b")
 -- > maxView empty == Nothing
@@ -1287,9 +1481,7 @@ first f (x,y) = (f x, y)
 unions :: Ord k => [Map k a] -> Map k a
 unions ts
   = foldlStrict union empty ts
-
 {-# INLINABLE unions #-}
-
 
 -- | The union of a list of maps, with a combining operation:
 --   (@'unionsWith' f == 'Prelude.foldl' ('unionWith' f) 'empty'@).
@@ -1300,9 +1492,7 @@ unions ts
 unionsWith :: Ord k => (a->a->a) -> [Map k a] -> Map k a
 unionsWith f ts
   = foldlStrict (unionWith f) empty ts
-
 {-# INLINABLE unionsWith #-}
-
 
 -- | /O(n+m)/.
 -- The expression (@'union' t1 t2@) takes the left-biased union of @t1@ and @t2@.
@@ -1316,9 +1506,7 @@ union :: Ord k => Map k a -> Map k a -> Map k a
 union Tip t2  = t2
 union t1 Tip  = t1
 union t1 t2 = hedgeUnion NothingS NothingS t1 t2
-
 {-# INLINABLE union #-}
-
 
 -- left-biased hedge union
 hedgeUnion :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a b -> Map a b
@@ -1329,9 +1517,7 @@ hedgeUnion _   _   t1  (Bin _ kx x Tip Tip) = insertR kx x t1  -- According to b
 hedgeUnion blo bhi (Bin _ kx x l r) t2 = link kx x (hedgeUnion blo bmi l (trim blo bmi t2))
                                                    (hedgeUnion bmi bhi r (trim bmi bhi t2))
   where bmi = JustS kx
-
 {-# INLINABLE hedgeUnion #-}
-
 
 {--------------------------------------------------------------------
   Union with a combining function
@@ -1343,9 +1529,7 @@ hedgeUnion blo bhi (Bin _ kx x l r) t2 = link kx x (hedgeUnion blo bmi l (trim b
 unionWith :: Ord k => (a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWith f m1 m2
   = unionWithKey (\_ x y -> f x y) m1 m2
-
 {-# INLINABLE unionWith #-}
-
 
 -- | /O(n+m)/.
 -- Union with a combining function. The implementation uses the efficient /hedge-union/ algorithm.
@@ -1355,9 +1539,7 @@ unionWith f m1 m2
 
 unionWithKey :: Ord k => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) id id t1 t2
-
 {-# INLINABLE unionWithKey #-}
-
 
 {--------------------------------------------------------------------
   Difference
@@ -1372,9 +1554,7 @@ difference :: Ord k => Map k a -> Map k b -> Map k a
 difference Tip _   = Tip
 difference t1 Tip  = t1
 difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
-
 {-# INLINABLE difference #-}
-
 
 hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
 hedgeDiff _   _   Tip              _ = Tip
@@ -1382,9 +1562,7 @@ hedgeDiff blo bhi (Bin _ kx x l r) Tip = link kx x (filterGt blo l) (filterLt bh
 hedgeDiff blo bhi t (Bin _ kx _ l r) = merge (hedgeDiff blo bmi (trim blo bmi t) l)
                                              (hedgeDiff bmi bhi (trim bmi bhi t) r)
   where bmi = JustS kx
-
 {-# INLINABLE hedgeDiff #-}
-
 
 -- | /O(n+m)/. Difference with a combining function.
 -- When two equal keys are
@@ -1400,9 +1578,7 @@ hedgeDiff blo bhi t (Bin _ kx _ l r) = merge (hedgeDiff blo bmi (trim blo bmi t)
 differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWith f m1 m2
   = differenceWithKey (\_ x y -> f x y) m1 m2
-
 {-# INLINABLE differenceWith #-}
-
 
 -- | /O(n+m)/. Difference with a combining function. When two equal keys are
 -- encountered, the combining function is applied to the key and both values.
@@ -1416,9 +1592,7 @@ differenceWith f m1 m2
 
 differenceWithKey :: Ord k => (k -> a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
-
 {-# INLINABLE differenceWithKey #-}
-
 
 
 {--------------------------------------------------------------------
@@ -1436,9 +1610,7 @@ intersection :: Ord k => Map k a -> Map k b -> Map k a
 intersection Tip _ = Tip
 intersection _ Tip = Tip
 intersection t1 t2 = hedgeInt NothingS NothingS t1 t2
-
 {-# INLINABLE intersection #-}
-
 
 hedgeInt :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Map k b -> Map k a
 hedgeInt _ _ _   Tip = Tip
@@ -1447,9 +1619,7 @@ hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi
                                            r' = hedgeInt bmi bhi r (trim bmi bhi t2)
                                        in if kx `member` t2 then link kx x l' r' else merge l' r'
   where bmi = JustS kx
-
 {-# INLINABLE hedgeInt #-}
-
 
 -- | /O(n+m)/. Intersection with a combining function.  The implementation uses
 -- an efficient /hedge/ algorithm comparable with /hedge-union/.
@@ -1459,9 +1629,7 @@ hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWith f m1 m2
   = intersectionWithKey (\_ x y -> f x y) m1 m2
-
 {-# INLINABLE intersectionWith #-}
-
 
 -- | /O(n+m)/. Intersection with a combining function.  The implementation uses
 -- an efficient /hedge/ algorithm comparable with /hedge-union/.
@@ -1472,9 +1640,7 @@ intersectionWith f m1 m2
 
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (const Tip) (const Tip) t1 t2
-
 {-# INLINABLE intersectionWithKey #-}
-
 
 
 {--------------------------------------------------------------------
@@ -1549,9 +1715,7 @@ mergeWithKey f g1 g2 = go
 --
 isSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
 isSubmapOf m1 m2 = isSubmapOfBy (==) m1 m2
-
 {-# INLINABLE isSubmapOf #-}
-
 
 {- | /O(n+m)/.
  The expression (@'isSubmapOfBy' f t1 t2@) returns 'True' if
@@ -1574,9 +1738,7 @@ isSubmapOf m1 m2 = isSubmapOfBy (==) m1 m2
 isSubmapOfBy :: Ord k => (a->b->Bool) -> Map k a -> Map k b -> Bool
 isSubmapOfBy f t1 t2
   = (size t1 <= size t2) && (submap' f t1 t2)
-
 {-# INLINABLE isSubmapOfBy #-}
-
 
 submap' :: Ord a => (b -> c -> Bool) -> Map a b -> Map a c -> Bool
 submap' _ Tip _ = True
@@ -1587,18 +1749,14 @@ submap' f (Bin _ kx x l r) t
       Just y  -> f x y && submap' f l lt && submap' f r gt
   where
     (lt,found,gt) = splitLookup kx t
-
 {-# INLINABLE submap' #-}
-
 
 -- | /O(n+m)/. Is this a proper submap? (ie. a submap but not equal).
 -- Defined as (@'isProperSubmapOf' = 'isProperSubmapOfBy' (==)@).
 isProperSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
 isProperSubmapOf m1 m2
   = isProperSubmapOfBy (==) m1 m2
-
 {-# INLINABLE isProperSubmapOf #-}
-
 
 {- | /O(n+m)/. Is this a proper submap? (ie. a submap but not equal).
  The expression (@'isProperSubmapOfBy' f m1 m2@) returns 'True' when
@@ -1621,9 +1779,7 @@ isProperSubmapOf m1 m2
 isProperSubmapOfBy :: Ord k => (a -> b -> Bool) -> Map k a -> Map k b -> Bool
 isProperSubmapOfBy f t1 t2
   = (size t1 < size t2) && (submap' f t1 t2)
-
 {-# INLINABLE isProperSubmapOfBy #-}
-
 
 {--------------------------------------------------------------------
   Filter and partition
@@ -1741,6 +1897,10 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 map :: (a -> b) -> Map k a -> Map k b
 map _ Tip = Tip
 map f (Bin sx kx x l r) = Bin sx kx (f x) (map f l) (map f r)
+{-# NOINLINE [1] map #-}
+{-# RULES
+"map/map" forall f g xs . map f (map g xs) = map (f . g) xs
+ #-}
 
 -- | /O(n)/. Map a function over all values in the map.
 --
@@ -1750,6 +1910,16 @@ map f (Bin sx kx x l r) = Bin sx kx (f x) (map f l) (map f r)
 mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
 mapWithKey _ Tip = Tip
 mapWithKey f (Bin sx kx x l r) = Bin sx kx (f kx x) (mapWithKey f l) (mapWithKey f r)
+
+{-# NOINLINE [1] mapWithKey #-}
+{-# RULES
+"mapWithKey/mapWithKey" forall f g xs . mapWithKey f (mapWithKey g xs) =
+  mapWithKey (\k a -> f k (g k a)) xs
+"mapWithKey/map" forall f g xs . mapWithKey f (map g xs) =
+  mapWithKey (\k a -> f k (g a)) xs
+"map/mapWithKey" forall f g xs . map f (mapWithKey g xs) =
+  mapWithKey (\k a -> f (g k a)) xs
+ #-}
 
 -- | /O(n)/.
 -- @'traverseWithKey' f s == 'fromList' <$> 'traverse' (\(k, v) -> (,) k <$> f k v) ('toList' m)@
@@ -1819,9 +1989,7 @@ mapAccumRWithKey f a (Bin sx kx x l r) =
 
 mapKeys :: Ord k2 => (k1->k2) -> Map k1 a -> Map k2 a
 mapKeys f = fromList . foldrWithKey (\k x xs -> (f k, x) : xs) []
-
 {-# INLINABLE mapKeys #-}
-
 
 -- | /O(n*log n)/.
 -- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
@@ -1835,9 +2003,7 @@ mapKeys f = fromList . foldrWithKey (\k x xs -> (f k, x) : xs) []
 
 mapKeysWith :: Ord k2 => (a -> a -> a) -> (k1->k2) -> Map k1 a -> Map k2 a
 mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
-
 {-# INLINABLE mapKeysWith #-}
-
 
 
 -- | /O(n)/.
@@ -2045,6 +2211,11 @@ fromSet f (Set.Bin sz x l r) = Bin sz x (f x) (fromSet f l) (fromSet f r)
   Lists
   use [foldlStrict] to reduce demand on the control-stack
 --------------------------------------------------------------------}
+instance (Ord k) => GHCExts.IsList (Map k v) where
+  type Item (Map k v) = (k,v)
+  fromList = fromList
+  toList   = toList
+
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs. See also 'fromAscList'.
 -- If the list contains more than one value for the same key, the last value
 -- for the key is retained.
@@ -2095,9 +2266,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = fromList' (Bin 1 kx0 x0 Tip T
                       (l, ys@((ky, y):yss), _) | not_ordered ky yss -> (l, [], ys)
                                                | otherwise -> case create (s `shiftR` 1) yss of
                                                    (r, zs, ws) -> (link ky y l r, zs, ws)
-
 {-# INLINABLE fromList #-}
-
 
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWith'.
 --
@@ -2107,9 +2276,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = fromList' (Bin 1 kx0 x0 Tip T
 fromListWith :: Ord k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromListWith f xs
   = fromListWithKey (\_ x y -> f x y) xs
-
 {-# INLINABLE fromListWith #-}
-
 
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWithKey'.
 --
@@ -2122,9 +2289,7 @@ fromListWithKey f xs
   = foldlStrict ins empty xs
   where
     ins t (k,x) = insertWithKey f k x t
-
 {-# INLINABLE fromListWithKey #-}
-
 
 -- | /O(n)/. Convert the map to a list of key\/value pairs. Subject to list fusion.
 --
@@ -2151,7 +2316,6 @@ toDescList :: Map k a -> [(k,a)]
 toDescList = foldlWithKey (\xs k x -> (k,x):xs) []
 
 -- List fusion for the list generating functions.
-
 -- The foldrFB and foldlFB are fold{r,l}WithKey equivalents, used for list fusion.
 -- They are important to convert unfused methods back, see mapFB in prelude.
 foldrFB :: (k -> a -> b -> b) -> b -> Map k a -> b
@@ -2184,7 +2348,6 @@ foldlFB = foldlWithKey
 {-# RULES "Map.toDescList" [~1] forall m . toDescList m = build (\c n -> foldlFB (\xs k x -> c (k,x) xs) n m) #-}
 {-# RULES "Map.toDescListBack" [1] foldlFB (\xs k x -> (k, x) : xs) [] = toDescList #-}
 
-
 {--------------------------------------------------------------------
   Building trees from ascending/descending lists can be done in linear time.
 
@@ -2203,9 +2366,7 @@ foldlFB = foldlWithKey
 fromAscList :: Eq k => [(k,a)] -> Map k a
 fromAscList xs
   = fromAscListWithKey (\_ x _ -> x) xs
-
 {-# INLINABLE fromAscList #-}
-
 
 -- | /O(n)/. Build a map from an ascending list in linear time with a combining function for equal keys.
 -- /The precondition (input list is ascending) is not checked./
@@ -2217,9 +2378,7 @@ fromAscList xs
 fromAscListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromAscListWith f xs
   = fromAscListWithKey (\_ x y -> f x y) xs
-
 {-# INLINABLE fromAscListWith #-}
-
 
 -- | /O(n)/. Build a map from an ascending list in linear time with a
 -- combining function for equal keys.
@@ -2245,9 +2404,7 @@ fromAscListWithKey f xs
   combineEq' z@(kz,zz) (x@(kx,xx):xs')
     | kx==kz    = let yy = f kx xx zz in combineEq' (kx,yy) xs'
     | otherwise = z:combineEq' x xs'
-
 {-# INLINABLE fromAscListWithKey #-}
-
 
 
 -- | /O(n)/. Build a map from an ascending list of distinct elements in linear time.
@@ -2312,9 +2469,7 @@ trim NothingS   (JustS hk) t = lesser hk t  where lesser  hi (Bin _ k _ l _) | k
 trim (JustS lk) (JustS hk) t = middle lk hk t  where middle lo hi (Bin _ k _ _ r) | k <= lo = middle lo hi r
                                                      middle lo hi (Bin _ k _ l _) | k >= hi = middle lo hi l
                                                      middle _  _  t' = t'
-
 {-# INLINABLE trim #-}
-
 
 -- Helper function for 'mergeWithKey'. The @'trimLookupLo' lk hk t@ performs both
 -- @'trim' (JustS lk) hk t@ and @'lookup' lk t@.
@@ -2342,9 +2497,7 @@ trimLookupLo lk0 mhk0 t0 = toPair $ go lk0 mhk0 t0
             lesser :: Ord k => k -> Map k a -> Map k a
             lesser hi (Bin _ k _ l _) | k >= hi = lesser hi l
             lesser _ t' = t'
-
 {-# INLINABLE trimLookupLo #-}
-
 
 
 {--------------------------------------------------------------------
@@ -2359,9 +2512,7 @@ filterGt (JustS b) t = filter' b t
           case compare b' kx of LT -> link kx x (filter' b' l) r
                                 EQ -> r
                                 GT -> filter' b' r
-
 {-# INLINABLE filterGt #-}
-
 
 filterLt :: Ord k => MaybeS k -> Map k v -> Map k v
 filterLt NothingS t = t
@@ -2371,9 +2522,7 @@ filterLt (JustS b) t = filter' b t
           case compare kx b' of LT -> link kx x l (filter' b' r)
                                 EQ -> l
                                 GT -> filter' b' l
-
 {-# INLINABLE filterLt #-}
-
 
 {--------------------------------------------------------------------
   Split
@@ -2398,9 +2547,7 @@ split k0 t0 = k0 `seq` toPair $ go k0 t0
           LT -> let (lt :*: gt) = go k l in lt :*: link kx x gt r
           GT -> let (lt :*: gt) = go k r in link kx x l lt :*: gt
           EQ -> (l :*: r)
-
 {-# INLINABLE split #-}
-
 
 -- | /O(log n)/. The expression (@'splitLookup' k map@) splits a map just
 -- like 'split' but also returns @'lookup' k map@.
@@ -2423,9 +2570,7 @@ splitLookup k t = k `seq`
                 lt' = link kx x l lt
             in lt' `seq` (lt',z,gt)
       EQ -> (l,Just x,r)
-
 {-# INLINABLE splitLookup #-}
-
 
 {--------------------------------------------------------------------
   Utility functions that maintain the balance properties of the tree.
@@ -2721,7 +2866,7 @@ instance Traversable (Map k) where
   {-# INLINE traverse #-}
 
 instance Foldable.Foldable (Map k) where
-  fold t = go t
+  fold = go
     where go Tip = mempty
           go (Bin 1 _ v _ _) = v
           go (Bin _ _ v l r) = go l `mappend` (v `mappend` go r)
@@ -2736,6 +2881,11 @@ instance Foldable.Foldable (Map k) where
           go (Bin _ _ v l r) = go l `mappend` (f v `mappend` go r)
   {-# INLINE foldMap #-}
 
+  foldl' = foldl'
+  {-# INLINE foldl' #-}
+  foldr' = foldr'
+  {-# INLINE foldr' #-}
+
 instance (NFData k, NFData a) => NFData (Map k a) where
     rnf Tip = ()
     rnf (Bin _ kx x l r) = rnf kx `seq` rnf x `seq` rnf l `seq` rnf r
@@ -2744,19 +2894,12 @@ instance (NFData k, NFData a) => NFData (Map k a) where
   Read
 --------------------------------------------------------------------}
 instance (Ord k, Read k, Read e) => Read (Map k e) where
-
   readPrec = parens $ prec 10 $ do
     Ident "fromList" <- lexP
     xs <- readPrec
     return (fromList xs)
 
   readListPrec = readListPrecDefault
-
-
-
-
-
-
 
 {--------------------------------------------------------------------
   Show
@@ -2863,74 +3006,6 @@ withEmpty bars = "   ":bars
   Typeable
 --------------------------------------------------------------------}
 
-{-# LINE 1 "include/Typeable.h" #-}
-{- --------------------------------------------------------------------------
-// Macros to help make Typeable instances.
-//
-// INSTANCE_TYPEABLEn(tc,tcname,"tc") defines
-//
-//      instance Typeable/n/ tc
-//      instance Typeable a => Typeable/n-1/ (tc a)
-//      instance (Typeable a, Typeable b) => Typeable/n-2/ (tc a b)
-//      ...
-//      instance (Typeable a1, ..., Typeable an) => Typeable (tc a1 ... an)
-// --------------------------------------------------------------------------
--}
-
-
-
-
-
-
---  // For GHC, we can use DeriveDataTypeable + StandaloneDeriving to
---  // generate the instances.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{-# LINE 2770 "./Data/Map/Base.hs" #-}
 deriving instance Typeable Map
 
 {--------------------------------------------------------------------
@@ -2976,13 +3051,6 @@ validsize t
 {--------------------------------------------------------------------
   Utilities
 --------------------------------------------------------------------}
-foldlStrict :: (a -> b -> a) -> a -> [b] -> a
-foldlStrict f = go
-  where
-    go z []     = z
-    go z (x:xs) = let z' = f z x in z' `seq` go z' xs
-{-# INLINE foldlStrict #-}
-
 
 -- | /O(1)/.  Decompose a map into pieces based on the structure of the underlying
 -- tree.  This function is useful for consuming a map in parallel.

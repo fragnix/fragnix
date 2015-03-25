@@ -1,107 +1,404 @@
-{-# LINE 1 "./Data/Set/Base.hs" #-}
-{-# LINE 1 "dist/dist-sandbox-235ea54e/build/autogen/cabal_macros.h" #-}
-                                                                
+{-# LANGUAGE Haskell98 #-}
+{-# LINE 1 "Data/Set/Base.hs" #-}
 
-                           
 
 
 
 
 
 
-                          
 
 
 
 
 
 
-                             
 
 
 
 
 
 
-                     
 
 
 
 
 
 
-                       
 
 
 
 
 
 
-                  
 
 
 
 
 
 
-                    
 
 
 
 
 
 
-                        
 
 
 
 
 
 
-                         
-
-
-
-
-
-
-                       
-
-
-
-
-
-
-                   
-
-
-
-
-
-
-                      
-
-
-
-
-
-
-                          
-
-
-
-
-
-
-
-{-# LINE 2 "./Data/Set/Base.hs" #-}
-{-# LINE 1 "./Data/Set/Base.hs" #-}
 {-# LANGUAGE CPP #-}
-
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
-
-
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE RoleAnnotations #-}
+{-# LANGUAGE TypeFamilies #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -----------------------------------------------------------------------------
 -- |
@@ -136,6 +433,10 @@
 -- 'union' or 'insert'.  Of course, left-biasing can only be observed
 -- when equality is an equivalence relation instead of structural
 -- equality.
+--
+-- /Warning/: The size of the set must not exceed @maxBound::Int@. Violation of
+-- this condition is not detected and if the size limit is exceeded, its
+-- behaviour is undefined.
 -----------------------------------------------------------------------------
 
 -- [Note: Using INLINABLE]
@@ -288,20 +589,13 @@ import qualified Data.Foldable as Foldable
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
 
-import Data.StrictPair
-
+import Data.Utils.StrictFold
+import Data.Utils.StrictPair
 
 import GHC.Exts ( build )
+import qualified GHC.Exts as GHCExts
 import Text.Read
 import Data.Data
-
-
--- Use macros to define strictness of functions.
--- STRICT_x_OF_y denotes an y-ary function strict in the x-th parameter.
--- We do not use BangPatterns, because they are not in any standard and we
--- want the compilers to be compiled by as many compilers as possible.
-
-
 
 
 {--------------------------------------------------------------------
@@ -312,9 +606,7 @@ infixl 9 \\ --
 -- | /O(n+m)/. See 'difference'.
 (\\) :: Ord a => Set a -> Set a -> Set a
 m1 \\ m2 = difference m1 m2
-
 {-# INLINABLE (\\) #-}
-
 
 {--------------------------------------------------------------------
   Sets are size balanced trees
@@ -327,8 +619,7 @@ data Set a    = Bin {-# UNPACK #-} !Size !a !(Set a) !(Set a)
 
 type Size     = Int
 
-
-
+type role Set nominal
 
 instance Ord a => Monoid (Set a) where
     mempty  = empty
@@ -336,7 +627,7 @@ instance Ord a => Monoid (Set a) where
     mconcat = unions
 
 instance Foldable.Foldable Set where
-    fold t = go t
+    fold = go
       where go Tip = mempty
             go (Bin 1 k _ _) = k
             go (Bin _ k l r) = go l `mappend` (k `mappend` go r)
@@ -350,6 +641,11 @@ instance Foldable.Foldable Set where
             go (Bin 1 k _ _) = f k
             go (Bin _ k l r) = go l `mappend` (f k `mappend` go r)
     {-# INLINE foldMap #-}
+
+    foldl' = foldl'
+    {-# INLINE foldl' #-}
+    foldr' = foldr'
+    {-# INLINE foldr' #-}
 
 
 
@@ -374,7 +670,6 @@ fromListConstr = mkConstr setDataType "fromList" [] Prefix
 
 setDataType :: DataType
 setDataType = mkDataType "Data.Set.Base.Set" [fromListConstr]
-
 
 
 {--------------------------------------------------------------------
@@ -402,20 +697,12 @@ member = go
       LT -> go x l
       GT -> go x r
       EQ -> True
-
 {-# INLINABLE member #-}
-
-
-
 
 -- | /O(log n)/. Is the element not in the set?
 notMember :: Ord a => a -> Set a -> Bool
 notMember a t = not $ member a t
-
 {-# INLINABLE notMember #-}
-
-
-
 
 -- | /O(log n)/. Find largest element smaller than the given one.
 --
@@ -433,11 +720,7 @@ lookupLT = goNothing
     goJust _ best Tip = Just best
     goJust x best (Bin _ y l r) | x <= y = goJust x best l
                                 | otherwise = goJust x y r
-
 {-# INLINABLE lookupLT #-}
-
-
-
 
 -- | /O(log n)/. Find smallest element greater than the given one.
 --
@@ -455,11 +738,7 @@ lookupGT = goNothing
     goJust _ best Tip = Just best
     goJust x best (Bin _ y l r) | x < y = goJust x y l
                                 | otherwise = goJust x best r
-
 {-# INLINABLE lookupGT #-}
-
-
-
 
 -- | /O(log n)/. Find largest element smaller or equal to the given one.
 --
@@ -480,11 +759,7 @@ lookupLE = goNothing
     goJust x best (Bin _ y l r) = case compare x y of LT -> goJust x best l
                                                       EQ -> Just y
                                                       GT -> goJust x y r
-
 {-# INLINABLE lookupLE #-}
-
-
-
 
 -- | /O(log n)/. Find smallest element greater or equal to the given one.
 --
@@ -505,11 +780,7 @@ lookupGE = goNothing
     goJust x best (Bin _ y l r) = case compare x y of LT -> goJust x y l
                                                       EQ -> Just y
                                                       GT -> goJust x best r
-
 {-# INLINABLE lookupGE #-}
-
-
-
 
 {--------------------------------------------------------------------
   Construction
@@ -542,11 +813,7 @@ insert = go
         LT -> balanceL y (go x l) r
         GT -> balanceR y l (go x r)
         EQ -> Bin sz x l r
-
 {-# INLINABLE insert #-}
-
-
-
 
 -- Insert an element to the set only if it is not in the set.
 -- Used by `union`.
@@ -562,11 +829,7 @@ insertR = go
         LT -> balanceL y (go x l) r
         GT -> balanceR y l (go x r)
         EQ -> t
-
 {-# INLINABLE insertR #-}
-
-
-
 
 -- | /O(log n)/. Delete an element from a set.
 
@@ -581,11 +844,7 @@ delete = go
         LT -> balanceR y (go x l) r
         GT -> balanceL y l (go x r)
         EQ -> glue l r
-
 {-# INLINABLE delete #-}
-
-
-
 
 {--------------------------------------------------------------------
   Subset
@@ -594,9 +853,7 @@ delete = go
 isProperSubsetOf :: Ord a => Set a -> Set a -> Bool
 isProperSubsetOf s1 s2
     = (size s1 < size s2) && (isSubsetOf s1 s2)
-
 {-# INLINABLE isProperSubsetOf #-}
-
 
 
 -- | /O(n+m)/. Is this a subset?
@@ -604,9 +861,7 @@ isProperSubsetOf s1 s2
 isSubsetOf :: Ord a => Set a -> Set a -> Bool
 isSubsetOf t1 t2
   = (size t1 <= size t2) && (isSubsetOfX t1 t2)
-
 {-# INLINABLE isSubsetOf #-}
-
 
 isSubsetOfX :: Ord a => Set a -> Set a -> Bool
 isSubsetOfX Tip _ = True
@@ -615,9 +870,7 @@ isSubsetOfX (Bin _ x l r) t
   = found && isSubsetOfX l lt && isSubsetOfX r gt
   where
     (lt,found,gt) = splitMember x t
-
 {-# INLINABLE isSubsetOfX #-}
-
 
 
 {--------------------------------------------------------------------
@@ -653,9 +906,7 @@ deleteMax Tip             = Tip
 -- | The union of a list of sets: (@'unions' == 'foldl' 'union' 'empty'@).
 unions :: Ord a => [Set a] -> Set a
 unions = foldlStrict union empty
-
 {-# INLINABLE unions #-}
-
 
 -- | /O(n+m)/. The union of two sets, preferring the first set when
 -- equal elements are encountered.
@@ -664,9 +915,7 @@ union :: Ord a => Set a -> Set a -> Set a
 union Tip t2  = t2
 union t1 Tip  = t1
 union t1 t2 = hedgeUnion NothingS NothingS t1 t2
-
 {-# INLINABLE union #-}
-
 
 hedgeUnion :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
 hedgeUnion _   _   t1  Tip = t1
@@ -676,9 +925,7 @@ hedgeUnion _   _   t1  (Bin _ x Tip Tip) = insertR x t1   -- According to benchm
 hedgeUnion blo bhi (Bin _ x l r) t2 = link x (hedgeUnion blo bmi l (trim blo bmi t2))
                                              (hedgeUnion bmi bhi r (trim bmi bhi t2))
   where bmi = JustS x
-
 {-# INLINABLE hedgeUnion #-}
-
 
 {--------------------------------------------------------------------
   Difference
@@ -689,9 +936,7 @@ difference :: Ord a => Set a -> Set a -> Set a
 difference Tip _   = Tip
 difference t1 Tip  = t1
 difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
-
 {-# INLINABLE difference #-}
-
 
 hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
 hedgeDiff _   _   Tip           _ = Tip
@@ -699,9 +944,7 @@ hedgeDiff blo bhi (Bin _ x l r) Tip = link x (filterGt blo l) (filterLt bhi r)
 hedgeDiff blo bhi t (Bin _ x l r) = merge (hedgeDiff blo bmi (trim blo bmi t) l)
                                           (hedgeDiff bmi bhi (trim bmi bhi t) r)
   where bmi = JustS x
-
 {-# INLINABLE hedgeDiff #-}
-
 
 {--------------------------------------------------------------------
   Intersection
@@ -722,9 +965,7 @@ intersection :: Ord a => Set a -> Set a -> Set a
 intersection Tip _ = Tip
 intersection _ Tip = Tip
 intersection t1 t2 = hedgeInt NothingS NothingS t1 t2
-
 {-# INLINABLE intersection #-}
-
 
 hedgeInt :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
 hedgeInt _ _ _   Tip = Tip
@@ -733,9 +974,7 @@ hedgeInt blo bhi (Bin _ x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi t2
                                         r' = hedgeInt bmi bhi r (trim bmi bhi t2)
                                     in if x `member` t2 then link x l' r' else merge l' r'
   where bmi = JustS x
-
 {-# INLINABLE hedgeInt #-}
-
 
 {--------------------------------------------------------------------
   Filter and partition
@@ -771,9 +1010,7 @@ partition p0 t0 = toPair $ go p0 t0
 
 map :: Ord b => (a->b) -> Set a -> Set b
 map f = fromList . List.map f . toList
-
 {-# INLINABLE map #-}
-
 
 -- | /O(n)/. The
 --
@@ -860,6 +1097,11 @@ elems = toAscList
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
+instance (Ord a) => GHCExts.IsList (Set a) where
+  type Item (Set a) = a
+  fromList = fromList
+  toList   = toList
+
 -- | /O(n)/. Convert the set to a list of elements. Subject to list fusion.
 toList :: Set a -> [a]
 toList = toAscList
@@ -874,7 +1116,6 @@ toDescList :: Set a -> [a]
 toDescList = foldl (flip (:)) []
 
 -- List fusion for the list generating functions.
-
 -- The foldrFB and foldlFB are foldr and foldl equivalents, used for list fusion.
 -- They are important to convert unfused to{Asc,Desc}List back, see mapFB in prelude.
 foldrFB :: (a -> b -> b) -> b -> Set a -> b
@@ -900,7 +1141,6 @@ foldlFB = foldl
 {-# RULES "Set.toAscListBack" [1] foldrFB (:) [] = toAscList #-}
 {-# RULES "Set.toDescList" [~1] forall s . toDescList s = build (\c n -> foldlFB (\xs x -> c x xs) n s) #-}
 {-# RULES "Set.toDescListBack" [1] foldlFB (\xs x -> x : xs) [] = toDescList #-}
-
 
 -- | /O(n*log n)/. Create a set from a list of elements.
 --
@@ -946,9 +1186,7 @@ fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
                       (l, ys@(y:yss), _) | not_ordered y yss -> (l, [], ys)
                                          | otherwise -> case create (s `shiftR` 1) yss of
                                                    (r, zs, ws) -> (link y l r, zs, ws)
-
 {-# INLINABLE fromList #-}
-
 
 {--------------------------------------------------------------------
   Building trees from ascending/descending lists can be done in linear time.
@@ -973,9 +1211,7 @@ fromAscList xs
   combineEq' z (x:xs')
     | z==x      =   combineEq' z xs'
     | otherwise = z:combineEq' x xs'
-
 {-# INLINABLE fromAscList #-}
-
 
 
 -- | /O(n)/. Build a set from an ascending list of distinct elements in linear time.
@@ -1027,7 +1263,6 @@ instance Show a => Show (Set a) where
   Read
 --------------------------------------------------------------------}
 instance (Read a, Ord a) => Read (Set a) where
-
   readPrec = parens $ prec 10 $ do
     Ident "fromList" <- lexP
     xs <- readPrec
@@ -1035,84 +1270,10 @@ instance (Read a, Ord a) => Read (Set a) where
 
   readListPrec = readListPrecDefault
 
-
-
-
-
-
-
 {--------------------------------------------------------------------
   Typeable/Data
 --------------------------------------------------------------------}
 
-{-# LINE 1 "include/Typeable.h" #-}
-{- --------------------------------------------------------------------------
-// Macros to help make Typeable instances.
-//
-// INSTANCE_TYPEABLEn(tc,tcname,"tc") defines
-//
-//      instance Typeable/n/ tc
-//      instance Typeable a => Typeable/n-1/ (tc a)
-//      instance (Typeable a, Typeable b) => Typeable/n-2/ (tc a b)
-//      ...
-//      instance (Typeable a1, ..., Typeable an) => Typeable (tc a1 ... an)
-// --------------------------------------------------------------------------
--}
-
-
-
-
-
-
---  // For GHC, we can use DeriveDataTypeable + StandaloneDeriving to
---  // generate the instances.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{-# LINE 952 "./Data/Set/Base.hs" #-}
 deriving instance Typeable Set
 
 {--------------------------------------------------------------------
@@ -1157,9 +1318,7 @@ trim NothingS   (JustS hx) t = lesser hx t  where lesser  hi (Bin _ x l _) | x >
 trim (JustS lx) (JustS hx) t = middle lx hx t  where middle lo hi (Bin _ x _ r) | x <= lo = middle lo hi r
                                                      middle lo hi (Bin _ x l _) | x >= hi = middle lo hi l
                                                      middle _  _  t' = t'
-
 {-# INLINABLE trim #-}
-
 
 {--------------------------------------------------------------------
   [filterGt b t] filter all values >[b] from tree [t]
@@ -1173,9 +1332,7 @@ filterGt (JustS b) t = filter' b t
           case compare b' x of LT -> link x (filter' b' l) r
                                EQ -> r
                                GT -> filter' b' r
-
 {-# INLINABLE filterGt #-}
-
 
 filterLt :: Ord a => MaybeS a -> Set a -> Set a
 filterLt NothingS t = t
@@ -1185,9 +1342,7 @@ filterLt (JustS b) t = filter' b t
           case compare x b' of LT -> link x l (filter' b' r)
                                EQ -> l
                                GT -> filter' b' l
-
 {-# INLINABLE filterLt #-}
-
 
 {--------------------------------------------------------------------
   Split
@@ -1204,9 +1359,7 @@ split x0 t0 = toPair $ go x0 t0
           LT -> let (lt :*: gt) = go x l in (lt :*: link y gt r)
           GT -> let (lt :*: gt) = go x r in (link y l lt :*: gt)
           EQ -> (l :*: r)
-
 {-# INLINABLE split #-}
-
 
 -- | /O(log n)/. Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
@@ -1221,9 +1374,7 @@ splitMember x (Bin _ y l r)
                  lt' = link y l lt
              in lt' `seq` (lt', found, gt)
        EQ -> (l, True, r)
-
 {-# INLINABLE splitMember #-}
-
 
 {--------------------------------------------------------------------
   Indexing
@@ -1251,9 +1402,7 @@ findIndex = go 0
       LT -> go idx x l
       GT -> go (idx + size l + 1) x r
       EQ -> idx + size l
-
 {-# INLINABLE findIndex #-}
-
 
 -- | /O(log n)/. Lookup the /index/ of an element, which is its zero-based index in
 -- the sorted sequence of elements. The index is a number from /0/ up to, but not
@@ -1276,9 +1425,7 @@ lookupIndex = go 0
       LT -> go idx x l
       GT -> go (idx + size l + 1) x r
       EQ -> Just $! idx + size l
-
 {-# INLINABLE lookupIndex #-}
-
 
 -- | /O(log n)/. Retrieve an element by its /index/, i.e. by its zero-based
 -- index in the sorted sequence of elements. If the /index/ is out of range (less
@@ -1566,12 +1713,6 @@ bin x l r
 {--------------------------------------------------------------------
   Utilities
 --------------------------------------------------------------------}
-foldlStrict :: (a -> b -> a) -> a -> [b] -> a
-foldlStrict f = go
-  where
-    go z []     = z
-    go z (x:xs) = let z' = f z x in z' `seq` go z' xs
-{-# INLINE foldlStrict #-}
 
 -- | /O(1)/.  Decompose a set into pieces based on the structure of the underlying
 -- tree.  This function is useful for consuming a set in parallel.

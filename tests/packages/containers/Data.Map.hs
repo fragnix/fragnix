@@ -1,104 +1,401 @@
-{-# LINE 1 "./Data/Map.hs" #-}
-{-# LINE 1 "dist/dist-sandbox-235ea54e/build/autogen/cabal_macros.h" #-}
-                                                                
+{-# LANGUAGE Haskell98 #-}
+{-# LINE 1 "Data/Map.hs" #-}
 
-                           
 
 
 
 
 
 
-                          
 
 
 
 
 
 
-                             
 
 
 
 
 
 
-                     
 
 
 
 
 
 
-                       
 
 
 
 
 
 
-                  
 
 
 
 
 
 
-                    
 
 
 
 
 
 
-                        
 
 
 
 
 
 
-                         
-
-
-
-
-
-
-                       
-
-
-
-
-
-
-                   
-
-
-
-
-
-
-                      
-
-
-
-
-
-
-                          
-
-
-
-
-
-
-
-{-# LINE 2 "./Data/Map.hs" #-}
-{-# LINE 1 "./Data/Map.hs" #-}
 {-# LANGUAGE CPP #-}
-
 {-# LANGUAGE Safe #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -----------------------------------------------------------------------------
 -- |
@@ -140,6 +437,10 @@
 -- first argument are always preferred to the second, for example in
 -- 'union' or 'insert'.
 --
+-- /Warning/: The size of the map must not exceed @maxBound::Int@. Violation of
+-- this condition is not detected and if the size limit is exceeded, its
+-- behaviour is undefined.
+--
 -- Operation comments contain the operation time complexity in
 -- the Big-O notation (<http://en.wikipedia.org/wiki/Big_O_notation>).
 -----------------------------------------------------------------------------
@@ -169,11 +470,7 @@ import qualified Data.Map.Strict as Strict
 
 insertWith' :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWith' = Strict.insertWith
-
 {-# INLINABLE insertWith' #-}
-
-
-
 
 -- | /Deprecated./ As of version 0.5, replaced by
 -- 'Data.Map.Strict.insertWithKey'.
@@ -185,11 +482,7 @@ insertWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 -- We do not reuse Data.Map.Strict.insertWithKey, because it is stricter -- it
 -- forces evaluation of the given value.
 insertWithKey' = Strict.insertWithKey
-
 {-# INLINABLE insertWithKey' #-}
-
-
-
 
 -- | /Deprecated./ As of version 0.5, replaced by
 -- 'Data.Map.Strict.insertLookupWithKey'.
@@ -202,11 +495,7 @@ insertLookupWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
 -- We do not reuse Data.Map.Strict.insertLookupWithKey, because it is stricter -- it
 -- forces evaluation of the given value.
 insertLookupWithKey' = Strict.insertLookupWithKey
-
 {-# INLINABLE insertLookupWithKey' #-}
-
-
-
 
 -- | /Deprecated./ As of version 0.5, replaced by 'foldr'.
 --
