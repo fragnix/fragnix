@@ -2,72 +2,36 @@
 Fragnix [![Build Status](https://travis-ci.org/phischu/fragnix.svg?branch=master)](https://travis-ci.org/phischu/fragnix)
 =======
 
-Immutable, fragment-based dependencies!
+Fragment-based code distribution!
 
 Installation
 ------------
 
-Unfourtunately installation is rather difficult, because `fragnix` uses a heavily modified version of `haskell-names` that is not (yet) on hackage.
+Unfourtunately installation is rather difficult, because `fragnix` uses modified versions of `haskell-names` and `haskell-src-exts` that are not (yet) on hackage.
+
+    git clone https://github.com/phischu/fragnix
+    cd fragnix
+    git clone -b fragnix https://github.com/phischu/haskell-names
+    git clone -b fragnix https://github.com/phischu/haskell-src-exts
+    cabal sandbox init
+    cabal sandbox add-source ./haskell-src-exts
+    cabal sandbox add-source ./haskell-names
+    cabal install --only-dependencies --enable-tests
+    cabal configure --enable-tests
+    cabal build
 
 Example
 -------
 
-    fragnix Main.hs
+If you have completed the installation a fragnix executable is in `./dist/build/fragnix`. Example modules are in `./tests/quick`. For example if you invoke:
+    
+    ./dist/build/fragnix/fragnix ./tests/quick/HelloFragnix/*.hs
 
 You should see the following output:
 
-    Resolving tests/examples/HelloFragnix.hs ... 2 slices!
-    Inserting ... 2 new!
-    [1 of 2] Compiling F7933008894552075151 ( fragnix/modules/F7933008894552075151.hs, fragnix/modules/F7933008894552075151.o )
-    [2 of 2] Compiling F5431476755877558931 ( fragnix/modules/F5431476755877558931.hs, fragnix/modules/F5431476755877558931.o )
+    [1 of 2] Compiling F8632002673072373674 ( fragnix/temp/compilationunits/F8632002673072373674.hs, fragnix/temp/compilationunits/F8632002673072373674.o )
+    [2 of 2] Compiling F3018125790947100434 ( fragnix/temp/compilationunits/F3018125790947100434.hs, fragnix/temp/compilationunits/F3018125790947100434.o )
     Linking main ...
 
-`tests/examples/HelloFragnix.hs` looks like this:
+You should be able to execute `main` which prints `"Hello Fragnix!"` to stdout.
 
-    module Main where
-    
-    putHello :: String -> IO ()
-    putHello x = putStrLn ("Hello " ++ x)
-    
-    main :: IO ()
-    main = putHello "Fragnix!"
-
-`fragnix/slices/5431476755877558931` looks like this:
-
-    {
-      "sliceID": 5431476755877558931,
-      "fragment": [
-        " \nmain :: IO ()",
-        "main = putHello \"Fragnix!\""
-      ],
-      "usages": [
-        {
-          "reference": {
-            "originalModule": "GHC.Types"
-          },
-          "usedName": {
-            "typeIdentifier": "IO"
-          },
-          "qualification": null
-        },
-        {
-          "reference": {
-            "otherSlice": 7933008894552075151
-          },
-          "usedName": {
-            "valueIdentifier": "putHello"
-          },
-          "qualification": null
-        }
-      ]
-    }
-
-`fragnix/modules/F5431476755877558931.hs` looks like this:
-
-    {-# LANGUAGE NoImplicitPrelude #-}
-    module F5431476755877558931 where
-    import GHC.Types (IO)
-    import F7933008894552075151 (putHello)
-     
-    main :: IO ()
-    main = putHello "Fragnix!"
