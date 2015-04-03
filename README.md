@@ -11,11 +11,11 @@ Unfourtunately installation is rather difficult, because `fragnix` uses modified
 
     git clone https://github.com/phischu/fragnix
     cd fragnix
-    git clone -b fragnix https://github.com/phischu/haskell-names
-    git clone -b fragnix https://github.com/phischu/haskell-src-exts
+    git submodule init
+    git submodule update
     cabal sandbox init
-    cabal sandbox add-source ./haskell-src-exts
-    cabal sandbox add-source ./haskell-names
+    cabal sandbox add-source haskell-src-exts
+    cabal sandbox add-source haskell-names
     cabal install --only-dependencies --enable-tests
     cabal configure --enable-tests
     cabal build
