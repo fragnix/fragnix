@@ -7,12 +7,12 @@ before_install:
   - cp ~/.cabal/bin/cpphs ./
   - cp ~/.cabal/bin/alex ./
   - cp ~/.cabal/bin/happy ./
-  - git clone -b fragnix https://github.com/phischu/haskell-names
-  - git clone -b fragnix https://github.com/phischu/haskell-src-exts
+  - git submodule init
+  - git submodule update
 install:
   - cabal sandbox init
-  - cabal sandbox add-source ./haskell-src-exts
-  - cabal sandbox add-source ./haskell-names
+  - cabal sandbox add-source haskell-src-exts
+  - cabal sandbox add-source haskell-names
   - cabal install --only-dependencies --enable-tests
 script:
   - cabal configure --enable-tests
