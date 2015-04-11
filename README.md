@@ -9,10 +9,8 @@ Installation
 
 Unfourtunately installation is rather difficult, because `fragnix` uses modified versions of `haskell-names` and `haskell-src-exts` that are not (yet) on hackage.
 
-    git clone https://github.com/phischu/fragnix
+    git clone --recursive https://github.com/phischu/fragnix
     cd fragnix
-    git submodule init
-    git submodule update
     cabal sandbox init
     cabal sandbox add-source haskell-src-exts
     cabal sandbox add-source haskell-names
