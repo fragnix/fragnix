@@ -9,7 +9,7 @@ import Fragnix.Slice (Slice(Slice),writeSliceDefault)
 import Fragnix.Environment (
     loadEnvironment,builtinEnvironmentPath)
 import Fragnix.SliceSymbols (updateEnvironment)
-import Fragnix.SliceCompiler (sliceCompiler)
+import Fragnix.SliceCompiler (sliceCompiler,sliceModuleDirectory)
 
 import Test.Tasty (testGroup,TestTree)
 import Test.Tasty.Golden (goldenVsFileDiff)
@@ -22,7 +22,7 @@ import Control.Monad (forM_,forM)
 import qualified Data.Map as Map (toList)
 import System.Exit (ExitCode(ExitSuccess,ExitFailure))
 
-import System.Directory (getDirectoryContents)
+import System.Directory (getDirectoryContents,removeDirectoryRecursive)
 import System.FilePath ((</>),takeExtension)
 
 
@@ -71,6 +71,8 @@ testModules folder = do
         moduleSymbolResults = do
             (moduleName,symbols) <- Map.toList environment
             return (prettyPrint moduleName ++ " " ++ unwords (map (prettyPrint . symbolName) symbols))
+
+    removeDirectoryRecursive sliceModuleDirectory
 
     let sliceIDs = [sliceID | Slice sliceID _ _ _ <- slices]
     exitCodes <- forM sliceIDs (\sliceID -> sliceCompiler sliceID)
