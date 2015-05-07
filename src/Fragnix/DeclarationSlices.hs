@@ -35,8 +35,7 @@ import Data.List (nub,(\\))
 
 
 -- | Extract all slices from the given list of declarations. Also return a map
--- from a symbol to a new symbol where the original slice is encoded into the
--- module name.
+-- from a symbol to the sliceID of the slice that binds it now.
 declarationSlices :: [Declaration] -> ([Slice],Map Symbol SliceID)
 declarationSlices declarations = (slices,symbolSlices) where
 
@@ -45,7 +44,6 @@ declarationSlices declarations = (slices,symbolSlices) where
     sliceBindingsMap = sliceBindings fragmentNodes
     sliceInstancesMap = sliceInstances fragmentNodes
     constructorMap = sliceConstructors fragmentNodes
-
 
     tempSlices = map (buildTempSlice sliceBindingsMap sliceInstancesMap constructorMap) fragmentNodes
     tempSliceIDMap = tempSliceIDs tempSlices
