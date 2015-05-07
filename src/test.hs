@@ -18,11 +18,11 @@ import Test.Tasty.Golden.Manage (defaultMain)
 import Language.Haskell.Exts (prettyPrint)
 import Language.Haskell.Names (symbolName)
 
-import Control.Monad (forM_,forM)
+import Control.Monad (forM_,forM,when)
 import qualified Data.Map as Map (toList)
 import System.Exit (ExitCode(ExitSuccess,ExitFailure))
 
-import System.Directory (getDirectoryContents,removeDirectoryRecursive)
+import System.Directory (getDirectoryContents,removeDirectoryRecursive,doesDirectoryExist)
 import System.FilePath ((</>),takeExtension)
 
 
@@ -72,7 +72,8 @@ testModules folder = do
             (moduleName,symbols) <- Map.toList environment
             return (prettyPrint moduleName ++ " " ++ unwords (map (prettyPrint . symbolName) symbols))
 
-    removeDirectoryRecursive sliceModuleDirectory
+    sliceModuleDirectoryExists <- doesDirectoryExist sliceModuleDirectory
+    when sliceModuleDirectoryExists (removeDirectoryRecursive sliceModuleDirectory)
 
     let sliceIDs = [sliceID | Slice sliceID _ _ _ <- slices]
     exitCodes <- forM sliceIDs (\sliceID -> sliceCompiler sliceID)
