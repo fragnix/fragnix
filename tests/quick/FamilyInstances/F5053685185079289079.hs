@@ -2,6 +2,6 @@
   MultiParamTypeClasses, TypeFamilies, FlexibleContexts,
   StandaloneDeriving, NondecreasingIndentation, ExplicitForAll,
   PatternGuards #-}
-module MVectorFamily where
+module F5053685185079289079 where
 
 data family MVector s a
