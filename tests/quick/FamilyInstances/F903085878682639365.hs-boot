@@ -13,21 +13,3 @@ class Prim a where
         
         alignment# :: a -> Int#
         
-        indexByteArray# :: ByteArray# -> Int# -> a
-        
-        readByteArray# ::
-                       MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
-        
-        writeByteArray# ::
-                        MutableByteArray# s -> Int# -> a -> State# s -> State# s
-        
-        setByteArray# ::
-                      MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
-        
-        indexOffAddr# :: Addr# -> Int# -> a
-        
-        readOffAddr# :: Addr# -> Int# -> State# s -> (# State# s, a #)
-        
-        writeOffAddr# :: Addr# -> Int# -> a -> State# s -> State# s
-        
-        setOffAddr# :: Addr# -> Int# -> Int# -> a -> State# s -> State# s

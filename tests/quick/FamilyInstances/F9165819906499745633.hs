@@ -24,28 +24,3 @@ class MVector v a where
         
         basicUnsafeSlice :: Int -> Int -> v s a -> v s a
         
-        basicOverlaps :: v s a -> v s a -> Bool
-        
-        basicUnsafeNew :: Int -> m (v s a)
-        
-        basicUnsafeReplicate ::
-                                Int -> a -> m (v s a)
-        
-        basicUnsafeRead ::  v s a -> Int -> m a
-        
-        basicUnsafeWrite ::
-                            v s a -> Int -> a -> m ()
-        
-        basicClear ::  v s a -> m ()
-        
-        basicSet ::  v s a -> a -> m ()
-        
-        basicUnsafeCopy ::
-                           v s a -> v s a -> m ()
-        
-        basicUnsafeMove ::
-                           v s a -> v s a -> m ()
-        
-        basicUnsafeGrow ::
-                           v s a -> Int -> m (v s a)
-        
