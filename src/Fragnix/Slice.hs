@@ -22,7 +22,7 @@ import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>),dropFileName)
 import System.Directory (createDirectoryIfMissing)
 
-data Slice = Slice SliceID Language Fragment [Use]
+data Slice = Slice SliceID Language Fragment [Use] [InstanceID]
 
 data Language = Language [GHCExtension]
 
@@ -30,13 +30,14 @@ data Fragment = Fragment [SourceCode]
 
 data Use = Use (Maybe Qualification) UsedName Reference
 
+type InstanceID = SliceID
+
 data Reference = OtherSlice SliceID | Builtin OriginalModule
 
 data UsedName =
     ValueName Name |
     TypeName Name |
-    ConstructorName TypeName Name |
-    Instance
+    ConstructorName TypeName Name
 
 data Name = Identifier Text | Operator Text
 
@@ -54,15 +55,21 @@ type GHCExtension = Text
 deriving instance Show Slice
 
 instance ToJSON Slice where
-    toJSON (Slice sliceID language fragment uses) = object [
+    toJSON (Slice sliceID language fragment uses instances) = object [
         "sliceID" .= sliceID,
         "language" .= language,
         "fragment" .= fragment,
-        "uses" .= uses]
+        "uses" .= uses,
+        "instances" .= instances]
 
 instance FromJSON Slice where
     parseJSON = withObject "slice" (\o ->
-        Slice <$> o .: "sliceID" <*> o .: "language" <*> o .: "fragment" <*> o .: "uses")
+        Slice <$>
+            o .: "sliceID" <*>
+            o .: "language" <*>
+            o .: "fragment" <*>
+            o .: "uses" <*>
+            o .: "instances")
 
 
 -- Language instances
@@ -125,15 +132,12 @@ instance ToJSON UsedName  where
     toJSON (ConstructorName typeName name) = object [
         "constructorTypeName" .= typeName,
         "constructorName" .= name]
-    toJSON Instance = object [
-        "instance" .= ("" :: Text)]
 
 instance FromJSON UsedName where
     parseJSON = withObject "used name" (\o ->
         ValueName <$> o .: "valueName" <|>
         TypeName <$> o .: "typeName" <|>
-        ConstructorName <$> o .: "constructorTypeName" <*> o .: "constructorName" <|>
-        (const Instance :: Text -> UsedName) <$> o .: "instance")
+        ConstructorName <$> o .: "constructorTypeName" <*> o .: "constructorName")
 
 instance Hashable UsedName
 
@@ -189,7 +193,7 @@ writeSlice slicePath slice = do
     writeFile slicePath (encode slice)
 
 writeSliceDefault :: Slice -> IO ()
-writeSliceDefault slice@(Slice sliceID _ _ _) = writeSlice (sliceDefaultPath sliceID) slice
+writeSliceDefault slice@(Slice sliceID _ _ _ _) = writeSlice (sliceDefaultPath sliceID) slice
 
 readSlice :: FilePath -> IO Slice
 readSlice slicePath = do

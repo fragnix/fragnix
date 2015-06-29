@@ -157,7 +157,7 @@ fragmentSCCs graph = do
 -- slice IDs.
 buildTempSlice :: Map Symbol TempID -> Map Symbol [TempID] -> Map Symbol [Symbol] -> (TempID,[Declaration]) -> Slice
 buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
-    Slice tempID language fragments uses where
+    Slice tempID language fragments uses instances where
         tempID = fromIntegral node
 
         language = Language (nub (do
@@ -171,7 +171,9 @@ buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
             Declaration _ _ ast _ _ <- arrange declarations
             return ast)
 
-        uses = nub (mentionedUses ++ instanceUses ++ implicitConstructorUses)
+        uses = nub (mentionedUses ++ implicitConstructorUses)
+
+        instances = []
 
         -- A use for every mentioned symbol
         mentionedUses = nub (do
@@ -193,14 +195,6 @@ buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
             reference <- maybeToList maybeReference
 
             return (Use maybeQualificationText usedName reference))
-
-        -- We want every class to import all its instances
-        -- For builtin classes we want the data type to import the instances
-        instanceUses = do
-            Declaration _ _ _ boundSymbols _ <- declarations
-            boundSymbol <- boundSymbols
-            instanceSliceTempID <- concat (maybeToList (Map.lookup boundSymbol instanceMap))
-            return (Use Nothing Instance (OtherSlice (fromIntegral instanceSliceTempID)))
 
         -- If a declarations mentions 'coerce' it needs a constructor for the coerced type.
         -- As a rough approximation we add for each mentioned newtype a
@@ -267,29 +261,25 @@ type TempSlice = Slice
 tempSliceIDs :: [TempSlice] -> Map TempID SliceID
 tempSliceIDs tempSlices = Map.fromList (do
     let tempSliceMap = sliceMap tempSlices
-    Slice tempID _ _ _ <- tempSlices
+    Slice tempID _ _ _ _ <- tempSlices
     return (tempID,computeHash tempSliceMap tempID))
 
 -- | Build up a map from temporary ID to corresponding slice for better lookup.
 sliceMap :: [TempSlice] -> Map TempID TempSlice
 sliceMap tempSlices = Map.fromList (do
-    tempSlice@(Slice tempSliceID _ _ _) <- tempSlices
+    tempSlice@(Slice tempSliceID _ _ _ _) <- tempSlices
     return (tempSliceID,tempSlice))
 
 -- | Hash the slice with the given temporary ID.
 computeHash :: Map TempID TempSlice -> TempID -> SliceID
 computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,uses,language))) where
-    Just (Slice _ language fragment tempUses) = Map.lookup tempID tempSliceMap
-    uses = map (replaceUseID (computeHash tempSliceMap)) tempUsesWithoutInstances
-    tempUsesWithoutInstances = do
-        use@(Use _ usedName _) <- tempUses
-        guard (not (usedName == Instance))
-        return use
+    Just (Slice _ language fragment tempUses _) = Map.lookup tempID tempSliceMap
+    uses = map (replaceUseID (computeHash tempSliceMap)) tempUses
 
 -- | Replace every occurence of a temporary ID in the given slice with the final ID.
 replaceSliceID :: (TempID -> SliceID) -> TempSlice -> Slice
-replaceSliceID f (Slice tempID language fragment uses) =
-    Slice (f tempID) language fragment (map (replaceUseID f) uses)
+replaceSliceID f (Slice tempID language fragment uses instances) =
+    Slice (f tempID) language fragment (map (replaceUseID f) uses) (map f instances)
 
 -- | Replace every occurence of a temporary ID in the given use with the final ID.
 -- A temporary as opposed to a slice ID is smaller than zero.

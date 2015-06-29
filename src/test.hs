@@ -75,7 +75,7 @@ testModules folder = do
     sliceModuleDirectoryExists <- doesDirectoryExist sliceModuleDirectory
     when sliceModuleDirectoryExists (removeDirectoryRecursive sliceModuleDirectory)
 
-    let sliceIDs = [sliceID | Slice sliceID _ _ _ <- slices]
+    let sliceIDs = [sliceID | Slice sliceID _ _ _ _ <- slices]
     exitCodes <- forM sliceIDs (\sliceID -> sliceCompiler sliceID)
     let successes = length [() | ExitSuccess   <- exitCodes]
         failures  = length [() | ExitFailure _ <- exitCodes]

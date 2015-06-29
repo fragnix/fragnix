@@ -25,7 +25,7 @@ executable fragnix
                        Fragnix.Environment,
                        Fragnix.SliceSymbols
   -- other-extensions:    
-  build-depends:       base >=4.6 && <4.8,
+  build-depends:       base >=4.6 && <4.9,
                        text >=1.2 && < 1.3,
                        filepath >=1.3 && < 1.4,
                        directory >=1.2.0.1 && < 1.3,
@@ -33,8 +33,8 @@ executable fragnix
                        containers >=0.5.0.0 && <0.6,
                        haskell-src-exts >=1.16.0.2 && <1.17,
                        haskell-names >=0.6.0 && <0.7,
-                       haskell-packages >=0.2.4.1 && <0.3,
-                       Cabal >=1.20.0.2 && <1.21,
+                       haskell-packages >=0.2.4.1 && <0.4,
+                       Cabal >=1.20.0.2 && <1.23,
                        tagged >=0.7.2 && <0.8,
                        aeson >=0.8.0.0 && <0.9,
                        bytestring >=0.10.4.0 && <0.11,
@@ -53,7 +53,7 @@ test-suite test
                        Fragnix.SliceCompiler,
                        Fragnix.Environment
   -- other-extensions:    
-  build-depends:       base >=4.6 && <4.8,
+  build-depends:       base >=4.6 && <4.9,
                        text >=1.2 && < 1.3,
                        filepath >=1.3 && < 1.4,
                        directory >=1.2.0.1 && < 1.3,
@@ -61,8 +61,8 @@ test-suite test
                        containers >=0.5.0.0 && <0.6,
                        haskell-src-exts >=1.16.0.2 && <1.17,
                        haskell-names >=0.6.0 && <0.7,
-                       haskell-packages >=0.2.4.1 && <0.3,
-                       Cabal >=1.20.0.2 && <1.21,
+                       haskell-packages >=0.2.4.1 && <0.4,
+                       Cabal >=1.20.0.2 && <1.23,
                        tagged >=0.7.2 && <0.8,
                        aeson >=0.8.0.0 && <0.9,
                        bytestring >=0.10.4.0 && <0.11,
@@ -85,7 +85,7 @@ library
                        Fragnix.Environment,
                        Fragnix.SliceSymbols
   -- other-extensions:    
-  build-depends:       base >=4.6 && <4.8,
+  build-depends:       base >=4.6 && <4.9,
                        text >=1.2 && < 1.3,
                        filepath >=1.3 && < 1.4,
                        directory >=1.2.0.1 && < 1.3,
@@ -93,8 +93,8 @@ library
                        containers >=0.5.0.0 && <0.6,
                        haskell-src-exts >=1.16.0.2 && <1.17,
                        haskell-names >=0.6.0 && <0.7,
-                       haskell-packages >=0.2.4.1 && <0.3,
-                       Cabal >=1.20.0.2 && <1.21,
+                       haskell-packages >=0.2.4.1 && <0.4,
+                       Cabal >=1.20.0.2 && <1.23,
                        tagged >=0.7.2 && <0.8,
                        aeson >=0.8.0.0 && <0.9,
                        bytestring >=0.10.4.0 && <0.11,
@@ -106,7 +106,7 @@ library
 
 executable package-modules
   main-is:             package-modules.hs
-  build-depends:       base >=4.6 && <4.8,
+  build-depends:       base >=4.6 && <4.9,
                        process >=1.2.0.0 && <1.3,
                        directory >=1.2.0.1 && < 1.3,
                        filepath >=1.3 && < 1.4
@@ -116,13 +116,13 @@ executable package-modules
 executable haskell-modules
   main-is:             haskell-modules.hs
   other-modules:       Fragnix.BuiltinPackages
-  build-depends:       base >=4.6 && <4.8,
+  build-depends:       base >=4.6 && <4.9,
                        haskell-names >=0.6.0 && <0.7,
                        haskell-src-exts >=1.16.0.2 && <1.17,
-                       haskell-packages >=0.2.4.1 && <0.3,
+                       haskell-packages >=0.2.4.1 && <0.4,
                        containers >=0.5.0.0 && <0.6,
                        filepath >=1.3 && < 1.4,
-                       Cabal >=1.20.0.2 && <1.21,
+                       Cabal >=1.20.0.2 && <1.23,
                        hse-cpp,
                        tagged,
                        aeson >=0.8.0.0 && <0.9,
@@ -136,15 +136,15 @@ executable haskell-modules
 
 executable flatten-names
   main-is:             flatten-names.hs
-  build-depends:       base >=4.6 && <4.8,
+  build-depends:       base >=4.6 && <4.9,
                        text >=1.2 && < 1.3,
                        filepath >=1.3 && < 1.4,
                        directory >=1.2.0.1 && < 1.3,
                        containers >=0.5.0.0 && <0.6,
                        haskell-src-exts >=1.16.0.2 && <1.17,
                        haskell-names >=0.6.0 && <0.7,
-                       haskell-packages >=0.2.4.1 && <0.3,
-                       Cabal >=1.20.0.2 && <1.21,
+                       haskell-packages >=0.2.4.1 && <0.4,
+                       Cabal >=1.20.0.2 && <1.23,
                        tagged >=0.7.2 && <0.8,
                        aeson >=0.8.0.0 && <0.9,
                        bytestring >=0.10.4.0 && <0.11,

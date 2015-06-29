@@ -3,7 +3,7 @@ module Fragnix.SliceCompiler where
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Use(Use),
     Reference(OtherSlice,Builtin),
-    UsedName(ValueName,TypeName,ConstructorName,Instance),Name(Identifier,Operator),
+    UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
     readSliceDefault)
 
 import Prelude hiding (writeFile)
@@ -56,7 +56,7 @@ sliceCompiler sliceID = do
     rawSystem "ghc" ["-v0","-w","-ifragnix/temp/compilationunits",sliceModulePath sliceID]
 
 assemble :: Slice -> Module
-assemble (Slice sliceID language fragment uses) =
+assemble (Slice sliceID language fragment uses instances) =
     let Fragment declarations = fragment
         decls = map (parseDeclaration sliceID ghcextensions) declarations
         moduleName = ModuleName (sliceModuleName sliceID)
@@ -89,14 +89,10 @@ useImport (Use maybeQualification usedName symbolSource) =
             TypeName name -> [IAbs (toName name)]
             ConstructorName typeName name ->
                 [IThingWith (toName typeName) [ConName (toName name)]]
-            Instance -> []
-        sourceImport = case usedName of
-            Instance -> True
-            _ -> False
         toName (Identifier name) = Ident (unpack name)
         toName (Operator name) = Symbol (unpack name)
 
-    in ImportDecl noLoc moduleName qualified sourceImport False Nothing maybeAlias (Just (False,importSpec))
+    in ImportDecl noLoc moduleName qualified False False Nothing maybeAlias (Just (False,importSpec))
 
 
 -- | We export every type that we import in a data family instance slice
@@ -197,7 +193,7 @@ isConstructorImport (ImportDecl _ _ _ _ _ _ _ (Just (False,[IThingWith _ _]))) =
 isConstructorImport _ = False
 
 writeSliceModule :: Slice -> IO ()
-writeSliceModule slice@(Slice sliceID _ _ _) = (do
+writeSliceModule slice@(Slice sliceID _ _ _ _) = (do
     slicecontent <- evaluate (pack (prettyPrint (assemble slice)))
     writeFile (sliceModulePath sliceID) slicecontent)
         `catch` (print :: SomeException -> IO ())
@@ -206,7 +202,7 @@ writeSliceModule slice@(Slice sliceID _ _ _) = (do
 -- slice's module. Used to break import cycles for instances. We need to
 -- hackily add role annotations for GHC 7.8.3.
 writeSliceHSBoot :: Slice -> IO ()
-writeSliceHSBoot slice@(Slice sliceID _ _ _) = (do
+writeSliceHSBoot slice@(Slice sliceID _ _ _ _) = (do
     emptyslicecontent <- evaluate (pack (addRoleAnnotation (prettyPrint (sliceHSBootModule slice))))
     writeFile (sliceHSBootPath sliceID) emptyslicecontent)
         `catch` (print :: SomeException -> IO ())
@@ -224,10 +220,7 @@ writeSliceModuleTransitive sliceID = do
         forM_ (usedSlices slice) writeSliceModuleTransitive)
 
 usedSlices :: Slice -> [SliceID]
-usedSlices (Slice _ _ _ uses) = [sliceID | Use _ _ (OtherSlice sliceID) <- uses]
-
-usedInstanceSlices :: Slice -> [SliceID]
-usedInstanceSlices (Slice _ _ _ uses) = [sliceID | Use _ Instance (OtherSlice sliceID) <- uses]
+usedSlices (Slice _ _ _ uses _) = [sliceID | Use _ _ (OtherSlice sliceID) <- uses]
 
 doesSliceModuleExist :: SliceID -> IO Bool
 doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)
