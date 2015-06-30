@@ -155,7 +155,7 @@ fragmentSCCs graph = do
 -- Return a slice with a temporary ID that might contain references to temporary IDs.
 -- The nodes must have negative IDs starting from -1 to distinguish temporary from permanent
 -- slice IDs.
-buildTempSlice :: Map Symbol TempID -> Map Symbol [TempID] -> Map Symbol [Symbol] -> (TempID,[Declaration]) -> Slice
+buildTempSlice :: Map Symbol TempID -> Map Symbol [TempID] -> Map Symbol [Symbol] -> (TempID,[Declaration]) -> TempSlice
 buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
     Slice tempID language fragments uses instances where
         tempID = fromIntegral node
@@ -173,7 +173,11 @@ buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
 
         uses = nub (mentionedUses ++ implicitConstructorUses)
 
-        instances = []
+        -- Instance TempIDs for all types/classes bound by this fragment
+        instances = do
+            Declaration _ _ _ boundSymbols _ <- declarations
+            boundSymbol <- boundSymbols
+            concat (maybeToList (Map.lookup boundSymbol instanceMap))
 
         -- A use for every mentioned symbol
         mentionedUses = nub (do
