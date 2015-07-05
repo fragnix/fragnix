@@ -63,7 +63,7 @@ assemble (Slice sliceID language fragment uses instances) =
         Language ghcextensions = language
         languagepragmas = [Ident "NoImplicitPrelude"] ++ (map (Ident . unpack) ghcextensions)
         pragmas = [LanguagePragma noLoc languagepragmas]
-        imports = map useImport uses
+        imports = map useImport uses ++ map instanceImport instances
         -- We need an export list to export the data family even
         -- though a slice only contains the data family instance
         exports = dataFamilyInstanceExports decls imports
@@ -77,6 +77,8 @@ parseDeclaration sliceID ghcextensions declaration = decl where
         extensions = map (parseExtension . unpack) ghcextensions,
         fixities = Just baseFixities}
 
+
+-- | Import decl for a given use of a symbol.
 useImport :: Use -> ImportDecl
 useImport (Use maybeQualification usedName symbolSource) =
     let moduleName = case symbolSource of
@@ -93,6 +95,13 @@ useImport (Use maybeQualification usedName symbolSource) =
         toName (Operator name) = Symbol (unpack name)
 
     in ImportDecl noLoc moduleName qualified False False Nothing maybeAlias (Just (False,importSpec))
+
+
+-- | Import declaration for an instance from the slice with the given ID.
+instanceImport :: SliceID -> ImportDecl
+instanceImport sliceID =
+    let moduleName = ModuleName (sliceModuleName sliceID)
+    in ImportDecl noLoc moduleName False False False Nothing Nothing (Just (False,[]))
 
 
 -- | We export every type that we import in a data family instance slice
