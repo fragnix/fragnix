@@ -226,10 +226,13 @@ writeSliceModuleTransitive sliceID = do
         slice <- readSliceDefault sliceID
         writeSliceHSBoot slice
         writeSliceModule slice
-        forM_ (usedSlices slice) writeSliceModuleTransitive)
+        forM_ (usedSlices slice ++ instanceSlices slice) writeSliceModuleTransitive)
 
 usedSlices :: Slice -> [SliceID]
 usedSlices (Slice _ _ _ uses _) = [sliceID | Use _ _ (OtherSlice sliceID) <- uses]
+
+instanceSlices :: Slice -> [SliceID]
+instanceSlices (Slice _ _ _ _ instances) = instances
 
 doesSliceModuleExist :: SliceID -> IO Bool
 doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)
