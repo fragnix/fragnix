@@ -55,8 +55,8 @@ sliceCompiler sliceID = do
     writeSliceModuleTransitive sliceID
     rawSystem "ghc" ["-v0","-w","-ifragnix/temp/compilationunits",sliceModulePath sliceID]
 
-assemble :: Slice -> Module
-assemble (Slice sliceID language fragment uses instances) =
+sliceModule :: Slice -> Module
+sliceModule (Slice sliceID language fragment uses instances) =
     let Fragment declarations = fragment
         decls = map (parseDeclaration sliceID ghcextensions) declarations
         moduleName = ModuleName (sliceModuleName sliceID)
@@ -115,7 +115,7 @@ dataFamilyInstanceExports [GDataInsDecl _ _ _ _ _ _] imports = Just (do
 dataFamilyInstanceExports _ _ = Nothing
 
 sliceHSBootModule :: Slice -> Module
-sliceHSBootModule slice = bootModule (assemble slice)
+sliceHSBootModule slice = bootModule (sliceModule slice)
 
 -- Create a boot module from an ordinary module
 -- WORKAROUND: We can not put data family constructors into hs-boot files.
@@ -203,7 +203,7 @@ isConstructorImport _ = False
 
 writeSliceModule :: Slice -> IO ()
 writeSliceModule slice@(Slice sliceID _ _ _ _) = (do
-    slicecontent <- evaluate (pack (prettyPrint (assemble slice)))
+    slicecontent <- evaluate (pack (prettyPrint (sliceModule slice)))
     writeFile (sliceModulePath sliceID) slicecontent)
         `catch` (print :: SomeException -> IO ())
 
