@@ -101,7 +101,7 @@ useImport (Use maybeQualification usedName symbolSource) =
 instanceImport :: SliceID -> ImportDecl
 instanceImport sliceID =
     let moduleName = ModuleName (sliceModuleName sliceID)
-    in ImportDecl noLoc moduleName False False False Nothing Nothing (Just (False,[]))
+    in ImportDecl noLoc moduleName False True False Nothing Nothing (Just (False,[]))
 
 
 -- | We export every type that we import in a data family instance slice
