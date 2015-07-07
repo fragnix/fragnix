@@ -60,8 +60,8 @@ sliceBindings fragmentNodes = Map.fromList (do
     return (boundsymbol,tempID))
 
 
--- | Build a Map from data or class symbol to instance temporary ID
--- Prefer the class symbol if both are present
+-- | Build a Map from type or class symbol to instance temporary ID
+-- Prefer the type symbol if both are present
 -- Only include classes and types bound in this graph
 sliceInstances :: [(TempID,[Declaration])] -> Map Symbol [TempID]
 sliceInstances fragmentNodes = Map.fromListWith (++) (do
@@ -84,7 +84,7 @@ sliceInstances fragmentNodes = Map.fromListWith (++) (do
             typeSymbolMentionedFirst <- listToMaybe (filter isType (map fst mentionedsymbols))
             guard (Set.member typeSymbolMentionedFirst graphSymbols)
             return typeSymbolMentionedFirst
-    symbol <- maybeToList (classSymbol <|> typeSymbol)
+    symbol <- maybeToList (typeSymbol <|> classSymbol)
 
     return (symbol,[tempID]))
 
