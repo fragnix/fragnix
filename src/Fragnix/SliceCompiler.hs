@@ -114,22 +114,28 @@ dataFamilyInstanceExports [GDataInsDecl _ _ _ _ _ _] imports = Just (do
     return (EThingAll (UnQual typeName)))
 dataFamilyInstanceExports _ _ = Nothing
 
-sliceHSBootModule :: Slice -> Module
-sliceHSBootModule slice = bootModule (sliceModule slice)
+sliceHSBoot :: Slice -> Module
+sliceHSBoot slice = bootModule (sliceModule slice)
 
--- Create a boot module from an ordinary module
+instanceSliceHSBoot :: SliceID -> Slice -> Module
+instanceSliceHSBoot parentSliceID slice = bootInstanceModule parentSliceID (sliceModule slice)
+
+-- | Create a boot module from an ordinary module
+bootModule :: Module -> Module
+bootModule (Module srcloc moduleName pragmas warnings exports imports decls) = 
+    Module srcloc moduleName pragmas warnings exports bootImports bootDecls where
+        bootImports = mapMaybe bootImport imports
+        bootDecls = concatMap bootDecl decls
+
+-- | Create a boot module for an instance module
 -- WORKAROUND: We can not put data family constructors into hs-boot files.
 -- https://ghc.haskell.org/trac/ghc/ticket/8441
 -- hs-boot files contain source imports for constructors.
 -- We remove constructor imports from hs-boot files that contain only instances.
-bootModule :: Module -> Module
-bootModule (Module srcloc moduleName pragmas warnings exports imports (decls@[InstDecl _ _ _ _ _ _ _])) =
+bootInstanceModule :: SliceID -> Module -> Module
+bootInstanceModule parentSliceID (Module srcloc moduleName pragmas warnings exports imports decls) =
     Module srcloc moduleName pragmas warnings exports bootImports bootDecls where
-        bootImports = mapMaybe bootInstanceImport imports
-        bootDecls = concatMap bootDecl decls
-bootModule (Module srcloc moduleName pragmas warnings exports imports decls) = 
-    Module srcloc moduleName pragmas warnings exports bootImports bootDecls where
-        bootImports = mapMaybe bootImport imports
+        bootImports = mapMaybe (bootInstanceImport parentSliceID) imports
         bootDecls = concatMap bootDecl decls
 
 -- | Remove all source imports and make all other imports source except those
@@ -142,11 +148,11 @@ bootImport importDecl
 
 -- | Remove all source imports and make all other imports source except those
 -- from builtin modules. Also remove constructor imports
-bootInstanceImport :: ImportDecl -> Maybe ImportDecl
-bootInstanceImport importDecl
+bootInstanceImport :: SliceID -> ImportDecl -> Maybe ImportDecl
+bootInstanceImport parentSliceID importDecl
     | importSrc importDecl = Nothing
     | isConstructorImport importDecl = Nothing
-    | isSliceModule (importModule importDecl) = Just (importDecl {importSrc = True})
+    | isParentSliceModule parentSliceID (importModule importDecl) = Just (importDecl {importSrc = True})
     | otherwise = Just importDecl
 
 -- | Remove instance bodies, make derived instances into bodyless instance decls
@@ -196,6 +202,11 @@ isSliceModule :: ModuleName -> Bool
 isSliceModule (ModuleName ('F':rest)) = all isDigit rest
 isSliceModule _ = False
 
+-- | Is the module name the one for the given slice ID
+isParentSliceModule :: SliceID -> ModuleName -> Bool
+isParentSliceModule parentSliceID (ModuleName ('F':rest)) = show parentSliceID == rest
+isParentSliceModule _ _ = False
+
 -- | Does the import import a constructor
 isConstructorImport :: ImportDecl -> Bool
 isConstructorImport (ImportDecl _ _ _ _ _ _ _ (Just (False,[IThingWith _ _]))) = True
@@ -209,10 +220,19 @@ writeSliceModule slice@(Slice sliceID _ _ _ _) = (do
 
 -- | Write an hs-boot file that contains a stripped down version of the
 -- slice's module. Used to break import cycles for instances. We need to
--- hackily add role annotations for GHC 7.8.3.
+-- hackily add role annotations for GHC 7.8.3 and 7.10.1.
 writeSliceHSBoot :: Slice -> IO ()
 writeSliceHSBoot slice@(Slice sliceID _ _ _ _) = (do
-    emptyslicecontent <- evaluate (pack (addRoleAnnotation (prettyPrint (sliceHSBootModule slice))))
+    emptyslicecontent <- evaluate (pack (addRoleAnnotation (prettyPrint (sliceHSBoot slice))))
+    writeFile (sliceHSBootPath sliceID) emptyslicecontent)
+        `catch` (print :: SomeException -> IO ())
+
+-- | Write an hs-boot file that contains a stripped down version of the
+-- slice's module. Used to break import cycles for instances. We need to
+-- hackily add role annotations for GHC 7.8.3.
+writeInstanceSliceHSBoot :: SliceID -> Slice -> IO ()
+writeInstanceSliceHSBoot parentSliceID slice@(Slice sliceID _ _ _ _) = (do
+    emptyslicecontent <- evaluate (pack (prettyPrint (instanceSliceHSBoot parentSliceID slice)))
     writeFile (sliceHSBootPath sliceID) emptyslicecontent)
         `catch` (print :: SomeException -> IO ())
 
@@ -226,7 +246,22 @@ writeSliceModuleTransitive sliceID = do
         slice <- readSliceDefault sliceID
         writeSliceHSBoot slice
         writeSliceModule slice
-        forM_ (usedSlices slice ++ instanceSlices slice) writeSliceModuleTransitive)
+        forM_ (usedSlices slice) writeSliceModuleTransitive
+        forM_ (instanceSlices slice) (writeInstanceSliceModuleTransitive sliceID))
+
+
+-- | Write out a module file and an hs-boot file for a slice that contains a
+-- type class instance. The first parameter is the ID of the parent slice because
+-- we have to make the import of the parent source to avoid cycles.
+writeInstanceSliceModuleTransitive :: SliceID -> SliceID -> IO ()
+writeInstanceSliceModuleTransitive parentSliceID sliceID = do
+    exists <- doesSliceModuleExist sliceID
+    unless exists (do
+        slice <- readSliceDefault sliceID
+        writeInstanceSliceHSBoot parentSliceID slice
+        writeSliceModule slice
+        forM_ (usedSlices slice) writeSliceModuleTransitive)
+
 
 usedSlices :: Slice -> [SliceID]
 usedSlices (Slice _ _ _ uses _) = [sliceID | Use _ _ (OtherSlice sliceID) <- uses]
