@@ -65,13 +65,13 @@ sliceCompiler sliceID = do
 writeSliceModules :: SliceID -> IO ()
 writeSliceModules sliceID = do
     createDirectoryIfMissing True sliceModuleDirectory
-    (slices, instanceSlices) <- loadSlicesTransitive sliceID
+    (slices, instances) <- loadSlicesTransitive sliceID
     let sliceModules = map sliceModule slices
         sliceHSBoots = map sliceHSBoot slices
-        instanceSliceModules = map instanceSliceModule instanceSlices
-        instanceSliceHSBoots = map instanceSliceHSBoot instanceSlices
-    forM_ (sliceModules ++ instanceSliceModules ++ [allInstancesModule instanceSlices]) writeModule
-    forM_ (sliceHSBoots ++ instanceSliceHSBoots ++ [allInstancesHSBoot instanceSlices]) writeModule
+        instanceSliceModules = map instanceSliceModule instances
+        instanceSliceHSBoots = map instanceSliceHSBoot instances
+    forM_ (sliceModules ++ instanceSliceModules ++ [allInstancesModule instances]) writeModule
+    forM_ (sliceHSBoots ++ instanceSliceHSBoots ++ [allInstancesHSBoot instances]) writeHSBoot
 
 
 -- | Given a slice generate the corresponding module.
