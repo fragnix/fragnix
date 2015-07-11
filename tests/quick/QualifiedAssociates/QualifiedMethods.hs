@@ -7,6 +7,7 @@ import qualified DataFamilies as DataFamilies
 
 data Rodor = Rodor
 
+x :: ExportListWildcards.Foo
 x = ExportListWildcards.Foo1
 
 instance ExportListWildcards.Bar Rodor where
