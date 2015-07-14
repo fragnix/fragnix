@@ -27,6 +27,7 @@ data Genre =
     ClassInstance |
     InfixFixity |
     DerivingInstance |
+    ForeignImport |
     Other
         deriving (Show,Eq,Ord,Read)
 

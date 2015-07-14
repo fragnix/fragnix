@@ -156,7 +156,7 @@ declGenre (DerivDecl _ _ _) = DerivingInstance
 declGenre (TypeSig _ _ _) = TypeSignature
 declGenre (FunBind _ _) = Value
 declGenre (PatBind _ _ _ _) = Value
-declGenre (ForImp _ _ _ _ _ _) = Value
+declGenre (ForImp _ _ _ _ _ _) = ForeignImport
 declGenre (InfixDecl _ _ _ _) = InfixFixity
 declGenre _ = Other
 
@@ -170,16 +170,6 @@ declaredSymbols modulnameast annotatedast = getTopDeclSymbols GlobalTable.empty 
 -- another newtype they also have an implicitly dependency on it. This inner
 -- newtype is usually 'CInt'. As a hack we just add it.
 mentionedSymbols :: Decl (Scoped SrcSpan) -> [(Symbol,Maybe UnAnn.ModuleName)]
-mentionedSymbols decl@(ForImp _ _ _ _ _ _) = mentionedsymbols ++ newtypeconstructors ++ cIntSymbols where
-    mentionedsymbols = nub (concatMap scopeSymbol (toList decl))
-    newtypeconstructors = do
-        (NewType symbolmodule symbolname,_) <- mentionedsymbols
-        return (Constructor symbolmodule symbolname symbolname,Nothing)
-    cIntSymbols = [
-        (NewType cIntModule cIntName,Nothing),
-        (Constructor cIntModule cIntName cIntName,Nothing)]
-    cIntModule = UnAnn.ModuleName "Foreign.C.Types"
-    cIntName = UnAnn.Ident "CInt"
 mentionedSymbols decl = nub (concatMap scopeSymbol (toList decl))
 
 -- | Get all references to global symbols from the given scope annotation.

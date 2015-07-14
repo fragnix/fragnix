@@ -3,7 +3,7 @@ module Fragnix.DeclarationSlices where
 
 import Fragnix.Declaration (
     Declaration(Declaration),
-    Genre(TypeSignature,ClassInstance,InfixFixity,DerivingInstance))
+    Genre(TypeSignature,ClassInstance,InfixFixity,DerivingInstance,ForeignImport))
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
     Use(Use),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Builtin))
@@ -200,18 +200,14 @@ buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
 
             return (Use maybeQualificationText usedName reference))
 
-        -- If a declarations mentions 'coerce' it needs a constructor for the coerced type.
-        -- As a rough approximation we add for each mentioned newtype a
-        -- constructor with the same name
+        -- If a declaration needs the constructors of used types in scope we add them
+        -- here.
         implicitConstructorUses = do
             declaration <- declarations
             guard (needsConstructors declaration)
             let Declaration _ _ _ _ mentionedSymbols = declaration
-            typeSymbol <- filter isType (map fst mentionedSymbols)
-            constructorSymbol <- concat (maybeToList (Map.lookup typeSymbol constructorMap))
-            constructorSliceTempID <- maybeToList (Map.lookup constructorSymbol tempEnvironment)
-            let reference = OtherSlice (fromIntegral constructorSliceTempID)
-            return (Use Nothing (symbolUsedName constructorSymbol) reference)
+            mentionedSymbol <- map fst mentionedSymbols
+            symbolConstructorUses tempEnvironment constructorMap mentionedSymbol
 
 
 -- | Some declarations implicitly require the constructors for all mentioned
@@ -220,8 +216,35 @@ buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
 needsConstructors :: Declaration -> Bool
 needsConstructors (Declaration DerivingInstance _ _ _ _) =
     True
+needsConstructors (Declaration ForeignImport _ _ _ _) =
+    True
 needsConstructors (Declaration _ _ _ _ mentionedSymbols) =
     any ((==(Name.Ident "coerce")) . symbolName . fst) mentionedSymbols
+
+
+-- | Given a Map from type symbol to its constructor symbol and  a symbol
+-- this functions returns a list of uses for the given symbols constructors.
+-- We have two cases. If the given symbol is builtin and a newtype we return
+-- a constructor with the same name and a use of "CInt".
+-- If the given symbol is from a slice we look up its constructors and return
+-- a use for each of those.
+symbolConstructorUses :: Map Symbol TempID -> Map Symbol [Symbol] -> Symbol -> [Use]
+symbolConstructorUses tempEnvironment constructorMap symbol =
+    case Map.lookup symbol tempEnvironment of
+        Nothing -> case moduleReference (symbolModule symbol) of
+            builtinReference@(Builtin _) -> case symbol of
+                NewType _ symbolname -> do
+                    let symbolTypeName = fromName symbolname
+                        constructorName = ConstructorName symbolTypeName symbolTypeName
+                        cIntName = ConstructorName (Identifier "CInt") (Identifier "CInt")
+                        cIntReference = Builtin "Foreign.C.Types"
+                        cIntUse = Use Nothing cIntName cIntReference
+                    [Use Nothing constructorName builtinReference, cIntUse]
+                _ -> []
+            _ -> []
+        Just referenceNode -> do
+            constructorSymbol <- concat (maybeToList (Map.lookup symbol constructorMap))
+            return (Use Nothing (symbolUsedName constructorSymbol) (OtherSlice (fromIntegral referenceNode)))
 
 
 -- | Some extensions are already handled or cannot be handled by us.
