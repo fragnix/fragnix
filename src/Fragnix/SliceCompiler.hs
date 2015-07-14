@@ -67,11 +67,11 @@ writeSliceModules sliceID = do
     createDirectoryIfMissing True sliceModuleDirectory
     (slices, instances) <- loadSlicesTransitive sliceID
     let sliceModules = map sliceModule slices
-        sliceHSBoots = map sliceHSBoot slices
-        instanceSliceModules = map instanceSliceModule instances
-        instanceSliceHSBoots = map instanceSliceHSBoot instances
+        sliceHSBoots = map bootModule sliceModules
+        instanceSliceModules = map sliceModule instances
+        instanceSliceHSBoots = map bootInstanceModule instanceSliceModules
     forM_ (sliceModules ++ instanceSliceModules ++ [allInstancesModule instances]) writeModule
-    forM_ (sliceHSBoots ++ instanceSliceHSBoots ++ [allInstancesHSBoot instances]) writeHSBoot
+    forM_ (sliceHSBoots ++ instanceSliceHSBoots ++ [bootModule (allInstancesModule instances)]) writeHSBoot
 
 
 -- | Given a slice generate the corresponding module.
@@ -118,9 +118,12 @@ useImport (Use maybeQualification usedName symbolSource) =
 
     in ImportDecl noLoc moduleName qualified False False Nothing maybeAlias (Just (False,importSpec))
 
+
+-- | Import Decl for an instance from the given SliceID.
 instanceImport :: SliceID -> ImportDecl
 instanceImport sliceID =
     ImportDecl noLoc (ModuleName (sliceModuleName sliceID)) False False False Nothing Nothing Nothing
+
 
 -- | Import the special module that reexports all instances.
 allInstancesImport :: ImportDecl
@@ -138,15 +141,9 @@ dataFamilyInstanceExports [GDataInsDecl _ _ _ _ _ _] imports = Just (do
     return (EThingAll (UnQual typeName)))
 dataFamilyInstanceExports _ _ = Nothing
 
-sliceHSBoot :: Slice -> Module
-sliceHSBoot slice = bootModule (sliceModule slice)
 
-instanceSliceModule :: Slice -> Module
-instanceSliceModule slice = removeAllInstancesImport (sliceModule slice)
-
-instanceSliceHSBoot :: Slice -> Module
-instanceSliceHSBoot slice = bootInstanceModule (instanceSliceModule slice)
-
+-- | Given a list of instance slices generates a module that imports
+-- (and therefore reexports) all those instances.
 allInstancesModule :: [Slice] -> Module
 allInstancesModule slices =
     Module noLoc allInstancesModuleName [] Nothing Nothing instanceImports [] where
@@ -154,16 +151,14 @@ allInstancesModule slices =
             Slice sliceID _ _ _ _ <- slices
             return (instanceImport sliceID)
 
-allInstancesHSBoot :: [Slice] -> Module
-allInstancesHSBoot slices = bootModule (allInstancesModule slices)
 
-
--- | Create a boot module from an ordinary module
+-- | Create a boot module from an ordinary module.
 bootModule :: Module -> Module
 bootModule (Module srcloc moduleName pragmas warnings exports imports decls) = 
     Module srcloc moduleName pragmas warnings exports bootImports bootDecls where
         bootImports = mapMaybe bootImport imports
         bootDecls = concatMap bootDecl decls
+
 
 -- | Create a boot module for an instance module
 -- WORKAROUND: We can not put data family constructors into hs-boot files.
@@ -176,18 +171,20 @@ bootInstanceModule (Module srcloc moduleName pragmas warnings exports imports de
         bootImports = mapMaybe bootInstanceImport imports
         bootDecls = concatMap bootDecl decls
 
+
 -- | Remove all source imports and make all other imports source except those
--- from builtin modules.
--- TODO it would be clearer if we explicitly removed the ALLINSTANCES module
--- instead of all source imports.
+-- from builtin modules. The removal of source imports means that the
+-- ALLINSTANCES module will not be imported.
 bootImport :: ImportDecl -> Maybe ImportDecl
 bootImport importDecl
     | importSrc importDecl = Nothing
     | isSliceModule (importModule importDecl) = Just (importDecl {importSrc = True})
     | otherwise = Just importDecl
 
+
 -- | Remove all source imports and make all other imports source except those
--- from builtin modules. Also remove constructor imports
+-- from builtin modules. The removal of source imports means that the
+-- ALLINSTANCES module will not be imported. Also remove constructor imports.
 bootInstanceImport :: ImportDecl -> Maybe ImportDecl
 bootInstanceImport importDecl
     | importSrc importDecl = Nothing
@@ -195,11 +192,9 @@ bootInstanceImport importDecl
     | isSliceModule (importModule importDecl) = Just (importDecl {importSrc = True})
     | otherwise = Just importDecl
 
--- | Is this necesssary?
-removeAllInstancesImport :: Module -> Module
-removeAllInstancesImport = id
 
--- | Remove instance bodies, make derived instances into bodyless instance decls
+-- | Remove instance bodies, make derived instances into bodyless instance decls,
+-- remove value bindings and generate a type signature for foreign imports.
 bootDecl :: Decl -> [Decl]
 bootDecl (InstDecl srcloc overlap typeVars context classname types _) =
     [InstDecl srcloc overlap typeVars context classname types []]
@@ -221,34 +216,30 @@ bootDecl (GDataInsDecl _ _ _ _ _ _) =
     []
 bootDecl decl = [decl]
 
+
 -- | Directory for generated modules
 sliceModuleDirectory :: FilePath
 sliceModuleDirectory = "fragnix" </> "temp" </> "compilationunits"
 
+-- | The path where we put a generated module for GHC to find it.
 modulePath :: Module -> FilePath
 modulePath (Module _ (ModuleName moduleName) _ _ _ _ _) =
     sliceModuleDirectory </> moduleName <.> "hs"
 
+-- | The path where we put a generated boot module for GHC to find it.
 moduleHSBootPath :: Module -> FilePath
 moduleHSBootPath (Module _ (ModuleName moduleName) _ _ _ _ _) =
     sliceModuleDirectory </> moduleName <.> "hs-boot"
 
 -- | The path for the module generated for the slice with the given ID
 sliceModulePath :: SliceID -> FilePath
-sliceModulePath sliceID = sliceModuleDirectory </> sliceModuleFileName sliceID
+sliceModulePath sliceID = sliceModuleDirectory </> sliceModuleName sliceID <.> "hs"
 
-sliceModuleFileName :: SliceID -> FilePath
-sliceModuleFileName sliceID = sliceModuleName sliceID <.> "hs"
-
-sliceHSBootPath :: SliceID -> FilePath
-sliceHSBootPath sliceID = sliceModuleDirectory </> sliceHSBootFileName sliceID
-
-sliceHSBootFileName :: SliceID -> FilePath
-sliceHSBootFileName sliceID = sliceModuleName sliceID <.> "hs-boot"
-
+-- | The name we give to the module generated for a slice with the given ID.
 sliceModuleName :: SliceID -> String
 sliceModuleName sliceID = "F" ++ show sliceID
 
+-- | The module name of the module that reexports all instances.
 allInstancesModuleName :: ModuleName
 allInstancesModuleName = ModuleName "ALLINSTANCES"
 
@@ -264,17 +255,24 @@ isConstructorImport _ = False
 
 
 writeModule :: Module -> IO ()
-writeModule modul = (do
-    slicecontent <- evaluate (pack (prettyPrint modul))
-    writeFile (modulePath modul) slicecontent)
-        `catch` (print :: SomeException -> IO ())
+writeModule modul = writeFileStrict (modulePath modul) (prettyPrint modul)
+
 
 writeHSBoot :: Module -> IO ()
-writeHSBoot modul = (do
-    emptyslicecontent <- evaluate (pack (addRoleAnnotation (prettyPrint modul)))
-    writeFile (moduleHSBootPath modul) emptyslicecontent)
+writeHSBoot modul = writeFileStrict (moduleHSBootPath modul) (addRoleAnnotation (prettyPrint modul))
+
+
+-- | Write the given string to the given file path but completely evaluate it before
+-- doing so and print any exceptions.
+writeFileStrict :: FilePath -> String -> IO ()
+writeFileStrict filePath content = (do
+    evaluatedContent <- evaluate (pack content)
+    writeFile filePath evaluatedContent)
         `catch` (print :: SomeException -> IO ())
 
+
+-- | Given a slice ID load all slices and all instance slices nedded
+-- for compilation.
 loadSlicesTransitive :: SliceID -> IO ([Slice], [Slice])
 loadSlicesTransitive sliceID = do
     (sliceIDs, instanceSliceIDs) <- loadSliceIDsTransitive sliceID
@@ -282,9 +280,17 @@ loadSlicesTransitive sliceID = do
     instances <- forM instanceSliceIDs readSliceDefault
     return (slices, instances)
 
+
+-- | Given a slice ID find all IDs of slices and instances needed
+-- for compilation. The first list in the pair are the slices the second
+-- list are the instances.
 loadSliceIDsTransitive :: SliceID -> IO ([SliceID],[SliceID])
 loadSliceIDsTransitive sliceID = execStateT (loadSliceIDsStateful sliceID) ([],[])
 
+
+-- | Given a slice ID of a non-instance slice load all IDs of slices
+-- and instances needed for
+-- compilation. Keep track of visited slice IDs to avoid loops.
 loadSliceIDsStateful :: SliceID -> StateT ([SliceID],[SliceID]) IO ()
 loadSliceIDsStateful sliceID = do
     (seenSliceIDs, seenInstanceSliceIDs) <- get
@@ -292,6 +298,9 @@ loadSliceIDsStateful sliceID = do
         put (sliceID : seenSliceIDs, seenInstanceSliceIDs)
         recurseIntoSlice sliceID)
 
+-- | Given a slice ID of an instances slice find all IDs of slices and
+-- instances needed for compilation. Keep track of alread visited slice
+-- IDs to avoid loops.
 loadInstanceSliceIDsStateful :: SliceID -> StateT ([SliceID],[SliceID]) IO ()
 loadInstanceSliceIDsStateful instanceSliceID = do
     (seenSliceIDs, seenInstanceSliceIDs) <- get
@@ -299,6 +308,10 @@ loadInstanceSliceIDsStateful instanceSliceID = do
         put (seenSliceIDs, instanceSliceID : seenInstanceSliceIDs)
         recurseIntoSlice instanceSliceID)
 
+-- | After we have made sure that we have not yet visited a slice ID and
+-- after we have added it to a list of already visited slices we recurse
+-- into slices that this slice uses and instances that this slice brings
+-- into scope.
 recurseIntoSlice :: SliceID -> StateT ([SliceID],[SliceID]) IO ()
 recurseIntoSlice sliceID = do
     slice <- liftIO (readSliceDefault sliceID)
@@ -316,6 +329,11 @@ instanceSlices (Slice _ _ _ _ instances) = instances
 doesSliceModuleExist :: SliceID -> IO Bool
 doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)
 
+
+-- | Sadly GHC generated different role annotations in hs-boot files from
+-- the ones generated in regular modules.
+-- See ghc.haskell.org/trac/ghc/ticket/9204
+-- Will be fixed in GHC 7.12
 addRoleAnnotation :: String -> String
 addRoleAnnotation code = case Map.lookup (last (lines code)) roleAnnotations of
     Nothing -> code

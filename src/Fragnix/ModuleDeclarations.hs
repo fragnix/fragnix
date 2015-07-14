@@ -8,7 +8,7 @@ import Fragnix.Environment (
     loadEnvironment,environmentPath,builtinEnvironmentPath)
 
 import qualified Language.Haskell.Exts as UnAnn (
-    QName(Qual,UnQual),ModuleName(ModuleName),Name(Ident))
+    QName(Qual,UnQual),ModuleName(ModuleName))
 import Language.Haskell.Exts.Annotated (
     Module,ModuleName,Decl(..),
     parseFileContentsWithMode,defaultParseMode,ParseMode(..),baseFixities,
@@ -20,7 +20,7 @@ import Language.Haskell.Exts.Annotated (
 import Language.Haskell.Exts.Annotated.Simplify (
     sModuleName)
 import Language.Haskell.Names (
-    Symbol(NewType,Constructor),Error,Scoped(Scoped),
+    Symbol,Error,Scoped(Scoped),
     computeInterfaces,annotateModule,
     NameInfo(GlobalSymbol,RecPatWildcard))
 import Language.Haskell.Names.SyntaxUtils (
