@@ -361,5 +361,7 @@ roleAnnotations = Map.fromList [
     ("                       {-# UNPACK #-} !(ForeignPtr a)",
         "type role Vector phantom"),
     ("                       {-# UNPACK #-} !ByteArray",
-        "type role Vector phantom")]
+        "type role Vector phantom"),
+    ("newtype Vault s = Vault (Map Unique Any)",
+        "type role Vault phantom")]
 
