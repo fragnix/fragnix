@@ -3,7 +3,7 @@ module Fragnix.DeclarationSlices where
 
 import Fragnix.Declaration (
     Declaration(Declaration),
-    Genre(TypeSignature,ClassInstance,InfixFixity,DerivingInstance,ForeignImport))
+    Genre(TypeSignature,ClassInstance,InfixFixity,DerivingInstance,FamilyInstance,ForeignImport))
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
     Use(Use),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Builtin))
@@ -344,6 +344,7 @@ isType symbol = case symbol of
 isInstance :: Declaration -> Bool
 isInstance (Declaration ClassInstance _ _ _ _) = True
 isInstance (Declaration DerivingInstance _ _ _ _) = True
+isInstance (Declaration FamilyInstance _ _ _ _) = True
 isInstance _ = False
 
 fromName :: Name.Name -> Name

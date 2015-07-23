@@ -10,7 +10,7 @@ import Prelude hiding (writeFile)
 
 import Language.Haskell.Exts.Syntax (
     Module(Module),ModuleName(ModuleName),ModulePragma(LanguagePragma),
-    Decl(InstDecl,DataDecl,GDataDecl,PatBind,FunBind,ForImp,DerivDecl,TypeSig,DataInsDecl,GDataInsDecl),
+    Decl(InstDecl,DataDecl,GDataDecl,PatBind,FunBind,ForImp,DerivDecl,TypeSig,TypeInsDecl,DataInsDecl,GDataInsDecl),
     Name(Ident,Symbol),QName(UnQual),
     ExportSpec(EThingAll),
     ImportDecl(ImportDecl,importSrc,importModule),ImportSpec(IVar,IAbs,IThingWith),
@@ -210,6 +210,8 @@ bootDecl (FunBind _) =
     []
 bootDecl (ForImp srcloc _ _ _ name typ) =
     [TypeSig srcloc [name] typ]
+bootDecl (TypeInsDecl _ _ _) =
+    []
 bootDecl (DataInsDecl _ _ _ _ _) =
     []
 bootDecl (GDataInsDecl _ _ _ _ _ _) =
