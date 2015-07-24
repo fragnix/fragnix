@@ -45,7 +45,9 @@ import Data.Char (isDigit)
 -- Assumes that the slice contains a declaration for some 'main :: IO ()'.
 sliceCompilerMain :: SliceID -> IO ExitCode
 sliceCompilerMain sliceID = do
+    putStrLn "Generating compilation units ..."
     writeSliceModules sliceID
+    putStrLn "Invoking GHC ..."
     rawSystem "ghc" [
         "-o","main",
         "-ifragnix/temp/compilationunits",

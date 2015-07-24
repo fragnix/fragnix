@@ -26,10 +26,17 @@ main = do
 
     modulePaths <- getArgs
 
+    putStrLn "Loading environment ..."
+
     builtinEnvironment <- loadEnvironment builtinEnvironmentPath
     userEnvironment <- loadEnvironment environmentPath
     let environment = Map.union builtinEnvironment userEnvironment
+
+    putStrLn "Parsing modules ..."
+
     modules <- forM modulePaths parse
+
+    putStrLn "Extracting declarations ..."
 
     let declarations = moduleDeclarationsWithEnvironment environment modules
     writeDeclarations "fragnix/temp/declarations/declarations.json" declarations
@@ -37,8 +44,12 @@ main = do
     let nameErrors = moduleNameErrors environment modules
     forM_ nameErrors (\nameError -> putStrLn ("Warning: " ++ ppError nameError))
 
+    putStrLn "Slicing ..."
+
     let (slices,symbolSlices) = declarationSlices declarations
     forM_ slices writeSliceDefault
+
+    putStrLn "Updating environment ..."
 
     let updatedEnvironment = updateEnvironment symbolSlices (moduleSymbols environment modules)
     persistEnvironment environmentPath updatedEnvironment
@@ -46,6 +57,7 @@ main = do
     case findMainSliceIDs symbolSlices of
         [] -> putStrLn "No main symbol in modules."
         [mainSliceID] -> do
+            putStrLn ("Compiling " ++ show mainSliceID)
             sliceCompilerMain mainSliceID
             return ()
         _ -> putStrLn "Multiple main symbols in modules."
