@@ -334,8 +334,8 @@ doesSliceModuleExist :: SliceID -> IO Bool
 doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)
 
 
--- | Sadly GHC generated different role annotations in hs-boot files from
--- the ones generated in regular modules.
+-- | Sadly GHC generates different role annotations in hs-boot files than
+-- in regular modules.
 -- See ghc.haskell.org/trac/ghc/ticket/9204
 -- Will be fixed in GHC 7.12
 addRoleAnnotation :: String -> String
@@ -367,5 +367,7 @@ roleAnnotations = Map.fromList [
     ("                       {-# UNPACK #-} !ByteArray",
         "type role Vector phantom"),
     ("newtype Vault s = Vault (Map Unique Any)",
-        "type role Vault phantom")]
+        "type role Vault phantom"),
+    ("newtype Tagged s b = Tagged {unTagged :: b}",
+        "type role Tagged phantom representational")]
 
