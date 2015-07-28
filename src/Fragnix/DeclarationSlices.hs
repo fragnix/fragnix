@@ -9,7 +9,8 @@ import Fragnix.Slice (
     Use(Use),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Builtin))
 
 import Language.Haskell.Names (
-    Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,symbolName,symbolModule))
+    Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,TypeFam,DataFam,
+        symbolName,symbolModule))
 import qualified Language.Haskell.Exts as Name (
     Name(Ident,Symbol))
 import Language.Haskell.Exts (
@@ -103,10 +104,10 @@ sliceConstructors fragmentNodes = Map.fromListWith (++) (do
 
 -- | Create a dependency graph between all declarations in the given list. Dependency edges
 -- come primarily from when a declaration mentions a symbol another declaration binds. But also
--- from signatures, fixities and instances.
+-- from signatures, fixities and type and data family instances.
 declarationGraph :: [Declaration] -> Gr Declaration Dependency
 declarationGraph declarations =
-    insEdges (signatureedges ++ usedsymboledges ++ fixityEdges) (
+    insEdges (signatureedges ++ usedsymboledges ++ fixityEdges ++ familyInstanceEdges) (
         insNodes declarationnodes empty) where
 
     -- A list of pairs of node ID and declaration
@@ -127,19 +128,26 @@ declarationGraph declarations =
         usednode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (node,usednode,UsesSymbol maybequalification mentionedsymbol)
 
-    -- Each declaration depends on its type signature
+    -- Each declaration should be in the same comilation unit as its type signature
     signatureedges = do
         (signaturenode,Declaration TypeSignature _ _ _ mentionedsymbols) <- declarationnodes
         mentionedsymbol@(Value _ _) <- map fst mentionedsymbols
         declarationnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (declarationnode,signaturenode,Signature)
 
-    -- Each declaration depends on its fixity declarations
+    -- Each declaration should be in the same compilation unit as its fixity declarations
     fixityEdges = do
         (fixitynode,Declaration InfixFixity _ _ _ mentionedsymbols) <- declarationnodes
         mentionedsymbol <- map fst mentionedsymbols
         bindingnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
         return (bindingnode,fixitynode,Fixity)
+
+    -- Each data or type family should be in the same compilation unit as its instances
+    familyInstanceEdges = do
+        (familyInstanceNode,Declaration FamilyInstance _ _ _ mentionedSymbols) <- declarationnodes
+        mentionedFamily <- take 1 (filter isFamily (map fst mentionedSymbols))
+        familyNode <- maybeToList (Map.lookup mentionedFamily boundmap)
+        return (familyNode, familyInstanceNode, Family)
 
 
 -- | A list of strongly connected components from a given graph.
@@ -200,8 +208,7 @@ buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
 
             return (Use maybeQualificationText usedName reference))
 
-        -- If a declaration needs the constructors of used types in scope we add them
-        -- here.
+        -- If a declaration needs the constructors of used types we add them here.
         implicitConstructorUses = do
             declaration <- declarations
             guard (needsConstructors declaration)
@@ -341,10 +348,15 @@ isType symbol = case symbol of
     NewType {} -> True
     _ -> False
 
+isFamily :: Symbol -> Bool
+isFamily symbol = case symbol of
+    TypeFam {} -> True
+    DataFam {} -> True
+    _ -> False
+
 isInstance :: Declaration -> Bool
 isInstance (Declaration ClassInstance _ _ _ _) = True
 isInstance (Declaration DerivingInstance _ _ _ _) = True
-isInstance (Declaration FamilyInstance _ _ _ _) = True
 isInstance _ = False
 
 fromName :: Name.Name -> Name
@@ -354,5 +366,6 @@ fromName (Name.Symbol name) = Operator (pack name)
 data Dependency =
     UsesSymbol (Maybe ModuleName) Symbol |
     Signature |
-    Fixity
+    Fixity |
+    Family
         deriving (Eq,Ord,Show)
