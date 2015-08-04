@@ -1,5 +1,6 @@
-Successes: 11
+Successes: 12
 Failures: 0
 DataFamilies Vector ListLike I h
 ExportListWildcards Foo Foo1 Foo2 Foo3 c Bar x N N unN
+OtherClass HAble h
 QualifiedMethods Rodor Rodor x

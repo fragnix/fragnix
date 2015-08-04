@@ -5,6 +5,8 @@ import qualified ExportListWildcards as ExportListWildcards
 
 import qualified DataFamilies as DataFamilies
 
+import OtherClass
+
 data Rodor = Rodor
 
 x :: ExportListWildcards.Foo
