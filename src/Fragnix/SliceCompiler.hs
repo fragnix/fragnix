@@ -369,5 +369,7 @@ roleAnnotations = Map.fromList [
     ("newtype Vault s = Vault (Map Unique Any)",
         "type role Vault phantom"),
     ("newtype Tagged s b = Tagged{unTagged :: b}",
-        "type role Tagged phantom representational")]
+        "type role Tagged phantom representational"),
+    ("newtype Tagged2 (s :: * -> *) b = Tagged2{unTagged2 :: b}",
+        "type role Tagged2 phantom representational")]
 
