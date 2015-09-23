@@ -73,8 +73,10 @@ writeSliceModules sliceID = do
         sliceHSBoots = map bootModule sliceModules
         instanceSliceModules = map sliceModule instances
         instanceSliceHSBoots = map bootInstanceModule instanceSliceModules
-    forM_ (sliceModules ++ instanceSliceModules ++ [allInstancesModule instances]) writeModule
-    forM_ (sliceHSBoots ++ instanceSliceHSBoots ++ [bootModule (allInstancesModule instances)]) writeHSBoot
+    forM_ (sliceModules ++ instanceSliceModules) writeModule
+    writeAllInstancesModule (allInstancesModule instances)
+    forM_ (sliceHSBoots ++ instanceSliceHSBoots) writeHSBoot
+    writeAllInstancesHSBoot (bootModule (allInstancesModule instances))
 
 
 -- | Given a slice generate the corresponding module.
@@ -267,15 +269,29 @@ writeHSBoot :: Module -> IO ()
 writeHSBoot modul = writeFileStrictIfMissing (moduleHSBootPath modul) (addRoleAnnotation (prettyPrint modul))
 
 
+writeAllInstancesModule :: Module -> IO ()
+writeAllInstancesModule modul = writeFileStrict (modulePath modul) (prettyPrint modul)
+
+
+writeAllInstancesHSBoot :: Module -> IO ()
+writeAllInstancesHSBoot modul = writeFileStrict (moduleHSBootPath modul) (prettyPrint modul)
+
+
+-- | Write out the given string to the given file path but only if
+-- there is no file at the given path.
+writeFileStrictIfMissing :: FilePath -> String -> IO ()
+writeFileStrictIfMissing filePath content = do
+    exists <- doesFileExist filePath
+    unless exists (writeFileStrict filePath content)
+
+
 -- | Write the given string to the given file path but completely evaluate it before
 -- doing so and print any exceptions.
-writeFileStrictIfMissing :: FilePath -> String -> IO ()
-writeFileStrictIfMissing filePath content = (do
-    exists <- doesFileExist filePath
-    unless exists (do
-        evaluatedContent <- evaluate (pack content)
-        writeFile filePath evaluatedContent)
-            `catch` (print :: SomeException -> IO ()))
+writeFileStrict :: FilePath -> String -> IO ()
+writeFileStrict filePath content = (do
+    evaluatedContent <- evaluate (pack content)
+    writeFile filePath evaluatedContent)
+        `catch` (print :: SomeException -> IO ())
 
 
 -- | Given a slice ID load all slices and all instance slices nedded
