@@ -348,6 +348,7 @@ isType :: Symbol -> Bool
 isType symbol = case symbol of
     Data {} -> True
     NewType {} -> True
+    DataFam {} -> True
     _ -> False
 
 isFamily :: Symbol -> Bool
