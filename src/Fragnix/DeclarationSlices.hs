@@ -168,7 +168,9 @@ buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
     Slice tempID language fragments uses instances where
         tempID = fromIntegral node
 
-        language = Language (nub (do
+        language = Language extensions (any isInstance declarations)
+
+        extensions = (nub (do
             Declaration _ ghcextensions _ _ _ <- declarations
             ghcextension <- ghcextensions
             -- disregard the Safe, Trustworthy, CPP and roles extensions

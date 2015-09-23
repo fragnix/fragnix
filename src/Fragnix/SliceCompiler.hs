@@ -38,6 +38,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map(fromList,lookup)
 import Control.Monad (forM,forM_,unless)
 import Data.Maybe (mapMaybe)
+import Data.List (partition)
 import Data.Char (isDigit)
 
 
@@ -82,7 +83,7 @@ sliceModule (Slice sliceID language fragment uses _) =
     let Fragment declarations = fragment
         decls = map (parseDeclaration sliceID ghcextensions) declarations
         moduleName = ModuleName (sliceModuleName sliceID)
-        Language ghcextensions = language
+        Language ghcextensions _ = language
         languagepragmas = [Ident "NoImplicitPrelude"] ++ (map (Ident . unpack) ghcextensions)
         pragmas = [LanguagePragma noLoc languagepragmas]
         imports = map useImport uses ++ [allInstancesImport]
@@ -259,76 +260,67 @@ isConstructorImport _ = False
 
 
 writeModule :: Module -> IO ()
-writeModule modul = writeFileStrict (modulePath modul) (prettyPrint modul)
+writeModule modul = writeFileStrictIfMissing (modulePath modul) (prettyPrint modul)
 
 
 writeHSBoot :: Module -> IO ()
-writeHSBoot modul = writeFileStrict (moduleHSBootPath modul) (addRoleAnnotation (prettyPrint modul))
+writeHSBoot modul = writeFileStrictIfMissing (moduleHSBootPath modul) (addRoleAnnotation (prettyPrint modul))
 
 
 -- | Write the given string to the given file path but completely evaluate it before
 -- doing so and print any exceptions.
-writeFileStrict :: FilePath -> String -> IO ()
-writeFileStrict filePath content = (do
-    evaluatedContent <- evaluate (pack content)
-    writeFile filePath evaluatedContent)
-        `catch` (print :: SomeException -> IO ())
+writeFileStrictIfMissing :: FilePath -> String -> IO ()
+writeFileStrictIfMissing filePath content = (do
+    exists <- doesFileExist filePath
+    unless exists (do
+        evaluatedContent <- evaluate (pack content)
+        writeFile filePath evaluatedContent)
+            `catch` (print :: SomeException -> IO ()))
 
 
 -- | Given a slice ID load all slices and all instance slices nedded
 -- for compilation.
 loadSlicesTransitive :: SliceID -> IO ([Slice], [Slice])
 loadSlicesTransitive sliceID = do
-    (sliceIDs, instanceSliceIDs) <- loadSliceIDsTransitive sliceID
+    sliceIDs <- loadSliceIDsTransitive sliceID
     slices <- forM sliceIDs readSliceDefault
-    instances <- forM instanceSliceIDs readSliceDefault
-    return (slices, instances)
+    return (partitionInstances slices)
+
+partitionInstances :: [Slice] -> ([Slice], [Slice])
+partitionInstances = partition (not . isInstance)
 
 
 -- | Given a slice ID find all IDs of slices and instances needed
 -- for compilation. The first list in the pair are the slices the second
 -- list are the instances.
-loadSliceIDsTransitive :: SliceID -> IO ([SliceID],[SliceID])
-loadSliceIDsTransitive sliceID = execStateT (loadSliceIDsStateful sliceID) ([],[])
+loadSliceIDsTransitive :: SliceID -> IO [SliceID]
+loadSliceIDsTransitive sliceID = execStateT (loadSliceIDsStateful sliceID) []
 
 
 -- | Given a slice ID of a non-instance slice load all IDs of slices
 -- and instances needed for
 -- compilation. Keep track of visited slice IDs to avoid loops.
-loadSliceIDsStateful :: SliceID -> StateT ([SliceID],[SliceID]) IO ()
+loadSliceIDsStateful :: SliceID -> StateT [SliceID] IO ()
 loadSliceIDsStateful sliceID = do
-    (seenSliceIDs, seenInstanceSliceIDs) <- get
+    seenSliceIDs <- get
     unless (elem sliceID seenSliceIDs) (do
-        put (sliceID : seenSliceIDs, seenInstanceSliceIDs)
-        recurseIntoSlice sliceID)
-
--- | Given a slice ID of an instances slice find all IDs of slices and
--- instances needed for compilation. Keep track of alread visited slice
--- IDs to avoid loops.
-loadInstanceSliceIDsStateful :: SliceID -> StateT ([SliceID],[SliceID]) IO ()
-loadInstanceSliceIDsStateful instanceSliceID = do
-    (seenSliceIDs, seenInstanceSliceIDs) <- get
-    unless (elem instanceSliceID seenInstanceSliceIDs) (do
-        put (seenSliceIDs, instanceSliceID : seenInstanceSliceIDs)
-        recurseIntoSlice instanceSliceID)
-
--- | After we have made sure that we have not yet visited a slice ID and
--- after we have added it to a list of already visited slices we recurse
--- into slices that this slice uses and instances that this slice brings
--- into scope.
-recurseIntoSlice :: SliceID -> StateT ([SliceID],[SliceID]) IO ()
-recurseIntoSlice sliceID = do
-    slice <- liftIO (readSliceDefault sliceID)
-    let recursiveSliceIDs = usedSlices slice
-        recursiveInstanceSliceIDs = instanceSlices slice
-    forM_ recursiveSliceIDs loadSliceIDsStateful
-    forM_ recursiveInstanceSliceIDs loadInstanceSliceIDsStateful
+        put (sliceID : seenSliceIDs)
+        slice <- liftIO (readSliceDefault sliceID)
+        let recursiveSliceIDs = usedSlices slice
+            recursiveInstanceSliceIDs = instanceSlices slice
+        forM_ recursiveSliceIDs loadSliceIDsStateful
+        forM_ recursiveInstanceSliceIDs loadSliceIDsStateful)
+    
 
 usedSlices :: Slice -> [SliceID]
 usedSlices (Slice _ _ _ uses _) = [sliceID | Use _ _ (OtherSlice sliceID) <- uses]
 
 instanceSlices :: Slice -> [SliceID]
 instanceSlices (Slice _ _ _ _ instances) = instances
+
+isInstance :: Slice -> Bool
+isInstance (Slice _ (Language _ True) _ _ _) = True
+isInstance _ = False
 
 doesSliceModuleExist :: SliceID -> IO Bool
 doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)
