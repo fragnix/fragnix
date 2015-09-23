@@ -24,7 +24,7 @@ import System.Directory (createDirectoryIfMissing)
 
 data Slice = Slice SliceID Language Fragment [Use] [InstanceID]
 
-data Language = Language [GHCExtension]
+data Language = Language [GHCExtension] IsInstance
 
 data Fragment = Fragment [SourceCode]
 
@@ -48,6 +48,7 @@ type SourceCode = Text
 type Qualification = Text
 type OriginalModule = Text
 type GHCExtension = Text
+type IsInstance = Bool
 
 
 -- Slice instances
@@ -78,10 +79,15 @@ deriving instance Show Language
 deriving instance Generic Language
 
 instance ToJSON Language where
-    toJSON (Language ghcextensions) = toJSON ghcextensions
+    toJSON (Language ghcExtensions isInstance) = object [
+        "extensions" .= toJSON ghcExtensions,
+        "isInstance" .= toJSON isInstance]
 
 instance FromJSON Language where
-    parseJSON = fmap Language . parseJSON
+    parseJSON = withObject "language" (\o ->
+        Language <$>
+            o .: "extensions" <*>
+            o .: "isInstance")
 
 instance Hashable Language
 
