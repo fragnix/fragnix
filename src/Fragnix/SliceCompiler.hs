@@ -260,20 +260,22 @@ isConstructorImport _ = False
 
 
 writeModule :: Module -> IO ()
-writeModule modul = writeFileStrict (modulePath modul) (prettyPrint modul)
+writeModule modul = writeFileStrictIfMissing (modulePath modul) (prettyPrint modul)
 
 
 writeHSBoot :: Module -> IO ()
-writeHSBoot modul = writeFileStrict (moduleHSBootPath modul) (addRoleAnnotation (prettyPrint modul))
+writeHSBoot modul = writeFileStrictIfMissing (moduleHSBootPath modul) (addRoleAnnotation (prettyPrint modul))
 
 
 -- | Write the given string to the given file path but completely evaluate it before
 -- doing so and print any exceptions.
-writeFileStrict :: FilePath -> String -> IO ()
-writeFileStrict filePath content = (do
-    evaluatedContent <- evaluate (pack content)
-    writeFile filePath evaluatedContent)
-        `catch` (print :: SomeException -> IO ())
+writeFileStrictIfMissing :: FilePath -> String -> IO ()
+writeFileStrictIfMissing filePath content = (do
+    exists <- doesFileExist filePath
+    unless exists (do
+        evaluatedContent <- evaluate (pack content)
+        writeFile filePath evaluatedContent)
+            `catch` (print :: SomeException -> IO ()))
 
 
 -- | Given a slice ID load all slices and all instance slices nedded
