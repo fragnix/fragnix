@@ -286,19 +286,20 @@ loadSlicesTransitive sliceID = do
     slices <- forM sliceIDs readSliceDefault
     return (partitionInstances slices)
 
+
+-- | Given a list of slices partition it into non-instance
+-- slices and instance slices.
 partitionInstances :: [Slice] -> ([Slice], [Slice])
 partitionInstances = partition (not . isInstance)
 
 
--- | Given a slice ID find all IDs of slices and instances needed
--- for compilation. The first list in the pair are the slices the second
--- list are the instances.
+-- | Given a slice ID find all IDs of all the slices needed
+-- for compilation.
 loadSliceIDsTransitive :: SliceID -> IO [SliceID]
 loadSliceIDsTransitive sliceID = execStateT (loadSliceIDsStateful sliceID) []
 
 
--- | Given a slice ID of a non-instance slice load all IDs of slices
--- and instances needed for
+-- | Given a slice ID load all IDs of all the slices needed for
 -- compilation. Keep track of visited slice IDs to avoid loops.
 loadSliceIDsStateful :: SliceID -> StateT [SliceID] IO ()
 loadSliceIDsStateful sliceID = do
