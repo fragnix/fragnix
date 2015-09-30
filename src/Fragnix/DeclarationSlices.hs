@@ -25,14 +25,13 @@ import Data.Graph.Inductive.PatriciaTree (
     Gr)
 
 import Control.Monad (guard, unless, forM_)
-import Control.Applicative ((<|>))
 import Control.Monad.Trans.State.Strict (State, execState, get, put)
 import Data.Text (pack)
 import Data.Char (isDigit)
 import Data.Map (Map)
 import qualified Data.Map as Map (lookup,fromList,fromListWith,(!),map,keys)
 import qualified Data.Set as Set (fromList,member)
-import Data.Maybe (maybeToList,fromJust,listToMaybe,fromMaybe)
+import Data.Maybe (maybeToList,fromJust,listToMaybe)
 import Data.Hashable (hash)
 import Data.List (nub,(\\))
 
