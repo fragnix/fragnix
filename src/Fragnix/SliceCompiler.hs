@@ -74,28 +74,26 @@ writeSliceModules sliceID = do
         instanceSliceModules = map sliceModule instances
         instanceSliceHSBoots = map bootInstanceModule instanceSliceModules
     forM_ (sliceModules ++ instanceSliceModules) writeModule
-    writeAllInstancesModule (allInstancesModule instances)
     forM_ (sliceHSBoots ++ instanceSliceHSBoots) writeHSBoot
-    writeAllInstancesHSBoot (bootModule (allInstancesModule instances))
 
 
 -- | Given a slice generate the corresponding module.
 sliceModule :: Slice -> Module
-sliceModule (Slice sliceID language fragment uses _) =
+sliceModule (Slice sliceID language fragment uses instances) =
     let Fragment declarations = fragment
         decls = map (parseDeclaration sliceID ghcextensions) declarations
         moduleName = ModuleName (sliceModuleName sliceID)
         Language ghcextensions _ = language
         languagepragmas = [Ident "NoImplicitPrelude"] ++ (map (Ident . unpack) ghcextensions)
         pragmas = [LanguagePragma noLoc languagepragmas]
-        imports = map useImport uses ++ [allInstancesImport]
+        imports = map useImport uses ++ map instanceImport instances
         -- We need an export list to export the data family even
         -- though a slice only contains the data family instance
         exports = dataFamilyInstanceExports decls imports
     in Module noLoc moduleName pragmas Nothing exports imports decls
 
 
--- | Reparse a declrations from its textual representation in a slice.
+-- | Reparse a declaration from its textual representation in a slice.
 parseDeclaration :: SliceID -> [Text] -> Text -> Decl
 parseDeclaration sliceID ghcextensions declaration = decl where
     Module _ _ _ _ _ _ [decl] = fromParseResult (parseModuleWithMode parseMode (unpack declaration))
@@ -124,16 +122,11 @@ useImport (Use maybeQualification usedName symbolSource) =
     in ImportDecl noLoc moduleName qualified False False Nothing maybeAlias (Just (False,importSpec))
 
 
--- | Import Decl for an instance from the given SliceID.
+-- | Import Decl for an instance from the given SliceID. Instance imports
+-- are source imports.
 instanceImport :: SliceID -> ImportDecl
 instanceImport sliceID =
-    ImportDecl noLoc (ModuleName (sliceModuleName sliceID)) False False False Nothing Nothing Nothing
-
-
--- | Import the special module that reexports all instances.
-allInstancesImport :: ImportDecl
-allInstancesImport =
-    ImportDecl noLoc allInstancesModuleName False True False Nothing Nothing Nothing
+    ImportDecl noLoc (ModuleName (sliceModuleName sliceID)) False True False Nothing Nothing Nothing
 
 
 -- | We export every type that we import in a data family instance slice
@@ -145,16 +138,6 @@ dataFamilyInstanceExports [GDataInsDecl _ _ _ _ _ _] imports = Just (do
     ImportDecl _ _ _ _ _ _ _ (Just (False,[IAbs typeName])) <- imports
     return (EThingAll (UnQual typeName)))
 dataFamilyInstanceExports _ _ = Nothing
-
-
--- | Given a list of instance slices generates a module that imports
--- (and therefore reexports) all those instances.
-allInstancesModule :: [Slice] -> Module
-allInstancesModule slices =
-    Module noLoc allInstancesModuleName [] Nothing Nothing instanceImports [] where
-        instanceImports = do
-            Slice sliceID _ _ _ _ <- slices
-            return (instanceImport sliceID)
 
 
 -- | Create a boot module from an ordinary module.
