@@ -25,6 +25,7 @@ import Data.Graph.Inductive.PatriciaTree (
     Gr)
 
 import Control.Monad (guard, unless, forM_)
+import Control.Applicative ((<|>))
 import Control.Monad.Trans.State.Strict (State, execState, get, put)
 import Data.Text (pack)
 import Data.Char (isDigit)
@@ -304,9 +305,9 @@ sliceTypes fragmentNodes = Map.fromListWith (++) (do
     return (tempID,[boundSymbol]))
 
 
--- | Build a Map that assigns to every pair of class and type a list
--- of instances for that class and type.
-classAndTypeInstances :: [(TempID,[Declaration])] -> Map (Symbol,Symbol) [TempID]
+-- | Build a Map that assigns to every class or type symbol the list of
+-- corresponding instances.
+classAndTypeInstances :: [(TempID,[Declaration])] -> Map Symbol [TempID]
 classAndTypeInstances fragmentNodes = Map.fromListWith (++) (do
 
     let graphSymbols = Set.fromList (do
@@ -328,10 +329,9 @@ classAndTypeInstances fragmentNodes = Map.fromListWith (++) (do
             guard (Set.member typeSymbolMentionedFirst graphSymbols)
             return typeSymbolMentionedFirst
 
-    classSymbol <- maybeToList maybeClassSymbol
-    typeSymbol <- maybeToList maybeTypeSymbol
+    classOrTypeSymbol <- maybeToList maybeTypeSymbol <|> maybeToList maybeClassSymbol
 
-    return ((classSymbol,typeSymbol),[tempID]))
+    return (classOrTypeSymbol,[tempID]))
 
 
 -- | Find and add instance IDs for relevant instance to a given temporary
@@ -339,7 +339,7 @@ classAndTypeInstances fragmentNodes = Map.fromListWith (++) (do
 addInstances ::
     Map TempID [Symbol] ->
     Map TempID [Symbol] ->
-    Map (Symbol,Symbol) [InstanceID] ->
+    Map Symbol [InstanceID] ->
     Map TempID TempSlice ->
     TempSlice -> TempSlice
 addInstances classMap typeMap instanceMap tempSliceMap (Slice tempID language fragment tempUses _) =
@@ -351,10 +351,9 @@ addInstances classMap typeMap instanceMap tempSliceMap (Slice tempID language fr
         relevantTypes = do
             usedTempID <- usedTempIDs
             concat (maybeToList (Map.lookup usedTempID typeMap))
-        instances = do
-            relevantClass <- relevantClasses
-            relevantType <- relevantTypes
-            concat (maybeToList (Map.lookup (relevantClass,relevantType) instanceMap))
+        instances = nub (do
+            relevantClassOrType <- relevantClasses <|> relevantTypes
+            concat (maybeToList (Map.lookup relevantClassOrType instanceMap)))
 
 
 -- | Given a Map from temporary ID to corresponding slice and a temporary ID
