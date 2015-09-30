@@ -6,7 +6,8 @@ import Fragnix.Declaration (
     Genre(TypeSignature,ClassInstance,InfixFixity,DerivingInstance,FamilyInstance,ForeignImport))
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
-    Use(Use),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Builtin))
+    Use(Use),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Builtin),
+    InstanceID)
 
 import Language.Haskell.Names (
     Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,TypeFam,DataFam,
@@ -23,14 +24,15 @@ import Data.Graph.Inductive (
 import Data.Graph.Inductive.PatriciaTree (
     Gr)
 
-import Control.Monad (guard)
+import Control.Monad (guard, unless, forM_)
 import Control.Applicative ((<|>))
+import Control.Monad.Trans.State.Strict (State, execState, get, put)
 import Data.Text (pack)
 import Data.Char (isDigit)
 import Data.Map (Map)
-import qualified Data.Map as Map (lookup,fromList,fromListWith,(!),map)
+import qualified Data.Map as Map (lookup,fromList,fromListWith,(!),map,keys)
 import qualified Data.Set as Set (fromList,member)
-import Data.Maybe (maybeToList,fromJust,listToMaybe)
+import Data.Maybe (maybeToList,fromJust,listToMaybe,fromMaybe)
 import Data.Hashable (hash)
 import Data.List (nub,(\\))
 
@@ -43,11 +45,15 @@ declarationSlices declarations = (slices,symbolSlices) where
     fragmentNodes = fragmentSCCs (declarationGraph declarations)
 
     sliceBindingsMap = sliceBindings fragmentNodes
-    sliceInstancesMap = sliceInstances fragmentNodes
     constructorMap = sliceConstructors fragmentNodes
+    classMap = sliceClasses fragmentNodes
+    typeMap = sliceTypes fragmentNodes
+    instanceMap = classAndTypeInstances fragmentNodes
 
-    tempSlices = map (buildTempSlice sliceBindingsMap sliceInstancesMap constructorMap) fragmentNodes
-    tempSliceIDMap = tempSliceIDs tempSlices
+    tempSlicesWithoutInstances = map (buildTempSlice sliceBindingsMap constructorMap) fragmentNodes
+    tempSliceMap = sliceMap tempSlicesWithoutInstances
+    tempSlices = map (addInstances classMap typeMap instanceMap tempSliceMap) tempSlicesWithoutInstances
+    tempSliceIDMap = sliceIDMap tempSliceMap
     slices = map (replaceSliceID ((Map.!) tempSliceIDMap)) tempSlices
     symbolSlices = Map.map (\tempID -> tempSliceIDMap Map.! tempID) sliceBindingsMap
 
@@ -59,35 +65,6 @@ sliceBindings fragmentNodes = Map.fromList (do
     Declaration _ _ _ boundsymbols _ <- declarations
     boundsymbol <- boundsymbols
     return (boundsymbol,tempID))
-
-
--- | Build a Map from type or class symbol to instance temporary ID
--- Prefer the type symbol if both are present
--- Only include classes and types bound in this graph
-sliceInstances :: [(TempID,[Declaration])] -> Map Symbol [TempID]
-sliceInstances fragmentNodes = Map.fromListWith (++) (do
-
-    let graphSymbols = Set.fromList (do
-            (_,declarations) <- fragmentNodes
-            Declaration _ _ _ boundSymbols _ <- declarations
-            boundSymbols)
-
-    (tempID,declarations) <- fragmentNodes
-    declaration <- declarations
-    guard (isInstance declaration)
-    let Declaration _ _ _ _ mentionedsymbols = declaration
-
-    let classSymbol = do
-            classSymbolMentionedLast <- listToMaybe (reverse (filter isClass (map fst mentionedsymbols)))
-            guard (Set.member classSymbolMentionedLast graphSymbols)
-            return classSymbolMentionedLast
-        typeSymbol = do
-            typeSymbolMentionedFirst <- listToMaybe (filter isType (map fst mentionedsymbols))
-            guard (Set.member typeSymbolMentionedFirst graphSymbols)
-            return typeSymbolMentionedFirst
-    symbol <- maybeToList (typeSymbol <|> classSymbol)
-
-    return (symbol,[tempID]))
 
 
 -- | Create a map from symbol to all its constructors.
@@ -163,8 +140,8 @@ fragmentSCCs graph = do
 -- Return a slice with a temporary ID that might contain references to temporary IDs.
 -- The nodes must have negative IDs starting from -1 to distinguish temporary from permanent
 -- slice IDs.
-buildTempSlice :: Map Symbol TempID -> Map Symbol [TempID] -> Map Symbol [Symbol] -> (TempID,[Declaration]) -> TempSlice
-buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
+buildTempSlice :: Map Symbol TempID -> Map Symbol [Symbol] -> (TempID,[Declaration]) -> TempSlice
+buildTempSlice tempEnvironment constructorMap (node,declarations) =
     Slice tempID language fragments uses instances where
         tempID = fromIntegral node
 
@@ -183,11 +160,8 @@ buildTempSlice tempEnvironment instanceMap constructorMap (node,declarations) =
 
         uses = nub (mentionedUses ++ implicitConstructorUses)
 
-        -- Instance TempIDs for all types/classes bound by this fragment
-        instances = do
-            Declaration _ _ _ boundSymbols _ <- declarations
-            boundSymbol <- boundSymbols
-            concat (maybeToList (Map.lookup boundSymbol instanceMap))
+        -- Instances will be added later.
+        instances = []
 
         -- A use for every mentioned symbol
         mentionedUses = nub (do
@@ -286,6 +260,7 @@ moduleReference (ModuleName moduleName)
     | all isDigit moduleName = OtherSlice (read moduleName)
     | otherwise = Builtin (pack moduleName)
 
+
 -- | A temporary ID before slices can be hashed.
 type TempID = Integer
 
@@ -293,18 +268,115 @@ type TempID = Integer
 -- temporary IDs.
 type TempSlice = Slice
 
--- | Associate every temporary ID with the final ID.
-tempSliceIDs :: [TempSlice] -> Map TempID SliceID
-tempSliceIDs tempSlices = Map.fromList (do
-    let tempSliceMap = sliceMap tempSlices
-    Slice tempID _ _ _ _ <- tempSlices
-    return (tempID,computeHash tempSliceMap tempID))
 
 -- | Build up a map from temporary ID to corresponding slice for better lookup.
 sliceMap :: [TempSlice] -> Map TempID TempSlice
 sliceMap tempSlices = Map.fromList (do
     tempSlice@(Slice tempSliceID _ _ _ _) <- tempSlices
     return (tempSliceID,tempSlice))
+
+
+-- | Associate every temporary ID with the final ID.
+sliceIDMap :: Map TempID TempSlice -> Map TempID SliceID
+sliceIDMap tempSliceMap = Map.fromList (do
+    tempID <- Map.keys tempSliceMap
+    return (tempID,computeHash tempSliceMap tempID))
+
+
+-- | Assign to each temporary ID the list of class symbols the corresponding
+-- temporary slice binds.
+sliceClasses :: [(TempID,[Declaration])] -> Map TempID [Symbol]
+sliceClasses fragmentNodes = Map.fromListWith (++) (do
+    (tempID,declarations) <- fragmentNodes
+    Declaration _ _ _ boundSymbols _ <- declarations
+    boundSymbol <- boundSymbols
+    guard (isClass boundSymbol)
+    return (tempID,[boundSymbol]))
+
+
+-- | Assign to each temporary ID the list of type symbols the corresponding
+-- temporary slice binds.
+sliceTypes :: [(TempID,[Declaration])] -> Map TempID [Symbol]
+sliceTypes fragmentNodes = Map.fromListWith (++) (do
+    (tempID,declarations) <- fragmentNodes
+    Declaration _ _ _ boundSymbols _ <- declarations
+    boundSymbol <- boundSymbols
+    guard (isType boundSymbol)
+    return (tempID,[boundSymbol]))
+
+
+-- | Build a Map that assigns to every pair of class and type a list
+-- of instances for that class and type.
+classAndTypeInstances :: [(TempID,[Declaration])] -> Map (Symbol,Symbol) [TempID]
+classAndTypeInstances fragmentNodes = Map.fromListWith (++) (do
+
+    let graphSymbols = Set.fromList (do
+            (_,declarations) <- fragmentNodes
+            Declaration _ _ _ boundSymbols _ <- declarations
+            boundSymbols)
+
+    (tempID,declarations) <- fragmentNodes
+    declaration <- declarations
+    guard (isInstance declaration)
+    let Declaration _ _ _ _ mentionedsymbols = declaration
+
+    let maybeClassSymbol = do
+            classSymbolMentionedLast <- listToMaybe (reverse (filter isClass (map fst mentionedsymbols)))
+            guard (Set.member classSymbolMentionedLast graphSymbols)
+            return classSymbolMentionedLast
+        maybeTypeSymbol = do
+            typeSymbolMentionedFirst <- listToMaybe (filter isType (map fst mentionedsymbols))
+            guard (Set.member typeSymbolMentionedFirst graphSymbols)
+            return typeSymbolMentionedFirst
+
+    classSymbol <- maybeToList maybeClassSymbol
+    typeSymbol <- maybeToList maybeTypeSymbol
+
+    return ((classSymbol,typeSymbol),[tempID]))
+
+
+-- | Find and add instance IDs for relevant instance to a given temporary
+-- slice.
+addInstances ::
+    Map TempID [Symbol] ->
+    Map TempID [Symbol] ->
+    Map (Symbol,Symbol) [InstanceID] ->
+    Map TempID TempSlice ->
+    TempSlice -> TempSlice
+addInstances classMap typeMap instanceMap tempSliceMap (Slice tempID language fragment tempUses _) =
+    Slice tempID language fragment tempUses instances where
+        usedTempIDs = transitivelyUsedTempIDs tempSliceMap tempID
+        relevantClasses = do
+            usedTempID <- usedTempIDs
+            concat (maybeToList (Map.lookup usedTempID classMap))
+        relevantTypes = do
+            usedTempID <- usedTempIDs
+            concat (maybeToList (Map.lookup usedTempID typeMap))
+        instances = do
+            relevantClass <- relevantClasses
+            relevantType <- relevantTypes
+            concat (maybeToList (Map.lookup (relevantClass,relevantType) instanceMap))
+
+
+-- | Given a Map from temporary ID to corresponding slice and a temporary ID
+-- find all transitively used temporary IDs.
+transitivelyUsedTempIDs :: Map TempID TempSlice -> TempID -> [TempID]
+transitivelyUsedTempIDs tempSliceMap tempID =
+    execState (transitivelyUsedTempIDsStatefully tempSliceMap tempID) []
+
+
+-- | Statefully recurse over used temporary IDs and add the to a list.
+transitivelyUsedTempIDsStatefully :: Map TempID TempSlice -> TempID -> State [TempID] ()
+transitivelyUsedTempIDsStatefully tempSliceMap tempID = do
+    seenTempIDs <- get
+    unless (elem tempID seenTempIDs) (do
+        put (tempID : seenTempIDs)
+        let usedTempIDs = do
+                Slice _ _ _ uses _ <- maybeToList (Map.lookup tempID tempSliceMap)
+                Use _ _ (OtherSlice usedTempID) <- uses
+                return usedTempID
+        forM_ usedTempIDs (transitivelyUsedTempIDsStatefully tempSliceMap))
+
 
 -- | Hash the slice with the given temporary ID.
 computeHash :: Map TempID TempSlice -> TempID -> SliceID
