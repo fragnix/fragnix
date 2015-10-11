@@ -29,12 +29,12 @@ import Control.Monad.Trans.State.Strict (State, execState, get, put)
 import Data.Text (pack)
 import Data.Char (isDigit)
 import Data.Map (Map)
-import qualified Data.Map as Map (lookup,fromList,fromListWith,(!),map,keys)
+import qualified Data.Map as Map (
+    lookup,fromList,fromListWith,toList,(!),map,keys,member)
 import Data.Maybe (maybeToList,fromJust)
 import Data.Hashable (hash)
-import Data.List (nub,(\\),intersect)
+import Data.List (nub,(\\),intersect,union)
 
-import Debug.Trace
 
 -- | Extract all slices from the given list of declarations. Also return a map
 -- from a symbol to the sliceID of the slice that binds it now.
@@ -52,13 +52,16 @@ declarationSlices declarations = (slices,symbolSlices) where
     tempSlicesWithoutInstances = map (buildTempSlice sliceBindingsMap constructorMap) fragmentNodes
     tempSliceMap = sliceMap tempSlicesWithoutInstances
     transitivelyBindsOrMentionsMap = transitivelyBindsOrMentions fragmentNodes tempSliceMap
-    tempSlices = map (addInstances classInstanceMap typeInstanceMap transitivelyBindsOrMentionsMap) tempSlicesWithoutInstances
+    tempSlices = map
+        (addInstances sliceBindingsMap classInstanceMap typeInstanceMap transitivelyBindsOrMentionsMap)
+        tempSlicesWithoutInstances
     tempSliceIDMap = sliceIDMap tempSliceMap
-    slices = traceShow transitivelyBindsOrMentionsMap $ map (replaceSliceID ((Map.!) tempSliceIDMap)) tempSlices
+    slices = map (replaceSliceID ((Map.!) tempSliceIDMap)) tempSlices
     symbolSlices = Map.map (\tempID -> tempSliceIDMap Map.! tempID) sliceBindingsMap
 
 
--- | Build a Map from symbol to temporary ID that binds this symbol.
+-- | Build a Map from symbol to temporary ID that binds this symbol. If
+-- a symbol is builtin there is not entry in this Map.
 sliceBindings :: [(TempID,[Declaration])] -> Map Symbol TempID
 sliceBindings fragmentNodes = Map.fromList (do
     (tempID,declarations) <- fragmentNodes
@@ -67,7 +70,7 @@ sliceBindings fragmentNodes = Map.fromList (do
     return (boundsymbol,tempID))
 
 
--- | Create a map from symbol to all its constructors.
+-- | Create a map from symbol to a list of its constructors.
 sliceConstructors :: [(TempID,[Declaration])] -> Map Symbol [Symbol]
 sliceConstructors fragmentNodes = Map.fromListWith (++) (do
     (_,declarations) <- fragmentNodes
@@ -81,7 +84,8 @@ sliceConstructors fragmentNodes = Map.fromListWith (++) (do
 
 -- | Create a dependency graph between all declarations in the given list. Dependency edges
 -- come primarily from when a declaration mentions a symbol another declaration binds. But also
--- from signatures, fixities and type and data family instances.
+-- from signatures, fixities and type and data family instances. The strongly conncected
+-- components of this graph are our compilation units.
 declarationGraph :: [Declaration] -> Gr Declaration Dependency
 declarationGraph declarations =
     insEdges (signatureedges ++ usedsymboledges ++ fixityEdges ++ familyInstanceEdges) (
@@ -136,10 +140,10 @@ fragmentSCCs graph = do
     return (sccnode,scclabels)
 
 
--- | Take a temporary environment, an instance map, a constructor map and a pair of a node and a fragment.
+-- | Take a temporary environment, a constructor map and a pair of a node and a fragment.
 -- Return a slice with a temporary ID that might contain references to temporary IDs.
 -- The nodes must have negative IDs starting from -1 to distinguish temporary from permanent
--- slice IDs.
+-- slice IDs. The resulting temporary slice does not have its required instances resolved.
 buildTempSlice :: Map Symbol TempID -> Map Symbol [Symbol] -> (TempID,[Declaration]) -> TempSlice
 buildTempSlice tempEnvironment constructorMap (node,declarations) =
     Slice tempID language fragments uses instances where
@@ -205,8 +209,9 @@ needsConstructors (Declaration _ _ _ _ mentionedSymbols) =
     any ((==(Name.Ident "coerce")) . symbolName . fst) mentionedSymbols
 
 
--- | Given a Map from type symbol to its constructor symbol and  a symbol
--- this functions returns a list of uses for the given symbols constructors.
+-- | Given a temporary environment and a Map from type symbol to its constructor
+-- symbol and a symbol this function finds the given symbol's constructors and
+-- returns a list of use references for them.
 -- We have two cases. If the given symbol is builtin and a newtype we return
 -- a constructor with the same name and a use of "CInt".
 -- If the given symbol is from a slice we look up its constructors and return
@@ -269,18 +274,18 @@ type TempID = Integer
 type TempSlice = Slice
 
 
--- | Build up a map from temporary ID to corresponding slice for better lookup.
-sliceMap :: [TempSlice] -> Map TempID TempSlice
-sliceMap tempSlices = Map.fromList (do
-    tempSlice@(Slice tempSliceID _ _ _ _) <- tempSlices
-    return (tempSliceID,tempSlice))
-
-
 -- | Associate every temporary ID with the final ID.
 sliceIDMap :: Map TempID TempSlice -> Map TempID SliceID
 sliceIDMap tempSliceMap = Map.fromList (do
     tempID <- Map.keys tempSliceMap
     return (tempID,computeHash tempSliceMap tempID))
+
+
+-- | Build up a map from temporary ID to corresponding slice for better lookup.
+sliceMap :: [TempSlice] -> Map TempID TempSlice
+sliceMap tempSlices = Map.fromList (do
+    tempSlice@(Slice tempSliceID _ _ _ _) <- tempSlices
+    return (tempSliceID,tempSlice))
 
 
 -- | Build a Map from class symbol to list of its instances.
@@ -311,31 +316,46 @@ typeInstances fragmentNodes = Map.fromListWith (++) (do
     return (typeSymbol,[tempID]))
 
 
--- | Find and add instance IDs for relevant instance to a given temporary
--- slice.
+-- | Find and add instance IDs for relevant instances to a given temporary
+-- slice. An instance is relevant for a slice if the slice somewhere
+-- transitively mentions both the instance's class and the instance's type.
+-- We have to be careful with builtin classes: for them we have to add an
+-- instance even if only the type is mentioned.
 addInstances ::
+    Map Symbol TempID ->
     Map Symbol [InstanceID] ->
     Map Symbol [InstanceID] ->
     Map TempID [Symbol] ->
     TempSlice -> TempSlice
-addInstances classInstanceMap typeInstanceMap transitivelyMentionsMap (Slice tempID language fragment tempUses _) =
+addInstances sliceBindingsMap classInstanceMap typeInstanceMap transitivelyMentionsMap (Slice tempID language fragment tempUses _) =
     Slice tempID language fragment tempUses instances where
-        instances = intersect mentionedClassInstances mentionedTypeInstances
+
+        instances = intersect mentionedOrBuiltinClassInstances mentionedTypeInstances
+
+        mentionedOrBuiltinClassInstances = union mentionedClassInstances builtinClassInstances
+
         mentionedClassInstances = do
             mentionedClass <- mentionedClasses
             concat (maybeToList (Map.lookup mentionedClass classInstanceMap))
+        builtinClassInstances = do
+            (classSymbol,instanceIDs) <- Map.toList classInstanceMap
+            guard (not (Map.member classSymbol sliceBindingsMap))
+            instanceIDs
+
         mentionedTypeInstances = do
             mentionedType <- mentionedTypes
             concat (maybeToList (Map.lookup mentionedType typeInstanceMap))
+
         mentionedClasses = filter isClass mentionedSymbols
         mentionedTypes = filter isType mentionedSymbols
+
         mentionedSymbols = fromJust (Map.lookup tempID transitivelyMentionsMap)
 
 
--- | Given a Map from temporary ID to list of mentioned symbols and a Map from
--- temporary ID to corresponding temporary slice build a Map from temporary ID
--- to list of all symbols that the corresponding slice or any of the slices it
--- uses mentions.
+-- | Given a list of fragment nodes and a Map from temporary ID to temporary slice
+-- builds a Map from temporary ID to list of all transitively bound or mentioned
+-- symbols. We need this to determin which instances are relevant for a given
+-- temporary slice.
 transitivelyBindsOrMentions :: [(TempID,[Declaration])] -> Map TempID TempSlice -> Map TempID [Symbol]
 transitivelyBindsOrMentions fragmentNodes tempSliceMap = Map.fromListWith (++) (do
     let bindsMap = Map.fromListWith (++) (do
@@ -362,7 +382,7 @@ transitivelyUsedTempIDs tempSliceMap tempID =
     execState (transitivelyUsedTempIDsStatefully tempSliceMap tempID) []
 
 
--- | Statefully recurse over used temporary IDs and add the to a list.
+-- | Statefully recurse over used temporary IDs and add them to a list.
 transitivelyUsedTempIDsStatefully :: Map TempID TempSlice -> TempID -> State [TempID] ()
 transitivelyUsedTempIDsStatefully tempSliceMap tempID = do
     seenTempIDs <- get
