@@ -330,9 +330,9 @@ addInstances ::
 addInstances sliceBindingsMap classInstanceMap typeInstanceMap transitivelyMentionsMap (Slice tempID language fragment tempUses _) =
     Slice tempID language fragment tempUses instances where
 
-        instances = intersect mentionedOrBuiltinClassInstances mentionedTypeInstances
-
-        mentionedOrBuiltinClassInstances = union mentionedClassInstances builtinClassInstances
+        instances = intersect
+            (union mentionedClassInstances builtinClassInstances)
+            (union mentionedTypeInstances builtinTypeInstances)
 
         mentionedClassInstances = do
             mentionedClass <- mentionedClasses
@@ -345,6 +345,10 @@ addInstances sliceBindingsMap classInstanceMap typeInstanceMap transitivelyMenti
         mentionedTypeInstances = do
             mentionedType <- mentionedTypes
             concat (maybeToList (Map.lookup mentionedType typeInstanceMap))
+        builtinTypeInstances = do
+            (typeSymbol,instanceIDs) <- Map.toList typeInstanceMap
+            guard (not (Map.member typeSymbol sliceBindingsMap))
+            instanceIDs
 
         mentionedClasses = filter isClass mentionedSymbols
         mentionedTypes = filter isType mentionedSymbols
