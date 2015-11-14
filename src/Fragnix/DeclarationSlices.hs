@@ -31,6 +31,9 @@ import Data.Char (isDigit)
 import Data.Map (Map)
 import qualified Data.Map as Map (
     lookup,fromList,fromListWith,toList,(!),map,keys,member)
+import Data.Set (Set)
+import qualified Data.Set as Set (
+    fromList, union, intersection, toList)
 import Data.Maybe (maybeToList,fromJust)
 import Data.Hashable (hash)
 import Data.List (nub,(\\),intersect,union)
@@ -330,25 +333,25 @@ addInstances ::
 addInstances sliceBindingsMap classInstanceMap typeInstanceMap transitivelyMentionsMap (Slice tempID language fragment tempUses _) =
     Slice tempID language fragment tempUses instances where
 
-        instances = intersect
-            (union mentionedClassInstances builtinClassInstances)
-            (union mentionedTypeInstances builtinTypeInstances)
+        instances = Set.toList (Set.intersection
+            (Set.union mentionedClassInstances builtinClassInstances)
+            (Set.union mentionedTypeInstances builtinTypeInstances))
 
-        mentionedClassInstances = do
+        mentionedClassInstances = Set.fromList (do
             mentionedClass <- mentionedClasses
-            concat (maybeToList (Map.lookup mentionedClass classInstanceMap))
-        builtinClassInstances = do
+            concat (maybeToList (Map.lookup mentionedClass classInstanceMap)))
+        builtinClassInstances = Set.fromList (do
             (classSymbol,instanceIDs) <- Map.toList classInstanceMap
             guard (not (Map.member classSymbol sliceBindingsMap))
-            instanceIDs
+            instanceIDs)
 
-        mentionedTypeInstances = do
+        mentionedTypeInstances = Set.fromList (do
             mentionedType <- mentionedTypes
-            concat (maybeToList (Map.lookup mentionedType typeInstanceMap))
-        builtinTypeInstances = do
+            concat (maybeToList (Map.lookup mentionedType typeInstanceMap)))
+        builtinTypeInstances = Set.fromList (do
             (typeSymbol,instanceIDs) <- Map.toList typeInstanceMap
             guard (not (Map.member typeSymbol sliceBindingsMap))
-            instanceIDs
+            instanceIDs)
 
         mentionedClasses = filter isClass mentionedSymbols
         mentionedTypes = filter isType mentionedSymbols
