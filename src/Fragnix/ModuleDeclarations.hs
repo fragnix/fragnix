@@ -68,7 +68,7 @@ moduleDeclarationsWithEnvironment environment modules = declarations where
         Declaration genre _ ast boundsymbols mentionedsymbols <- extractDeclarations annotatedModule
         return (Declaration genre (moduleExtensions ++ globalExtensions) ast boundsymbols mentionedsymbols)
     environment' = resolve modules environment
-    annotatedModules = map (annotate environment) modules
+    annotatedModules = map (annotate environment') modules
 
 
 moduleNameErrors :: Environment -> [Module SrcSpan] -> [Error SrcSpan]
