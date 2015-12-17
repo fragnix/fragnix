@@ -1,10 +1,9 @@
 module Fragnix.SliceSymbols where
 
 import Fragnix.Slice (SliceID)
-import Fragnix.Environment (Environment)
 
 import Language.Haskell.Names (
-    Symbol(symbolName,symbolModule))
+    Environment, Symbol(symbolName,symbolModule))
 import Language.Haskell.Exts (
     ModuleName(ModuleName),Name(Ident))
 

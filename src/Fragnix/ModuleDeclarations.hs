@@ -4,7 +4,6 @@ module Fragnix.ModuleDeclarations where
 import Fragnix.Declaration (
     Declaration(Declaration),Genre(..))
 import Fragnix.Environment (
-    Environment,
     loadEnvironment,environmentPath,builtinEnvironmentPath)
 
 import qualified Language.Haskell.Exts as UnAnn (
@@ -20,9 +19,9 @@ import Language.Haskell.Exts.Annotated (
 import Language.Haskell.Exts.Annotated.Simplify (
     sModuleName)
 import Language.Haskell.Names (
-    Symbol,Error,Scoped(Scoped),
-    computeInterfaces,annotateModule,
-    NameInfo(GlobalSymbol,RecPatWildcard))
+    resolve,annotate,
+    Environment,Symbol,Error,Scoped(Scoped),
+    NameInfo(GlobalSymbol,RecPatWildcard,ScopeError))
 import Language.Haskell.Names.SyntaxUtils (
     getModuleDecls,getModuleName,getModuleExtensions)
 import Language.Haskell.Names.ModuleSymbols (
@@ -68,17 +67,23 @@ moduleDeclarationsWithEnvironment environment modules = declarations where
         let (_,moduleExtensions) = getModuleExtensions annotatedModule
         Declaration genre _ ast boundsymbols mentionedsymbols <- extractDeclarations annotatedModule
         return (Declaration genre (moduleExtensions ++ globalExtensions) ast boundsymbols mentionedsymbols)
-    annotatedModules = flip evalState environment (do
-        resolve modules
-        forM modules annotate)
+    environment' = resolve modules environment
+    annotatedModules = map (annotate environment) modules
+
 
 moduleNameErrors :: Environment -> [Module SrcSpan] -> [Error SrcSpan]
-moduleNameErrors environment modules = Set.toList (flip evalState environment (resolve modules))
+moduleNameErrors environment modules = errors where
+    errors = do
+        Scoped (ScopeError errorInfo) _ <- concatMap toList annotatedModules
+        return errorInfo
+    annotatedModules = map (annotate environment') modules
+    environment' = resolve modules environment
+
 
 -- | Get the exports of the given modules resolved against the given environment.
 moduleSymbols :: Environment -> [Module SrcSpan] -> Environment
 moduleSymbols environment modules = Map.fromList (do
-    let environment' = execState (resolve modules) environment
+    let environment' = resolve modules environment
     moduleName <- map (sModuleName . getModuleName) modules
     return (moduleName,environment' Map.! moduleName))
 
@@ -107,14 +112,6 @@ stripRoles = unlines . map replaceRoleLine . lines where
         | "type role" `isPrefixOf` line = ""
         | otherwise = line
 
-resolve :: [Module SrcSpan] -> State Environment (Set (Error SrcSpan))
-resolve asts = runFragnixModule (computeInterfaces language globalExtensions asts)
-
-annotate :: Module SrcSpan -> State Environment (Module (Scoped SrcSpan))
-annotate ast = runFragnixModule (annotateModule language globalExtensions ast)
-
-language :: Language
-language = Haskell2010
 
 globalExtensions :: [Extension]
 globalExtensions = [
@@ -179,15 +176,3 @@ scopeSymbol (Scoped (GlobalSymbol symbol (UnAnn.UnQual _)) _) = [(symbol,Nothing
 scopeSymbol (Scoped (RecPatWildcard symbols) _) = map (\symbol -> (symbol,Nothing)) symbols
 scopeSymbol _ = []
 
-newtype FragnixModule a = FragnixModule {runFragnixModule :: State (Map UnAnn.ModuleName [Symbol]) a}
-    deriving (Functor,Monad,Applicative)
-
-instance MonadModule FragnixModule where
-    type ModuleInfo FragnixModule = [Symbol]
-    lookupInCache name = FragnixModule (do
-        let modulname = UnAnn.ModuleName (modToString name)
-        gets (Map.lookup modulname))
-    insertInCache name symbols = FragnixModule (do
-        modify (Map.insert (UnAnn.ModuleName (modToString name)) symbols))
-    getPackages = return []
-    readModuleInfo = error "Not implemented: readModuleInfo"

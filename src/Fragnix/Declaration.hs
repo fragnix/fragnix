@@ -3,7 +3,6 @@ module Fragnix.Declaration where
 
 import Language.Haskell.Exts.Annotated (Extension)
 import Language.Haskell.Names (Symbol)
-import Language.Haskell.Names.Interfaces ()
 import Language.Haskell.Exts (ModuleName(ModuleName),prettyPrint)
 
 import Data.Aeson (

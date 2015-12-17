@@ -37,7 +37,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
 import qualified Data.Map as Map(fromList,lookup)
 import Control.Monad (forM,forM_,unless)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe, isJust)
 import Data.List (partition)
 import Data.Char (isDigit)
 
@@ -109,11 +109,11 @@ useImport (Use maybeQualification usedName symbolSource) =
     let moduleName = case symbolSource of
             OtherSlice sliceID -> ModuleName (sliceModuleName sliceID)
             Builtin originalModule -> ModuleName (unpack originalModule)
-        qualified = maybe False (const True) maybeQualification
+        qualified = isJust maybeQualification
         maybeAlias = fmap (ModuleName . unpack) maybeQualification
         importSpec = case usedName of
-            ValueName name -> [IVar NoNamespace (toName name)]
-            TypeName name -> [IAbs (toName name)]
+            ValueName name -> [IVar (toName name)]
+            TypeName name -> [IAbs NoNamespace (toName name)]
             ConstructorName typeName name ->
                 [IThingWith (toName typeName) [ConName (toName name)]]
         toName (Identifier name) = Ident (unpack name)
@@ -132,10 +132,10 @@ instanceImport sliceID =
 -- | We export every type that we import in a data family instance slice
 dataFamilyInstanceExports :: [Decl] -> [ImportDecl] -> Maybe [ExportSpec]
 dataFamilyInstanceExports [DataInsDecl _ _ _ _ _] imports = Just (do
-    ImportDecl _ _ _ _ _ _ _ (Just (False,[IAbs typeName])) <- imports
+    ImportDecl _ _ _ _ _ _ _ (Just (False,[IAbs _ typeName])) <- imports
     return (EThingAll (UnQual typeName)))
 dataFamilyInstanceExports [GDataInsDecl _ _ _ _ _ _] imports = Just (do
-    ImportDecl _ _ _ _ _ _ _ (Just (False,[IAbs typeName])) <- imports
+    ImportDecl _ _ _ _ _ _ _ (Just (False,[IAbs _ typeName])) <- imports
     return (EThingAll (UnQual typeName)))
 dataFamilyInstanceExports _ _ = Nothing
 
