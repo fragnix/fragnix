@@ -31,12 +31,9 @@ import Data.Char (isDigit)
 import Data.Map (Map)
 import qualified Data.Map as Map (
     lookup,fromList,fromListWith,toList,(!),map,keys,member)
-import Data.Set (Set)
-import qualified Data.Set as Set (
-    fromList, unions, intersection, toList)
-import Data.Maybe (maybeToList,listToMaybe,fromJust)
+import Data.Maybe (maybeToList,fromJust)
 import Data.Hashable (hash)
-import Data.List (nub,(\\),intersect,union)
+import Data.List (nub,(\\),intersect)
 
 
 -- | Extract all slices from the given list of declarations. Also return a map
@@ -49,14 +46,15 @@ declarationSlices declarations = (slices,symbolSlices) where
     sliceBindingsMap = sliceBindings fragmentNodes
 
     constructorMap = sliceConstructors fragmentNodes
-    localSymbolInstancesMap = localSymbolInstances sliceBindingsMap fragmentNodes
-    externalSymbolInstancesMap = externalSymbolInstances sliceBindingsMap fragmentNodes
+    instanceClassMap = instanceClass sliceBindingsMap fragmentNodes
+    instanceTypeMap = instanceType sliceBindingsMap fragmentNodes
 
     tempSlicesWithoutInstances = map (buildTempSlice sliceBindingsMap constructorMap) fragmentNodes
     tempSliceMap = sliceMap tempSlicesWithoutInstances
-    transitivelyBindsOrMentionsMap = transitivelyBindsOrMentions fragmentNodes tempSliceMap
+    transitivelyUsesMap = transitivelyUses tempSliceMap
+
     tempSlices = map
-        (addInstances localSymbolInstancesMap externalSymbolInstancesMap transitivelyBindsOrMentionsMap)
+        (addInstances instanceClassMap instanceTypeMap transitivelyUsesMap)
         tempSlicesWithoutInstances
     tempSliceIDMap = sliceIDMap tempSliceMap
     slices = map (replaceSliceID ((Map.!) tempSliceIDMap)) tempSlices
@@ -292,116 +290,84 @@ sliceMap tempSlices = Map.fromList (do
     return (tempSliceID,tempSlice))
 
 
--- | Build a Map from each symbol to list of its instances.
--- The symbols can be class or type symbols. We only include instances in this
--- map where we have bind both the class and the type somewhere in our
--- fragments.
-localSymbolInstances :: Map Symbol TempID -> [(TempID,[Declaration])] -> Map Symbol [InstanceID]
-localSymbolInstances sliceBindingsMap fragmentNodes = Map.fromListWith (++) (do
+-- | Build a Map from each instance ID to the temp ID of the class it is of.
+instanceClass :: Map Symbol TempID -> [(TempID,[Declaration])] -> Map InstanceID TempID
+instanceClass sliceBindingsMap fragmentNodes = Map.fromList (do
 
-    (tempID,declarations) <- fragmentNodes
+    (instanceTempID,declarations) <- fragmentNodes
     declaration <- declarations
     guard (isInstance declaration)
     let Declaration _ _ _ _ mentionedsymbols = declaration
 
     classSymbol <- take 1 (reverse (filter isClass (map fst mentionedsymbols)))
-    typeSymbol <- take 1 (filter isType (map fst mentionedsymbols))
+    classTempID <- maybeToList (Map.lookup classSymbol sliceBindingsMap)
 
-    guard (Map.member classSymbol sliceBindingsMap)
-    guard (Map.member typeSymbol sliceBindingsMap)
-
-    [(classSymbol,[tempID]), (typeSymbol,[tempID])])
+    return (instanceTempID,classTempID))
 
 
--- | Build a map from each symbol to a list of its instances.
--- The symbols can be class or type symbols. We only include instances in this
--- map where we have only the class or the type in our fragments but not the other.
-externalSymbolInstances :: Map Symbol TempID -> [(TempID,[Declaration])] -> Map Symbol [InstanceID]
-externalSymbolInstances sliceBindingsMap fragmentNodes = Map.fromListWith (++) (do
+-- | Build a map from each instance ID to the tempID of the type it is for.
+instanceType :: Map Symbol TempID -> [(TempID,[Declaration])] -> Map InstanceID TempID
+instanceType sliceBindingsMap fragmentNodes = Map.fromList (do
 
-    (tempID,declarations) <- fragmentNodes
+    (instanceTempID,declarations) <- fragmentNodes
     declaration <- declarations
     guard (isInstance declaration)
     let Declaration _ _ _ _ mentionedsymbols = declaration
 
-    let maybeClassSymbol = listToMaybe (do
-            classSymbol <- reverse (filter isClass (map fst mentionedsymbols))
-            guard (Map.member classSymbol sliceBindingsMap)
-            return classSymbol)
-    let maybeTypeSymbol = listToMaybe (do
-            typeSymbol <- filter isType (map fst mentionedsymbols)
-            guard (Map.member typeSymbol sliceBindingsMap)
-            return typeSymbol)
+    typeSymbol <- take 1 (filter isType (map fst mentionedsymbols))
+    typeTempID <- maybeToList (Map.lookup typeSymbol sliceBindingsMap)
 
-    case maybeClassSymbol of
-        Nothing -> case maybeTypeSymbol of
-            Nothing -> []
-            Just typeSymbol -> return (typeSymbol,[tempID])
-        Just classSymbol -> case maybeTypeSymbol of
-            Nothing -> return (classSymbol,[tempID])
-            Just _ -> [])
+    return (instanceTempID,typeTempID))
 
 
 -- | Find and add instance IDs for relevant instances to a given temporary
 -- slice. An instance is relevant for a slice if the slice somewhere
--- transitively mentions both the instance's class and the instance's type.
+-- transitively uses both the instance's class and the instance's type.
 -- We have to be careful with instances where we only have either the class
--- or the type in our fragments. We call these external. For them we have
--- to add an instance even if only one part is mentioned.
+-- or the type in our fragments. For them we have to add an instance even
+-- if only one of the two is used.
 addInstances ::
-    Map Symbol [InstanceID] ->
-    Map Symbol [InstanceID] ->
-    Map TempID [Symbol] ->
+    Map InstanceID TempID ->
+    Map InstanceID TempID ->
+    Map TempID [TempID] ->
     TempSlice -> TempSlice
-addInstances localSymbolInstancesMap externalSymbolInstancesMap transitivelyMentionsMap (Slice tempID language fragment tempUses _) =
+addInstances instanceClassMap instanceTypeMap transitivelyUsesMap (Slice tempID language fragment tempUses _) =
     Slice tempID language fragment tempUses instances where
 
-        instances = Set.toList (Set.unions [
-            externalClassInstances,
-            externalTypeInstances,
-            Set.intersection mentionedClassInstances mentionedTypeInstances])
+        instances = concat [
+            intersect usedTypeInstances usedClassInstances,
+            intersect usedTypeInstances instancesWithNoClass,
+            intersect usedClassInstances instancesWithNoType]
 
-        mentionedClassInstances = Set.fromList (do
-            mentionedClass <- mentionedClasses
-            concat (maybeToList (Map.lookup mentionedClass localSymbolInstancesMap)))
-        externalClassInstances = Set.fromList (do
-            mentionedClass <- mentionedClasses
-            concat (maybeToList (Map.lookup mentionedClass externalSymbolInstancesMap)))
+        instancesWithNoClass = do
+            (instanceID,_) <- Map.toList instanceTypeMap
+            guard (not (Map.member instanceID instanceClassMap))
+            return instanceID
 
-        mentionedTypeInstances = Set.fromList (do
-            mentionedType <- mentionedTypes
-            concat (maybeToList (Map.lookup mentionedType localSymbolInstancesMap)))
-        externalTypeInstances = Set.fromList (do
-            mentionedType <- mentionedTypes
-            concat (maybeToList (Map.lookup mentionedType externalSymbolInstancesMap)))
+        instancesWithNoType = do
+            (instanceID,_) <- Map.toList instanceClassMap
+            guard (not (Map.member instanceID instanceTypeMap))
+            return instanceID
 
-        mentionedClasses = filter isClass mentionedSymbols
-        mentionedTypes = filter isType mentionedSymbols
+        usedClassInstances = do
+            (instanceID,classID) <- Map.toList instanceClassMap
+            guard (elem classID usedTempIDs)
+            return instanceID
 
-        mentionedSymbols = fromJust (Map.lookup tempID transitivelyMentionsMap)
+        usedTypeInstances = do
+            (instanceID,typeID) <- Map.toList instanceTypeMap
+            guard (elem typeID usedTempIDs)
+            return instanceID
+
+        usedTempIDs = fromJust (Map.lookup tempID transitivelyUsesMap)
 
 
--- | Given a list of fragment nodes and a Map from temporary ID to temporary slice
--- builds a Map from temporary ID to list of all transitively bound or mentioned
--- symbols. We need this to determin which instances are relevant for a given
--- temporary slice.
-transitivelyBindsOrMentions :: [(TempID,[Declaration])] -> Map TempID TempSlice -> Map TempID [Symbol]
-transitivelyBindsOrMentions fragmentNodes tempSliceMap = Map.fromListWith (++) (do
-    let bindsMap = Map.fromListWith (++) (do
-            (tempID,declarations) <- fragmentNodes
-            Declaration _ _ _ boundSymbols _ <- declarations
-            return (tempID,boundSymbols))
-        mentionsMap = Map.fromListWith (++) (do
-            (tempID,declarations) <- fragmentNodes
-            Declaration _ _ _ _ mentionedSymbols <- declarations
-            return (tempID,map fst mentionedSymbols))
-    (tempID,_) <- fragmentNodes
-    let transitivelyBoundOrMentionedSymbols = do
-            usedTempID <- transitivelyUsedTempIDs tempSliceMap tempID
-            let boundSymbols = concat (maybeToList (Map.lookup usedTempID bindsMap))
-                mentionedSymbols = concat (maybeToList (Map.lookup usedTempID mentionsMap))
-            boundSymbols ++ mentionedSymbols
-    return (tempID,transitivelyBoundOrMentionedSymbols))
+-- | Build a Map from temporary ID to a list of all temporary IDs
+-- that the key transitively uses.
+transitivelyUses :: Map TempID TempSlice -> Map TempID [TempID]
+transitivelyUses tempSliceMap = Map.fromList (do
+    tempID <- Map.keys tempSliceMap
+    return (tempID,transitivelyUsedTempIDs tempSliceMap tempID))
 
 
 -- | Given a Map from temporary ID to corresponding slice and a temporary ID
