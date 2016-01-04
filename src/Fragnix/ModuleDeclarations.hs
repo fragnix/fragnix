@@ -7,14 +7,14 @@ import Fragnix.Environment (
     loadEnvironment,environmentPath,builtinEnvironmentPath)
 
 import qualified Language.Haskell.Exts as UnAnn (
-    QName(Qual,UnQual),ModuleName(ModuleName))
+    QName(Qual,UnQual),ModuleName)
 import Language.Haskell.Exts.Annotated (
     Module,ModuleName,Decl(..),
     parseFileContentsWithMode,defaultParseMode,ParseMode(..),baseFixities,
     ParseResult(ParseOk,ParseFailed),
     SrcSpan,srcInfoSpan,SrcLoc(SrcLoc),
     prettyPrint,
-    Language(Haskell2010),Extension(EnableExtension),
+    Extension(EnableExtension),
     KnownExtension(..))
 import Language.Haskell.Exts.Annotated.Simplify (
     sModuleName)
@@ -28,20 +28,11 @@ import Language.Haskell.Names.ModuleSymbols (
     getTopDeclSymbols)
 import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (
     empty)
-import Distribution.HaskellSuite.Modules (
-    MonadModule(..),ModuleInfo,modToString)
 
 
-import Data.Set (Set)
-import qualified Data.Set as Set (
-    toList)
-import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map (
-    lookup,insert,union,(!),fromList)
-import Control.Monad.Trans.State.Strict (
-    State,execState,evalState,gets,modify)
+    union,(!),fromList)
 import Control.Monad (forM)
-import Control.Applicative (Applicative)
 import Data.Maybe (mapMaybe)
 import Data.Text (pack)
 import Data.Foldable (toList)
