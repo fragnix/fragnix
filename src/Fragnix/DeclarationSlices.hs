@@ -30,8 +30,8 @@ import Data.Text (pack)
 import Data.Char (isDigit)
 import Data.Map (Map)
 import qualified Data.Map as Map (
-    lookup,fromList,fromListWith,toList,(!),map,keys,member)
-import Data.Maybe (maybeToList,fromJust)
+    lookup,fromList,fromListWith,(!),map,keys)
+import Data.Maybe (maybeToList,listToMaybe,fromJust)
 import Data.Hashable (hash)
 import Data.List (nub,(\\),intersect)
 
@@ -46,15 +46,16 @@ declarationSlices declarations = (slices,symbolSlices) where
     sliceBindingsMap = sliceBindings fragmentNodes
 
     constructorMap = sliceConstructors fragmentNodes
-    instanceClassMap = instanceClass sliceBindingsMap fragmentNodes
-    instanceTypeMap = instanceType sliceBindingsMap fragmentNodes
+    instanceTempIDList = instanceTempIDs sliceBindingsMap fragmentNodes
 
-    tempSlicesWithoutInstances = map (buildTempSlice sliceBindingsMap constructorMap) fragmentNodes
+    tempSlicesWithoutInstances = map
+        (buildTempSlice sliceBindingsMap constructorMap)
+        fragmentNodes
     tempSliceMap = sliceMap tempSlicesWithoutInstances
     transitivelyUsesMap = transitivelyUses tempSliceMap
 
     tempSlices = map
-        (addInstances instanceClassMap instanceTypeMap transitivelyUsesMap)
+        (addInstances instanceTempIDList transitivelyUsesMap)
         tempSlicesWithoutInstances
     tempSliceIDMap = sliceIDMap tempSliceMap
     slices = map (replaceSliceID ((Map.!) tempSliceIDMap)) tempSlices
@@ -290,34 +291,44 @@ sliceMap tempSlices = Map.fromList (do
     return (tempSliceID,tempSlice))
 
 
--- | Build a Map from each instance ID to the temp ID of the class it is of.
-instanceClass :: Map Symbol TempID -> [(TempID,[Declaration])] -> Map InstanceID TempID
-instanceClass sliceBindingsMap fragmentNodes = Map.fromList (do
+
+-- | Given a map from symbol to ID of the slice that binds that symbol and
+-- a list of pairs of a temporaty ID and a framgent. Produces a list of triples
+-- of an instance ID and maybe a the ID of a class and maybe the ID of a type.
+-- If the class or type of the instance are not in the list of fragments there
+-- is not class or type ID.
+instanceTempIDs ::
+    Map Symbol TempID ->
+    [(TempID,[Declaration])] ->
+    [(InstanceID,Maybe TempID,Maybe TempID)]
+instanceTempIDs sliceBindingsMap fragmentNodes = do
+    (instanceID,maybeClassSymbol,maybeTypeSymbol) <- instanceSymbols fragmentNodes
+    let maybeClassTempID = case maybeClassSymbol of
+            Nothing -> Nothing
+            Just classSymbol -> Map.lookup classSymbol sliceBindingsMap
+        maybeTypeTempID = case maybeTypeSymbol of
+            Nothing -> Nothing
+            Just typeSymbol -> Map.lookup typeSymbol sliceBindingsMap
+    return (instanceID,maybeClassTempID,maybeTypeTempID)
+
+
+-- | A list of triples of the instance, its class symbol and its type symbol.
+-- For builtin types like '(,)' we cannot provide a symbol and have to return
+-- 'Nothing'.
+instanceSymbols :: [(TempID,[Declaration])] -> [(InstanceID,Maybe Symbol,Maybe Symbol)]
+instanceSymbols fragmentNodes = do
 
     (instanceTempID,declarations) <- fragmentNodes
     declaration <- declarations
     guard (isInstance declaration)
     let Declaration _ _ _ _ mentionedsymbols = declaration
 
-    classSymbol <- take 1 (reverse (filter isClass (map fst mentionedsymbols)))
-    classTempID <- maybeToList (Map.lookup classSymbol sliceBindingsMap)
+    let maybeClassSymbol =
+            listToMaybe (reverse (filter isClass (map fst mentionedsymbols)))
+        maybeTypeSymbol =
+            listToMaybe (filter isType (map fst mentionedsymbols))
 
-    return (instanceTempID,classTempID))
-
-
--- | Build a map from each instance ID to the tempID of the type it is for.
-instanceType :: Map Symbol TempID -> [(TempID,[Declaration])] -> Map InstanceID TempID
-instanceType sliceBindingsMap fragmentNodes = Map.fromList (do
-
-    (instanceTempID,declarations) <- fragmentNodes
-    declaration <- declarations
-    guard (isInstance declaration)
-    let Declaration _ _ _ _ mentionedsymbols = declaration
-
-    typeSymbol <- take 1 (filter isType (map fst mentionedsymbols))
-    typeTempID <- maybeToList (Map.lookup typeSymbol sliceBindingsMap)
-
-    return (instanceTempID,typeTempID))
+    return (instanceTempID,maybeClassSymbol,maybeTypeSymbol)
 
 
 -- | Find and add instance IDs for relevant instances to a given temporary
@@ -327,11 +338,10 @@ instanceType sliceBindingsMap fragmentNodes = Map.fromList (do
 -- or the type in our fragments. For them we have to add an instance even
 -- if only one of the two is used.
 addInstances ::
-    Map InstanceID TempID ->
-    Map InstanceID TempID ->
+    [(InstanceID,Maybe TempID,Maybe TempID)] ->
     Map TempID [TempID] ->
     TempSlice -> TempSlice
-addInstances instanceClassMap instanceTypeMap transitivelyUsesMap (Slice tempID language fragment tempUses _) =
+addInstances instanceTempIDList transitivelyUsesMap (Slice tempID language fragment tempUses _) =
     Slice tempID language fragment tempUses instances where
 
         instances = concat [
@@ -340,22 +350,20 @@ addInstances instanceClassMap instanceTypeMap transitivelyUsesMap (Slice tempID 
             intersect usedClassInstances instancesWithNoType]
 
         instancesWithNoClass = do
-            (instanceID,_) <- Map.toList instanceTypeMap
-            guard (not (Map.member instanceID instanceClassMap))
+            (instanceID,Nothing,_) <- instanceTempIDList
             return instanceID
 
         instancesWithNoType = do
-            (instanceID,_) <- Map.toList instanceClassMap
-            guard (not (Map.member instanceID instanceTypeMap))
+            (instanceID,_,Nothing) <- instanceTempIDList
             return instanceID
 
         usedClassInstances = do
-            (instanceID,classID) <- Map.toList instanceClassMap
+            (instanceID,Just classID,_) <- instanceTempIDList
             guard (elem classID usedTempIDs)
             return instanceID
 
         usedTypeInstances = do
-            (instanceID,typeID) <- Map.toList instanceTypeMap
+            (instanceID,_,Just typeID) <- instanceTempIDList
             guard (elem typeID usedTempIDs)
             return instanceID
 
