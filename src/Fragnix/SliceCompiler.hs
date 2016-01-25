@@ -33,13 +33,13 @@ import System.Process (rawSystem)
 import System.Exit (ExitCode)
 import Control.Exception (SomeException,catch,evaluate)
 
-import Control.Monad.Trans.State.Strict (StateT, execStateT, get, put)
+import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put,State,execState)
 import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
-import qualified Data.Map as Map(fromList,lookup)
+import qualified Data.Map as Map(fromList,lookup,(!))
 import Control.Monad (forM,forM_,unless)
-import Data.Maybe (mapMaybe, isJust)
-import Data.List (partition)
+import Data.Maybe (mapMaybe, isJust, maybeToList)
+import Data.List (partition,nub)
 import Data.Char (isDigit)
 
 
@@ -70,24 +70,27 @@ writeSliceModules :: SliceID -> IO ()
 writeSliceModules sliceID = do
     createDirectoryIfMissing True sliceModuleDirectory
     (slices, instances) <- loadSlicesTransitive sliceID
-    let sliceModules = map sliceModule slices
+    let sliceModules = map (sliceModule usedInstancesMap) slices
         sliceHSBoots = map bootModule sliceModules
-        instanceSliceModules = map sliceModule instances
+        instanceSliceModules = map (sliceModule usedInstancesMap) instances
         instanceSliceHSBoots = map bootInstanceModule instanceSliceModules
+        usedInstancesMap = usedInstances (slices ++ instances)
     forM_ (sliceModules ++ instanceSliceModules) writeModule
     forM_ (sliceHSBoots ++ instanceSliceHSBoots) writeHSBoot
 
 
 -- | Given a slice generate the corresponding module.
-sliceModule :: Slice -> Module
-sliceModule slice@(Slice sliceID language fragment uses _) =
+sliceModule :: Map SliceID [InstanceID] -> Slice -> Module
+sliceModule usedInstancesMap (Slice sliceID language fragment uses _) =
     let Fragment declarations = fragment
         decls = map (parseDeclaration sliceID ghcextensions) declarations
         moduleName = ModuleName (sliceModuleName sliceID)
         Language ghcextensions _ = language
         languagepragmas = [Ident "NoImplicitPrelude"] ++ (map (Ident . unpack) ghcextensions)
         pragmas = [LanguagePragma noLoc languagepragmas]
-        imports = map useImport uses ++ map instanceImport (sliceInstanceIDs slice)
+        imports =
+            map useImport uses ++
+            map instanceImport (usedInstancesMap Map.! sliceID)
         -- We need an export list to export the data family even
         -- though a slice only contains the data family instance
         exports = dataFamilyInstanceExports decls imports
@@ -206,6 +209,48 @@ bootDecl (DataInsDecl _ _ _ _ _) =
 bootDecl (GDataInsDecl _ _ _ _ _ _) =
     []
 bootDecl decl = [decl]
+
+
+-- | Given a list of slices, find for each slice the list of instances
+-- it transitively uses and put it into a 'Map' for easy lookup.
+usedInstances :: [Slice] -> Map SliceID [InstanceID]
+usedInstances slices = Map.fromList (do
+    let sliceMap = Map.fromList (do
+            slice@(Slice sliceID _ _ _ _) <- slices
+            return (sliceID,slice))
+    Slice sliceID _ _ _ _ <- slices
+    let instanceIDs = nub (do
+            usedSliceID <- transitivelyUsedSlices sliceMap sliceID
+            Slice _ _ _ _ instances <- maybeToList (Map.lookup usedSliceID sliceMap)
+            let classInstanceIDs = do
+                    ClassInstance instanceID <- instances
+                    return instanceID
+            let typeInstanceIDs = do
+                    TypeInstance instanceID <- instances
+                    return instanceID
+            classInstanceIDs ++ typeInstanceIDs)
+    return (sliceID,instanceIDs))
+
+
+-- | Takes a 'Map' from slice ID to Slice and a slice ID. Returns the list of
+-- slices the slice with the given slice ID transitively uses.
+transitivelyUsedSlices :: Map SliceID Slice -> SliceID -> [SliceID]
+transitivelyUsedSlices sliceMap sliceID =
+    execState (transitivelyUsedSlicesStatefully sliceMap sliceID) []
+
+
+-- | Finds the list of transitively used slices. Statefully keeps the list of
+-- already visited slices in a list.
+transitivelyUsedSlicesStatefully :: Map SliceID Slice -> SliceID -> State [SliceID] ()
+transitivelyUsedSlicesStatefully sliceMap sliceID = do
+    seenSliceIDs <- get
+    unless (elem sliceID seenSliceIDs) (do
+        put (sliceID : seenSliceIDs)
+        let usedSliceIDs = do
+                Slice _ _ _ uses _ <- maybeToList (Map.lookup sliceID sliceMap)
+                Use _ _ (OtherSlice usedSliceID) <- uses
+                return usedSliceID
+        forM_ usedSliceIDs (transitivelyUsedSlicesStatefully sliceMap))
 
 
 -- | Directory for generated modules
