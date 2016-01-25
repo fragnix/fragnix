@@ -4,6 +4,7 @@ import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Use(Use),
     Reference(OtherSlice,Builtin),
     UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
+    InstanceID,Instance(ClassInstance,TypeInstance),
     readSliceDefault)
 
 import Prelude hiding (writeFile)
@@ -79,14 +80,14 @@ writeSliceModules sliceID = do
 
 -- | Given a slice generate the corresponding module.
 sliceModule :: Slice -> Module
-sliceModule (Slice sliceID language fragment uses instances) =
+sliceModule slice@(Slice sliceID language fragment uses _) =
     let Fragment declarations = fragment
         decls = map (parseDeclaration sliceID ghcextensions) declarations
         moduleName = ModuleName (sliceModuleName sliceID)
         Language ghcextensions _ = language
         languagepragmas = [Ident "NoImplicitPrelude"] ++ (map (Ident . unpack) ghcextensions)
         pragmas = [LanguagePragma noLoc languagepragmas]
-        imports = map useImport uses ++ map instanceImport instances
+        imports = map useImport uses ++ map instanceImport (sliceInstanceIDs slice)
         -- We need an export list to export the data family even
         -- though a slice only contains the data family instance
         exports = dataFamilyInstanceExports decls imports
@@ -307,16 +308,20 @@ loadSliceIDsStateful sliceID = do
         put (sliceID : seenSliceIDs)
         slice <- liftIO (readSliceDefault sliceID)
         let recursiveSliceIDs = usedSlices slice
-            recursiveInstanceSliceIDs = instanceSlices slice
+            recursiveInstanceSliceIDs = sliceInstanceIDs slice
         forM_ recursiveSliceIDs loadSliceIDsStateful
         forM_ recursiveInstanceSliceIDs loadSliceIDsStateful)
-    
+
 
 usedSlices :: Slice -> [SliceID]
 usedSlices (Slice _ _ _ uses _) = [sliceID | Use _ _ (OtherSlice sliceID) <- uses]
 
-instanceSlices :: Slice -> [SliceID]
-instanceSlices (Slice _ _ _ _ instances) = instances
+sliceInstanceIDs :: Slice -> [InstanceID]
+sliceInstanceIDs (Slice _ _ _ _ instances) = do
+    instanc <- instances
+    case instanc of
+        ClassInstance instanceID -> return instanceID
+        TypeInstance instanceID -> return instanceID
 
 isInstance :: Slice -> Bool
 isInstance (Slice _ (Language _ True) _ _ _) = True

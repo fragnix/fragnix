@@ -23,7 +23,7 @@ data Genre =
     TypeSignature |
     Type |
     TypeClass |
-    ClassInstance |
+    TypeClassInstance |
     InfixFixity |
     DerivingInstance |
     FamilyInstance |

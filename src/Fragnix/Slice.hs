@@ -22,7 +22,7 @@ import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>),dropFileName)
 import System.Directory (createDirectoryIfMissing)
 
-data Slice = Slice SliceID Language Fragment [Use] [InstanceID]
+data Slice = Slice SliceID Language Fragment [Use] [Instance]
 
 data Language = Language [GHCExtension] IsInstance
 
@@ -30,6 +30,9 @@ data Fragment = Fragment [SourceCode]
 
 data Use = Use (Maybe Qualification) UsedName Reference
 
+data Instance =
+    ClassInstance InstanceID |
+    TypeInstance InstanceID
 type InstanceID = SliceID
 
 data Reference = OtherSlice SliceID | Builtin OriginalModule
@@ -183,6 +186,26 @@ instance FromJSON Name where
         Operator <$> o .: "operator")
 
 instance Hashable Name
+
+
+-- Instance instances
+
+deriving instance Show Instance
+deriving instance Eq Instance
+deriving instance Ord Instance
+deriving instance Generic Instance
+
+instance ToJSON Instance where
+    toJSON (ClassInstance instanceID) = object ["classInstance" .= instanceID]
+    toJSON (TypeInstance instanceID) = object ["typeInstance" .= instanceID]
+
+instance FromJSON Instance where
+    parseJSON = withObject "instance" (\o ->
+        ClassInstance <$> o .: "classInstance" <|>
+        TypeInstance <$> o .: "typeInstance")
+
+instance Hashable Instance
+
 
 -- Slice parse errors
 

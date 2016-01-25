@@ -3,11 +3,11 @@ module Fragnix.DeclarationSlices where
 
 import Fragnix.Declaration (
     Declaration(Declaration),
-    Genre(TypeSignature,ClassInstance,InfixFixity,DerivingInstance,FamilyInstance,ForeignImport))
+    Genre(TypeSignature,TypeClassInstance,InfixFixity,DerivingInstance,FamilyInstance,ForeignImport))
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
     Use(Use),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Builtin),
-    InstanceID)
+    InstanceID,Instance(ClassInstance,TypeInstance))
 
 import Language.Haskell.Names (
     Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,TypeFam,DataFam,
@@ -24,8 +24,7 @@ import Data.Graph.Inductive (
 import Data.Graph.Inductive.PatriciaTree (
     Gr)
 
-import Control.Monad (guard, unless, forM_)
-import Control.Monad.Trans.State.Strict (State, execState, get, put)
+import Control.Monad (guard)
 import Data.Text (pack)
 import Data.Char (isDigit)
 import Data.Map (Map)
@@ -33,7 +32,7 @@ import qualified Data.Map as Map (
     lookup,fromList,fromListWith,(!),map,keys)
 import Data.Maybe (maybeToList,listToMaybe,fromJust)
 import Data.Hashable (hash)
-import Data.List (nub,(\\),intersect)
+import Data.List (nub,(\\))
 
 
 -- | Extract all slices from the given list of declarations. Also return a map
@@ -52,10 +51,9 @@ declarationSlices declarations = (slices,symbolSlices) where
         (buildTempSlice sliceBindingsMap constructorMap)
         fragmentNodes
     tempSliceMap = sliceMap tempSlicesWithoutInstances
-    transitivelyUsesMap = transitivelyUses tempSliceMap
 
     tempSlices = map
-        (addInstances instanceTempIDList transitivelyUsesMap)
+        (addInstances instanceTempIDList)
         tempSlicesWithoutInstances
     tempSliceIDMap = sliceIDMap tempSliceMap
     slices = map (replaceSliceID ((Map.!) tempSliceIDMap)) tempSlices
@@ -291,7 +289,6 @@ sliceMap tempSlices = Map.fromList (do
     return (tempSliceID,tempSlice))
 
 
-
 -- | Given a map from symbol to ID of the slice that binds that symbol and
 -- a list of pairs of a temporaty ID and a framgent. Produces a list of triples
 -- of an instance ID and maybe a the ID of a class and maybe the ID of a type.
@@ -331,71 +328,26 @@ instanceSymbols fragmentNodes = do
     return (instanceTempID,maybeClassSymbol,maybeTypeSymbol)
 
 
--- | Find and add instance IDs for relevant instances to a given temporary
--- slice. An instance is relevant for a slice if the slice somewhere
--- transitively uses both the instance's class and the instance's type.
--- We have to be careful with instances where we only have either the class
--- or the type in our fragments. For them we have to add an instance even
--- if only one of the two is used.
+-- | Find and add instance IDs to a temporary slice. We filter the given list
+-- of triples of instance temporary ID, class temporary ID and type temporary ID
+-- for class or type matches.
 addInstances ::
     [(InstanceID,Maybe TempID,Maybe TempID)] ->
-    Map TempID [TempID] ->
     TempSlice -> TempSlice
-addInstances instanceTempIDList transitivelyUsesMap (Slice tempID language fragment tempUses _) =
+addInstances instanceTempIDList (Slice tempID language fragment tempUses _) =
     Slice tempID language fragment tempUses instances where
 
-        instances = concat [
-            intersect usedTypeInstances usedClassInstances,
-            intersect usedTypeInstances instancesWithNoClass,
-            intersect usedClassInstances instancesWithNoType]
+        instances = classInstances ++ typeInstances
 
-        instancesWithNoClass = do
-            (instanceID,Nothing,_) <- instanceTempIDList
-            return instanceID
+        classInstances = do
+            (classInstanceID,Just classTempID,_) <- instanceTempIDList
+            guard (tempID == classTempID)
+            return (ClassInstance classInstanceID)
 
-        instancesWithNoType = do
-            (instanceID,_,Nothing) <- instanceTempIDList
-            return instanceID
-
-        usedClassInstances = do
-            (instanceID,Just classID,_) <- instanceTempIDList
-            guard (elem classID usedTempIDs)
-            return instanceID
-
-        usedTypeInstances = do
-            (instanceID,_,Just typeID) <- instanceTempIDList
-            guard (elem typeID usedTempIDs)
-            return instanceID
-
-        usedTempIDs = fromJust (Map.lookup tempID transitivelyUsesMap)
-
-
--- | Build a Map from temporary ID to a list of all temporary IDs
--- that the key transitively uses.
-transitivelyUses :: Map TempID TempSlice -> Map TempID [TempID]
-transitivelyUses tempSliceMap = Map.fromList (do
-    tempID <- Map.keys tempSliceMap
-    return (tempID,transitivelyUsedTempIDs tempSliceMap tempID))
-
-
--- | Given a Map from temporary ID to corresponding slice and a temporary ID
--- find all transitively used temporary IDs.
-transitivelyUsedTempIDs :: Map TempID TempSlice -> TempID -> [TempID]
-transitivelyUsedTempIDs tempSliceMap tempID =
-    execState (transitivelyUsedTempIDsStatefully tempSliceMap tempID) []
-
-
--- | Statefully recurse over used temporary IDs and add them to a list.
-transitivelyUsedTempIDsStatefully :: Map TempID TempSlice -> TempID -> State [TempID] ()
-transitivelyUsedTempIDsStatefully tempSliceMap tempID = do
-    seenTempIDs <- get
-    unless (elem tempID seenTempIDs) (do
-        put (tempID : seenTempIDs)
-        let usedTempIDs = do
-                Slice _ _ _ uses _ <- maybeToList (Map.lookup tempID tempSliceMap)
-                Use _ _ (OtherSlice usedTempID) <- uses
-                return usedTempID
-        forM_ usedTempIDs (transitivelyUsedTempIDsStatefully tempSliceMap))
+        typeInstances = do
+            (typeInstanceID,_,Just typeTempID) <- instanceTempIDList
+            guard (tempID == typeTempID)
+            return (TypeInstance typeInstanceID)
 
 
 -- | Hash the slice with the given temporary ID.
@@ -407,7 +359,11 @@ computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,uses,languag
 -- | Replace every occurence of a temporary ID in the given slice with the final ID.
 replaceSliceID :: (TempID -> SliceID) -> TempSlice -> Slice
 replaceSliceID f (Slice tempID language fragment uses instances) =
-    Slice (f tempID) language fragment (map (replaceUseID f) uses) (map f instances)
+    Slice (f tempID) language fragment (map (replaceUseID f) uses) (map (replaceInstanceID f) instances)
+
+replaceInstanceID :: (TempID -> SliceID) -> Instance -> Instance
+replaceInstanceID f (ClassInstance instanceID) = ClassInstance (f instanceID)
+replaceInstanceID f (TypeInstance instanceID) = TypeInstance (f instanceID)
 
 -- | Replace every occurence of a temporary ID in the given use with the final ID.
 -- A temporary as opposed to a slice ID is smaller than zero.
@@ -450,7 +406,7 @@ isFamily symbol = case symbol of
     _ -> False
 
 isInstance :: Declaration -> Bool
-isInstance (Declaration ClassInstance _ _ _ _) = True
+isInstance (Declaration TypeClassInstance _ _ _ _) = True
 isInstance (Declaration DerivingInstance _ _ _ _) = True
 isInstance _ = False
 
