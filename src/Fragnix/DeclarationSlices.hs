@@ -47,14 +47,11 @@ declarationSlices declarations = (slices,symbolSlices) where
     constructorMap = sliceConstructors fragmentNodes
     instanceTempIDList = instanceTempIDs sliceBindingsMap fragmentNodes
 
-    tempSlicesWithoutInstances = map
-        (buildTempSlice sliceBindingsMap constructorMap)
-        fragmentNodes
-    tempSliceMap = sliceMap tempSlicesWithoutInstances
-
     tempSlices = map
-        (addInstances instanceTempIDList)
-        tempSlicesWithoutInstances
+        (buildTempSlice sliceBindingsMap constructorMap instanceTempIDList)
+        fragmentNodes
+    tempSliceMap = sliceMap tempSlices
+
     tempSliceIDMap = sliceIDMap tempSliceMap
     slices = map (replaceSliceID ((Map.!) tempSliceIDMap)) tempSlices
     symbolSlices = Map.map (\tempID -> tempSliceIDMap Map.! tempID) sliceBindingsMap
@@ -144,8 +141,13 @@ fragmentSCCs graph = do
 -- Return a slice with a temporary ID that might contain references to temporary IDs.
 -- The nodes must have negative IDs starting from -1 to distinguish temporary from permanent
 -- slice IDs. The resulting temporary slice does not have its required instances resolved.
-buildTempSlice :: Map Symbol TempID -> Map Symbol [Symbol] -> (TempID,[Declaration]) -> TempSlice
-buildTempSlice tempEnvironment constructorMap (node,declarations) =
+buildTempSlice ::
+    Map Symbol TempID ->
+    Map Symbol [Symbol] ->
+    [(InstanceID,Maybe TempID,Maybe TempID)] ->
+    (TempID,[Declaration]) ->
+    TempSlice
+buildTempSlice tempEnvironment constructorMap instanceTempIDList (node,declarations) =
     Slice tempID language fragments uses instances where
         tempID = fromIntegral node
 
@@ -163,9 +165,6 @@ buildTempSlice tempEnvironment constructorMap (node,declarations) =
             return ast)
 
         uses = nub (mentionedUses ++ implicitConstructorUses)
-
-        -- Instances will be added later.
-        instances = []
 
         -- A use for every mentioned symbol
         mentionedUses = nub (do
@@ -196,6 +195,21 @@ buildTempSlice tempEnvironment constructorMap (node,declarations) =
             let Declaration _ _ _ _ mentionedSymbols = declaration
             mentionedSymbol <- map fst mentionedSymbols
             symbolConstructorUses tempEnvironment constructorMap mentionedSymbol
+
+        -- Add instances for this type or class.
+        instances = classInstances ++ typeInstances
+
+        classInstances = do
+            (classInstanceID,Just classTempID,_) <- instanceTempIDList
+            guard (tempID == classTempID)
+            return (ClassInstance classInstanceID)
+
+        typeInstances = do
+            (typeInstanceID,_,Just typeTempID) <- instanceTempIDList
+            guard (tempID == typeTempID)
+            return (TypeInstance typeInstanceID)
+
+
 
 
 -- | Some declarations implicitly require the constructors for all mentioned
@@ -328,28 +342,9 @@ instanceSymbols fragmentNodes = do
     return (instanceTempID,maybeClassSymbol,maybeTypeSymbol)
 
 
--- | Find and add instance IDs to a temporary slice. We filter the given list
--- of triples of instance temporary ID, class temporary ID and type temporary ID
--- for class or type matches.
-addInstances ::
-    [(InstanceID,Maybe TempID,Maybe TempID)] ->
-    TempSlice -> TempSlice
-addInstances instanceTempIDList (Slice tempID language fragment tempUses _) =
-    Slice tempID language fragment tempUses instances where
-
-        instances = classInstances ++ typeInstances
-
-        classInstances = do
-            (classInstanceID,Just classTempID,_) <- instanceTempIDList
-            guard (tempID == classTempID)
-            return (ClassInstance classInstanceID)
-
-        typeInstances = do
-            (typeInstanceID,_,Just typeTempID) <- instanceTempIDList
-            guard (tempID == typeTempID)
-            return (TypeInstance typeInstanceID)
-
-
+-- | Compute the hash of the slice with the given temporary ID.
+-- Decides if we have a regular slice or an instance slice. For
+-- instance slices we want to ignore all instances.
 computeHash ::  Map TempID TempSlice -> TempID -> SliceID
 computeHash tempSliceMap tempID = case Map.lookup tempID tempSliceMap of
     Just (Slice _ (Language _ False) _ _ _) ->
