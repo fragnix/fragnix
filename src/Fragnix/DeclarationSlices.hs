@@ -350,11 +350,36 @@ addInstances instanceTempIDList (Slice tempID language fragment tempUses _) =
             return (TypeInstance typeInstanceID)
 
 
+computeHash ::  Map TempID TempSlice -> TempID -> SliceID
+computeHash tempSliceMap tempID = case Map.lookup tempID tempSliceMap of
+    Just (Slice _ (Language _ False) _ _ _) ->
+        computeHashWithInstances tempSliceMap tempID
+    Just (Slice _ (Language _ True) _ _ _) ->
+        computeHashWithoutInstances tempSliceMap tempID
+    _ -> error "computeHash: TempSlice not found"
+
 -- | Hash the slice with the given temporary ID.
-computeHash :: Map TempID TempSlice -> TempID -> SliceID
-computeHash tempSliceMap tempID = abs (fromIntegral (hash (fragment,uses,language))) where
-    Just (Slice _ language fragment tempUses _) = Map.lookup tempID tempSliceMap
-    uses = map (replaceUseID (computeHash tempSliceMap)) tempUses
+-- Includes instances into the hash.
+computeHashWithInstances :: Map TempID TempSlice -> TempID -> SliceID
+computeHashWithInstances tempSliceMap tempID =
+    abs (fromIntegral (hash (fragment,uses,language,instances))) where
+        Just (Slice _ language fragment tempUses tempInstances) =
+            Map.lookup tempID tempSliceMap
+        uses =
+            map (replaceUseID (computeHashWithInstances tempSliceMap)) tempUses
+        instances =
+            map (replaceInstanceID (computeHashWithoutInstances tempSliceMap)) tempInstances
+
+
+-- | Hash the slice with the given temporary ID but ignore instances.
+computeHashWithoutInstances :: Map TempID TempSlice -> TempID -> SliceID
+computeHashWithoutInstances tempSliceMap tempID =
+    abs (fromIntegral (hash (fragment,uses,language))) where
+        Just (Slice _ language fragment tempUses _) =
+            Map.lookup tempID tempSliceMap
+        uses =
+            map (replaceUseID (computeHashWithoutInstances tempSliceMap)) tempUses
+
 
 -- | Replace every occurence of a temporary ID in the given slice with the final ID.
 replaceSliceID :: (TempID -> SliceID) -> TempSlice -> Slice
