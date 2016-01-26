@@ -281,28 +281,6 @@ moduleReference (ModuleName moduleName)
     | otherwise = Builtin (pack moduleName)
 
 
--- | A temporary ID before slices can be hashed.
-type TempID = Integer
-
--- | A Slice with a temporary ID that may use slices with
--- temporary IDs.
-type TempSlice = Slice
-
-
--- | Associate every temporary ID with the final ID.
-sliceIDMap :: Map TempID TempSlice -> Map TempID SliceID
-sliceIDMap tempSliceMap = Map.fromList (do
-    tempID <- Map.keys tempSliceMap
-    return (tempID,computeHash tempSliceMap tempID))
-
-
--- | Build up a map from temporary ID to corresponding slice for better lookup.
-sliceMap :: [TempSlice] -> Map TempID TempSlice
-sliceMap tempSlices = Map.fromList (do
-    tempSlice@(Slice tempSliceID _ _ _ _) <- tempSlices
-    return (tempSliceID,tempSlice))
-
-
 -- | Given a map from symbol to ID of the slice that binds that symbol and
 -- a list of pairs of a temporaty ID and a framgent. Produces a list of triples
 -- of an instance ID and maybe a the ID of a class and maybe the ID of a type.
@@ -342,28 +320,69 @@ instanceSymbols fragmentNodes = do
     return (instanceTempID,maybeClassSymbol,maybeTypeSymbol)
 
 
+
+-- | A temporary ID before slices can be hashed.
+type TempID = Integer
+
+-- | A temporary ID for instance slices.
+type InstanceTempID = Integer
+
+-- | A Slice with a temporary ID that may use slices with
+-- temporary IDs.
+type TempSlice = Slice
+
+
+-- | Build up a map from temporary ID to corresponding slice for better lookup.
+sliceMap :: [TempSlice] -> Map TempID TempSlice
+sliceMap tempSlices = Map.fromList (do
+    tempSlice@(Slice tempSliceID _ _ _ _) <- tempSlices
+    return (tempSliceID,tempSlice))
+
+
+-- | Associate every temporary ID with the final ID.
+-- As an intermediate step we cache the slice IDs as computed without
+-- taking instances into account.
+sliceIDMap :: Map TempID TempSlice -> Map TempID SliceID
+sliceIDMap tempSliceMap = Map.fromList (do
+    let instanceIDMap = Map.fromList (do
+            tempID <- Map.keys tempSliceMap
+            return (tempID,computeHashWithoutInstances tempSliceMap tempID))
+    tempID <- Map.keys tempSliceMap
+    return (tempID,computeHash tempSliceMap instanceIDMap tempID))
+
+
 -- | Compute the hash of the slice with the given temporary ID.
--- Decides if we have a regular slice or an instance slice. For
--- instance slices we want to ignore all instances.
-computeHash ::  Map TempID TempSlice -> TempID -> SliceID
-computeHash tempSliceMap tempID = case Map.lookup tempID tempSliceMap of
+-- Decides depending on if we have a regular slice or an instance slice if
+-- we want to include instances in the hash.
+-- When we do not want to take instances into account we look the instance ID up
+-- in the given instance ID Map.
+computeHash ::  Map TempID TempSlice -> Map InstanceTempID InstanceID -> TempID -> SliceID
+computeHash tempSliceMap instanceIDMap tempID = case Map.lookup tempID tempSliceMap of
     Just (Slice _ (Language _ False) _ _ _) ->
-        computeHashWithInstances tempSliceMap tempID
+        computeHashWithInstances tempSliceMap instanceIDMap tempID
     Just (Slice _ (Language _ True) _ _ _) ->
-        computeHashWithoutInstances tempSliceMap tempID
+        case Map.lookup tempID instanceIDMap of
+            Nothing -> error "computeHash: instance temporary ID not found"
+            Just instanceID -> instanceID
     _ -> error "computeHash: TempSlice not found"
+
 
 -- | Hash the slice with the given temporary ID.
 -- Includes instances into the hash.
-computeHashWithInstances :: Map TempID TempSlice -> TempID -> SliceID
-computeHashWithInstances tempSliceMap tempID =
+-- If we encounter an instance we do not recurse. We look up the instance's
+-- ID in the given instance ID Map.
+computeHashWithInstances :: Map TempID TempSlice -> Map InstanceTempID InstanceID -> TempID -> SliceID
+computeHashWithInstances tempSliceMap instanceIDMap tempID =
     abs (fromIntegral (hash (fragment,uses,language,instances))) where
         Just (Slice _ language fragment tempUses tempInstances) =
             Map.lookup tempID tempSliceMap
         uses =
-            map (replaceUseID (computeHashWithInstances tempSliceMap)) tempUses
+            map (replaceUseID (computeHashWithInstances tempSliceMap instanceIDMap)) tempUses
         instances =
-            map (replaceInstanceID (computeHashWithoutInstances tempSliceMap)) tempInstances
+            map (replaceInstanceID lookupInstanceTempID) tempInstances
+        lookupInstanceTempID instanceTempID = case Map.lookup instanceTempID instanceIDMap of
+            Nothing -> error "computeHashWithInstances: instance temporary ID not found"
+            Just instanceID -> instanceID
 
 
 -- | Hash the slice with the given temporary ID but ignore instances.
