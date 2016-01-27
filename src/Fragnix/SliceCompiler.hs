@@ -429,5 +429,7 @@ roleAnnotations = Map.fromList [
     ("newtype Tagged s b = Tagged{unTagged :: b}",
         "type role Tagged phantom representational"),
     ("newtype Tagged2 (s :: * -> *) b = Tagged2{unTagged2 :: b}",
-        "type role Tagged2 phantom representational")]
+        "type role Tagged2 phantom representational"),
+    ("newtype Tagged (s :: * -> *) = Tagged{unTagged :: Int}",
+        "type role Tagged phantom")]
 
