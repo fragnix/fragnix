@@ -4,7 +4,8 @@ import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Use(Use),
     Reference(OtherSlice,Builtin),
     UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
-    InstanceID,Instance(ClassInstance,TypeInstance),
+    InstanceID,
+    Instance(ClassInstance,ClassInstanceBuiltinType,TypeInstance,TypeInstanceBuiltinClass),
     readSliceDefault)
 
 import Prelude hiding (writeFile)
@@ -39,7 +40,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map(fromList,lookup,(!))
 import Control.Monad (forM,forM_,unless)
 import Data.Maybe (mapMaybe, isJust, maybeToList)
-import Data.List (partition,nub)
+import Data.List (partition,nub,intersect,union)
 import Data.Char (isDigit)
 
 
@@ -70,11 +71,11 @@ writeSliceModules :: SliceID -> IO ()
 writeSliceModules sliceID = do
     createDirectoryIfMissing True sliceModuleDirectory
     (slices, instances) <- loadSlicesTransitive sliceID
-    let sliceModules = map (sliceModule usedInstancesMap) slices
+    let sliceModules = map (sliceModule relevantInstancesMap) slices
         sliceHSBoots = map bootModule sliceModules
-        instanceSliceModules = map (sliceModule usedInstancesMap) instances
+        instanceSliceModules = map (sliceModule relevantInstancesMap) instances
         instanceSliceHSBoots = map bootInstanceModule instanceSliceModules
-        usedInstancesMap = usedInstances (slices ++ instances)
+        relevantInstancesMap = relevantInstances (slices ++ instances)
     forM_ (sliceModules ++ instanceSliceModules) writeModule
     forM_ (sliceHSBoots ++ instanceSliceHSBoots) writeHSBoot
 
@@ -211,24 +212,37 @@ bootDecl (GDataInsDecl _ _ _ _ _ _) =
 bootDecl decl = [decl]
 
 
--- | Given a list of slices, find for each slice the list of instances
--- it transitively uses and put it into a 'Map' for easy lookup.
-usedInstances :: [Slice] -> Map SliceID [InstanceID]
-usedInstances slices = Map.fromList (do
+-- | Given a list of slices, find for each slice the list of relevant
+-- instances. An instance is relevant for a slice if one of the
+-- following three conditions holds:
+--     * The slice uses the instances class and type
+--     * The slice uses the instances class and the type is builtin
+--     * The slice uses the instances type and the class is builtin
+relevantInstances :: [Slice] -> Map SliceID [InstanceID]
+relevantInstances slices = Map.fromList (do
     let sliceMap = Map.fromList (do
             slice@(Slice sliceID _ _ _ _) <- slices
             return (sliceID,slice))
     Slice sliceID _ _ _ _ <- slices
-    let instanceIDs = nub (do
+    let usedInstances = do
             usedSliceID <- transitivelyUsedSlices sliceMap sliceID
             Slice _ _ _ _ instances <- maybeToList (Map.lookup usedSliceID sliceMap)
-            let classInstanceIDs = do
-                    ClassInstance instanceID <- instances
-                    return instanceID
-            let typeInstanceIDs = do
-                    TypeInstance instanceID <- instances
-                    return instanceID
-            classInstanceIDs ++ typeInstanceIDs)
+            instances
+        usedClassInstanceIDs = do
+            ClassInstance instanceID <- usedInstances
+            return instanceID
+        usedClassInstanceBuiltinTypeIDs = do
+            ClassInstanceBuiltinType instanceID <- usedInstances
+            return instanceID
+        usedTypeInstanceIDs = do
+            TypeInstance instanceID <- usedInstances
+            return instanceID
+        usedTypeInstanceBuiltinClassIDs = do
+            TypeInstanceBuiltinClass instanceID <- usedInstances
+            return instanceID
+        instanceIDs = nub (union
+            (union usedClassInstanceBuiltinTypeIDs usedTypeInstanceBuiltinClassIDs)
+            (intersect usedClassInstanceIDs usedTypeInstanceIDs))
     return (sliceID,instanceIDs))
 
 
@@ -366,7 +380,9 @@ sliceInstanceIDs (Slice _ _ _ _ instances) = do
     instanc <- instances
     case instanc of
         ClassInstance instanceID -> return instanceID
+        ClassInstanceBuiltinType instanceID -> return instanceID
         TypeInstance instanceID -> return instanceID
+        TypeInstanceBuiltinClass instanceID -> return instanceID
 
 isInstance :: Slice -> Bool
 isInstance (Slice _ (Language _ True) _ _ _) = True

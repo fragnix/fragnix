@@ -32,7 +32,10 @@ data Use = Use (Maybe Qualification) UsedName Reference
 
 data Instance =
     ClassInstance InstanceID |
-    TypeInstance InstanceID
+    ClassInstanceBuiltinType InstanceID |
+    TypeInstance InstanceID |
+    TypeInstanceBuiltinClass InstanceID
+
 type InstanceID = SliceID
 
 data Reference = OtherSlice SliceID | Builtin OriginalModule
@@ -196,13 +199,21 @@ deriving instance Ord Instance
 deriving instance Generic Instance
 
 instance ToJSON Instance where
-    toJSON (ClassInstance instanceID) = object ["classInstance" .= instanceID]
-    toJSON (TypeInstance instanceID) = object ["typeInstance" .= instanceID]
+    toJSON (ClassInstance instanceID) =
+        object ["classInstance" .= instanceID]
+    toJSON (ClassInstanceBuiltinType instanceID) =
+        object ["classInstanceBuiltinType" .= instanceID]
+    toJSON (TypeInstance instanceID) =
+        object ["typeInstance" .= instanceID]
+    toJSON (TypeInstanceBuiltinClass instanceID) =
+        object ["typeInstanceBuiltinClass" .= instanceID]
 
 instance FromJSON Instance where
     parseJSON = withObject "instance" (\o ->
         ClassInstance <$> o .: "classInstance" <|>
-        TypeInstance <$> o .: "typeInstance")
+        ClassInstanceBuiltinType <$> o .: "classInstanceBuiltinType" <|>
+        TypeInstance <$> o .: "typeInstance" <|>
+        TypeInstanceBuiltinClass <$> o .: "typeInstanceBuiltinClass")
 
 instance Hashable Instance
 

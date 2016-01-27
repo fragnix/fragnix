@@ -7,7 +7,8 @@ import Fragnix.Declaration (
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
     Use(Use),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Builtin),
-    InstanceID,Instance(ClassInstance,TypeInstance))
+    InstanceID,
+    Instance(ClassInstance,ClassInstanceBuiltinType,TypeInstance,TypeInstanceBuiltinClass))
 
 import Language.Haskell.Names (
     Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,TypeFam,DataFam,
@@ -199,16 +200,23 @@ buildTempSlice tempEnvironment constructorMap instanceTempIDList (node,declarati
         -- Add instances for this type or class.
         instances = classInstances ++ typeInstances
 
+        -- Class instances are instance slices that have this slice as their class
+        -- Some may be for builtin types
         classInstances = do
-            (classInstanceID,Just classTempID,_) <- instanceTempIDList
+            (classInstanceID,Just classTempID,maybeTypeTempID) <- instanceTempIDList
             guard (tempID == classTempID)
-            return (ClassInstance classInstanceID)
+            case maybeTypeTempID of
+                Nothing -> return (ClassInstanceBuiltinType classInstanceID)
+                Just _ -> return (ClassInstance classInstanceID)
 
+        -- Type instances are instance slices that have this slice as their type
+        -- Some may be of builtin classes
         typeInstances = do
-            (typeInstanceID,_,Just typeTempID) <- instanceTempIDList
+            (typeInstanceID,maybeClassTempID,Just typeTempID) <- instanceTempIDList
             guard (tempID == typeTempID)
-            return (TypeInstance typeInstanceID)
-
+            case maybeClassTempID of
+                Nothing -> return (TypeInstanceBuiltinClass typeInstanceID)
+                Just _ -> return (TypeInstance typeInstanceID)
 
 
 
@@ -285,7 +293,8 @@ moduleReference (ModuleName moduleName)
 -- a list of pairs of a temporaty ID and a framgent. Produces a list of triples
 -- of an instance ID and maybe a the ID of a class and maybe the ID of a type.
 -- If the class or type of the instance are not in the list of fragments there
--- is not class or type ID.
+-- is no class or type ID. This means they are either builtin or in a preexisting
+-- slice.
 instanceTempIDs ::
     Map Symbol TempID ->
     [(TempID,[Declaration])] ->
@@ -401,8 +410,14 @@ replaceSliceID f (Slice tempID language fragment uses instances) =
     Slice (f tempID) language fragment (map (replaceUseID f) uses) (map (replaceInstanceID f) instances)
 
 replaceInstanceID :: (TempID -> SliceID) -> Instance -> Instance
-replaceInstanceID f (ClassInstance instanceID) = ClassInstance (f instanceID)
-replaceInstanceID f (TypeInstance instanceID) = TypeInstance (f instanceID)
+replaceInstanceID f (ClassInstance instanceID) =
+    ClassInstance (f instanceID)
+replaceInstanceID f (ClassInstanceBuiltinType instanceID) =
+    ClassInstanceBuiltinType (f instanceID)
+replaceInstanceID f (TypeInstance instanceID) =
+    TypeInstance (f instanceID)
+replaceInstanceID f (TypeInstanceBuiltinClass instanceID) =
+    TypeInstanceBuiltinClass (f instanceID)
 
 -- | Replace every occurence of a temporary ID in the given use with the final ID.
 -- A temporary as opposed to a slice ID is smaller than zero.
