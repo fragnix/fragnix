@@ -36,7 +36,7 @@ import Control.Monad (forM)
 import Data.Maybe (mapMaybe)
 import Data.Text (pack)
 import Data.Foldable (toList)
-import Data.List (nub,isPrefixOf)
+import Data.List (isPrefixOf)
 
 
 -- | Given a list of filepaths to valid Haskell modules produces a list of all
@@ -158,7 +158,7 @@ declaredSymbols modulnameast annotatedast = getTopDeclSymbols GlobalTable.empty 
 -- another newtype they also have an implicitly dependency on it. This inner
 -- newtype is usually 'CInt'. As a hack we just add it.
 mentionedSymbols :: Decl (Scoped SrcSpan) -> [(Symbol,Maybe UnAnn.ModuleName)]
-mentionedSymbols decl = nub (concatMap scopeSymbol (toList decl))
+mentionedSymbols decl = concatMap scopeSymbol (toList decl)
 
 -- | Get all references to global symbols from the given scope annotation.
 scopeSymbol :: Scoped SrcSpan -> [(Symbol,Maybe UnAnn.ModuleName)]
