@@ -5,7 +5,7 @@ import Prelude hiding (writeFile,readFile)
 
 import Data.Aeson (
     ToJSON(toJSON),object,(.=),
-    FromJSON(parseJSON),withObject,(.:),
+    FromJSON(parseJSON),withObject,(.:),withText,
     encode,eitherDecode)
 
 import GHC.Generics (Generic)
@@ -13,7 +13,7 @@ import Data.Hashable (Hashable)
 
 import Data.Text (Text)
 
-import Control.Applicative ((<$>),(<*>),(<|>))
+import Control.Applicative ((<$>),(<*>),(<|>),empty)
 
 import Control.Exception (Exception,throwIO)
 import Data.Typeable(Typeable)
@@ -30,11 +30,13 @@ data Fragment = Fragment [SourceCode]
 
 data Use = Use (Maybe Qualification) UsedName Reference
 
-data Instance =
-    ClassInstance InstanceID |
-    ClassInstanceBuiltinType InstanceID |
-    TypeInstance InstanceID |
-    TypeInstanceBuiltinClass InstanceID
+data Instance = Instance InstancePart InstanceID
+
+data InstancePart =
+    OfClass |
+    OfClassForBuiltinType |
+    ForType |
+    ForTypeOfBuiltinClass
 
 type InstanceID = SliceID
 
@@ -199,24 +201,38 @@ deriving instance Ord Instance
 deriving instance Generic Instance
 
 instance ToJSON Instance where
-    toJSON (ClassInstance instanceID) =
-        object ["classInstance" .= instanceID]
-    toJSON (ClassInstanceBuiltinType instanceID) =
-        object ["classInstanceBuiltinType" .= instanceID]
-    toJSON (TypeInstance instanceID) =
-        object ["typeInstance" .= instanceID]
-    toJSON (TypeInstanceBuiltinClass instanceID) =
-        object ["typeInstanceBuiltinClass" .= instanceID]
+    toJSON (Instance instancePart instanceID) =
+        object ["instancePart" .= instancePart,"instanceID" .= instanceID]
 
 instance FromJSON Instance where
     parseJSON = withObject "instance" (\o ->
-        ClassInstance <$> o .: "classInstance" <|>
-        ClassInstanceBuiltinType <$> o .: "classInstanceBuiltinType" <|>
-        TypeInstance <$> o .: "typeInstance" <|>
-        TypeInstanceBuiltinClass <$> o .: "typeInstanceBuiltinClass")
+        Instance <$> o .: "instancePart" <*> o .: "instanceID")
 
 instance Hashable Instance
 
+
+-- InstancePart instances
+
+deriving instance Show InstancePart
+deriving instance Eq InstancePart
+deriving instance Ord InstancePart
+deriving instance Generic InstancePart
+
+instance ToJSON InstancePart where
+    toJSON OfClass = toJSON ("OfClass" :: Text)
+    toJSON OfClassForBuiltinType = toJSON ("OfClassForBuiltinType" :: Text)
+    toJSON ForType = toJSON ("ForType" :: Text)
+    toJSON ForTypeOfBuiltinClass = toJSON ("ForTypeOfBuiltinClass" :: Text)
+
+instance FromJSON InstancePart where
+    parseJSON = withText "instancePart" (\s -> case s of
+        "OfClass" -> return OfClass
+        "OfClassForBuiltinType" -> return OfClassForBuiltinType
+        "ForType" -> return ForType
+        "ForTypeOfBuiltinClass" -> return ForTypeOfBuiltinClass
+        _ -> empty)
+
+instance Hashable InstancePart
 
 -- Slice parse errors
 

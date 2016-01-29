@@ -4,8 +4,8 @@ import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Use(Use),
     Reference(OtherSlice,Builtin),
     UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
-    InstanceID,
-    Instance(ClassInstance,ClassInstanceBuiltinType,TypeInstance,TypeInstanceBuiltinClass),
+    InstanceID,Instance(Instance),
+    InstancePart(OfClass,OfClassForBuiltinType,ForType,ForTypeOfBuiltinClass),
     readSliceDefault)
 
 import Prelude hiding (writeFile)
@@ -39,7 +39,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
 import qualified Data.Map as Map(fromList,lookup,(!))
 import Control.Monad (forM,forM_,unless)
-import Data.Maybe (mapMaybe, isJust, maybeToList)
+import Data.Maybe (mapMaybe, isJust, maybeToList, fromMaybe)
 import Data.List (partition,nub,intersect,union)
 import Data.Char (isDigit)
 
@@ -229,16 +229,16 @@ relevantInstances slices = Map.fromList (do
             Slice _ _ _ _ instances <- maybeToList (Map.lookup usedSliceID sliceMap)
             instances
         usedClassInstanceIDs = do
-            ClassInstance instanceID <- usedInstances
+            Instance OfClass instanceID <- usedInstances
             return instanceID
         usedClassInstanceBuiltinTypeIDs = do
-            ClassInstanceBuiltinType instanceID <- usedInstances
+            Instance OfClassForBuiltinType instanceID <- usedInstances
             return instanceID
         usedTypeInstanceIDs = do
-            TypeInstance instanceID <- usedInstances
+            Instance ForType instanceID <- usedInstances
             return instanceID
         usedTypeInstanceBuiltinClassIDs = do
-            TypeInstanceBuiltinClass instanceID <- usedInstances
+            Instance ForTypeOfBuiltinClass instanceID <- usedInstances
             return instanceID
         instanceIDs = nub (union
             (union usedClassInstanceBuiltinTypeIDs usedTypeInstanceBuiltinClassIDs)
@@ -260,11 +260,10 @@ transitivelyUsedSlicesStatefully sliceMap sliceID = do
     seenSliceIDs <- get
     unless (elem sliceID seenSliceIDs) (do
         put (sliceID : seenSliceIDs)
-        let usedSliceIDs = do
-                Slice _ _ _ uses _ <- maybeToList (Map.lookup sliceID sliceMap)
-                Use _ _ (OtherSlice usedSliceID) <- uses
-                return usedSliceID
-        forM_ usedSliceIDs (transitivelyUsedSlicesStatefully sliceMap))
+        let slice = fromMaybe sliceNotFoundError (Map.lookup sliceID sliceMap)
+            sliceNotFoundError = error "transitivelyUsedSlicesStatefully: slice not found"
+        forM_ (usedSliceIDs slice ++ sliceInstanceIDs slice) (
+            transitivelyUsedSlicesStatefully sliceMap))
 
 
 -- | Directory for generated modules
@@ -366,23 +365,21 @@ loadSliceIDsStateful sliceID = do
     unless (elem sliceID seenSliceIDs) (do
         put (sliceID : seenSliceIDs)
         slice <- liftIO (readSliceDefault sliceID)
-        let recursiveSliceIDs = usedSlices slice
+        let recursiveSliceIDs = usedSliceIDs slice
             recursiveInstanceSliceIDs = sliceInstanceIDs slice
         forM_ recursiveSliceIDs loadSliceIDsStateful
         forM_ recursiveInstanceSliceIDs loadSliceIDsStateful)
 
 
-usedSlices :: Slice -> [SliceID]
-usedSlices (Slice _ _ _ uses _) = [sliceID | Use _ _ (OtherSlice sliceID) <- uses]
+usedSliceIDs :: Slice -> [SliceID]
+usedSliceIDs (Slice _ _ _ uses _) = do
+    Use _ _ (OtherSlice sliceID) <- uses
+    return sliceID
 
 sliceInstanceIDs :: Slice -> [InstanceID]
 sliceInstanceIDs (Slice _ _ _ _ instances) = do
-    instanc <- instances
-    case instanc of
-        ClassInstance instanceID -> return instanceID
-        ClassInstanceBuiltinType instanceID -> return instanceID
-        TypeInstance instanceID -> return instanceID
-        TypeInstanceBuiltinClass instanceID -> return instanceID
+    Instance _ instanceID <- instances
+    return instanceID
 
 isInstance :: Slice -> Bool
 isInstance (Slice _ (Language _ True) _ _ _) = True

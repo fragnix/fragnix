@@ -56,8 +56,7 @@ moduleDeclarationsWithEnvironment environment modules = declarations where
     declarations = do
         annotatedModule <- annotatedModules
         let (_,moduleExtensions) = getModuleExtensions annotatedModule
-        Declaration genre _ ast boundsymbols mentionedsymbols <- extractDeclarations annotatedModule
-        return (Declaration genre (moduleExtensions ++ globalExtensions) ast boundsymbols mentionedsymbols)
+        extractDeclarations (moduleExtensions ++ globalExtensions) annotatedModule
     environment' = resolve modules environment
     annotatedModules = map (annotate environment') modules
 
@@ -111,19 +110,24 @@ globalExtensions = [
     EnableExtension ExplicitForAll,
     EnableExtension PatternGuards]
 
-extractDeclarations :: Module (Scoped SrcSpan) -> [Declaration]
-extractDeclarations annotatedast =
-    mapMaybe (declToDeclaration modulnameast) (getModuleDecls annotatedast) where
+extractDeclarations :: [Extension] -> Module (Scoped SrcSpan) -> [Declaration]
+extractDeclarations declarationExtensions annotatedast =
+    mapMaybe (declToDeclaration declarationExtensions modulnameast) (getModuleDecls annotatedast) where
         modulnameast = getModuleName annotatedast
 
-declToDeclaration :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> Maybe Declaration
-declToDeclaration modulnameast annotatedast = do
+-- | Make a 'Declaration' from a 'haskell-src-exts' 'Decl'.
+declToDeclaration ::
+    [Extension] ->
+    ModuleName (Scoped SrcSpan) ->
+    Decl (Scoped SrcSpan) ->
+    Maybe Declaration
+declToDeclaration declarationExtensions modulnameast annotatedast = do
     let genre = declGenre annotatedast
     case genre of
         Other -> Nothing
         _ -> return (Declaration
             genre
-            []
+            declarationExtensions
             (pack (prettyPrint annotatedast))
             (declaredSymbols modulnameast annotatedast)
             (mentionedSymbols annotatedast))
@@ -153,10 +157,7 @@ declaredSymbols :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> [Symb
 declaredSymbols modulnameast annotatedast = getTopDeclSymbols GlobalTable.empty modulnameast annotatedast
 
 -- | All symbols the given declaration mentions together with a qualifiaction
--- if they are used qualified. Foreign imports have an implicit dependency on
--- the constructors of all mentioned newtypes. If they are a newtype around
--- another newtype they also have an implicitly dependency on it. This inner
--- newtype is usually 'CInt'. As a hack we just add it.
+-- if they are used qualified.
 mentionedSymbols :: Decl (Scoped SrcSpan) -> [(Symbol,Maybe UnAnn.ModuleName)]
 mentionedSymbols decl = concatMap scopeSymbol (toList decl)
 

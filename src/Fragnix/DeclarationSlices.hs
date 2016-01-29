@@ -7,8 +7,8 @@ import Fragnix.Declaration (
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
     Use(Use),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Builtin),
-    InstanceID,
-    Instance(ClassInstance,ClassInstanceBuiltinType,TypeInstance,TypeInstanceBuiltinClass))
+    InstanceID,Instance(Instance),
+    InstancePart(OfClass,OfClassForBuiltinType,ForType,ForTypeOfBuiltinClass))
 
 import Language.Haskell.Names (
     Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,TypeFam,DataFam,
@@ -203,20 +203,20 @@ buildTempSlice tempEnvironment constructorMap instanceTempIDList (node,declarati
         -- Class instances are instance slices that have this slice as their class
         -- Some may be for builtin types
         classInstances = do
-            (classInstanceID,Just classTempID,maybeTypeTempID) <- instanceTempIDList
+            (instanceID,Just classTempID,maybeTypeTempID) <- instanceTempIDList
             guard (tempID == classTempID)
             case maybeTypeTempID of
-                Nothing -> return (ClassInstanceBuiltinType classInstanceID)
-                Just _ -> return (ClassInstance classInstanceID)
+                Nothing -> return (Instance OfClassForBuiltinType instanceID)
+                Just _ -> return (Instance OfClass instanceID)
 
         -- Type instances are instance slices that have this slice as their type
         -- Some may be of builtin classes
         typeInstances = do
-            (typeInstanceID,maybeClassTempID,Just typeTempID) <- instanceTempIDList
+            (instanceID,maybeClassTempID,Just typeTempID) <- instanceTempIDList
             guard (tempID == typeTempID)
             case maybeClassTempID of
-                Nothing -> return (TypeInstanceBuiltinClass typeInstanceID)
-                Just _ -> return (TypeInstance typeInstanceID)
+                Nothing -> return (Instance ForTypeOfBuiltinClass instanceID)
+                Just _ -> return (Instance ForType instanceID)
 
 
 
@@ -410,14 +410,8 @@ replaceSliceID f (Slice tempID language fragment uses instances) =
     Slice (f tempID) language fragment (map (replaceUseID f) uses) (map (replaceInstanceID f) instances)
 
 replaceInstanceID :: (TempID -> SliceID) -> Instance -> Instance
-replaceInstanceID f (ClassInstance instanceID) =
-    ClassInstance (f instanceID)
-replaceInstanceID f (ClassInstanceBuiltinType instanceID) =
-    ClassInstanceBuiltinType (f instanceID)
-replaceInstanceID f (TypeInstance instanceID) =
-    TypeInstance (f instanceID)
-replaceInstanceID f (TypeInstanceBuiltinClass instanceID) =
-    TypeInstanceBuiltinClass (f instanceID)
+replaceInstanceID f (Instance instancePart instanceID) =
+    Instance instancePart (f instanceID)
 
 -- | Replace every occurence of a temporary ID in the given use with the final ID.
 -- A temporary as opposed to a slice ID is smaller than zero.
