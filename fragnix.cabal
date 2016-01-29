@@ -43,7 +43,7 @@ executable fragnix
                        fgl >=5.4.2.4 && <5.6
   hs-source-dirs:      src
   default-language:    Haskell2010
-  ghc-options:         -O2 -auto-all
+  ghc-options:         -O2 -auto-all -threaded
 
 test-suite test
   main-is:             test.hs
@@ -74,7 +74,7 @@ test-suite test
                        tasty-golden >=2.2.2.4 && <2.4
   hs-source-dirs:      src
   default-language:    Haskell2010
-  ghc-options:         -O2 -Wall
+  ghc-options:         -O2 -Wall -auto-all
   type:                exitcode-stdio-1.0
 
 library
@@ -104,6 +104,7 @@ library
                        fgl >=5.4.2.4 && <5.6
   hs-source-dirs:      src
   default-language:    Haskell2010
+  ghc-options:         -Wall -auto-all
 
 executable package-modules
   main-is:             package-modules.hs

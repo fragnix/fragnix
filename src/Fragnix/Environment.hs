@@ -1,13 +1,10 @@
 module Fragnix.Environment where
 
-import Language.Haskell.Names (Symbol)
 import Language.Haskell.Names.Environment (
     Environment, readSymbols, writeSymbols)
 import Language.Haskell.Exts (
     ModuleName(ModuleName),prettyPrint)
 
-import Data.Map (
-    Map)
 import qualified Data.Map as Map (
     fromList,toList)
 import System.FilePath (

@@ -37,10 +37,11 @@ import Control.Exception (SomeException,catch,evaluate)
 import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put,State,execState)
 import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
-import qualified Data.Map as Map(fromList,lookup,(!))
+import qualified Data.Map as Map (fromList,lookup,(!))
+import qualified Data.Set as Set (fromList,union,intersection,toList)
 import Control.Monad (forM,forM_,unless)
 import Data.Maybe (mapMaybe, isJust, maybeToList, fromMaybe)
-import Data.List (partition,nub,intersect,union)
+import Data.List (partition)
 import Data.Char (isDigit)
 
 
@@ -82,7 +83,7 @@ writeSliceModules sliceID = do
 
 -- | Given a slice generate the corresponding module.
 sliceModule :: Map SliceID [InstanceID] -> Slice -> Module
-sliceModule usedInstancesMap (Slice sliceID language fragment uses _) =
+sliceModule relevantInstancesMap (Slice sliceID language fragment uses _) =
     let Fragment declarations = fragment
         decls = map (parseDeclaration sliceID ghcextensions) declarations
         moduleName = ModuleName (sliceModuleName sliceID)
@@ -91,7 +92,7 @@ sliceModule usedInstancesMap (Slice sliceID language fragment uses _) =
         pragmas = [LanguagePragma noLoc languagepragmas]
         imports =
             map useImport uses ++
-            map instanceImport (usedInstancesMap Map.! sliceID)
+            map instanceImport (relevantInstancesMap Map.! sliceID)
         -- We need an export list to export the data family even
         -- though a slice only contains the data family instance
         exports = dataFamilyInstanceExports decls imports
@@ -228,21 +229,21 @@ relevantInstances slices = Map.fromList (do
             usedSliceID <- transitivelyUsedSlices sliceMap sliceID
             Slice _ _ _ _ instances <- maybeToList (Map.lookup usedSliceID sliceMap)
             instances
-        usedClassInstanceIDs = do
+        usedClassInstanceIDs = Set.fromList (do
             Instance OfClass instanceID <- usedInstances
-            return instanceID
-        usedClassInstanceBuiltinTypeIDs = do
+            return instanceID)
+        usedClassInstanceBuiltinTypeIDs = Set.fromList (do
             Instance OfClassForBuiltinType instanceID <- usedInstances
-            return instanceID
-        usedTypeInstanceIDs = do
+            return instanceID)
+        usedTypeInstanceIDs = Set.fromList (do
             Instance ForType instanceID <- usedInstances
-            return instanceID
-        usedTypeInstanceBuiltinClassIDs = do
+            return instanceID)
+        usedTypeInstanceBuiltinClassIDs = Set.fromList (do
             Instance ForTypeOfBuiltinClass instanceID <- usedInstances
-            return instanceID
-        instanceIDs = nub (union
-            (union usedClassInstanceBuiltinTypeIDs usedTypeInstanceBuiltinClassIDs)
-            (intersect usedClassInstanceIDs usedTypeInstanceIDs))
+            return instanceID)
+        instanceIDs = Set.toList (Set.union
+            (Set.union usedClassInstanceBuiltinTypeIDs usedTypeInstanceBuiltinClassIDs)
+            (Set.intersection usedClassInstanceIDs usedTypeInstanceIDs))
     return (sliceID,instanceIDs))
 
 
