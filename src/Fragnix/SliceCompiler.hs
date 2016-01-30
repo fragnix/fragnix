@@ -38,7 +38,7 @@ import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put,State,execSta
 import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
 import qualified Data.Map as Map (
-    fromList,lookup,(!))
+    fromList,lookup,(!),keys)
 import Data.Set (Set)
 import qualified Data.Set as Set (
     fromList,union,intersection,unions,toList,map,filter)
@@ -238,27 +238,31 @@ sliceInstances slices = Map.fromList (do
 -- The last condition requires us to do a fixed point iteration.
 relevantInstances :: Map SliceID Slice -> SliceID -> [InstanceID]
 relevantInstances sliceMap sliceID =
-    relevantInstancesFixpoint sliceMap (usedInstances sliceMap sliceID)
-
+    relevantInstancesFixpoint usedInstancesMap sliceUsedInstances where
+        sliceUsedInstances = usedInstancesMap Map.! sliceID
+        usedInstancesMap = usedInstances sliceMap
 
 -- | Given a Map from slice ID to corresponding slice and a slice ID find the
 -- Set of instances of all transitively used classes and for all transitively
 -- used types.
-usedInstances :: Map SliceID Slice -> SliceID -> Set Instance
-usedInstances sliceMap sliceID = Set.fromList (do
-    usedSliceID <- transitivelyUsedSlices sliceMap sliceID
-    Slice _ _ _ _ instances <- maybeToList (Map.lookup usedSliceID sliceMap)
-    instances)
+usedInstances :: Map SliceID Slice -> Map SliceID (Set Instance)
+usedInstances sliceMap = Map.fromList (do
+    sliceID <- Map.keys sliceMap
+    let instanceSet = Set.fromList (do
+            usedSliceID <- transitivelyUsedSlices sliceMap sliceID
+            Slice _ _ _ _ instances <- maybeToList (Map.lookup usedSliceID sliceMap)
+            instances)
+    return (sliceID,instanceSet))
 
 
 -- | Iterate until fixpoint of the given set of instances. Find the list of
 -- relevant instance IDs. Add the set of instances of classes and types they
 -- transitively use. When the set of instances is stable we return the list
 -- of relevant instance IDs.
-relevantInstancesFixpoint :: Map SliceID Slice -> Set Instance -> [InstanceID]
-relevantInstancesFixpoint sliceMap instances
+relevantInstancesFixpoint :: Map SliceID (Set Instance) -> Set Instance -> [InstanceID]
+relevantInstancesFixpoint usedInstancesMap instances
     | instances == instances' = instanceIDs
-    | otherwise = relevantInstancesFixpoint sliceMap instances' where
+    | otherwise = relevantInstancesFixpoint usedInstancesMap instances' where
         instanceIDs = Set.toList (Set.union
             (Set.union
                (instancesPlayingPart OfClassForBuiltinType instances)
@@ -267,7 +271,8 @@ relevantInstancesFixpoint sliceMap instances
                (instancesPlayingPart OfClass instances)
                (instancesPlayingPart ForType instances)))
         instances' = Set.union instances additionalInstances
-        additionalInstances = Set.unions (map (usedInstances sliceMap) instanceIDs)
+        additionalInstances = Set.unions (map lookupUsedInstances instanceIDs)
+        lookupUsedInstances instanceID = usedInstancesMap Map.! instanceID
 
 
 -- | Given a set of instances find the set of instance IDs of all instances playing
