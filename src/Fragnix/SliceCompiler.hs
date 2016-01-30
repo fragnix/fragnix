@@ -37,8 +37,11 @@ import Control.Exception (SomeException,catch,evaluate)
 import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put,State,execState)
 import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
-import qualified Data.Map as Map (fromList,lookup,(!))
-import qualified Data.Set as Set (fromList,union,intersection,toList)
+import qualified Data.Map as Map (
+    fromList,lookup,(!))
+import Data.Set (Set)
+import qualified Data.Set as Set (
+    fromList,union,intersection,unions,toList,map,filter)
 import Control.Monad (forM,forM_,unless)
 import Data.Maybe (mapMaybe, isJust, maybeToList, fromMaybe)
 import Data.List (partition)
@@ -72,11 +75,11 @@ writeSliceModules :: SliceID -> IO ()
 writeSliceModules sliceID = do
     createDirectoryIfMissing True sliceModuleDirectory
     (slices, instances) <- loadSlicesTransitive sliceID
-    let sliceModules = map (sliceModule relevantInstancesMap) slices
+    let sliceModules = map (sliceModule sliceInstancesMap) slices
         sliceHSBoots = map bootModule sliceModules
-        instanceSliceModules = map (sliceModule relevantInstancesMap) instances
+        instanceSliceModules = map (sliceModule sliceInstancesMap) instances
         instanceSliceHSBoots = map bootInstanceModule instanceSliceModules
-        relevantInstancesMap = relevantInstances (slices ++ instances)
+        sliceInstancesMap = sliceInstances (slices ++ instances)
     forM_ (sliceModules ++ instanceSliceModules) writeModule
     forM_ (sliceHSBoots ++ instanceSliceHSBoots) writeHSBoot
 
@@ -214,37 +217,66 @@ bootDecl decl = [decl]
 
 
 -- | Given a list of slices, find for each slice the list of relevant
--- instances. An instance is relevant for a slice if one of the
--- following three conditions holds:
---     * The slice uses the instances class and type
---     * The slice uses the instances class and the type is builtin
---     * The slice uses the instances type and the class is builtin
-relevantInstances :: [Slice] -> Map SliceID [InstanceID]
-relevantInstances slices = Map.fromList (do
+-- instances and put it into a Map for easy lookup.
+sliceInstances :: [Slice] -> Map SliceID [InstanceID]
+sliceInstances slices = Map.fromList (do
     let sliceMap = Map.fromList (do
             slice@(Slice sliceID _ _ _ _) <- slices
             return (sliceID,slice))
     Slice sliceID _ _ _ _ <- slices
-    let usedInstances = do
-            usedSliceID <- transitivelyUsedSlices sliceMap sliceID
-            Slice _ _ _ _ instances <- maybeToList (Map.lookup usedSliceID sliceMap)
-            instances
-        usedClassInstanceIDs = Set.fromList (do
-            Instance OfClass instanceID <- usedInstances
-            return instanceID)
-        usedClassInstanceBuiltinTypeIDs = Set.fromList (do
-            Instance OfClassForBuiltinType instanceID <- usedInstances
-            return instanceID)
-        usedTypeInstanceIDs = Set.fromList (do
-            Instance ForType instanceID <- usedInstances
-            return instanceID)
-        usedTypeInstanceBuiltinClassIDs = Set.fromList (do
-            Instance ForTypeOfBuiltinClass instanceID <- usedInstances
-            return instanceID)
+    return (sliceID,relevantInstances sliceMap sliceID))
+
+-- | Given a map from slice ID to corresponding slice and a slice ID find
+-- the list of relevant (i.e. needed for compilation of that slice) instances.
+-- An instance is relevant for a slice if one of the
+-- following four conditions holds:
+--     * The slice transitively uses the instance's class and type
+--     * The slice transitively uses the instance's class and the type is builtin
+--     * The slice transitively uses the instance's type and the class is builtin
+--     * The slices that a relevant instance uses make one of the previous
+--       conditions true.
+-- The last condition requires us to do a fixed point iteration.
+relevantInstances :: Map SliceID Slice -> SliceID -> [InstanceID]
+relevantInstances sliceMap sliceID =
+    relevantInstancesFixpoint sliceMap (usedInstances sliceMap sliceID)
+
+
+-- | Given a Map from slice ID to corresponding slice and a slice ID find the
+-- Set of instances of all transitively used classes and for all transitively
+-- used types.
+usedInstances :: Map SliceID Slice -> SliceID -> Set Instance
+usedInstances sliceMap sliceID = Set.fromList (do
+    usedSliceID <- transitivelyUsedSlices sliceMap sliceID
+    Slice _ _ _ _ instances <- maybeToList (Map.lookup usedSliceID sliceMap)
+    instances)
+
+
+-- | Iterate until fixpoint of the given set of instances. Find the list of
+-- relevant instance IDs. Add the set of instances of classes and types they
+-- transitively use. When the set of instances is stable we return the list
+-- of relevant instance IDs.
+relevantInstancesFixpoint :: Map SliceID Slice -> Set Instance -> [InstanceID]
+relevantInstancesFixpoint sliceMap instances
+    | instances == instances' = instanceIDs
+    | otherwise = relevantInstancesFixpoint sliceMap instances' where
         instanceIDs = Set.toList (Set.union
-            (Set.union usedClassInstanceBuiltinTypeIDs usedTypeInstanceBuiltinClassIDs)
-            (Set.intersection usedClassInstanceIDs usedTypeInstanceIDs))
-    return (sliceID,instanceIDs))
+            (Set.union
+               (instancesPlayingPart OfClassForBuiltinType instances)
+               (instancesPlayingPart ForTypeOfBuiltinClass instances))
+            (Set.intersection
+               (instancesPlayingPart OfClass instances)
+               (instancesPlayingPart ForType instances)))
+        instances' = Set.union instances additionalInstances
+        additionalInstances = Set.unions (map (usedInstances sliceMap) instanceIDs)
+
+
+-- | Given a set of instances find the set of instance IDs of all instances playing
+-- the given part.
+instancesPlayingPart :: InstancePart -> Set Instance -> Set InstanceID
+instancesPlayingPart desiredInstancePart =
+    Set.map getInstanceID . Set.filter playsDesiredInstancePart where
+        playsDesiredInstancePart (Instance instancePart _) = instancePart == desiredInstancePart
+        getInstanceID (Instance _ instanceID) = instanceID
 
 
 -- | Takes a 'Map' from slice ID to Slice and a slice ID. Returns the list of
@@ -263,7 +295,7 @@ transitivelyUsedSlicesStatefully sliceMap sliceID = do
         put (sliceID : seenSliceIDs)
         let slice = fromMaybe sliceNotFoundError (Map.lookup sliceID sliceMap)
             sliceNotFoundError = error "transitivelyUsedSlicesStatefully: slice not found"
-        forM_ (usedSliceIDs slice ++ sliceInstanceIDs slice) (
+        forM_ (usedSliceIDs slice) (
             transitivelyUsedSlicesStatefully sliceMap))
 
 
