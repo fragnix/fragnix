@@ -349,31 +349,17 @@ sliceMap tempSlices = Map.fromList (do
 
 
 -- | Associate every temporary ID with the final ID.
--- As an intermediate step we cache the slice IDs as computed without
--- taking instances into account.
+-- We hash slices in two steps: First without taking instances into account
+-- and then with taking instances into account. To prevent cycles in the
+-- second step we lookup the instance hash from the first step instead of
+-- recursing.
 sliceIDMap :: Map TempID TempSlice -> Map TempID SliceID
 sliceIDMap tempSliceMap = Map.fromList (do
     let instanceIDMap = Map.fromList (do
             tempID <- Map.keys tempSliceMap
             return (tempID,computeHashWithoutInstances tempSliceMap tempID))
     tempID <- Map.keys tempSliceMap
-    return (tempID,computeHash tempSliceMap instanceIDMap tempID))
-
-
--- | Compute the hash of the slice with the given temporary ID.
--- Decides depending on if we have a regular slice or an instance slice if
--- we want to include instances in the hash.
--- When we do not want to take instances into account we look the instance ID up
--- in the given instance ID Map.
-computeHash ::  Map TempID TempSlice -> Map InstanceTempID InstanceID -> TempID -> SliceID
-computeHash tempSliceMap instanceIDMap tempID = case Map.lookup tempID tempSliceMap of
-    Just (Slice _ (Language _ False) _ _ _) ->
-        computeHashWithInstances tempSliceMap instanceIDMap tempID
-    Just (Slice _ (Language _ True) _ _ _) ->
-        case Map.lookup tempID instanceIDMap of
-            Nothing -> error "computeHash: instance temporary ID not found"
-            Just instanceID -> instanceID
-    _ -> error "computeHash: TempSlice not found"
+    return (tempID,computeHashWithInstances tempSliceMap instanceIDMap tempID))
 
 
 -- | Hash the slice with the given temporary ID.
