@@ -88,7 +88,7 @@ writeSliceModules sliceID = do
 
 
 -- | Given a slice generate the corresponding module.
-sliceModule :: Map SliceID [InstanceID] -> Slice -> Module
+sliceModule :: Map SliceID (Set InstanceID) -> Slice -> Module
 sliceModule sliceInstancesMap (Slice sliceID language fragment uses _) =
     let Fragment declarations = fragment
         decls = map (parseDeclaration sliceID ghcextensions) declarations
@@ -98,7 +98,7 @@ sliceModule sliceInstancesMap (Slice sliceID language fragment uses _) =
         pragmas = [LanguagePragma noLoc languagepragmas]
         imports =
             map useImport uses ++
-            map instanceImport (sliceInstancesMap Map.! sliceID)
+            map instanceImport (Set.toList (sliceInstancesMap Map.! sliceID))
         -- We need an export list to export the data family even
         -- though a slice only contains the data family instance
         exports = dataFamilyInstanceExports decls imports
@@ -221,15 +221,29 @@ bootDecl decl = [decl]
 
 -- | Given a list of slices, find for each slice the list of relevant
 -- instances and put it into a Map for easy lookup.
-sliceInstances :: [Slice] -> Map SliceID [InstanceID]
-sliceInstances slices = Map.fromList (do
-    let sliceMap = Map.fromList (do
+sliceInstances :: [Slice] -> Map SliceID (Set InstanceID)
+sliceInstances slices = execState (
+    forM_ (Map.keys sliceMap) (relevantInstancesStatefully sliceMap usedInstancesMap)) Map.empty where
+        sliceMap = Map.fromList (do
             slice@(Slice sliceID _ _ _ _) <- slices
             return (sliceID,slice))
         usedInstancesMap = usedInstances sliceMap
-    Slice sliceID _ _ _ _ <- slices
-    return (sliceID,relevantInstances usedInstancesMap sliceID))
 
+
+relevantInstancesStatefully :: Map SliceID Slice -> Map SliceID (Set Instance) -> SliceID -> State (Map SliceID (Set InstanceID)) (Set InstanceID)
+relevantInstancesStatefully sliceMap usedInstancesMap sliceID = do
+    sliceInstanceIDsMap <- get
+    case Map.lookup sliceID sliceInstanceIDsMap of
+        Nothing -> do
+            let slice = fromMaybe (error "relevantInstancesStatefully: slice not in sliceMap") (
+                    Map.lookup sliceID sliceMap)
+                instances = fromMaybe (error "relevantInstancesStatefully: instance not in usedInstancesMap") (
+                    Map.lookup sliceID usedInstancesMap)
+            transitiveInstanceIDs <- forM (usedSliceIDs slice) (relevantInstancesStatefully sliceMap usedInstancesMap)
+            let instanceIDs = relevantInstancesFixpoint usedInstancesMap instances (Set.unions transitiveInstanceIDs)
+            put (Map.insert sliceID instanceIDs sliceInstanceIDsMap)
+            return instanceIDs
+        Just instanceIDSet -> return instanceIDSet
 
 -- | Given a map from slice ID to corresponding slice and a slice ID find
 -- the list of relevant (i.e. needed for compilation of that slice) instances.
@@ -241,9 +255,9 @@ sliceInstances slices = Map.fromList (do
 --     * The slices that a relevant instance uses make one of the previous
 --       conditions true.
 -- The last condition requires us to do a fixed point iteration.
-relevantInstances :: Map SliceID (Set Instance) -> SliceID -> [InstanceID]
+relevantInstances :: Map SliceID (Set Instance) -> SliceID -> Set InstanceID
 relevantInstances usedInstancesMap sliceID =
-    Set.toList (relevantInstancesFixpoint usedInstancesMap sliceUsedInstances Set.empty) where
+    relevantInstancesFixpoint usedInstancesMap sliceUsedInstances Set.empty where
         sliceUsedInstances = usedInstancesMap Map.! sliceID
 
 -- | Iterate until fixpoint of the given set of instances. Find the list of
@@ -252,19 +266,20 @@ relevantInstances usedInstancesMap sliceID =
 -- of relevant instance IDs.
 relevantInstancesFixpoint :: Map SliceID (Set Instance) -> Set Instance -> Set InstanceID -> Set InstanceID
 relevantInstancesFixpoint usedInstancesMap instances instanceIDs
-    | Set.null additionalInstanceIDs = instanceIDs'
+    | Set.null additionalInstanceIDs = instanceIDs
     | otherwise = relevantInstancesFixpoint usedInstancesMap instances' instanceIDs' where
+        additionalInstanceIDs = Set.difference instanceIDs' instanceIDs
         instanceIDs' = Set.union
             (Set.union
-               (instancesPlayingPart OfClassForBuiltinType instances)
-               (instancesPlayingPart ForTypeOfBuiltinClass instances))
+               (instancesPlayingPart OfClassForBuiltinType instances')
+               (instancesPlayingPart ForTypeOfBuiltinClass instances'))
             (Set.intersection
-               (instancesPlayingPart OfClass instances)
-               (instancesPlayingPart ForType instances))
+               (instancesPlayingPart OfClass instances')
+               (instancesPlayingPart ForType instances'))
         instances' = Set.union instances additionalInstances
-        additionalInstanceIDs = Set.difference instanceIDs' instanceIDs
-        additionalInstances = Set.unions (map lookupUsedInstances (Set.toList additionalInstanceIDs))
-        lookupUsedInstances instanceID = usedInstancesMap Map.! instanceID
+        additionalInstances = Set.unions (map lookupUsedInstances (Set.toList instanceIDs))
+        lookupUsedInstances instanceID = fromMaybe (error "relevantInstancesFixpoint: instanceID not in usedInstancesMap") (
+            Map.lookup instanceID usedInstancesMap)
 
 
 -- | Given a set of instances find the set of instance IDs of all instances playing
