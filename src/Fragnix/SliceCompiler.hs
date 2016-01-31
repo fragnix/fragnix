@@ -37,13 +37,15 @@ import Control.Exception (SomeException,catch,evaluate)
 import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put,State,execState)
 import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
-import qualified Data.Map as Map (
-    fromList,lookup,(!),keys)
+import qualified Data.Map.Strict as Map (
+    fromList,lookup,(!),keys,
+    empty,insert)
 import Data.Set (Set)
 import qualified Data.Set as Set (
-    fromList,union,intersection,unions,toList,map,filter)
+    fromList,toList,map,filter,null,
+    empty,union,intersection,difference,unions)
 import Control.Monad (forM,forM_,unless)
-import Data.Maybe (mapMaybe, isJust, maybeToList, fromMaybe)
+import Data.Maybe (mapMaybe, isJust, fromMaybe)
 import Data.List (partition)
 import Data.Char (isDigit)
 
@@ -74,19 +76,20 @@ sliceCompiler sliceID = do
 writeSliceModules :: SliceID -> IO ()
 writeSliceModules sliceID = do
     createDirectoryIfMissing True sliceModuleDirectory
-    (slices, instances) <- loadSlicesTransitive sliceID
+    (slices, instanceSlices) <- loadSlicesTransitive sliceID
     let sliceModules = map (sliceModule sliceInstancesMap) slices
         sliceHSBoots = map bootModule sliceModules
-        instanceSliceModules = map (sliceModule sliceInstancesMap) instances
+        instanceSliceModules = map (sliceModule sliceInstancesMap) instanceSlices
         instanceSliceHSBoots = map bootInstanceModule instanceSliceModules
-        sliceInstancesMap = sliceInstances (slices ++ instances)
+        sliceInstancesMap = sliceInstances (slices ++ instanceSlices)
+    _ <- evaluate sliceInstancesMap
     forM_ (sliceModules ++ instanceSliceModules) writeModule
     forM_ (sliceHSBoots ++ instanceSliceHSBoots) writeHSBoot
 
 
 -- | Given a slice generate the corresponding module.
 sliceModule :: Map SliceID [InstanceID] -> Slice -> Module
-sliceModule relevantInstancesMap (Slice sliceID language fragment uses _) =
+sliceModule sliceInstancesMap (Slice sliceID language fragment uses _) =
     let Fragment declarations = fragment
         decls = map (parseDeclaration sliceID ghcextensions) declarations
         moduleName = ModuleName (sliceModuleName sliceID)
@@ -95,7 +98,7 @@ sliceModule relevantInstancesMap (Slice sliceID language fragment uses _) =
         pragmas = [LanguagePragma noLoc languagepragmas]
         imports =
             map useImport uses ++
-            map instanceImport (relevantInstancesMap Map.! sliceID)
+            map instanceImport (sliceInstancesMap Map.! sliceID)
         -- We need an export list to export the data family even
         -- though a slice only contains the data family instance
         exports = dataFamilyInstanceExports decls imports
@@ -223,8 +226,10 @@ sliceInstances slices = Map.fromList (do
     let sliceMap = Map.fromList (do
             slice@(Slice sliceID _ _ _ _) <- slices
             return (sliceID,slice))
+        usedInstancesMap = usedInstances sliceMap
     Slice sliceID _ _ _ _ <- slices
-    return (sliceID,relevantInstances sliceMap sliceID))
+    return (sliceID,relevantInstances usedInstancesMap sliceID))
+
 
 -- | Given a map from slice ID to corresponding slice and a slice ID find
 -- the list of relevant (i.e. needed for compilation of that slice) instances.
@@ -236,42 +241,29 @@ sliceInstances slices = Map.fromList (do
 --     * The slices that a relevant instance uses make one of the previous
 --       conditions true.
 -- The last condition requires us to do a fixed point iteration.
-relevantInstances :: Map SliceID Slice -> SliceID -> [InstanceID]
-relevantInstances sliceMap sliceID =
-    relevantInstancesFixpoint usedInstancesMap sliceUsedInstances where
+relevantInstances :: Map SliceID (Set Instance) -> SliceID -> [InstanceID]
+relevantInstances usedInstancesMap sliceID =
+    Set.toList (relevantInstancesFixpoint usedInstancesMap sliceUsedInstances Set.empty) where
         sliceUsedInstances = usedInstancesMap Map.! sliceID
-        usedInstancesMap = usedInstances sliceMap
-
--- | Given a Map from slice ID to corresponding slice and a slice ID find the
--- Set of instances of all transitively used classes and for all transitively
--- used types.
-usedInstances :: Map SliceID Slice -> Map SliceID (Set Instance)
-usedInstances sliceMap = Map.fromList (do
-    sliceID <- Map.keys sliceMap
-    let instanceSet = Set.fromList (do
-            usedSliceID <- transitivelyUsedSlices sliceMap sliceID
-            Slice _ _ _ _ instances <- maybeToList (Map.lookup usedSliceID sliceMap)
-            instances)
-    return (sliceID,instanceSet))
-
 
 -- | Iterate until fixpoint of the given set of instances. Find the list of
 -- relevant instance IDs. Add the set of instances of classes and types they
 -- transitively use. When the set of instances is stable we return the list
 -- of relevant instance IDs.
-relevantInstancesFixpoint :: Map SliceID (Set Instance) -> Set Instance -> [InstanceID]
-relevantInstancesFixpoint usedInstancesMap instances
-    | instances == instances' = instanceIDs
-    | otherwise = relevantInstancesFixpoint usedInstancesMap instances' where
-        instanceIDs = Set.toList (Set.union
+relevantInstancesFixpoint :: Map SliceID (Set Instance) -> Set Instance -> Set InstanceID -> Set InstanceID
+relevantInstancesFixpoint usedInstancesMap instances instanceIDs
+    | Set.null additionalInstanceIDs = instanceIDs'
+    | otherwise = relevantInstancesFixpoint usedInstancesMap instances' instanceIDs' where
+        instanceIDs' = Set.union
             (Set.union
                (instancesPlayingPart OfClassForBuiltinType instances)
                (instancesPlayingPart ForTypeOfBuiltinClass instances))
             (Set.intersection
                (instancesPlayingPart OfClass instances)
-               (instancesPlayingPart ForType instances)))
+               (instancesPlayingPart ForType instances))
         instances' = Set.union instances additionalInstances
-        additionalInstances = Set.unions (map lookupUsedInstances instanceIDs)
+        additionalInstanceIDs = Set.difference instanceIDs' instanceIDs
+        additionalInstances = Set.unions (map lookupUsedInstances (Set.toList additionalInstanceIDs))
         lookupUsedInstances instanceID = usedInstancesMap Map.! instanceID
 
 
@@ -284,24 +276,29 @@ instancesPlayingPart desiredInstancePart =
         getInstanceID (Instance _ instanceID) = instanceID
 
 
--- | Takes a 'Map' from slice ID to Slice and a slice ID. Returns the list of
--- slices the slice with the given slice ID transitively uses.
-transitivelyUsedSlices :: Map SliceID Slice -> SliceID -> [SliceID]
-transitivelyUsedSlices sliceMap sliceID =
-    execState (transitivelyUsedSlicesStatefully sliceMap sliceID) []
+-- | Given a Map from slice ID to corresponding slice build a Map from sliceID
+-- to set of instances of all transitively used slices.
+usedInstances :: Map SliceID Slice -> Map SliceID (Set Instance)
+usedInstances sliceMap = execState (
+    forM_ (Map.keys sliceMap) (
+        transitivelyUsedInstancesStatefully sliceMap)) Map.empty
 
 
--- | Finds the list of transitively used slices. Statefully keeps the list of
--- already visited slices in a list.
-transitivelyUsedSlicesStatefully :: Map SliceID Slice -> SliceID -> State [SliceID] ()
-transitivelyUsedSlicesStatefully sliceMap sliceID = do
-    seenSliceIDs <- get
-    unless (elem sliceID seenSliceIDs) (do
-        put (sliceID : seenSliceIDs)
-        let slice = fromMaybe sliceNotFoundError (Map.lookup sliceID sliceMap)
-            sliceNotFoundError = error "transitivelyUsedSlicesStatefully: slice not found"
-        forM_ (usedSliceIDs slice) (
-            transitivelyUsedSlicesStatefully sliceMap))
+-- | Given a Map from slice ID to corresponding slice and a slice ID find the
+-- set of instances of all transitively used slices. Caches the results in
+-- a Map.
+transitivelyUsedInstancesStatefully :: Map SliceID Slice -> SliceID -> State (Map SliceID (Set Instance)) (Set Instance)
+transitivelyUsedInstancesStatefully sliceMap sliceID = do
+    usedInstancesMap <- get
+    case Map.lookup sliceID usedInstancesMap of
+        Nothing -> do
+            let slice@(Slice _ _ _ _ instances) = fromMaybe sliceNotFoundError (Map.lookup sliceID sliceMap)
+                sliceNotFoundError = error "transitivelyUsedSlicesStatefully: slice not found"
+            transitiveInstances <- forM (usedSliceIDs slice) (transitivelyUsedInstancesStatefully sliceMap)
+            let allInstances = Set.union (Set.fromList instances) (Set.unions transitiveInstances)
+            put (Map.insert sliceID allInstances usedInstancesMap)
+            return allInstances
+        Just instanceSet -> return instanceSet
 
 
 -- | Directory for generated modules
