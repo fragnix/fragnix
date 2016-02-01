@@ -42,8 +42,8 @@ import qualified Data.Map.Strict as Map (
     empty,insert,map)
 import Data.Set (Set)
 import qualified Data.Set as Set (
-    fromList,toList,map,filter,null,insert,
-    empty,union,intersection,difference,unions)
+    fromList,toList,map,filter,insert,
+    union,intersection,unions)
 import Control.Monad (forM,forM_,unless)
 import Data.Maybe (mapMaybe, isJust, fromMaybe)
 import Data.List (partition)
@@ -82,9 +82,7 @@ writeSliceModules sliceID = do
         instanceSliceModules = map (sliceModule sliceInstancesMap) instanceSlices
         instanceSliceHSBoots = map bootInstanceModule instanceSliceModules
         sliceInstancesMap = sliceInstances (slices ++ instanceSlices)
-    putStrLn "Evaluating"
     _ <- evaluate sliceInstancesMap
-    putStrLn "Evaluated"
     forM_ (sliceModules ++ instanceSliceModules) writeModule
     forM_ (sliceHSBoots ++ instanceSliceHSBoots) writeHSBoot
 
@@ -231,6 +229,10 @@ sliceInstances slices = sliceInstancesMap where
         slice@(Slice sliceID _ _ _ _) <- slices
         return (sliceID,slice))
 
+
+-- | Given a Map from slice ID to Slice and a Slice ID find the set of all
+-- slices the slice with the given ID uses. These uses can be either explictly
+-- (the 'uses' field) or implicitly (relevant instances).
 usedSlicesStatefully :: Map SliceID Slice -> SliceID -> State (Map SliceID (Set SliceID)) (Set SliceID)
 usedSlicesStatefully sliceMap sliceID = do
     usedSlicesMap <- get
@@ -241,16 +243,24 @@ usedSlicesStatefully sliceMap sliceID = do
             transitivelyUsedSliceSets <- forM (usedSliceIDs slice) (usedSlicesStatefully sliceMap)
             let usedSlices = Set.insert sliceID (Set.unions transitivelyUsedSliceSets)
                 usedInstanceSet = concatMap lookupInstances (Set.toList usedSlices)
-                lookupInstances sliceID = case Map.lookup sliceID sliceMap of
-                    Nothing -> []
+                lookupInstances usedSliceID = case Map.lookup usedSliceID sliceMap of
+                    Nothing -> error "usedSlicesStatefully: sliceID not found"
                     Just (Slice _ _ _ _ instances) -> instances
-                additionalInstanceIDs = relevantInstanceIDs (Set.fromList usedInstanceSet)
-                allUsedSlices = Set.union usedSlices additionalInstanceIDs
+                instanceIDs = relevantInstanceIDs (Set.fromList usedInstanceSet)
+                allUsedSlices = Set.union usedSlices instanceIDs
             put (Map.insert sliceID allUsedSlices usedSlicesMap)
             return allUsedSlices
         Just usedSliceSet -> return usedSliceSet
 
 
+-- An instance is relevant for a slice if one of the
+-- following four conditions holds:
+--     * The slice transitively uses the instance's class and type
+--     * The slice transitively uses the instance's class and the type is builtin
+--     * The slice transitively uses the instance's type and the class is builtin
+--     * The slices that a relevant instance uses make one of the previous
+--       conditions true.
+-- TODO: The last condition requires us to do a fixed point iteration.
 relevantInstanceIDs :: Set Instance -> Set InstanceID
 relevantInstanceIDs instances = Set.union
     (Set.union
@@ -267,84 +277,6 @@ instancesPlayingPart desiredInstancePart =
     Set.map getInstanceID . Set.filter playsDesiredInstancePart where
         playsDesiredInstancePart (Instance instancePart _) = instancePart == desiredInstancePart
         getInstanceID (Instance _ instanceID) = instanceID
-
-    {-
-relevantInstancesStatefully :: Map SliceID Slice -> SliceID -> State (Map SliceID (Set Instance,Set InstanceID)) (Set Instance,Set InstanceID)
-relevantInstancesStatefully sliceMap sliceID = do
-    sliceInstancesMap <- get
-    case Map.lookup sliceID sliceInstanceIDsMap of
-        Nothing -> do
-            let slice = fromMaybe (error "relevantInstancesStatefully: slice not in sliceMap") (
-                    Map.lookup sliceID sliceMap)
-                instances = fromMaybe (error "relevantInstancesStatefully: instance not in usedInstancesMap") (
-                    Map.lookup sliceID usedInstancesMap)
-            transitiveInstanceIDs <- forM (usedSliceIDs slice) (relevantInstancesStatefully sliceMap usedInstancesMap)
-            let instanceIDs = relevantInstancesFixpoint usedInstancesMap instances (Set.unions transitiveInstanceIDs)
-            put (Map.insert sliceID instanceIDs sliceInstanceIDsMap)
-            return instanceIDs
-        Just instanceIDSet -> return instanceIDSet
--}
--- | Given a map from slice ID to corresponding slice and a slice ID find
--- the list of relevant (i.e. needed for compilation of that slice) instances.
--- An instance is relevant for a slice if one of the
--- following four conditions holds:
---     * The slice transitively uses the instance's class and type
---     * The slice transitively uses the instance's class and the type is builtin
---     * The slice transitively uses the instance's type and the class is builtin
---     * The slices that a relevant instance uses make one of the previous
---       conditions true.
--- The last condition requires us to do a fixed point iteration.
-relevantInstances :: Map SliceID (Set Instance) -> SliceID -> Set InstanceID
-relevantInstances usedInstancesMap sliceID =
-    relevantInstancesFixpoint usedInstancesMap sliceUsedInstances Set.empty where
-        sliceUsedInstances = usedInstancesMap Map.! sliceID
-
--- | Iterate until fixpoint of the given set of instances. Find the list of
--- relevant instance IDs. Add the set of instances of classes and types they
--- transitively use. When the set of instances is stable we return the list
--- of relevant instance IDs.
-relevantInstancesFixpoint :: Map SliceID (Set Instance) -> Set Instance -> Set InstanceID -> Set InstanceID
-relevantInstancesFixpoint usedInstancesMap instances instanceIDs
-    | Set.null additionalInstanceIDs = instanceIDs
-    | otherwise = relevantInstancesFixpoint usedInstancesMap instances' instanceIDs' where
-        additionalInstanceIDs = Set.difference instanceIDs' instanceIDs
-        instanceIDs' = Set.union
-            (Set.union
-               (instancesPlayingPart OfClassForBuiltinType instances')
-               (instancesPlayingPart ForTypeOfBuiltinClass instances'))
-            (Set.intersection
-               (instancesPlayingPart OfClass instances')
-               (instancesPlayingPart ForType instances'))
-        instances' = Set.union instances additionalInstances
-        additionalInstances = Set.unions (map lookupUsedInstances (Set.toList instanceIDs))
-        lookupUsedInstances instanceID = fromMaybe (error "relevantInstancesFixpoint: instanceID not in usedInstancesMap") (
-            Map.lookup instanceID usedInstancesMap)
-
-
-
--- | Given a Map from slice ID to corresponding slice build a Map from sliceID
--- to set of instances of all transitively used slices.
-usedInstances :: Map SliceID Slice -> Map SliceID (Set Instance)
-usedInstances sliceMap = execState (
-    forM_ (Map.keys sliceMap) (
-        transitivelyUsedInstancesStatefully sliceMap)) Map.empty
-
-
--- | Given a Map from slice ID to corresponding slice and a slice ID find the
--- set of instances of all transitively used slices. Caches the results in
--- a Map.
-transitivelyUsedInstancesStatefully :: Map SliceID Slice -> SliceID -> State (Map SliceID (Set Instance)) (Set Instance)
-transitivelyUsedInstancesStatefully sliceMap sliceID = do
-    usedInstancesMap <- get
-    case Map.lookup sliceID usedInstancesMap of
-        Nothing -> do
-            let slice@(Slice _ _ _ _ instances) = fromMaybe sliceNotFoundError (Map.lookup sliceID sliceMap)
-                sliceNotFoundError = error "transitivelyUsedSlicesStatefully: slice not found"
-            transitiveInstances <- forM (usedSliceIDs slice) (transitivelyUsedInstancesStatefully sliceMap)
-            let allInstances = Set.union (Set.fromList instances) (Set.unions transitiveInstances)
-            put (Map.insert sliceID allInstances usedInstancesMap)
-            return allInstances
-        Just instanceSet -> return instanceSet
 
 
 -- | Directory for generated modules
