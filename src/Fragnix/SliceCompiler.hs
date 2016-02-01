@@ -39,10 +39,10 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
 import qualified Data.Map.Strict as Map (
     fromList,lookup,(!),keys,
-    empty,insert)
+    empty,insert,map)
 import Data.Set (Set)
 import qualified Data.Set as Set (
-    fromList,toList,map,filter,null,
+    fromList,toList,map,filter,null,insert,
     empty,union,intersection,difference,unions)
 import Control.Monad (forM,forM_,unless)
 import Data.Maybe (mapMaybe, isJust, fromMaybe)
@@ -82,7 +82,9 @@ writeSliceModules sliceID = do
         instanceSliceModules = map (sliceModule sliceInstancesMap) instanceSlices
         instanceSliceHSBoots = map bootInstanceModule instanceSliceModules
         sliceInstancesMap = sliceInstances (slices ++ instanceSlices)
+    putStrLn "Evaluating"
     _ <- evaluate sliceInstancesMap
+    putStrLn "Evaluated"
     forM_ (sliceModules ++ instanceSliceModules) writeModule
     forM_ (sliceHSBoots ++ instanceSliceHSBoots) writeHSBoot
 
@@ -222,17 +224,54 @@ bootDecl decl = [decl]
 -- | Given a list of slices, find for each slice the list of relevant
 -- instances and put it into a Map for easy lookup.
 sliceInstances :: [Slice] -> Map SliceID (Set InstanceID)
-sliceInstances slices = execState (
-    forM_ (Map.keys sliceMap) (relevantInstancesStatefully sliceMap usedInstancesMap)) Map.empty where
-        sliceMap = Map.fromList (do
-            slice@(Slice sliceID _ _ _ _) <- slices
-            return (sliceID,slice))
-        usedInstancesMap = usedInstances sliceMap
+sliceInstances slices = sliceInstancesMap where
+    sliceInstancesMap = Map.map (Set.filter (\sliceID -> isInstance (sliceMap Map.! sliceID))) usedSlicesMap
+    usedSlicesMap = execState (forM_ (Map.keys sliceMap) (usedSlicesStatefully sliceMap)) Map.empty
+    sliceMap = Map.fromList (do
+        slice@(Slice sliceID _ _ _ _) <- slices
+        return (sliceID,slice))
+
+usedSlicesStatefully :: Map SliceID Slice -> SliceID -> State (Map SliceID (Set SliceID)) (Set SliceID)
+usedSlicesStatefully sliceMap sliceID = do
+    usedSlicesMap <- get
+    case Map.lookup sliceID usedSlicesMap of
+        Nothing -> do
+            let slice = fromMaybe (error "usedSlicesStatefully: slice not in sliceMap") (
+                    Map.lookup sliceID sliceMap)
+            transitivelyUsedSliceSets <- forM (usedSliceIDs slice) (usedSlicesStatefully sliceMap)
+            let usedSlices = Set.insert sliceID (Set.unions transitivelyUsedSliceSets)
+                usedInstanceSet = concatMap lookupInstances (Set.toList usedSlices)
+                lookupInstances sliceID = case Map.lookup sliceID sliceMap of
+                    Nothing -> []
+                    Just (Slice _ _ _ _ instances) -> instances
+                additionalInstanceIDs = relevantInstanceIDs (Set.fromList usedInstanceSet)
+                allUsedSlices = Set.union usedSlices additionalInstanceIDs
+            put (Map.insert sliceID allUsedSlices usedSlicesMap)
+            return allUsedSlices
+        Just usedSliceSet -> return usedSliceSet
 
 
-relevantInstancesStatefully :: Map SliceID Slice -> Map SliceID (Set Instance) -> SliceID -> State (Map SliceID (Set InstanceID)) (Set InstanceID)
-relevantInstancesStatefully sliceMap usedInstancesMap sliceID = do
-    sliceInstanceIDsMap <- get
+relevantInstanceIDs :: Set Instance -> Set InstanceID
+relevantInstanceIDs instances = Set.union
+    (Set.union
+        (instancesPlayingPart OfClassForBuiltinType instances)
+        (instancesPlayingPart ForTypeOfBuiltinClass instances))
+    (Set.intersection
+        (instancesPlayingPart OfClass instances)
+        (instancesPlayingPart ForType instances))
+
+-- | Given a set of instances find the set of instance IDs of all instances playing
+-- the given part.
+instancesPlayingPart :: InstancePart -> Set Instance -> Set InstanceID
+instancesPlayingPart desiredInstancePart =
+    Set.map getInstanceID . Set.filter playsDesiredInstancePart where
+        playsDesiredInstancePart (Instance instancePart _) = instancePart == desiredInstancePart
+        getInstanceID (Instance _ instanceID) = instanceID
+
+    {-
+relevantInstancesStatefully :: Map SliceID Slice -> SliceID -> State (Map SliceID (Set Instance,Set InstanceID)) (Set Instance,Set InstanceID)
+relevantInstancesStatefully sliceMap sliceID = do
+    sliceInstancesMap <- get
     case Map.lookup sliceID sliceInstanceIDsMap of
         Nothing -> do
             let slice = fromMaybe (error "relevantInstancesStatefully: slice not in sliceMap") (
@@ -244,7 +283,7 @@ relevantInstancesStatefully sliceMap usedInstancesMap sliceID = do
             put (Map.insert sliceID instanceIDs sliceInstanceIDsMap)
             return instanceIDs
         Just instanceIDSet -> return instanceIDSet
-
+-}
 -- | Given a map from slice ID to corresponding slice and a slice ID find
 -- the list of relevant (i.e. needed for compilation of that slice) instances.
 -- An instance is relevant for a slice if one of the
@@ -281,14 +320,6 @@ relevantInstancesFixpoint usedInstancesMap instances instanceIDs
         lookupUsedInstances instanceID = fromMaybe (error "relevantInstancesFixpoint: instanceID not in usedInstancesMap") (
             Map.lookup instanceID usedInstancesMap)
 
-
--- | Given a set of instances find the set of instance IDs of all instances playing
--- the given part.
-instancesPlayingPart :: InstancePart -> Set Instance -> Set InstanceID
-instancesPlayingPart desiredInstancePart =
-    Set.map getInstanceID . Set.filter playsDesiredInstancePart where
-        playsDesiredInstancePart (Instance instancePart _) = instancePart == desiredInstancePart
-        getInstanceID (Instance _ instanceID) = instanceID
 
 
 -- | Given a Map from slice ID to corresponding slice build a Map from sliceID
