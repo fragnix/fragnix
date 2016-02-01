@@ -11,7 +11,7 @@ import Fragnix.Slice (
     InstancePart(OfClass,OfClassForBuiltinType,ForType,ForTypeOfBuiltinClass))
 
 import Language.Haskell.Names (
-    Symbol(Constructor,Value,Method,Selector,Class,Data,NewType,TypeFam,DataFam,
+    Symbol(Constructor,Value,Method,Selector,Class,Type,Data,NewType,TypeFam,DataFam,
         symbolName,symbolModule))
 import qualified Language.Haskell.Exts as Name (
     Name(Ident,Symbol))
@@ -428,6 +428,7 @@ isClass symbol = case symbol of
 
 isType :: Symbol -> Bool
 isType symbol = case symbol of
+    Type {} -> True
     Data {} -> True
     NewType {} -> True
     DataFam {} -> True
