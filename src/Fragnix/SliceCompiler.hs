@@ -34,18 +34,17 @@ import System.Process (rawSystem)
 import System.Exit (ExitCode)
 import Control.Exception (SomeException,catch,evaluate)
 
-import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put,State,execState)
+import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put)
 import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
 import qualified Data.Map.Strict as Map (
-    fromList,lookup,(!),keys,
-    empty,insert,map)
+    fromList,lookup,(!),keys,map)
 import Data.Set (Set)
 import qualified Data.Set as Set (
     fromList,toList,map,filter,insert,
     union,intersection,unions)
 import Control.Monad (forM,forM_,unless)
-import Data.Maybe (mapMaybe, isJust, fromMaybe)
+import Data.Maybe (mapMaybe, isJust)
 import Data.List (partition)
 import Data.Char (isDigit)
 
@@ -223,35 +222,49 @@ bootDecl decl = [decl]
 -- instances and put it into a Map for easy lookup.
 sliceInstances :: [Slice] -> Map SliceID (Set InstanceID)
 sliceInstances slices = sliceInstancesMap where
-    sliceInstancesMap = Map.map (Set.filter (\sliceID -> isInstance (sliceMap Map.! sliceID))) usedSlicesMap
-    usedSlicesMap = execState (forM_ (Map.keys sliceMap) (usedSlicesStatefully sliceMap)) Map.empty
-    sliceMap = Map.fromList (do
+    sliceInstancesMap = Map.map (Set.filter (\sliceID -> isInstanceMap Map.! sliceID)) usedSliceMapFixpoint
+    usedSliceMapFixpoint = fixpoint (addInstances instancesMap . addUsedSlices) initialUsedSliceMap
+    isInstanceMap = Map.fromList (do
         slice@(Slice sliceID _ _ _ _) <- slices
-        return (sliceID,slice))
+        return (sliceID,isInstance slice))
+    initialUsedSliceMap = Map.fromList (do
+        slice@(Slice sliceID _ _ _ _) <- slices
+        return (sliceID,Set.insert sliceID (Set.fromList (usedSliceIDs slice))))
+    instancesMap = Map.fromList (do
+        Slice sliceID _ _ _ instances <- slices
+        return (sliceID,instances))
 
 
--- | Given a Map from slice ID to Slice and a Slice ID find the set of all
--- slices the slice with the given ID uses. These uses can be either explictly
--- (the 'uses' field) or implicitly (relevant instances).
-usedSlicesStatefully :: Map SliceID Slice -> SliceID -> State (Map SliceID (Set SliceID)) (Set SliceID)
-usedSlicesStatefully sliceMap sliceID = do
-    usedSlicesMap <- get
-    case Map.lookup sliceID usedSlicesMap of
-        Nothing -> do
-            let slice = fromMaybe (error "usedSlicesStatefully: slice not in sliceMap") (
-                    Map.lookup sliceID sliceMap)
-            transitivelyUsedSliceSets <- forM (usedSliceIDs slice) (usedSlicesStatefully sliceMap)
-            let usedSlices = Set.insert sliceID (Set.unions transitivelyUsedSliceSets)
-                usedInstanceSet = concatMap lookupInstances (Set.toList usedSlices)
-                lookupInstances usedSliceID = case Map.lookup usedSliceID sliceMap of
-                    Nothing -> error "usedSlicesStatefully: sliceID not found"
-                    Just (Slice _ _ _ _ instances) -> instances
-                instanceIDs = relevantInstanceIDs (Set.fromList usedInstanceSet)
-                allUsedSlices = Set.union usedSlices instanceIDs
-            put (Map.insert sliceID allUsedSlices usedSlicesMap)
-            return allUsedSlices
-        Just usedSliceSet -> return usedSliceSet
+-- | Iterate the given function untile the argument doesn't change anymore.
+fixpoint :: (Eq a) => (a -> a) -> a -> a
+fixpoint f x
+    | x == x' = x
+    | otherwise = f x' where
+        x' = f x
 
+-- | Given a Map from slice ID to set of used slices, does one step of transitivity
+-- i.e. adds all slices the used slices use.
+addUsedSlices :: Map SliceID (Set SliceID) -> Map SliceID (Set SliceID)
+addUsedSlices usedSliceMap = Map.fromList (do
+    sliceID <- Map.keys usedSliceMap
+    let usedSliceIDSet = usedSliceMap Map.! sliceID
+        usedSliceIDSet' = Set.union usedSliceIDSet (Set.unions (do
+            usedSliceID <- Set.toList usedSliceIDSet
+            return (usedSliceMap Map.! usedSliceID)))
+    return (sliceID,usedSliceIDSet'))
+
+
+-- | Given a Map from slice ID to list of instances of that slice and a Map from slice ID
+-- to list of used slices, adds for each key in the map the relevant instances.
+addInstances :: Map SliceID [Instance] -> Map SliceID (Set SliceID) -> Map SliceID (Set SliceID)
+addInstances instancesMap usedSliceMap = Map.fromList (do
+    sliceID <- Map.keys usedSliceMap
+    let usedSliceIDSet = usedSliceMap Map.! sliceID
+        instances = Set.fromList (do
+            usedSliceID <- Set.toList usedSliceIDSet
+            instancesMap Map.! usedSliceID)
+        usedSliceIDSet' = Set.union usedSliceIDSet (relevantInstanceIDs instances)
+    return (sliceID,usedSliceIDSet'))
 
 -- An instance is relevant for a slice if one of the
 -- following four conditions holds:
@@ -260,7 +273,7 @@ usedSlicesStatefully sliceMap sliceID = do
 --     * The slice transitively uses the instance's type and the class is builtin
 --     * The slices that a relevant instance uses make one of the previous
 --       conditions true.
--- TODO: The last condition requires us to do a fixed point iteration.
+-- The last condition requires us to do a fixed point iteration.
 relevantInstanceIDs :: Set Instance -> Set InstanceID
 relevantInstanceIDs instances = Set.union
     (Set.union
