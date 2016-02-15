@@ -151,7 +151,7 @@ iter_ (Buf arr off _ _ _) i | m < 0xD800 || m > 0xDBFF = 1
 
 unsafeThaw :: A.Array -> ST s (A.MArray s)
 unsafeThaw A.Array{..} = ST $ \s# ->
-                          (# s#, A.MArray (unsafeCoerce# aBA) #)
+                          (# s#, A.MArray (unsafeCoerce# A.aBA) #)
 
 readGen :: A.Array -> Int
 readGen a = case indexIntArray# (A.aBA a) 0# of r# -> I# r#

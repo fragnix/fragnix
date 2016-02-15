@@ -56,11 +56,14 @@ sliceCompilerMain sliceID = do
     putStrLn "Generating compilation units ..."
     writeSliceModules sliceID
     putStrLn "Invoking GHC ..."
-    rawSystem "ghc" [
+    rawSystem "ghc" ([
         "-o","main",
         "-ifragnix/temp/compilationunits",
         "-main-is",sliceModuleName sliceID,
-        sliceModulePath sliceID]
+        "-Ifragnix/include"] ++
+        (map (\filename -> "fragnix/cbits/" ++ filename) cFiles) ++ [
+        "-lpthread","-lz","-lutil",
+        sliceModulePath sliceID])
 
 
 -- | Compile the slice with the given slice ID. Set verbosity to zero and
@@ -416,6 +419,42 @@ isInstance _ = False
 
 doesSliceModuleExist :: SliceID -> IO Bool
 doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)
+
+
+-- | List of gathered C-files.
+cFiles :: [FilePath]
+cFiles = [
+    "ancilData.c",
+    "cbits.c",
+    "consUtils.c",
+    "conv.c",
+    "DarwinUtils.c",
+    "directory.c",
+    "dirUtils.c",
+    "execvpe.c",
+    "fnv.c",
+    "fpstring.c",
+    "ghcrts.c",
+    "HsNet.c",
+    "HsTime.c",
+    "HsUnix.c",
+    "HsUnixCompat.c",
+    "iconv.c",
+    "inputReady.c",
+    "itoa.c",
+    "md5.c",
+    "myfree.c",
+    "PrelIOUtils.c",
+    "primFloat.c",
+    "primitive-memops.c",
+    "runProcess.c",
+    "SetEnv.c",
+    "sysconf.c",
+    "text-helper.c",
+    "timeUtils.c",
+    "WCsubst.c",
+    "Win32Utils.c",
+    "zlib-helper.c"]
 
 
 -- | Sadly GHC generates different role annotations in hs-boot files than
