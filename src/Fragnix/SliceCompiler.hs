@@ -68,7 +68,10 @@ sliceCompilerMain sliceID = do
 sliceCompiler :: SliceID -> IO ExitCode
 sliceCompiler sliceID = do
     writeSliceModules sliceID
-    rawSystem "ghc" ["-v0","-w","-ifragnix/temp/compilationunits",sliceModulePath sliceID]
+    rawSystem "ghc" [
+        "-v0","-w",
+        "-ifragnix/temp/compilationunits",
+        sliceModulePath sliceID]
 
 
 -- | Generate and write all modules necessary to compile the slice with the given ID.

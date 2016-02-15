@@ -101,7 +101,7 @@
 #define CONST_SIG_UNBLOCK 1
 
 /* Define to 1 if you have the <bsd/libutil.h> header file. */
-#define HAVE_BSD_LIBUTIL_H 1
+/* #define HAVE_BSD_LIBUTIL_H 1 */
 
 /* Define to 1 if you have the `clearenv' function. */
 #define HAVE_CLEARENV 1
