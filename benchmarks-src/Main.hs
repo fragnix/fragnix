@@ -5,49 +5,46 @@ import Fragnix.Environment (
 import Fragnix.ModuleDeclarations (
     parse, moduleDeclarationsWithEnvironment)
 import Fragnix.DeclarationSlices (
-    sliceIDMap, TempID, TempSlice,
-    declarationGraph, fragmentSCCs, buildTempSlice,
-    sliceBindings, sliceConstructors, instanceTempIDs, sliceMap)
+    declarationSlices)
+import Fragnix.Declaration (
+    Declaration)
+import Fragnix.Slice (
+    Slice)
 
-import Criterion.Main (defaultMain, bench, nf)
+import Criterion.Main (defaultMain, bench, nfIO, nf)
 
-import Data.Map (Map)
+import Language.Haskell.Names (Symbol)
+
+import Language.Haskell.Exts (ModuleName)
+import Language.Haskell.Exts.Annotated (Module, SrcSpan)
+
+import Control.DeepSeq (NFData)
 import Control.Monad (forM)
 import System.Directory (getDirectoryContents)
 
 
 main :: IO ()
 main = do
-    tempSliceMap <- prepareTempSliceMap
-    defaultMain [
-        bench "sliceIDMap" (nf sliceIDMap tempSliceMap)]
-
-
-prepareTempSliceMap :: IO (Map TempID TempSlice)
-prepareTempSliceMap = do
-
-    builtinEnvironment <- loadEnvironment builtinEnvironmentPath
 
     let path = "benchmarks/containers/"
     directoryContents <- getDirectoryContents path
     let modulePaths = map (path ++) (filter (not . (=='.') . head) directoryContents)
 
+    builtinEnvironment <- loadEnvironment builtinEnvironmentPath
+
     modules <- forM modulePaths parse
 
     let declarations = moduleDeclarationsWithEnvironment builtinEnvironment modules
 
-        fragmentNodes = fragmentSCCs (declarationGraph declarations)
+    defaultMain [
+        bench "loadEnvironment" (nfIO (loadEnvironment builtinEnvironmentPath)),
+        bench "parse" (nfIO (forM modulePaths parse)),
+        bench "moduleDeclarations" (nf (moduleDeclarationsWithEnvironment builtinEnvironment) modules),
+        bench "declarationSlices" (nf (fst . declarationSlices) declarations)]
 
-        sliceBindingsMap = sliceBindings fragmentNodes
-
-        constructorMap = sliceConstructors fragmentNodes
-        instanceTempIDList = instanceTempIDs sliceBindingsMap fragmentNodes
-
-        tempSlices = map
-            (buildTempSlice sliceBindingsMap constructorMap instanceTempIDList)
-            fragmentNodes
-        tempSliceMap = sliceMap tempSlices
-
-    return tempSliceMap
-
-
+instance NFData ModuleName
+instance NFData Symbol
+instance (NFData a) => NFData (Module a)
+instance NFData SrcSpan
+instance NFData Declaration
+instance NFData Slice
