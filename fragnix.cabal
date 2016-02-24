@@ -12,58 +12,6 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
-executable fragnix
-  main-is:             fragnix.hs
-  -- other-modules:
-  -- other-extensions:
-  build-depends:       base >=4.6 && <4.9,
-                       text >=1.2 && < 1.3,
-                       filepath >=1.3 && < 1.5,
-                       directory >=1.2.0.1 && < 1.3,
-                       process >=1.2.0.0 && <1.3,
-                       containers >=0.5.0.0 && <0.6,
-                       haskell-src-exts >=1.17.1 && <1.18,
-                       haskell-names >=0.6.0 && <0.7,
-                       haskell-packages >=0.2.4.1 && <0.4,
-                       Cabal >=1.20.0.2 && <1.23,
-                       tagged >=0.7.2 && <0.9,
-                       aeson >=0.8.0.0 && <0.9,
-                       bytestring >=0.10.4.0 && <0.11,
-                       hashable >=1.2.2.0 && <1.3,
-                       transformers >=0.3.0.0 && <0.5,
-                       fgl >=5.4.2.4 && <5.6,
-                       fragnix
-  hs-source-dirs:      src
-  default-language:    Haskell2010
-  ghc-options:         -O2 -Wall -fprof-auto -threaded -rtsopts
-
-test-suite test
-  main-is:             test.hs
-  -- other-modules:
-  -- other-extensions:
-  build-depends:       base >=4.6 && <4.9,
-                       text >=1.2 && < 1.3,
-                       filepath >=1.3 && < 1.5,
-                       directory >=1.2.0.1 && < 1.3,
-                       process >=1.2.0.0 && <1.3,
-                       containers >=0.5.0.0 && <0.6,
-                       haskell-src-exts >=1.17.1 && <1.18,
-                       haskell-names >=0.6.0 && <0.7,
-                       haskell-packages >=0.2.4.1 && <0.4,
-                       Cabal >=1.20.0.2 && <1.23,
-                       tagged >=0.7.2 && <0.9,
-                       aeson >=0.8.0.0 && <0.9,
-                       bytestring >=0.10.4.0 && <0.11,
-                       hashable >=1.2.2.0 && <1.3,
-                       transformers >=0.3.0.0 && <0.5,
-                       fgl >=5.4.2.4 && <5.6,
-                       tasty >=0.10.1 && <0.11,
-                       tasty-golden >=2.2.2.4 && <2.4,
-                       fragnix
-  hs-source-dirs:      src
-  default-language:    Haskell2010
-  ghc-options:         -O2 -Wall -fprof-auto
-  type:                exitcode-stdio-1.0
 
 library
   exposed-modules:     Fragnix.Slice,
@@ -94,3 +42,72 @@ library
   default-language:    Haskell2010
   ghc-options:         -O2 -Wall -fprof-auto
 
+
+executable fragnix
+  main-is:             Main.hs
+  -- other-modules:
+  -- other-extensions:
+  build-depends:       base >=4.6 && <4.9,
+                       text >=1.2 && < 1.3,
+                       filepath >=1.3 && < 1.5,
+                       directory >=1.2.0.1 && < 1.3,
+                       process >=1.2.0.0 && <1.3,
+                       containers >=0.5.0.0 && <0.6,
+                       haskell-src-exts >=1.17.1 && <1.18,
+                       haskell-names >=0.6.0 && <0.7,
+                       haskell-packages >=0.2.4.1 && <0.4,
+                       Cabal >=1.20.0.2 && <1.23,
+                       tagged >=0.7.2 && <0.9,
+                       aeson >=0.8.0.0 && <0.9,
+                       bytestring >=0.10.4.0 && <0.11,
+                       hashable >=1.2.2.0 && <1.3,
+                       transformers >=0.3.0.0 && <0.5,
+                       fgl >=5.4.2.4 && <5.6,
+                       fragnix
+  hs-source-dirs:      executable-src
+  default-language:    Haskell2010
+  ghc-options:         -O2 -Wall -fprof-auto -threaded -rtsopts
+
+
+test-suite test
+  main-is:             Main.hs
+  -- other-modules:
+  -- other-extensions:
+  build-depends:       base >=4.6 && <4.9,
+                       text >=1.2 && < 1.3,
+                       filepath >=1.3 && < 1.5,
+                       directory >=1.2.0.1 && < 1.3,
+                       process >=1.2.0.0 && <1.3,
+                       containers >=0.5.0.0 && <0.6,
+                       haskell-src-exts >=1.17.1 && <1.18,
+                       haskell-names >=0.6.0 && <0.7,
+                       haskell-packages >=0.2.4.1 && <0.4,
+                       Cabal >=1.20.0.2 && <1.23,
+                       tagged >=0.7.2 && <0.9,
+                       aeson >=0.8.0.0 && <0.9,
+                       bytestring >=0.10.4.0 && <0.11,
+                       hashable >=1.2.2.0 && <1.3,
+                       transformers >=0.3.0.0 && <0.5,
+                       fgl >=5.4.2.4 && <5.6,
+                       tasty >=0.10.1 && <0.11,
+                       tasty-golden >=2.2.2.4 && <2.4,
+                       fragnix
+  hs-source-dirs:      tests-src
+  default-language:    Haskell2010
+  ghc-options:         -O2 -Wall -fprof-auto
+  type:                exitcode-stdio-1.0
+
+
+benchmark benchmark
+  main-is:             Main.hs
+  build-depends:       base >=4.6 && <4.9,
+                       containers >=0.5.5.1 && <0.6,
+                       directory >=1.2.1.0 && <1.3,
+                       criterion >=1.1.0.0 && <1.2,
+                       fragnix
+  hs-source-dirs:      benchmarks-src
+  default-language:    Haskell2010
+  ghc-options:         -O2 -Wall -fprof-auto
+  type:                exitcode-stdio-1.0
+
+ 
