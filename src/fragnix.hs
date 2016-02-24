@@ -41,8 +41,8 @@ main = do
     let declarations = moduleDeclarationsWithEnvironment environment modules
     writeDeclarations "fragnix/temp/declarations/declarations.json" declarations
 
-    let nameErrors = moduleNameErrors environment modules
-    forM_ nameErrors (\nameError -> putStrLn ("Warning: " ++ ppError nameError))
+--    let nameErrors = moduleNameErrors environment modules
+--    forM_ nameErrors (\nameError -> putStrLn ("Warning: " ++ ppError nameError))
 
     putStrLn "Slicing ..."
 
