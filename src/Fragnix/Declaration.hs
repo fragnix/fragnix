@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
 module Fragnix.Declaration where
 
 import Language.Haskell.Exts.Annotated (Extension)
@@ -14,9 +14,10 @@ import System.Directory (createDirectoryIfMissing)
 import System.FilePath (dropFileName)
 
 import Data.Maybe (fromMaybe)
+import GHC.Generics (Generic)
 
 data Declaration = Declaration Genre [Extension] DeclarationAST DeclaredSymbols MentionedSymbols
-    deriving (Show,Eq,Ord)
+    deriving (Show,Eq,Ord,Generic)
 
 data Genre =
     Value |
@@ -29,7 +30,7 @@ data Genre =
     FamilyInstance |
     ForeignImport |
     Other
-        deriving (Show,Eq,Ord,Read)
+        deriving (Show,Eq,Ord,Read,Generic)
 
 type DeclarationAST   = Text
 type DeclaredSymbols  = [Symbol]

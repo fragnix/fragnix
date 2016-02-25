@@ -1,3 +1,4 @@
+{-# LANGUAGE StandaloneDeriving, DeriveGeneric #-}
 module Main where
 
 import Fragnix.Environment (
@@ -7,18 +8,20 @@ import Fragnix.ModuleDeclarations (
 import Fragnix.DeclarationSlices (
     declarationSlices)
 import Fragnix.Declaration (
-    Declaration)
+    Declaration, Genre)
 import Fragnix.Slice (
-    Slice)
+    Slice, Language, Fragment, Use, Reference, UsedName, Name,
+    Instance, InstancePart)
 
-import Criterion.Main (defaultMain, bench, nfIO, nf)
+import Criterion.Main (defaultMain, bench, nfIO, nf, whnfIO)
 
-import Language.Haskell.Names (Symbol)
+import Language.Haskell.Names (Symbol(..))
 
-import Language.Haskell.Exts (ModuleName)
-import Language.Haskell.Exts.Annotated (Module, SrcSpan)
+import Language.Haskell.Exts (ModuleName, Extension(..), KnownExtension(..))
+import qualified Language.Haskell.Exts as HaskellExts (Name)
 
 import Control.DeepSeq (NFData)
+import GHC.Generics (Generic)
 import Control.Monad (forM)
 import System.Directory (getDirectoryContents)
 
@@ -38,13 +41,28 @@ main = do
 
     defaultMain [
         bench "loadEnvironment" (nfIO (loadEnvironment builtinEnvironmentPath)),
-        bench "parse" (nfIO (forM modulePaths parse)),
+        bench "parse" (whnfIO (forM modulePaths parse)),
         bench "moduleDeclarations" (nf (moduleDeclarationsWithEnvironment builtinEnvironment) modules),
         bench "declarationSlices" (nf (fst . declarationSlices) declarations)]
 
+
 instance NFData ModuleName
 instance NFData Symbol
-instance (NFData a) => NFData (Module a)
-instance NFData SrcSpan
 instance NFData Declaration
+instance NFData Genre
+instance NFData HaskellExts.Name
+instance NFData Extension
+instance NFData KnownExtension
 instance NFData Slice
+instance NFData Language
+instance NFData Fragment
+instance NFData Use
+instance NFData Reference
+instance NFData UsedName
+instance NFData Name
+instance NFData Instance
+instance NFData InstancePart
+
+deriving instance Generic KnownExtension
+deriving instance Generic Extension
+deriving instance Generic Symbol

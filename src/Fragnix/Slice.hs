@@ -62,6 +62,7 @@ type IsInstance = Bool
 -- Slice instances
 
 deriving instance Show Slice
+deriving instance Generic Slice
 
 instance ToJSON Slice where
     toJSON (Slice sliceID language fragment uses instances) = object [
