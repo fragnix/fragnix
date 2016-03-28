@@ -9,11 +9,11 @@ import Fragnix.SliceSymbols (
     updateEnvironment,findMainSliceIDs)
 import Fragnix.ModuleDeclarations (
     parse,moduleDeclarationsWithEnvironment,
-    moduleNameErrors,moduleSymbols)
+    moduleSymbols)
 import Fragnix.DeclarationSlices (declarationSlices)
 import Fragnix.SliceCompiler (sliceCompilerMain)
 
-import Language.Haskell.Names (ppError)
+-- import Language.Haskell.Names (ppError)
 
 import Control.Monad (forM_,forM)
 import qualified Data.Map as Map (union)

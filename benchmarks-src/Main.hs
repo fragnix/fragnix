@@ -6,7 +6,8 @@ import Fragnix.Environment (
 import Fragnix.ModuleDeclarations (
     parse, moduleDeclarationsWithEnvironment)
 import Fragnix.DeclarationSlices (
-    declarationSlices)
+    declarationSlices, tempSlices, hashSlices2,
+    declarationGraph, fragmentSCCs, sliceMap)
 import Fragnix.Declaration (
     Declaration, Genre)
 import Fragnix.Slice (
@@ -50,14 +51,31 @@ main = do
 
     let declarations = moduleDeclarationsWithEnvironment builtinEnvironment modules
 
+    let fragmentNodes = fragmentSCCs (declarationGraph declarations)
+
+    let tempSliceMap = sliceMap (tempSlices fragmentNodes)
+
     defaultMain [
-        bench "loadEnvironment" (nfIO (loadEnvironment builtinEnvironmentPath)),
-        bench "parse" (whnfIO (forM modulePaths parse)),
+        bench "loadEnvironment" (
+            nfIO (loadEnvironment builtinEnvironmentPath)),
+        bench "parse" (
+            whnfIO (forM modulePaths parse)),
         bgroup "moduleDeclarations" [
-          bench "moduleDeclarations" (nf (moduleDeclarationsWithEnvironment builtinEnvironment) modules),
-          bench "resolve" (nf (resolve modules) builtinEnvironment),
-          bench "annotate" (nf (map (toList . annotate environment)) modules)],
-        bench "declarationSlices" (nf declarationSlices declarations)]
+            bench "moduleDeclarations" (
+                nf (moduleDeclarationsWithEnvironment builtinEnvironment) modules),
+            bench "resolve" (
+                nf (resolve modules) builtinEnvironment),
+            bench "annotate" (
+                nf (map (toList . annotate environment)) modules)],
+        bgroup "declarationSlices" [
+            bench "declarationSlices" (
+                nf declarationSlices declarations),
+            bench "fragmentNodes" (
+                nf (fragmentSCCs . declarationGraph) declarations),
+            bench "tempSlices" (
+                nf tempSlices fragmentNodes),
+            bench "hashSlices2" (
+                nf hashSlices2 tempSliceMap)]]
 
 
 instance NFData ModuleName

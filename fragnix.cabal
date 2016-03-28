@@ -104,7 +104,7 @@ benchmark benchmark
                        fragnix
   hs-source-dirs:      benchmarks-src
   default-language:    Haskell2010
-  ghc-options:         -O2 -Wall -fprof-auto
+  ghc-options:         -O2 -Wall -fprof-auto -fno-warn-orphans
   type:                exitcode-stdio-1.0
 
  
