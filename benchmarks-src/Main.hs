@@ -7,7 +7,7 @@ import Fragnix.ModuleDeclarations (
     parse, moduleDeclarationsWithEnvironment)
 import Fragnix.DeclarationSlices (
     declarationSlices, tempSlices, hashSlices2,
-    declarationGraph, fragmentSCCs, sliceMap)
+    declarationSCCs, sliceMap)
 import Fragnix.Declaration (
     Declaration, Genre)
 import Fragnix.Slice (
@@ -51,7 +51,7 @@ main = do
 
     let declarations = moduleDeclarationsWithEnvironment builtinEnvironment modules
 
-    let fragmentNodes = fragmentSCCs (declarationGraph declarations)
+    let fragmentNodes = declarationSCCs declarations
 
     let tempSliceMap = sliceMap (tempSlices fragmentNodes)
 
@@ -70,8 +70,8 @@ main = do
         bgroup "declarationSlices" [
             bench "declarationSlices" (
                 nf declarationSlices declarations),
-            bench "fragmentNodes" (
-                nf (fragmentSCCs . declarationGraph) declarations),
+            bench "declarationSCCs" (
+                nf declarationSCCs declarations),
             bench "tempSlices" (
                 nf tempSlices fragmentNodes),
             bench "hashSlices2" (

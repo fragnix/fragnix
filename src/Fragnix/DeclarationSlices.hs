@@ -20,10 +20,8 @@ import Language.Haskell.Exts (
     Extension(EnableExtension,UnknownExtension),
     KnownExtension(Safe,CPP,Trustworthy))
 
-import Data.Graph.Inductive (
-    scc,lab,insEdges,insNodes,empty)
-import Data.Graph.Inductive.PatriciaTree (
-    Gr)
+import Data.Graph (buildG,scc)
+import Data.Tree (flatten)
 
 import Control.Monad (guard)
 import Data.Foldable (for_)
@@ -33,9 +31,9 @@ import Data.Text (pack)
 import Data.Char (isDigit)
 import Data.Map (Map)
 import qualified Data.Map as Map (
-    lookup,fromList,fromListWith,(!),map,keys,elems,
+    lookup,fromList,fromListWith,(!),map,keys,
     empty,insert)
-import Data.Maybe (maybeToList,listToMaybe,fromJust)
+import Data.Maybe (maybeToList,listToMaybe)
 import Data.Hashable (hash)
 import Data.List (nub,(\\))
 
@@ -45,7 +43,7 @@ import Data.List (nub,(\\))
 declarationSlices :: [Declaration] -> ([Slice],Map Symbol SliceID)
 declarationSlices declarations = (slices,symbolSlices) where
 
-    fragmentNodes = fragmentSCCs (declarationGraph declarations)
+    fragmentNodes = declarationSCCs declarations
 
     tempSliceList = tempSlices fragmentNodes
     tempSliceMap = sliceMap tempSliceList
@@ -53,6 +51,65 @@ declarationSlices declarations = (slices,symbolSlices) where
     sliceIDMap = hashSlices2 tempSliceMap
     slices = map (replaceSliceID ((Map.!) sliceIDMap)) tempSliceList
     symbolSlices = Map.map (\tempID -> sliceIDMap Map.! tempID) (sliceBindings fragmentNodes)
+
+
+-- | Create a dependency graph between all declarations in the given list. Then find and
+-- returns the strongly connected components of this graph.
+-- Edges in this graph come primarily from when a declaration mentions a symbol
+-- another declaration binds. But also from signatures, fixities and
+-- type and data family instances. The strongly conncected components of this
+-- graph are our compilation units.
+declarationSCCs :: [Declaration] -> [(TempID,[Declaration])]
+declarationSCCs declarations = zip [-1,-2..] declarationSCCList where
+
+    declarationSCCList = map (map lookupVertex . flatten) (scc declarationGraph)
+
+    declarationGraph = buildG (0, length declarations - 1) dependencyEdges
+
+    declarationNodes = zip [0..] declarations
+
+    dependencyEdges =
+        usedSymbolEdges ++ signatureEdges ++ fixityEdges ++ familyInstanceEdges
+
+    lookupVertex vertex = vertexDeclarationMap Map.! vertex
+
+    vertexDeclarationMap = Map.fromList declarationNodes
+
+    -- A map from bound symbol to node ID
+    boundMap = Map.fromList (do
+        (node,declaration) <- declarationNodes
+        let Declaration _ _ _ boundsymbols _ = declaration
+        boundsymbol <- boundsymbols
+        return (boundsymbol,node))
+
+    -- Dependency edges that come from use of a symbol
+    usedSymbolEdges = do
+        (node,declaration) <- declarationNodes
+        let Declaration _ _ _ _ mentionedsymbols = declaration
+        mentionedsymbol <- map fst mentionedsymbols
+        usednode <- maybeToList (Map.lookup mentionedsymbol boundMap)
+        return (node,usednode)
+
+    -- Each declaration should be in the same comilation unit as its type signature
+    signatureEdges = do
+        (signaturenode,Declaration TypeSignature _ _ _ mentionedsymbols) <- declarationNodes
+        mentionedsymbol@(Value _ _) <- map fst mentionedsymbols
+        declarationnode <- maybeToList (Map.lookup mentionedsymbol boundMap)
+        return (declarationnode,signaturenode)
+
+    -- Each declaration should be in the same compilation unit as its fixity declarations
+    fixityEdges = do
+        (fixitynode,Declaration InfixFixity _ _ _ mentionedsymbols) <- declarationNodes
+        mentionedsymbol <- map fst mentionedsymbols
+        bindingnode <- maybeToList (Map.lookup mentionedsymbol boundMap)
+        return (bindingnode,fixitynode)
+
+    -- Each data or type family should be in the same compilation unit as its instances
+    familyInstanceEdges = do
+        (familyInstanceNode,Declaration FamilyInstance _ _ _ mentionedSymbols) <- declarationNodes
+        mentionedFamily <- take 1 (filter isFamily (map fst mentionedSymbols))
+        familyNode <- maybeToList (Map.lookup mentionedFamily boundMap)
+        return (familyNode, familyInstanceNode)
 
 
 -- | Given a list of declaration nodes builds a list of temporary
@@ -85,64 +142,6 @@ sliceConstructors fragmentNodes = Map.fromListWith (++) (do
     guard (isType typeSymbol)
     guard (symbolName typeSymbol == typeName)
     return (typeSymbol,[constructor]))
-
-
--- | Create a dependency graph between all declarations in the given list. Dependency edges
--- come primarily from when a declaration mentions a symbol another declaration binds. But also
--- from signatures, fixities and type and data family instances. The strongly conncected
--- components of this graph are our compilation units.
-declarationGraph :: [Declaration] -> Gr Declaration Dependency
-declarationGraph declarations =
-    insEdges (signatureedges ++ usedsymboledges ++ fixityEdges ++ familyInstanceEdges) (
-        insNodes declarationnodes empty) where
-
-    -- A list of pairs of node ID and declaration
-    declarationnodes = zip [-1,-2..] declarations
-
-    -- A map from bound symbol to node ID
-    boundmap = Map.fromList (do
-        (node,declaration) <- declarationnodes
-        let Declaration _ _ _ boundsymbols _ = declaration
-        boundsymbol <- boundsymbols
-        return (boundsymbol,node))
-
-    -- Dependency edges that come from use of a symbol
-    usedsymboledges = do
-        (node,declaration) <- declarationnodes
-        let Declaration _ _ _ _ mentionedsymbols = declaration
-        (mentionedsymbol,maybequalification) <- mentionedsymbols
-        usednode <- maybeToList (Map.lookup mentionedsymbol boundmap)
-        return (node,usednode,UsesSymbol maybequalification mentionedsymbol)
-
-    -- Each declaration should be in the same comilation unit as its type signature
-    signatureedges = do
-        (signaturenode,Declaration TypeSignature _ _ _ mentionedsymbols) <- declarationnodes
-        mentionedsymbol@(Value _ _) <- map fst mentionedsymbols
-        declarationnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
-        return (declarationnode,signaturenode,Signature)
-
-    -- Each declaration should be in the same compilation unit as its fixity declarations
-    fixityEdges = do
-        (fixitynode,Declaration InfixFixity _ _ _ mentionedsymbols) <- declarationnodes
-        mentionedsymbol <- map fst mentionedsymbols
-        bindingnode <- maybeToList (Map.lookup mentionedsymbol boundmap)
-        return (bindingnode,fixitynode,Fixity)
-
-    -- Each data or type family should be in the same compilation unit as its instances
-    familyInstanceEdges = do
-        (familyInstanceNode,Declaration FamilyInstance _ _ _ mentionedSymbols) <- declarationnodes
-        mentionedFamily <- take 1 (filter isFamily (map fst mentionedSymbols))
-        familyNode <- maybeToList (Map.lookup mentionedFamily boundmap)
-        return (familyNode, familyInstanceNode, Family)
-
-
--- | A list of strongly connected components from a given graph.
-fragmentSCCs :: Gr a b -> [(TempID,[a])]
-fragmentSCCs graph = do
-    let sccnodes = zip [-1,-2..] (scc graph)
-    (sccnode,graphnodes) <- sccnodes
-    let scclabels = map (fromJust . lab graph) graphnodes
-    return (sccnode,scclabels)
 
 
 -- | Take a temporary environment, a constructor map and a pair of a node and a fragment.
@@ -351,8 +350,8 @@ type Hash1ID = Integer
 
 -- | Build up a map from temporary ID to corresponding slice for better lookup.
 sliceMap :: [TempSlice] -> Map TempID TempSlice
-sliceMap tempSlices = Map.fromList (do
-    tempSlice@(Slice tempSliceID _ _ _ _) <- tempSlices
+sliceMap tempSliceList = Map.fromList (do
+    tempSlice@(Slice tempSliceID _ _ _ _) <- tempSliceList
     return (tempSliceID,tempSlice))
 
 
@@ -385,7 +384,7 @@ hashSlice2 tempSliceMap hash1IDMap tempID = do
                     Map.lookup tempID tempSliceMap
             uses <- for tempUses (hashUse2 tempSliceMap hash1IDMap)
             let instances = map (
-                    replaceInstanceID (\tempID -> hash1IDMap Map.! tempID))
+                    replaceInstanceID (\instanceTempID -> hash1IDMap Map.! instanceTempID))
                     tempInstances
                 sliceID = abs (fromIntegral (hash (language,fragment,uses,instances)))
             put (Map.insert tempID sliceID sliceIDMap)
@@ -508,9 +507,3 @@ fromName :: Name.Name -> Name
 fromName (Name.Ident name) = Identifier (pack name)
 fromName (Name.Symbol name) = Operator (pack name)
 
-data Dependency =
-    UsesSymbol (Maybe ModuleName) Symbol |
-    Signature |
-    Fixity |
-    Family
-        deriving (Eq,Ord,Show)
