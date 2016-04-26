@@ -9,7 +9,7 @@ import Fragnix.Slice (Slice(Slice),writeSliceDefault)
 import Fragnix.Environment (
     loadEnvironment,builtinEnvironmentPath)
 import Fragnix.SliceSymbols (updateEnvironment)
-import Fragnix.SliceCompiler (sliceCompiler,sliceModuleDirectory)
+import Fragnix.SliceCompiler (writeSliceModules,invokeGHC,sliceModuleDirectory)
 
 import Test.Tasty (testGroup,TestTree)
 import Test.Tasty.Golden (goldenVsFileDiff)
@@ -76,7 +76,9 @@ testModules folder = do
     when sliceModuleDirectoryExists (removeDirectoryRecursive sliceModuleDirectory)
 
     let sliceIDs = [sliceID | Slice sliceID _ _ _ _ <- slices]
-    exitCodes <- forM sliceIDs (\sliceID -> sliceCompiler sliceID)
+    exitCodes <- forM sliceIDs (\sliceID -> do
+        writeSliceModules sliceID
+        invokeGHC sliceID)
     let successes = length [() | ExitSuccess   <- exitCodes]
         failures  = length [() | ExitFailure _ <- exitCodes]
 

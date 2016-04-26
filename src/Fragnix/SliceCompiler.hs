@@ -49,32 +49,27 @@ import Data.List (partition)
 import Data.Char (isDigit)
 
 
--- | Compile the slice with the given slice ID to an executable program.
--- Assumes that the slice contains a declaration for some 'main :: IO ()'.
-sliceCompilerMain :: SliceID -> IO ExitCode
-sliceCompilerMain sliceID = do
-    putStrLn "Generating compilation units ..."
-    writeSliceModules sliceID
-    putStrLn "Invoking GHC ..."
-    rawSystem "ghc" ([
-        "-o","main",
-        "-ifragnix/temp/compilationunits",
-        "-main-is",sliceModuleName sliceID,
-        "-Ifragnix/include"] ++
-        (map (\filename -> "fragnix/cbits/" ++ filename) cFiles) ++ [
-        "-lpthread","-lz","-lutil",
-        sliceModulePath sliceID])
-
-
 -- | Compile the slice with the given slice ID. Set verbosity to zero and
 -- turn all warnings off.
-sliceCompiler :: SliceID -> IO ExitCode
-sliceCompiler sliceID = do
-    writeSliceModules sliceID
-    rawSystem "ghc" [
-        "-v0","-w",
-        "-ifragnix/temp/compilationunits",
-        sliceModulePath sliceID]
+-- Assumes that all necessary compilation units have been written to disk.
+invokeGHC :: SliceID -> IO ExitCode
+invokeGHC sliceID = rawSystem "ghc" [
+    "-v0","-w",
+    "-ifragnix/temp/compilationunits",
+    sliceModulePath sliceID]
+
+-- | Invoke GHC to compile the slice with the given ID. The slice with the
+-- given ID has to contain a definition for 'main :: IO ()'.
+-- Asssumes that all necessary compilation units have been generated.
+invokeGHCMain :: SliceID -> IO ExitCode
+invokeGHCMain sliceID = rawSystem "ghc" ([
+    "-o","main",
+    "-ifragnix/temp/compilationunits",
+    "-main-is",sliceModuleName sliceID,
+    "-Ifragnix/include"] ++
+    (map (\filename -> "fragnix/cbits/" ++ filename) cFiles) ++ [
+    "-lpthread","-lz","-lutil",
+    sliceModulePath sliceID])
 
 
 -- | Generate and write all modules necessary to compile the slice with the given ID.
