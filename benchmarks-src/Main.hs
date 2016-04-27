@@ -8,13 +8,18 @@ import Fragnix.ModuleDeclarations (
 import Fragnix.DeclarationSlices (
     declarationSlices, tempSlices, hashSlices2,
     declarationSCCs, sliceMap)
+import Fragnix.SliceSymbols (
+    findMainSliceIDs)
+import Fragnix.SliceCompiler (
+    writeSliceModules, invokeGHCMain)
 import Fragnix.Declaration (
     Declaration, Genre)
 import Fragnix.Slice (
     Slice, Language, Fragment, Use, Reference, UsedName, Name,
-    Instance, InstancePart)
+    Instance, InstancePart,
+    writeSliceDefault)
 
-import Criterion.Main (defaultMain, bgroup, bench, nfIO, nf, whnfIO)
+import Criterion.Main (defaultMain, bgroup, bench, nfIO, nf, whnfIO, env)
 
 import Language.Haskell.Names (
     Symbol(..), Scoped(..), NameInfo(..), Error(..),
@@ -32,8 +37,8 @@ import qualified Language.Haskell.Exts.Annotated as Annotated (
 import Control.DeepSeq (NFData)
 import GHC.Generics (Generic)
 import Control.Monad (forM)
-import Data.Foldable (toList)
-import System.Directory (getDirectoryContents)
+import Data.Foldable (for_, toList)
+import System.Directory (getDirectoryContents, removeDirectoryRecursive)
 
 
 main :: IO ()
@@ -55,6 +60,10 @@ main = do
 
     let tempSliceMap = sliceMap (tempSlices fragmentNodes)
 
+    let (slices,symbolSlices) = declarationSlices declarations
+
+    let mainSliceID = head (findMainSliceIDs symbolSlices)
+
     defaultMain [
         bench "loadEnvironment" (
             nfIO (loadEnvironment builtinEnvironmentPath)),
@@ -75,7 +84,18 @@ main = do
             bench "tempSlices" (
                 nf tempSlices fragmentNodes),
             bench "hashSlices2" (
-                nf hashSlices2 tempSliceMap)]]
+                nf hashSlices2 tempSliceMap)],
+        env (for_ slices writeSliceDefault) (\_ ->
+            bgroup "sliceCompiler" [
+                bench "sliceCompiler" (
+                    whnfIO (do
+                        removeDirectoryRecursive "fragnix/temp/compilationunits/"
+                        writeSliceModules mainSliceID
+                        invokeGHCMain mainSliceID)),
+                bench "writeSliceModules" (
+                    nfIO (do
+                        removeDirectoryRecursive "fragnix/temp/compilationunits/"
+                        writeSliceModules mainSliceID))])]
 
 
 instance NFData ModuleName
