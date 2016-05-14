@@ -11,7 +11,7 @@ import Fragnix.DeclarationSlices (
 import Fragnix.SliceSymbols (
     findMainSliceIDs)
 import Fragnix.SliceCompiler (
-    writeSliceModules, invokeGHCMain)
+    writeSliceModules, sliceInstances, invokeGHCMain)
 import Fragnix.Declaration (
     Declaration, Genre)
 import Fragnix.Slice (
@@ -92,6 +92,8 @@ main = do
                         removeDirectoryRecursive "fragnix/temp/compilationunits/"
                         writeSliceModules mainSliceID
                         invokeGHCMain mainSliceID)),
+                bench "sliceInstances" (
+                    nf sliceInstances slices),
                 bench "writeSliceModules" (
                     nfIO (do
                         removeDirectoryRecursive "fragnix/temp/compilationunits/"
