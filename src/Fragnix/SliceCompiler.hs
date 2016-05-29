@@ -38,11 +38,11 @@ import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put)
 import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
 import qualified Data.Map.Strict as Map (
-    fromList,lookup,(!),keys,map)
+    fromList,toList,lookup,(!),keys,map,mapWithKey)
 import Data.Set (Set)
 import qualified Data.Set as Set (
     fromList,toList,map,filter,insert,
-    union,intersection,unions)
+    union,intersection,unions,difference)
 import Control.Monad (forM,forM_,unless)
 import Data.Maybe (mapMaybe, isJust)
 import Data.List (partition)
@@ -220,17 +220,35 @@ bootDecl decl = [decl]
 
 
 -- | Given a list of slices, find for each slice the list of relevant
--- instances and put it into a Map for easy lookup.
+-- instances. Then reduce these lists to only those instances that have
+-- to be imported explicitly and put them into a Map for easy lookup.
 sliceInstances :: [Slice] -> Map SliceID (Set InstanceID)
 sliceInstances slices = sliceInstancesMap where
-    sliceInstancesMap = Map.map (Set.filter (\sliceID -> isInstanceMap Map.! sliceID)) usedSliceMapFixpoint
+
+    -- Map from slice ID to set of all instances that have to be imported explicitly
+    sliceInstancesMap = Map.fromList (do
+        (sliceID,instanceIDSet) <- Map.toList explicitInstancesMap
+        let reducedInstanceIDSet = Set.difference instanceIDSet directlyUsedInstanceIDSet
+            directlyUsedInstanceIDSet = Set.unions (do
+                directlyUsedSliceID <- Set.toList (directlyUsedSliceMap Map.! sliceID)
+                return (explicitInstancesMap Map.! directlyUsedSliceID))
+        return (sliceID,reducedInstanceIDSet))
+
+    -- Map from slice ID to set of all required instances. Contains instances that would be
+    -- in scope implicitly.
+    explicitInstancesMap = Map.map (Set.filter (\sliceID -> isInstanceMap Map.! sliceID)) usedSliceMapFixpoint
+
+    -- Fixpoint of transitively adding more and more instances.
     usedSliceMapFixpoint = fixpoint (addInstances instancesMap . addUsedSlices) initialUsedSliceMap
+
     isInstanceMap = Map.fromList (do
         slice@(Slice sliceID _ _ _ _) <- slices
         return (sliceID,isInstance slice))
-    initialUsedSliceMap = Map.fromList (do
+    initialUsedSliceMap = Map.mapWithKey (\sliceID usedSliceIDSet ->
+        Set.insert sliceID usedSliceIDSet) directlyUsedSliceMap
+    directlyUsedSliceMap = Map.fromList (do
         slice@(Slice sliceID _ _ _ _) <- slices
-        return (sliceID,Set.insert sliceID (Set.fromList (usedSliceIDs slice))))
+        return (sliceID,Set.fromList (usedSliceIDs slice)))
     instancesMap = Map.fromList (do
         Slice sliceID _ _ _ instances <- slices
         return (sliceID,instances))
