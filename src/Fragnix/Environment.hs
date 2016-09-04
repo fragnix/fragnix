@@ -19,7 +19,7 @@ loadEnvironment :: FilePath -> IO Environment
 loadEnvironment path = do
     createDirectoryIfMissing True path
     filenames <- getDirectoryContents path
-    let pathmodulnames = map (\filename -> (ModuleName filename,path </> filename)) filenames
+    let pathmodulnames = map (\filename -> (ModuleName () filename,path </> filename)) filenames
     existingPathModulNames <- filterM (doesFileExist . snd) pathmodulnames
     fmap Map.fromList (forM existingPathModulNames (\(modulname,modulpath) -> do
         symbols <- readSymbols modulpath

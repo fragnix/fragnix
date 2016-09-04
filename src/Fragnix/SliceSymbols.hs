@@ -19,7 +19,7 @@ import Control.Monad (
 findMainSliceIDs :: Map Symbol SliceID -> [SliceID]
 findMainSliceIDs symbolSlices = do
     (symbol,sliceID) <- Map.toList symbolSlices
-    guard (symbolName symbol == Ident "main")
+    guard (symbolName symbol == Ident () "main")
     return sliceID
 
 -- | Replace in the given environment the original module of all symbols
@@ -33,4 +33,4 @@ updateEnvironment symbolSlices environment =
 updateSymbol :: Map Symbol SliceID -> Symbol -> Symbol
 updateSymbol symbolSlices symbol = case Map.lookup symbol symbolSlices of
     Nothing -> symbol
-    Just sliceID -> symbol { symbolModule = ModuleName (show sliceID) }
+    Just sliceID -> symbol { symbolModule = ModuleName () (show sliceID) }

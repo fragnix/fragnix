@@ -11,11 +11,14 @@ import Fragnix.Slice (
 import Prelude hiding (writeFile)
 
 import Language.Haskell.Exts.Syntax (
-    Module(Module),ModuleName(ModuleName),ModulePragma(LanguagePragma),
-    Decl(InstDecl,DataDecl,GDataDecl,PatBind,FunBind,ForImp,DerivDecl,TypeSig,TypeInsDecl,DataInsDecl,GDataInsDecl),
+    Module(Module),ModuleHead(ModuleHead),
+    ModuleName(ModuleName),ModulePragma(LanguagePragma),
+    Decl(InstDecl,DataDecl,GDataDecl,PatBind,FunBind,
+         ForImp,DerivDecl,TypeSig,TypeInsDecl,DataInsDecl,GDataInsDecl),
     Name(Ident,Symbol),QName(UnQual),
-    ExportSpec(EThingAll),
-    ImportDecl(ImportDecl,importSrc,importModule),ImportSpec(IVar,IAbs,IThingWith),
+    ExportSpecList(ExportSpecList),ExportSpec(EThingWith),EWildcard(EWildcard),
+    ImportSpecList(ImportSpecList),ImportDecl(ImportDecl,importSrc,importModule),
+    ImportSpec(IVar,IAbs,IThingWith),
     CName(ConName),Namespace(NoNamespace))
 import Language.Haskell.Exts.SrcLoc (noLoc)
 import Language.Haskell.Exts.Parser (
@@ -88,27 +91,31 @@ writeSliceModules sliceID = do
 
 
 -- | Given a slice generate the corresponding module.
-sliceModule :: Map SliceID (Set InstanceID) -> Slice -> Module
+sliceModule :: Map SliceID (Set InstanceID) -> Slice -> Module ()
 sliceModule sliceInstancesMap (Slice sliceID language fragment uses _) =
     let Fragment declarations = fragment
-        decls = map (parseDeclaration sliceID ghcextensions) declarations
-        moduleName = ModuleName (sliceModuleName sliceID)
-        Language ghcextensions _ = language
-        languagepragmas = [Ident "NoImplicitPrelude"] ++ (map (Ident . unpack) ghcextensions)
-        pragmas = [LanguagePragma noLoc languagepragmas]
+        moduleHead = ModuleHead () moduleName Nothing maybeExportSpecList
+        pragmas = [LanguagePragma () languagepragmas]
         imports =
             map useImport uses ++
             map instanceImport (Set.toList (sliceInstancesMap Map.! sliceID))
+        decls = map (parseDeclaration sliceID ghcextensions) declarations
+        moduleName = ModuleName () (sliceModuleName sliceID)
         -- We need an export list to export the data family even
         -- though a slice only contains the data family instance
-        exports = dataFamilyInstanceExports decls imports
-    in Module noLoc moduleName pragmas Nothing exports imports decls
+        maybeExportSpecList = dataFamilyInstanceExports decls imports
+        languagepragmas =
+            [Ident () "NoImplicitPrelude"] ++
+            (map (Ident () . unpack) ghcextensions)
+        Language ghcextensions _ = language
+    in Module () (Just moduleHead) pragmas imports decls
 
 
 -- | Reparse a declaration from its textual representation in a slice.
-parseDeclaration :: SliceID -> [Text] -> Text -> Decl
-parseDeclaration sliceID ghcextensions declaration = decl where
-    Module _ _ _ _ _ _ [decl] = fromParseResult (parseModuleWithMode parseMode (unpack declaration))
+parseDeclaration :: SliceID -> [Text] -> Text -> Decl ()
+parseDeclaration sliceID ghcextensions declaration = fmap (const ()) decl where
+    -- Workaround because HSE couldn't parse all standalone declarations.
+    Module _ _ _ _ [decl] = fromParseResult (parseModuleWithMode parseMode (unpack declaration))
     parseMode = defaultParseMode {
         parseFilename = show sliceID,
         extensions = map (parseExtension . unpack) ghcextensions,
@@ -116,46 +123,54 @@ parseDeclaration sliceID ghcextensions declaration = decl where
 
 
 -- | Import decl for a given use of a symbol.
-useImport :: Use -> ImportDecl
+useImport :: Use -> ImportDecl ()
 useImport (Use maybeQualification usedName symbolSource) =
     let moduleName = case symbolSource of
-            OtherSlice sliceID -> ModuleName (sliceModuleName sliceID)
-            Builtin originalModule -> ModuleName (unpack originalModule)
+            OtherSlice sliceID -> ModuleName () (sliceModuleName sliceID)
+            Builtin originalModule -> ModuleName () (unpack originalModule)
         qualified = isJust maybeQualification
-        maybeAlias = fmap (ModuleName . unpack) maybeQualification
+        maybeAlias = fmap (ModuleName () . unpack) maybeQualification
         importSpec = case usedName of
-            ValueName name -> [IVar (toName name)]
-            TypeName name -> [IAbs NoNamespace (toName name)]
+            ValueName name ->
+                IVar () (toName name)
+            TypeName name ->
+                IAbs () (NoNamespace ()) (toName name)
             ConstructorName typeName name ->
-                [IThingWith (toName typeName) [ConName (toName name)]]
-        toName (Identifier name) = Ident (unpack name)
-        toName (Operator name) = Symbol (unpack name)
+                IThingWith () (toName typeName) [ConName () (toName name)]
+        importSpecList = Just (ImportSpecList () False [importSpec])
+        toName (Identifier name) = Ident () (unpack name)
+        toName (Operator name) = Symbol () (unpack name)
 
-    in ImportDecl noLoc moduleName qualified False False Nothing maybeAlias (Just (False,importSpec))
+    in ImportDecl () moduleName qualified False False Nothing maybeAlias importSpecList
 
 
 -- | Import Decl for an instance from the given SliceID. Instance imports
 -- are source imports.
-instanceImport :: SliceID -> ImportDecl
+instanceImport :: SliceID -> ImportDecl ()
 instanceImport sliceID =
-    ImportDecl noLoc (ModuleName (sliceModuleName sliceID)) False True False Nothing Nothing Nothing
+    ImportDecl () (ModuleName () (sliceModuleName sliceID)) False True False Nothing Nothing Nothing
 
 
 -- | We export every type that we import in a data family instance slice
-dataFamilyInstanceExports :: [Decl] -> [ImportDecl] -> Maybe [ExportSpec]
-dataFamilyInstanceExports [DataInsDecl _ _ _ _ _] imports = Just (do
-    ImportDecl _ _ _ _ _ _ _ (Just (False,[IAbs _ typeName])) <- imports
-    return (EThingAll (UnQual typeName)))
-dataFamilyInstanceExports [GDataInsDecl _ _ _ _ _ _] imports = Just (do
-    ImportDecl _ _ _ _ _ _ _ (Just (False,[IAbs _ typeName])) <- imports
-    return (EThingAll (UnQual typeName)))
-dataFamilyInstanceExports _ _ = Nothing
+dataFamilyInstanceExports :: [Decl a] -> [ImportDecl ()] -> Maybe (ExportSpecList ())
+dataFamilyInstanceExports [DataInsDecl _ _ _ _ _] imports =
+    Just (ExportSpecList () (do
+        ImportDecl _ _ _ _ _ _ _ (Just importSpecList) <- imports
+        ImportSpecList _ False [IAbs _ _ typeName] <- [importSpecList]
+        return (EThingWith () (EWildcard () 0) (UnQual () typeName) [])))
+dataFamilyInstanceExports [GDataInsDecl _ _ _ _ _ _] imports =
+    Just (ExportSpecList () (do
+        ImportDecl _ _ _ _ _ _ _ (Just importSpecList) <- imports
+        ImportSpecList _ False [IAbs _ _ typeName] <- [importSpecList]
+        return (EThingWith () (EWildcard () 0) (UnQual () typeName) [])))
+dataFamilyInstanceExports _ _ =
+    Nothing
 
 
 -- | Create a boot module from an ordinary module.
-bootModule :: Module -> Module
-bootModule (Module srcloc moduleName pragmas warnings exports imports decls) = 
-    Module srcloc moduleName pragmas warnings exports bootImports bootDecls where
+bootModule :: Module a -> Module a
+bootModule (Module annotation maybeModuleHead pragmas imports decls) =
+    Module annotation maybeModuleHead pragmas bootImports bootDecls where
         bootImports = mapMaybe bootImport imports
         bootDecls = concatMap bootDecl decls
 
@@ -165,17 +180,17 @@ bootModule (Module srcloc moduleName pragmas warnings exports imports decls) =
 -- https://ghc.haskell.org/trac/ghc/ticket/8441
 -- hs-boot files contain source imports for constructors.
 -- We remove constructor imports from hs-boot files that contain only instances.
-bootInstanceModule :: Module -> Module
-bootInstanceModule (Module srcloc moduleName pragmas warnings exports imports decls) =
-    Module srcloc moduleName pragmas warnings exports bootImports bootDecls where
+bootInstanceModule :: Module a -> Module a
+bootInstanceModule (Module annotation maybeModuleHead pragmas imports decls) =
+    Module annotation maybeModuleHead pragmas bootImports bootDecls where
         bootImports = mapMaybe bootInstanceImport imports
         bootDecls = concatMap bootDecl decls
 
 
 -- | Remove all source imports and make all other imports source except those
--- from builtin modules. The removal of source imports means that the
--- ALLINSTANCES module will not be imported.
-bootImport :: ImportDecl -> Maybe ImportDecl
+-- from builtin modules. The removal of source imports means that no instance
+-- modules will be imported.
+bootImport :: ImportDecl a -> Maybe (ImportDecl a)
 bootImport importDecl
     | importSrc importDecl = Nothing
     | isSliceModule (importModule importDecl) = Just (importDecl {importSrc = True})
@@ -183,9 +198,10 @@ bootImport importDecl
 
 
 -- | Remove all source imports and make all other imports source except those
--- from builtin modules. The removal of source imports means that the
--- ALLINSTANCES module will not be imported. Also remove constructor imports.
-bootInstanceImport :: ImportDecl -> Maybe ImportDecl
+-- from builtin modules. The removal of source imports means that no instance
+-- modules will be imported.
+-- Also remove constructor imports.
+bootInstanceImport :: ImportDecl a -> Maybe (ImportDecl a)
 bootInstanceImport importDecl
     | importSrc importDecl = Nothing
     | isConstructorImport importDecl = Nothing
@@ -195,18 +211,18 @@ bootInstanceImport importDecl
 
 -- | Remove instance bodies, make derived instances into bodyless instance decls,
 -- remove value bindings and generate a type signature for foreign imports.
-bootDecl :: Decl -> [Decl]
-bootDecl (InstDecl srcloc overlap typeVars context classname types _) =
-    [InstDecl srcloc overlap typeVars context classname types []]
-bootDecl (DataDecl srcloc dataOrNew context dataname typeVars constructors _) =
-    [DataDecl srcloc dataOrNew context dataname typeVars constructors []]
-bootDecl (GDataDecl srcloc dataOrNew context name typeVars kind constructors _) =
-    [GDataDecl srcloc dataOrNew context name typeVars kind constructors []]
-bootDecl (DerivDecl srcloc overlap typeVars context classname types) =
-    [InstDecl srcloc overlap typeVars context classname types []]
+bootDecl :: Decl a -> [Decl a]
+bootDecl (InstDecl annotation overlap instRule _) =
+    [InstDecl annotation overlap instRule Nothing]
+bootDecl (DataDecl annotation dataOrNew context declHead constructors _) =
+    [DataDecl annotation dataOrNew context declHead constructors Nothing]
+bootDecl (GDataDecl annotation dataOrNew context declHead kind constructors _) =
+    [GDataDecl annotation dataOrNew context declHead kind constructors Nothing]
+bootDecl (DerivDecl annotation overlap instRule) =
+    [InstDecl annotation overlap instRule Nothing]
 bootDecl (PatBind _ _ _ _) =
     []
-bootDecl (FunBind _) =
+bootDecl (FunBind _ _) =
     []
 bootDecl (ForImp srcloc _ _ _ name typ) =
     [TypeSig srcloc [name] typ]
@@ -216,7 +232,8 @@ bootDecl (DataInsDecl _ _ _ _ _) =
     []
 bootDecl (GDataInsDecl _ _ _ _ _ _) =
     []
-bootDecl decl = [decl]
+bootDecl decl =
+    [decl]
 
 
 -- | Given a list of slices, find for each slice the list of relevant
@@ -316,13 +333,13 @@ sliceModuleDirectory :: FilePath
 sliceModuleDirectory = "fragnix" </> "temp" </> "compilationunits"
 
 -- | The path where we put a generated module for GHC to find it.
-modulePath :: Module -> FilePath
-modulePath (Module _ (ModuleName moduleName) _ _ _ _ _) =
+modulePath :: Module a -> FilePath
+modulePath (Module _ (Just (ModuleHead _ (ModuleName _ moduleName) _ _)) _ _ _) =
     sliceModuleDirectory </> moduleName <.> "hs"
 
 -- | The path where we put a generated boot module for GHC to find it.
-moduleHSBootPath :: Module -> FilePath
-moduleHSBootPath (Module _ (ModuleName moduleName) _ _ _ _ _) =
+moduleHSBootPath :: Module a -> FilePath
+moduleHSBootPath (Module _ (Just (ModuleHead _ (ModuleName _ moduleName) _ _)) _ _ _) =
     sliceModuleDirectory </> moduleName <.> "hs-boot"
 
 -- | The path for the module generated for the slice with the given ID
@@ -334,34 +351,26 @@ sliceModuleName :: SliceID -> String
 sliceModuleName sliceID = "F" ++ show sliceID
 
 -- | The module name of the module that reexports all instances.
-allInstancesModuleName :: ModuleName
-allInstancesModuleName = ModuleName "ALLINSTANCES"
+allInstancesModuleName :: ModuleName ()
+allInstancesModuleName = ModuleName () "ALLINSTANCES"
 
 -- | Is the module name from a fragnix generated module
-isSliceModule :: ModuleName -> Bool
-isSliceModule (ModuleName ('F':rest)) = all isDigit rest
+isSliceModule :: ModuleName a -> Bool
+isSliceModule (ModuleName _ ('F':rest)) = all isDigit rest
 isSliceModule _ = False
 
 -- | Does the import import a constructor
-isConstructorImport :: ImportDecl -> Bool
-isConstructorImport (ImportDecl _ _ _ _ _ _ _ (Just (False,[IThingWith _ _]))) = True
+isConstructorImport :: ImportDecl a -> Bool
+isConstructorImport (ImportDecl _ _ _ _ _ _ _ (Just (ImportSpecList _ False [IThingWith _ _ _]))) = True
 isConstructorImport _ = False
 
 
-writeModule :: Module -> IO ()
+writeModule :: Module a -> IO ()
 writeModule modul = writeFileStrictIfMissing (modulePath modul) (prettyPrint modul)
 
 
-writeHSBoot :: Module -> IO ()
+writeHSBoot :: Module a -> IO ()
 writeHSBoot modul = writeFileStrictIfMissing (moduleHSBootPath modul) (addRoleAnnotation (prettyPrint modul))
-
-
-writeAllInstancesModule :: Module -> IO ()
-writeAllInstancesModule modul = writeFileStrict (modulePath modul) (prettyPrint modul)
-
-
-writeAllInstancesHSBoot :: Module -> IO ()
-writeAllInstancesHSBoot modul = writeFileStrict (moduleHSBootPath modul) (prettyPrint modul)
 
 
 -- | Write out the given string to the given file path but only if

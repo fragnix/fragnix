@@ -235,7 +235,7 @@ needsConstructors (Declaration DerivingInstance _ _ _ _) =
 needsConstructors (Declaration ForeignImport _ _ _ _) =
     True
 needsConstructors (Declaration _ _ _ _ mentionedSymbols) =
-    any ((==(Name.Ident "coerce")) . symbolName . fst) mentionedSymbols
+    any ((==(Name.Ident () "coerce")) . symbolName . fst) mentionedSymbols
 
 
 -- | Given a temporary environment and a Map from type symbol to its constructor
@@ -289,8 +289,8 @@ arrange declarations = arrangements ++ (declarations \\ arrangements) where
 
 -- | We abuse module names to either refer to builtin modules or to a slice.
 -- If the module name refers to a slice it consists entirely of digits.
-moduleReference :: ModuleName -> Reference
-moduleReference (ModuleName moduleName)
+moduleReference :: ModuleName () -> Reference
+moduleReference (ModuleName () moduleName)
     | all isDigit moduleName = OtherSlice (read moduleName)
     | otherwise = Builtin (pack moduleName)
 
@@ -503,7 +503,7 @@ isInstance (Declaration TypeClassInstance _ _ _ _) = True
 isInstance (Declaration DerivingInstance _ _ _ _) = True
 isInstance _ = False
 
-fromName :: Name.Name -> Name
-fromName (Name.Ident name) = Identifier (pack name)
-fromName (Name.Symbol name) = Operator (pack name)
+fromName :: Name.Name () -> Name
+fromName (Name.Ident () name) = Identifier (pack name)
+fromName (Name.Symbol () name) = Operator (pack name)
 

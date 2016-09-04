@@ -6,24 +6,20 @@ import Fragnix.Declaration (
 import Fragnix.Environment (
     loadEnvironment,environmentPath,builtinEnvironmentPath)
 
-import qualified Language.Haskell.Exts as UnAnn (
-    QName(Qual,UnQual),ModuleName)
-import Language.Haskell.Exts.Annotated (
-    Module,ModuleName,Decl(..),
+import Language.Haskell.Exts (
+    Module,ModuleName,QName(Qual,UnQual),Decl(..),
     parseFileContentsWithMode,defaultParseMode,ParseMode(..),baseFixities,
     ParseResult(ParseOk,ParseFailed),
     SrcSpan,srcInfoSpan,SrcLoc(SrcLoc),
     prettyPrint,
     Extension(EnableExtension),
     KnownExtension(..))
-import Language.Haskell.Exts.Annotated.Simplify (
-    sModuleName)
 import Language.Haskell.Names (
     resolve,annotate,
     Environment,Symbol,Error,Scoped(Scoped),
     NameInfo(GlobalSymbol,RecPatWildcard,ScopeError))
 import Language.Haskell.Names.SyntaxUtils (
-    getModuleDecls,getModuleName,getModuleExtensions)
+    getModuleDecls,getModuleName,getModuleExtensions,dropAnn)
 import Language.Haskell.Names.ModuleSymbols (
     getTopDeclSymbols)
 import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (
@@ -74,7 +70,7 @@ moduleNameErrors environment modules = errors where
 moduleSymbols :: Environment -> [Module SrcSpan] -> Environment
 moduleSymbols environment modules = Map.fromList (do
     let environment' = resolve modules environment
-    moduleName <- map (sModuleName . getModuleName) modules
+    moduleName <- map (dropAnn . getModuleName) modules
     return (moduleName,environment' Map.! moduleName))
 
 
@@ -135,7 +131,7 @@ declToDeclaration declarationExtensions modulnameast annotatedast = do
 -- | The genre of a declaration, for example Type, Value, TypeSignature, ...
 declGenre :: Decl (Scoped SrcSpan) -> Genre
 declGenre (TypeDecl _ _ _) = Type
-declGenre (TypeFamDecl _ _ _) = Type
+declGenre (TypeFamDecl _ _ _ _) = Type
 declGenre (DataDecl _ _ _ _ _ _) = Type
 declGenre (GDataDecl _ _ _ _ _ _ _) = Type
 declGenre (DataFamDecl _ _ _ _) = Type
@@ -154,17 +150,22 @@ declGenre _ = Other
 
 -- | All symbols the given declaration in a module with the given name binds.
 declaredSymbols :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> [Symbol]
-declaredSymbols modulnameast annotatedast = getTopDeclSymbols GlobalTable.empty modulnameast annotatedast
+declaredSymbols modulnameast annotatedast =
+  getTopDeclSymbols GlobalTable.empty modulnameast annotatedast
 
 -- | All symbols the given declaration mentions together with a qualifiaction
 -- if they are used qualified.
-mentionedSymbols :: Decl (Scoped SrcSpan) -> [(Symbol,Maybe UnAnn.ModuleName)]
+mentionedSymbols :: Decl (Scoped SrcSpan) -> [(Symbol,Maybe (ModuleName ()))]
 mentionedSymbols decl = concatMap scopeSymbol (toList decl)
 
 -- | Get all references to global symbols from the given scope annotation.
-scopeSymbol :: Scoped SrcSpan -> [(Symbol,Maybe UnAnn.ModuleName)]
-scopeSymbol (Scoped (GlobalSymbol symbol (UnAnn.Qual modulname _)) _) = [(symbol,Just modulname)]
-scopeSymbol (Scoped (GlobalSymbol symbol (UnAnn.UnQual _)) _) = [(symbol,Nothing)]
-scopeSymbol (Scoped (RecPatWildcard symbols) _) = map (\symbol -> (symbol,Nothing)) symbols
-scopeSymbol _ = []
+scopeSymbol :: Scoped SrcSpan -> [(Symbol,Maybe (ModuleName ()))]
+scopeSymbol (Scoped (GlobalSymbol symbol (Qual _ modulname _)) _) =
+  [(symbol,Just (dropAnn modulname))]
+scopeSymbol (Scoped (GlobalSymbol symbol (UnQual _ _)) _) =
+  [(symbol,Nothing)]
+scopeSymbol (Scoped (RecPatWildcard symbols) _) =
+  map (\symbol -> (symbol,Nothing)) symbols
+scopeSymbol _ =
+  []
 

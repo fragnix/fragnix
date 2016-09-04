@@ -1,9 +1,10 @@
 {-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
 module Fragnix.Declaration where
 
-import Language.Haskell.Exts.Annotated (Extension)
-import Language.Haskell.Names (Symbol)
-import Language.Haskell.Exts (ModuleName(ModuleName),prettyPrint)
+import Language.Haskell.Exts (
+  ModuleName(ModuleName),prettyPrint,Extension)
+import Language.Haskell.Names (
+  Symbol)
 
 import Data.Aeson (
     ToJSON(toJSON),object,(.=),encode,
@@ -34,7 +35,7 @@ data Genre =
 
 type DeclarationAST   = Text
 type DeclaredSymbols  = [Symbol]
-type MentionedSymbols = [(Symbol,Maybe ModuleName)]
+type MentionedSymbols = [(Symbol, Maybe (ModuleName ()))]
 
 readDeclarations :: FilePath -> IO [Declaration]
 readDeclarations declarationspath = do
@@ -60,6 +61,6 @@ instance FromJSON Declaration where
         declarationextensions <- fmap (map read) (o .: "declarationextensions")
         declarationast <- o .: "declarationast"
         declaredsymbols <- o .: "declaredsymbols"
-        mentionedsymbols <- fmap (fmap (fmap (fmap ModuleName))) (o .: "mentionedsymbols")
+        mentionedsymbols <- fmap (fmap (fmap (fmap (ModuleName ())))) (o .: "mentionedsymbols")
         return (Declaration declarationgenre declarationextensions declarationast declaredsymbols mentionedsymbols))
 

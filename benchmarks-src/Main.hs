@@ -27,12 +27,11 @@ import Language.Haskell.Names (
 
 import Language.Haskell.Exts (
     ModuleName, Extension(..), KnownExtension(..),
-    QName, SpecialCon, Boxed)
+    QName, ModuleName, SpecialCon, Boxed)
 import Language.Haskell.Exts.SrcLoc (
     SrcSpan(..), SrcLoc(..))
-import qualified Language.Haskell.Exts as HaskellExts (Name)
-import qualified Language.Haskell.Exts.Annotated as Annotated (
-    Name, QName, ModuleName, SpecialCon)
+import qualified Language.Haskell.Exts as HaskellExts (
+    Name)
 
 import Control.DeepSeq (NFData)
 import GHC.Generics (Generic)
@@ -100,25 +99,21 @@ main = do
                         writeSliceModules mainSliceID))])]
 
 
-instance NFData ModuleName
 instance NFData Symbol
 
 instance (NFData a) => NFData (Scoped a)
 instance (NFData a) => NFData (NameInfo a)
 instance (NFData a) => NFData (Error a)
-instance (NFData a) => NFData (Annotated.Name a)
-instance (NFData a) => NFData (Annotated.QName a)
-instance (NFData a) => NFData (Annotated.ModuleName a)
-instance (NFData a) => NFData (Annotated.SpecialCon a)
+instance (NFData a) => NFData (ModuleName a)
+instance (NFData a) => NFData (SpecialCon a)
+instance (NFData a) => NFData (HaskellExts.Name a)
+instance (NFData a) => NFData (QName a)
 instance NFData SrcSpan
 instance NFData SrcLoc
-instance NFData QName
-instance NFData SpecialCon
 instance NFData Boxed
 
 instance NFData Declaration
 instance NFData Genre
-instance NFData HaskellExts.Name
 instance NFData Extension
 instance NFData KnownExtension
 
