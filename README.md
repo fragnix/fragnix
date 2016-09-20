@@ -2,21 +2,21 @@
 Fragnix [![Build Status](https://travis-ci.org/phischu/fragnix.svg?branch=master)](https://travis-ci.org/phischu/fragnix)
 =======
 
-Fragment-based code distribution!
+Fragnix is an experimental code package manager for Haskell. The central idea is that we should share and reuse code in units of small code fragments instead of in units of packages.
 
 Installation
 ------------
 
-Unfourtunately installation is rather difficult, because `fragnix` uses modified versions of `haskell-names` and `haskell-src-exts` that are not (yet) on hackage.
+Follow the following steps to get a development version of fragnix. There is no released version yet.
 
-    git clone --recursive https://github.com/phischu/fragnix
+    git clone https://github.com/phischu/fragnix
     cd fragnix
     cabal sandbox init
-    cabal sandbox add-source haskell-src-exts
-    cabal sandbox add-source haskell-names
-    cabal install --only-dependencies --enable-tests
-    cabal configure --enable-tests
+    cabal install
+    cabal configure
     cabal build
+
+This should place a `fragnix` executable in `dist/build/fragnix/fragnix`.
 
 Example
 -------
@@ -32,4 +32,6 @@ You should see the following output:
     Linking main ...
 
 You should be able to execute `main` which prints `"Hello Fragnix!"` to stdout.
+
+
 
