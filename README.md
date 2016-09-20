@@ -33,5 +33,44 @@ You should see the following output:
 
 You should be able to execute `main` which prints `"Hello Fragnix!"` to stdout.
 
+Vision
+------
 
+A few random thoughts.
+
+### Integration with source control
+
+We will use text-based formats to make it possible to use existing source control tools to manage your environment.
+
+### Separate metadata from code
+
+We will make it possible to annotate slices with comments, upvotes, tags, ...
+
+### Lightweight dependencies
+
+I've read the term "inflict a dependency". Reusing code should be something good.
+
+### Platform support
+
+If you want to use code on a different platform, port only the part you really need.
+
+### First class environments
+
+Multiple environments for example for beginners, web development, data science and so on can coexist.
+
+### Discoverability
+
+Use code and and metadata for search, example generation and recommendations.
+
+### First class updates
+
+Code is immutable. You have to explicitly apply updates. Updates can have metadata (non-breaking, performance, whitespace, ...).
+
+### Foreign function interface
+
+On some platforms (C, Javascript) we have to integrate with foreign code.
+
+### Easy contribution
+
+Contribute useful functions without going through the maintainer.
 
