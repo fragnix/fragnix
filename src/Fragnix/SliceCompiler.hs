@@ -20,7 +20,6 @@ import Language.Haskell.Exts.Syntax (
     ImportSpecList(ImportSpecList),ImportDecl(ImportDecl,importSrc,importModule),
     ImportSpec(IVar,IAbs,IThingWith),
     CName(ConName),Namespace(NoNamespace))
-import Language.Haskell.Exts.SrcLoc (noLoc)
 import Language.Haskell.Exts.Parser (
     parseModuleWithMode,ParseMode(parseFilename,extensions,fixities),defaultParseMode,
     fromParseResult)
@@ -44,7 +43,7 @@ import qualified Data.Map.Strict as Map (
     fromList,toList,lookup,(!),keys,map,mapWithKey)
 import Data.Set (Set)
 import qualified Data.Set as Set (
-    fromList,toList,map,filter,insert,
+    fromList,toList,map,filter,insert,delete,
     union,intersection,unions,difference)
 import Control.Monad (forM,forM_,unless)
 import Data.Maybe (mapMaybe, isJust)
@@ -173,6 +172,7 @@ bootModule (Module annotation maybeModuleHead pragmas imports decls) =
     Module annotation maybeModuleHead pragmas bootImports bootDecls where
         bootImports = mapMaybe bootImport imports
         bootDecls = concatMap bootDecl decls
+bootModule _ = error "XML module not supported."
 
 
 -- | Create a boot module for an instance module
@@ -185,6 +185,7 @@ bootInstanceModule (Module annotation maybeModuleHead pragmas imports decls) =
     Module annotation maybeModuleHead pragmas bootImports bootDecls where
         bootImports = mapMaybe bootInstanceImport imports
         bootDecls = concatMap bootDecl decls
+bootInstanceModule _ = error "XML module not supported"
 
 
 -- | Remove all source imports and make all other imports source except those
@@ -252,20 +253,26 @@ sliceInstances slices = sliceInstancesMap where
         return (sliceID,reducedInstanceIDSet))
 
     -- Map from slice ID to set of all required instances. Contains instances that would be
-    -- in scope implicitly.
-    explicitInstancesMap = Map.map (Set.filter (\sliceID -> isInstanceMap Map.! sliceID)) usedSliceMapFixpoint
+    -- in scope implicitly. The set never includes the slice itself.
+    explicitInstancesMap = removeNonInstanceSlices (removeSliceItself usedSliceMapFixpoint)
+    removeNonInstanceSlices = Map.map (Set.filter (\sliceID -> isInstanceMap Map.! sliceID))
+    removeSliceItself = Map.mapWithKey (\sliceID -> Set.delete sliceID)
 
     -- Fixpoint of transitively adding more and more instances.
     usedSliceMapFixpoint = fixpoint (addInstances instancesMap . addUsedSlices) initialUsedSliceMap
 
+    -- For each slice True if it contains an instance.
     isInstanceMap = Map.fromList (do
         slice@(Slice sliceID _ _ _ _) <- slices
         return (sliceID,isInstance slice))
+    -- Directly used slices plus the slice itself.
     initialUsedSliceMap = Map.mapWithKey (\sliceID usedSliceIDSet ->
         Set.insert sliceID usedSliceIDSet) directlyUsedSliceMap
+    -- Directly used slices.
     directlyUsedSliceMap = Map.fromList (do
         slice@(Slice sliceID _ _ _ _) <- slices
         return (sliceID,Set.fromList (usedSliceIDs slice)))
+    -- For each slice its list of instances.
     instancesMap = Map.fromList (do
         Slice sliceID _ _ _ instances <- slices
         return (sliceID,instances))
@@ -336,11 +343,19 @@ sliceModuleDirectory = "fragnix" </> "temp" </> "compilationunits"
 modulePath :: Module a -> FilePath
 modulePath (Module _ (Just (ModuleHead _ (ModuleName _ moduleName) _ _)) _ _ _) =
     sliceModuleDirectory </> moduleName <.> "hs"
+modulePath (Module _ Nothing _ _ _) =
+    sliceModuleDirectory </> "Main" <.> "hs"
+modulePath _ =
+    error "XML module not supported."
 
 -- | The path where we put a generated boot module for GHC to find it.
 moduleHSBootPath :: Module a -> FilePath
 moduleHSBootPath (Module _ (Just (ModuleHead _ (ModuleName _ moduleName) _ _)) _ _ _) =
     sliceModuleDirectory </> moduleName <.> "hs-boot"
+moduleHSBootPath (Module _ Nothing _ _ _) =
+    sliceModuleDirectory </> "Main" <.> "hs-boot"
+moduleHSBootPath _ =
+    error "XML module not supported."
 
 -- | The path for the module generated for the slice with the given ID
 sliceModulePath :: SliceID -> FilePath
