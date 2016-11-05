@@ -36,7 +36,43 @@ You should be able to execute `main` which prints `"Hello Fragnix!"` to stdout.
 Vision
 ------
 
-A few random thoughts.
+Fragnix is an experiment to find out if the advantages of fragment-based code distribution can be realized.
+
+### Lightweight dependencies
+
+I've read the term "inflict a dependency". Reusing code should be something good. You should never think twice about using something existing or rolling your own.
+
+### Easy contribution
+
+Some packages are missing helpful functionality. A common pattern is to release a `packagename-extras` package on hackage. Fragnix allows you to contribute useful functions without going through the maintainer and without releasing (and maintaining) a package. You write the useful function, click submit and it is online for others to enjoy.
+
+### Discoverability
+
+Code forms a giant directed acyclic graph. We can use this graph to rank code search results and recommend related functions. We find real-world example uses of a given function.
+
+### First class updates
+
+Code is immutable. Your environment is frozen by default. You have to explicitly apply updates. Updates can have metadata (non-breaking, performance, whitespace, ...). Different people can have different policies which updates to apply automatically. There could be a tool for example that applies all non-breaking updates to your environment.
+
+### Platform support
+
+Fragnix reduces your project to a small set of Haskell modules. If you want to build your code on a different platform you can invoke GHC on that platform on the set of generated modules. This should make it easier to build your project on for example Raspberry Pi. If some part of a cabal package is not supported on the target platform the build fails under traditional package-based dependency management. Even if you don't actually use the unsupported part. With fragnix the build will succeed.
+
+### First class environments
+
+Multiple environments for example for beginners, web development, data science and so on can coexist. We see a recent trend to develop custom Preludes. This is the same idea, only fully supported. As long as different environments rely on the same core data types they are compatible.
+
+### Foreign function interface
+
+On some platforms (C, Javascript) we have to integrate with foreign code. It is an open question where fragnix dependency management will stop.
+
+### Lower binary size and compilation time
+
+Fragnix does dead code elimination by design. Because the dead code elimination is static it helps to avoid compilation of large parts of programs. This should speed up compilation.
+
+### Cache compilation results forever
+
+Fragnix hashes slices. We can cache the compilation results based on this hash even across machines.
 
 ### Integration with source control
 
@@ -44,33 +80,5 @@ We will use text-based formats to make it possible to use existing source contro
 
 ### Separate metadata from code
 
-We will make it possible to annotate slices with comments, upvotes, tags, ...
-
-### Lightweight dependencies
-
-I've read the term "inflict a dependency". Reusing code should be something good.
-
-### Platform support
-
-If you want to use code on a different platform, port only the part you really need.
-
-### First class environments
-
-Multiple environments for example for beginners, web development, data science and so on can coexist.
-
-### Discoverability
-
-Use code and and metadata for search, example generation and recommendations.
-
-### First class updates
-
-Code is immutable. You have to explicitly apply updates. Updates can have metadata (non-breaking, performance, whitespace, ...).
-
-### Foreign function interface
-
-On some platforms (C, Javascript) we have to integrate with foreign code.
-
-### Easy contribution
-
-Contribute useful functions without going through the maintainer.
+The platform will make it possible to annotate slices with comments, upvotes, tags, supported platforms, ...
 
