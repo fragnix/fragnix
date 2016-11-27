@@ -1,0 +1,4 @@
+resolver: lts-7.10
+extra-deps:
+- haskell-src-exts-1.18.2
+- haskell-names-0.8.0
