@@ -7,31 +7,84 @@ Fragnix is an experimental code package manager for Haskell. The central idea is
 Installation
 ------------
 
-Follow the following steps to get a development version of fragnix. There is no released version yet.
+Follow the following steps to get a development version of fragnix. You need at least GHC 8.0.
 
-    git clone https://github.com/phischu/fragnix
-    cd fragnix
-    cabal sandbox init
-    cabal install
-    cabal configure
-    cabal build
+```
+> git clone https://github.com/phischu/fragnix
+> cd fragnix
+> cabal sandbox init
+> cabal install
+```
 
-This should place a `fragnix` executable in `dist/build/fragnix/fragnix`.
+This should place a `fragnix` executable in `.cabal-sandbox/bin/`.
+
+
+Building with `stack` should work too:
+
+```
+> stack install
+```
+
+The `fragnix` executable is then in `.stack-work/bin/`.
+
 
 Example
 -------
 
-If you have completed the installation a fragnix executable is in `./dist/build/fragnix`. Example modules are in `./tests/quick`. For example if you invoke:
-    
-    ./dist/build/fragnix/fragnix ./tests/quick/HelloFragnix/*.hs
+If you have completed the installation you have a `fragnix` executable. The following assumes you have it somewhere in your `PATH`. You also have to have GHC 7.8 in your `PATH`.
 
-You should see the following output:
+In `tests/quick/HelloFragnix/` we have two Haskell module files: `Greet.hs` and `Main.hs`.
 
-    [1 of 2] Compiling F8632002673072373674 ( fragnix/temp/compilationunits/F8632002673072373674.hs, fragnix/temp/compilationunits/F8632002673072373674.o )
-    [2 of 2] Compiling F3018125790947100434 ( fragnix/temp/compilationunits/F3018125790947100434.hs, fragnix/temp/compilationunits/F3018125790947100434.o )
-    Linking main ...
+``` haskell
+module Greet where
 
-You should be able to execute `main` which prints `"Hello Fragnix!"` to stdout.
+putHello :: String -> IO ()
+putHello x = putStrLn ("Hello " ++ x)
+
+putHi :: String -> IO ()
+putHi x = putStrLn ("Hi " ++ x)
+```
+
+``` haskell
+module Main where
+
+import Greet (putHello)
+
+main :: IO ()
+main = putHello "Fragnix!"
+```
+
+When we provide `fragnix` with a list of Haskell module files and there is a `Main` module that contains a definition for `main` it will build a program.
+
+```
+> fragnix ./tests/quick/HelloFragnix/Greet.hs ./tests/quick/HelloFragnix/Main.hs
+Loading environment ...
+Took   0.38s
+Parsing modules ...
+Took   0.05s
+Extracting declarations ...
+Took   0.35s
+Slicing ...
+Took   0.00s
+Updating environment ...
+Took   0.00s
+Compiling 792930286580032004
+Generating compilation units...
+Took   0.06s
+Invoking GHC
+[1 of 2] Compiling F6662111434988992012 ( fragnix/temp/compilationunits/F6662111434988992012.hs, fragnix/temp/compilationunits/F6662111434988992012.o )
+[2 of 2] Compiling F792930286580032004 ( fragnix/temp/compilationunits/F792930286580032004.hs, fragnix/temp/compilationunits/F792930286580032004.o )
+Linking main ...
+Took   3.63s
+```
+
+We can then invoke the produced executable `main`:
+
+```
+> ./main
+Hello Fragnix!
+```
+
 
 Vision
 ------
