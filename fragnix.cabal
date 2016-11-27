@@ -37,7 +37,7 @@ library
                        transformers >=0.3.0.0 && <0.6
   hs-source-dirs:      src
   default-language:    Haskell2010
-  ghc-options:         -O2 -Wall -fprof-auto
+  ghc-options:         -O2
 
 
 executable fragnix
@@ -61,7 +61,7 @@ executable fragnix
                        fragnix
   hs-source-dirs:      executable-src
   default-language:    Haskell2010
-  ghc-options:         -O2 -Wall -fprof-auto -threaded -rtsopts
+  ghc-options:         -O2 -threaded -rtsopts
 
 
 test-suite test
@@ -86,14 +86,14 @@ test-suite test
                        fragnix
   hs-source-dirs:      tests-src
   default-language:    Haskell2010
-  ghc-options:         -O2 -Wall -fprof-auto
+  ghc-options:         -O2
   type:                exitcode-stdio-1.0
 
 
 benchmark benchmark
   main-is:             Main.hs
   build-depends:       base >=4.6 && <4.10,
-                       containers >=0.6.6.1 && <0.6,
+                       containers >=0.5.0.0 && <0.6,
                        directory >=1.2.1.0 && <1.3,
                        criterion >=1.1.0.0 && <1.2,
                        deepseq >=1.4.1.2 && <1.6,
@@ -102,7 +102,7 @@ benchmark benchmark
                        fragnix
   hs-source-dirs:      benchmarks-src
   default-language:    Haskell2010
-  ghc-options:         -O2 -Wall -fprof-auto -fno-warn-orphans
+  ghc-options:         -O2
   type:                exitcode-stdio-1.0
 
  
