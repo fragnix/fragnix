@@ -161,7 +161,8 @@ Joachim Breitner [suggested to track dependencies at the level of individual fun
 
 Some people use [`npm`](https://www.npmjs.com/) the way you would use `fragnix`. For example [this guy](https://github.com/jonschlinkert/ansi-green/issues/1). Remember [`left-pad`](https://www.npmjs.com/package/left-pad)?
 
-[This project](https://llogiq.github.io/2016/04/24/nsa.html) dumps the call graph of installed [rust](https://www.rust-lang.org/) packages.
+[This project](https://llogiq.github.io/2016/04/24/nsa.html) dumps the call graph of installed [rust](https://www.rust-lang.org/) packages. [This project](https://github.com/alexkehayias/cargo-safety) walks the call graph to find uses of unsafe features.
 
 [Interlisp](http://www.ics.uci.edu/~andre/ics228s2006/teitelmanmasinter.pdf) had a tool called masterscope to analyse the static call graph of your program.
+
 
