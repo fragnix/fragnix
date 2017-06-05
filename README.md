@@ -131,17 +131,17 @@ A Haskell program is a set of modules (according to the Haskell Report 2010). Fr
 
 Fragnix does dead code elimination by design. Because the dead code elimination is static it helps to avoid compilation of large parts of programs. This should speed up compilation.
 
-### Used code is obvious and explicit
+### Which code you use is obvious and explicit
 
-Find out if the code you rely on uses certain unsafe features. Find out if you are affected by a security vulnerability. Find out if any used function is deprecated.
+Find out if the code you rely on uses certain unsafe features. Find out if you are affected by a security vulnerability. Find out if any function you use is deprecated.
 
 ### Cache compilation results forever
 
-Fragnix hashes slices. We can cache the compilation results based on this hash even across machines.
+Fragnix uniquely identifies code fragments by a hash. We can cache the compilation results based on this hash even across machines.
 
-### Display execution results on platform
+### Browse through code
 
-If we have a code snippet that describes for example a picture or a piece of music we can show that picture or a player for the music right next to the code.
+There will be an online platform to browse through code. If we have a code snippet that describes for example a picture or a piece of music we can show that picture or a player for the music right next to the code.
 
 ### Integration with source control
 
@@ -149,11 +149,13 @@ We will use text-based formats to make it possible to use existing source contro
 
 ### Separate metadata from code
 
-The platform will make it possible to annotate slices with comments, upvotes, tags, supported platforms, deprecation, benchmarks, tests, ... This enables crowd-sourced documentation.
+The online platform will make it possible to annotate code fragments with comments, upvotes, tags, supported platforms, deprecation, benchmarks, tests, ... This enables crowd-sourced documentation.
 
 
 Related work
 ------------
+
+Rich Hickey [has similar thoughts](https://www.youtube.com/watch?v=oyLBGkS5ICk).
 
 Joe Armstrong wondered [Why do we need modules at all?]](http://lambda-the-ultimate.org/node/5079).
 
