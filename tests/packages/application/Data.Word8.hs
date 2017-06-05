@@ -1,10 +1,62 @@
 {-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Word8.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
+
 -- | Word8 library to be used with Data.ByteString.
 -- All function assumes that 'Word8' is encoded in Latin-1 (ISO-8859-1).
 -- All utility functions are supposed to work as if
 -- those of 'Data.Char'. Exceptions are described in
 -- the function documentations.
+--
+-- Base library 4.7 (GHC 7.8) or earlier is based on Unicode 6.
+-- Base library 4.8 (GHC 7.10) or later is based on Unicode 7.
+-- 'isLower', 'isSymbol' and 'isPunctuation' behave differently.
 
 module Data.Word8 (
   -- * Re-exporting
@@ -36,6 +88,7 @@ module Data.Word8 (
 
 import Data.Word (Word8)
 
+
 ----------------------------------------------------------------
 
 isControl :: Word8 -> Bool
@@ -51,10 +104,16 @@ isSpace w = w == _space
          || w == _vt
          || w == _nbsp
 
+-- | This function returns 'True' for 170 and 186 in Unicode 6.
+--   But it returns 'False' in Unicode 7.
 isLower :: Word8 -> Bool
 isLower w = isLower' w
-         || w == _ordfeminine
          || w == _mu
+
+isLowerCommon :: Word8 -> Bool
+isLowerCommon w = isLower' w
+         || w == _mu
+         || w == _ordfeminine
          || w == _ordmasculine
 
 isLower' :: Word8 -> Bool
@@ -68,7 +127,7 @@ isUpper w = isAsciiUpper w
          || _Oslash <= w && w <= _Thorn
 
 isAlpha :: Word8 -> Bool
-isAlpha w = isLower w || isUpper w
+isAlpha w = isLowerCommon w || isUpper w
 
 isAlphaNum :: Word8 -> Bool
 isAlphaNum w = isAlpha w || isNumber w
@@ -91,7 +150,7 @@ isHexDigit w = isDigit w
             || _a <= w && w <= _f
 
 isLetter :: Word8 -> Bool
-isLetter w = isLower w || isUpper w
+isLetter w = isLowerCommon w || isUpper w
 
 isMark :: Word8 -> Bool
 isMark _ = False
@@ -105,11 +164,15 @@ isNumber w = isDigit w
           || w == _1'2
           || w == _3'4
 
+-- | This function returns 'False' for 167 and 182 in Unicode 6.
+--   But it returns 'True' in Unicode 7.
 isPunctuation :: Word8 -> Bool
-isPunctuation w = w `elem` [0x21,0x22,0x23,0x25,0x26,0x27,0x28,0x29,0x2a,0x2c,0x2d,0x2e,0x2f,0x3a,0x3b,0x3f,0x40,0x5b,0x5c,0x5d,0x5f,0x7b,0x7d,0xa1,0xab,0xb7,0xbb,0xbf]
+isPunctuation w = w `elem` [0x21,0x22,0x23,0x25,0x26,0x27,0x28,0x29,0x2a,0x2c,0x2d,0x2e,0x2f,0x3a,0x3b,0x3f,0x40,0x5b,0x5c,0x5d,0x5f,0x7b,0x7d,0xa1,0xa7,0xab,0xb6,0xb7,0xbb,0xbf]
 
+-- | This function returns 'True' for 167 and 182 in Unicode 6.
+--   But it returns 'False' in Unicode 7.
 isSymbol :: Word8 -> Bool
-isSymbol w = w `elem` [0x24,0x2b,0x3c,0x3d,0x3e,0x5e,0x60,0x7c,0x7e,0xa2,0xa3,0xa4,0xa5,0xa6,0xa7,0xa8,0xa9,0xac,0xae,0xaf,0xb0,0xb1,0xb4,0xb6,0xb8,0xd7,0xf7]
+isSymbol w = w `elem` [0x24,0x2b,0x3c,0x3d,0x3e,0x5e,0x60,0x7c,0x7e,0xa2,0xa3,0xa4,0xa5,0xa6,0xa8,0xa9,0xac,0xae,0xaf,0xb0,0xb1,0xb4,0xb8,0xd7,0xf7]
 
 isSeparator :: Word8 -> Bool
 isSeparator w = w == _space

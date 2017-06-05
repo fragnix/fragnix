@@ -1,4 +1,4 @@
-{-# LANGUAGE Haskell2010, CPP, DeriveDataTypeable #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Vector/Generic/Mutable.hs" #-}
 
 
@@ -47,8 +47,15 @@
 
 
 
-{-# LANGUAGE MultiParamTypeClasses, BangPatterns, ScopedTypeVariables,
-             TypeFamilies #-}
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP, MultiParamTypeClasses, FlexibleContexts, BangPatterns, TypeFamilies, ScopedTypeVariables #-}
 -- |
 -- Module      : Data.Vector.Generic.Mutable
 -- Copyright   : (c) Roman Leshchinskiy 2008-2010
@@ -57,7 +64,7 @@
 -- Maintainer  : Roman Leshchinskiy <rl@cse.unsw.edu.au>
 -- Stability   : experimental
 -- Portability : non-portable
--- 
+--
 -- Generic interface to mutable vectors
 --
 
@@ -84,33 +91,40 @@ module Data.Vector.Generic.Mutable (
 
   -- ** Growing
   grow, unsafeGrow,
+  growFront, unsafeGrowFront,
 
   -- ** Restricting memory usage
   clear,
 
   -- * Accessing individual elements
-  read, write, swap,
-  unsafeRead, unsafeWrite, unsafeSwap,
+  read, write, modify, swap, exchange,
+  unsafeRead, unsafeWrite, unsafeModify, unsafeSwap, unsafeExchange,
 
   -- * Modifying vectors
+  nextPermutation,
 
   -- ** Filling and copying
   set, copy, move, unsafeCopy, unsafeMove,
 
   -- * Internal operations
   mstream, mstreamR,
-  unstream, unstreamR,
+  unstream, unstreamR, vunstream,
   munstream, munstreamR,
   transform, transformR,
   fill, fillR,
   unsafeAccum, accum, unsafeUpdate, update, reverse,
-  unstablePartition, unstablePartitionStream, partitionStream
+  unstablePartition, unstablePartitionBundle, partitionBundle
 ) where
 
-import qualified Data.Vector.Fusion.Stream      as Stream
-import           Data.Vector.Fusion.Stream      ( Stream, MStream )
-import qualified Data.Vector.Fusion.Stream.Monadic as MStream
-import           Data.Vector.Fusion.Stream.Size
+import           Data.Vector.Generic.Mutable.Base
+import qualified Data.Vector.Generic.Base as V
+
+import qualified Data.Vector.Fusion.Bundle      as Bundle
+import           Data.Vector.Fusion.Bundle      ( Bundle, MBundle, Chunk(..) )
+import qualified Data.Vector.Fusion.Bundle.Monadic as MBundle
+import           Data.Vector.Fusion.Stream.Monadic ( Stream )
+import qualified Data.Vector.Fusion.Stream.Monadic as Stream
+import           Data.Vector.Fusion.Bundle.Size
 import           Data.Vector.Fusion.Util        ( delay_inline )
 
 import Control.Monad.Primitive ( PrimMonad, PrimState )
@@ -125,24 +139,12 @@ import qualified Data.Vector.Internal.Check as Ck
 
 
 
+{-
+type family Immutable (v :: * -> * -> *) :: * -> *
 
 -- | Class of mutable vectors parametrised with a primitive state token.
 --
--- Minimum complete implementation:
---
---   * 'basicLength'
---
---   * 'basicUnsafeSlice'
---
---   * 'basicOverlaps'
---
---   * 'basicUnsafeNew'
---
---   * 'basicUnsafeRead'
---
---   * 'basicUnsafeWrite'
---
-class MVector v a where
+class MBundle.Pointer u a => MVector v a where
   -- | Length of the mutable vector. This method should not be
   -- called directly, use 'length' instead.
   basicLength       :: v s a -> Int
@@ -183,6 +185,10 @@ class MVector v a where
   -- | Set all elements of the vector to the given value. This method should
   -- not be called directly, use 'set' instead.
   basicSet         :: PrimMonad m => v (PrimState m) a -> a -> m ()
+
+  basicUnsafeCopyPointer :: PrimMonad m => v (PrimState m) a
+                                        -> Immutable v a
+                                        -> m ()
 
   -- | Copy a vector. The two vectors may not overlap. This method should not
   -- be called directly, use 'unsafeCopy' instead.
@@ -226,6 +232,14 @@ class MVector v a where
                | otherwise = basicUnsafeCopy (basicUnsafeSlice i (n-i) v)
                                              (basicUnsafeSlice 0 (n-i) v)
 
+  {-# INLINE basicUnsafeCopyPointer #-}
+  basicUnsafeCopyPointer !dst !src = do_copy 0 src
+    where
+      do_copy !i p | Just (x,q) <- MBundle.pget p = do
+                                                      basicUnsafeWrite dst i x
+                                                      do_copy (i+1) q
+                   | otherwise = return ()
+
   {-# INLINE basicUnsafeCopy #-}
   basicUnsafeCopy !dst !src = do_copy 0
     where
@@ -236,7 +250,7 @@ class MVector v a where
                             basicUnsafeWrite dst i x
                             do_copy (i+1)
                 | otherwise = return ()
-  
+
   {-# INLINE basicUnsafeMove #-}
   basicUnsafeMove !dst !src
     | basicOverlaps dst src = do
@@ -252,6 +266,7 @@ class MVector v a where
         return v'
     where
       n = basicLength v
+-}
 
 -- ------------------
 -- Internal functions
@@ -270,7 +285,7 @@ unsafeAppend1 v i x
                      return v
   | otherwise    = do
                      v' <- enlarge v
-                     ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 218) Ck.Internal) "unsafeAppend1" i (length v')
+                     ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 226) Ck.Internal) "unsafeAppend1" i (length v')
                        $ unsafeWrite v' i x
                      return v'
 
@@ -283,15 +298,15 @@ unsafePrepend1 v i x
                   unsafeWrite v i' x
                   return (v, i')
   | otherwise = do
-                  (v', i) <- enlargeFront v
-                  let i' = i-1
-                  ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 233) Ck.Internal) "unsafePrepend1" i' (length v')
+                  (v', j) <- enlargeFront v
+                  let i' = j-1
+                  ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 241) Ck.Internal) "unsafePrepend1" i' (length v')
                     $ unsafeWrite v' i' x
                   return (v', i')
 
-mstream :: (PrimMonad m, MVector v a) => v (PrimState m) a -> MStream m a
+mstream :: (PrimMonad m, MVector v a) => v (PrimState m) a -> Stream m a
 {-# INLINE mstream #-}
-mstream v = v `seq` n `seq` (MStream.unfoldrM get 0 `MStream.sized` Exact n)
+mstream v = v `seq` n `seq` (Stream.unfoldrM get 0)
   where
     n = length v
 
@@ -301,26 +316,27 @@ mstream v = v `seq` n `seq` (MStream.unfoldrM get 0 `MStream.sized` Exact n)
           | otherwise = return $ Nothing
 
 fill :: (PrimMonad m, MVector v a)
-           => v (PrimState m) a -> MStream m a -> m (v (PrimState m) a)
+     => v (PrimState m) a -> Stream m a -> m (v (PrimState m) a)
 {-# INLINE fill #-}
 fill v s = v `seq` do
-                     n' <- MStream.foldM put 0 s
+                     n' <- Stream.foldM put 0 s
                      return $ unsafeSlice 0 n' v
   where
     {-# INLINE [0] put #-}
     put i x = do
-                ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 257) Ck.Internal) "fill" i (length v)
+                ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 265) Ck.Internal) "fill" i (length v)
                   $ unsafeWrite v i x
                 return (i+1)
 
-transform :: (PrimMonad m, MVector v a)
-  => (MStream m a -> MStream m a) -> v (PrimState m) a -> m (v (PrimState m) a)
+transform
+  :: (PrimMonad m, MVector v a)
+  => (Stream m a -> Stream m a) -> v (PrimState m) a -> m (v (PrimState m) a)
 {-# INLINE [1] transform #-}
 transform f v = fill v (f (mstream v))
 
-mstreamR :: (PrimMonad m, MVector v a) => v (PrimState m) a -> MStream m a
+mstreamR :: (PrimMonad m, MVector v a) => v (PrimState m) a -> Stream m a
 {-# INLINE mstreamR #-}
-mstreamR v = v `seq` n `seq` (MStream.unfoldrM get n `MStream.sized` Exact n)
+mstreamR v = v `seq` n `seq` (Stream.unfoldrM get n)
   where
     n = length v
 
@@ -332,10 +348,10 @@ mstreamR v = v `seq` n `seq` (MStream.unfoldrM get n `MStream.sized` Exact n)
         j = i-1
 
 fillR :: (PrimMonad m, MVector v a)
-           => v (PrimState m) a -> MStream m a -> m (v (PrimState m) a)
+      => v (PrimState m) a -> Stream m a -> m (v (PrimState m) a)
 {-# INLINE fillR #-}
 fillR v s = v `seq` do
-                      i <- MStream.foldM put n s
+                      i <- Stream.foldM put n s
                       return $ unsafeSlice i (n-i) v
   where
     n = length v
@@ -347,25 +363,28 @@ fillR v s = v `seq` do
       where
         j = i-1
 
-transformR :: (PrimMonad m, MVector v a)
-  => (MStream m a -> MStream m a) -> v (PrimState m) a -> m (v (PrimState m) a)
+transformR
+  :: (PrimMonad m, MVector v a)
+  => (Stream m a -> Stream m a) -> v (PrimState m) a -> m (v (PrimState m) a)
 {-# INLINE [1] transformR #-}
 transformR f v = fillR v (f (mstreamR v))
 
--- | Create a new mutable vector and fill it with elements from the 'Stream'.
--- The vector will grow exponentially if the maximum size of the 'Stream' is
+-- | Create a new mutable vector and fill it with elements from the 'Bundle'.
+-- The vector will grow exponentially if the maximum size of the 'Bundle' is
 -- unknown.
-unstream :: (PrimMonad m, MVector v a) => Stream a -> m (v (PrimState m) a)
+unstream :: (PrimMonad m, MVector v a)
+         => Bundle u a -> m (v (PrimState m) a)
 -- NOTE: replace INLINE [1] by INLINE? (also in unstreamR)
 {-# INLINE [1] unstream #-}
-unstream s = munstream (Stream.liftStream s)
+unstream s = munstream (Bundle.lift s)
 
 -- | Create a new mutable vector and fill it with elements from the monadic
 -- stream. The vector will grow exponentially if the maximum size of the stream
 -- is unknown.
-munstream :: (PrimMonad m, MVector v a) => MStream m a -> m (v (PrimState m) a)
+munstream :: (PrimMonad m, MVector v a)
+          => MBundle m u a -> m (v (PrimState m) a)
 {-# INLINE [1] munstream #-}
-munstream s = case upperBound (MStream.size s) of
+munstream s = case upperBound (MBundle.size s) of
                Just n  -> munstreamMax     s n
                Nothing -> munstreamUnknown s
 
@@ -375,33 +394,33 @@ munstream s = case upperBound (MStream.size s) of
 -- the shape of the vector) and one for when the vector has grown. To see the
 -- problem simply compile this:
 --
--- fromList = Data.Vector.Unboxed.unstream . Stream.fromList
+-- fromList = Data.Vector.Unboxed.unstream . Bundle.fromList
 --
 -- I'm not sure this still applies (19/04/2010)
 
-munstreamMax
-  :: (PrimMonad m, MVector v a) => MStream m a -> Int -> m (v (PrimState m) a)
+munstreamMax :: (PrimMonad m, MVector v a)
+             => MBundle m u a -> Int -> m (v (PrimState m) a)
 {-# INLINE munstreamMax #-}
 munstreamMax s n
   = do
-      v <- ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 332) Ck.Internal) "munstreamMax" n
+      v <- ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 344) Ck.Internal) "munstreamMax" n
            $ unsafeNew n
       let put i x = do
-                       ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 335) Ck.Internal) "munstreamMax" i n
+                       ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 347) Ck.Internal) "munstreamMax" i n
                          $ unsafeWrite v i x
                        return (i+1)
-      n' <- MStream.foldM' put 0 s
-      return $ ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 339) Ck.Internal) "munstreamMax" 0 n' n
+      n' <- MBundle.foldM' put 0 s
+      return $ ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 351) Ck.Internal) "munstreamMax" 0 n' n
              $ unsafeSlice 0 n' v
 
-munstreamUnknown
-  :: (PrimMonad m, MVector v a) => MStream m a -> m (v (PrimState m) a)
+munstreamUnknown :: (PrimMonad m, MVector v a)
+                 => MBundle m u a -> m (v (PrimState m) a)
 {-# INLINE munstreamUnknown #-}
 munstreamUnknown s
   = do
       v <- unsafeNew 0
-      (v', n) <- MStream.foldM put (v, 0) s
-      return $ ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 349) Ck.Internal) "munstreamUnknown" 0 n (length v')
+      (v', n) <- MBundle.foldM put (v, 0) s
+      return $ ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 361) Ck.Internal) "munstreamUnknown" 0 n (length v')
              $ unsafeSlice 0 n v'
   where
     {-# INLINE [0] put #-}
@@ -409,48 +428,126 @@ munstreamUnknown s
                     v' <- unsafeAppend1 v i x
                     return (v',i+1)
 
--- | Create a new mutable vector and fill it with elements from the 'Stream'
+
+
+
+
+
+
+-- | Create a new mutable vector and fill it with elements from the 'Bundle'.
+-- The vector will grow exponentially if the maximum size of the 'Bundle' is
+-- unknown.
+vunstream :: (PrimMonad m, V.Vector v a)
+         => Bundle v a -> m (V.Mutable v (PrimState m) a)
+-- NOTE: replace INLINE [1] by INLINE? (also in unstreamR)
+{-# INLINE [1] vunstream #-}
+vunstream s = vmunstream (Bundle.lift s)
+
+-- | Create a new mutable vector and fill it with elements from the monadic
+-- stream. The vector will grow exponentially if the maximum size of the stream
+-- is unknown.
+vmunstream :: (PrimMonad m, V.Vector v a)
+           => MBundle m v a -> m (V.Mutable v (PrimState m) a)
+{-# INLINE [1] vmunstream #-}
+vmunstream s = case upperBound (MBundle.size s) of
+               Just n  -> vmunstreamMax     s n
+               Nothing -> vmunstreamUnknown s
+
+-- FIXME: I can't think of how to prevent GHC from floating out
+-- unstreamUnknown. That is bad because SpecConstr then generates two
+-- specialisations: one for when it is called from unstream (it doesn't know
+-- the shape of the vector) and one for when the vector has grown. To see the
+-- problem simply compile this:
+--
+-- fromList = Data.Vector.Unboxed.unstream . Bundle.fromList
+--
+-- I'm not sure this still applies (19/04/2010)
+
+vmunstreamMax :: (PrimMonad m, V.Vector v a)
+              => MBundle m v a -> Int -> m (V.Mutable v (PrimState m) a)
+{-# INLINE vmunstreamMax #-}
+vmunstreamMax s n
+  = do
+      v <- ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 409) Ck.Internal) "munstreamMax" n
+           $ unsafeNew n
+      let {-# INLINE [0] copyChunk #-}
+          copyChunk i (Chunk m f) =
+            ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 413) Ck.Internal) "munstreamMax.copyChunk" i m (length v) $ do
+              f (basicUnsafeSlice i m v)
+              return (i+m)
+
+      n' <- Stream.foldlM' copyChunk 0 (MBundle.chunks s)
+      return $ ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 418) Ck.Internal) "munstreamMax" 0 n' n
+             $ unsafeSlice 0 n' v
+
+vmunstreamUnknown :: (PrimMonad m, V.Vector v a)
+                 => MBundle m v a -> m (V.Mutable v (PrimState m) a)
+{-# INLINE vmunstreamUnknown #-}
+vmunstreamUnknown s
+  = do
+      v <- unsafeNew 0
+      (v', n) <- Stream.foldlM copyChunk (v,0) (MBundle.chunks s)
+      return $ ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 428) Ck.Internal) "munstreamUnknown" 0 n (length v')
+             $ unsafeSlice 0 n v'
+  where
+    {-# INLINE [0] copyChunk #-}
+    copyChunk (v,i) (Chunk n f)
+      = do
+          let j = i+n
+          v' <- if basicLength v < j
+                  then unsafeGrow v (delay_inline max (enlarge_delta v) (j - basicLength v))
+                  else return v
+          ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 438) Ck.Internal) "munstreamUnknown.copyChunk" i n (length v')
+            $ f (basicUnsafeSlice i n v')
+          return (v',j)
+
+
+
+
+-- | Create a new mutable vector and fill it with elements from the 'Bundle'
 -- from right to left. The vector will grow exponentially if the maximum size
--- of the 'Stream' is unknown.
-unstreamR :: (PrimMonad m, MVector v a) => Stream a -> m (v (PrimState m) a)
+-- of the 'Bundle' is unknown.
+unstreamR :: (PrimMonad m, MVector v a)
+          => Bundle u a -> m (v (PrimState m) a)
 -- NOTE: replace INLINE [1] by INLINE? (also in unstream)
 {-# INLINE [1] unstreamR #-}
-unstreamR s = munstreamR (Stream.liftStream s)
+unstreamR s = munstreamR (Bundle.lift s)
 
 -- | Create a new mutable vector and fill it with elements from the monadic
 -- stream from right to left. The vector will grow exponentially if the maximum
 -- size of the stream is unknown.
-munstreamR :: (PrimMonad m, MVector v a) => MStream m a -> m (v (PrimState m) a)
+munstreamR :: (PrimMonad m, MVector v a)
+           => MBundle m u a -> m (v (PrimState m) a)
 {-# INLINE [1] munstreamR #-}
-munstreamR s = case upperBound (MStream.size s) of
+munstreamR s = case upperBound (MBundle.size s) of
                Just n  -> munstreamRMax     s n
                Nothing -> munstreamRUnknown s
 
-munstreamRMax
-  :: (PrimMonad m, MVector v a) => MStream m a -> Int -> m (v (PrimState m) a)
+munstreamRMax :: (PrimMonad m, MVector v a)
+              => MBundle m u a -> Int -> m (v (PrimState m) a)
 {-# INLINE munstreamRMax #-}
 munstreamRMax s n
   = do
-      v <- ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 379) Ck.Internal) "munstreamRMax" n
+      v <- ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 469) Ck.Internal) "munstreamRMax" n
            $ unsafeNew n
       let put i x = do
                       let i' = i-1
-                      ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 383) Ck.Internal) "munstreamRMax" i' n
+                      ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 473) Ck.Internal) "munstreamRMax" i' n
                         $ unsafeWrite v i' x
                       return i'
-      i <- MStream.foldM' put n s
-      return $ ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 387) Ck.Internal) "munstreamRMax" i (n-i) n
+      i <- MBundle.foldM' put n s
+      return $ ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 477) Ck.Internal) "munstreamRMax" i (n-i) n
              $ unsafeSlice i (n-i) v
 
-munstreamRUnknown
-  :: (PrimMonad m, MVector v a) => MStream m a -> m (v (PrimState m) a)
+munstreamRUnknown :: (PrimMonad m, MVector v a)
+                  => MBundle m u a -> m (v (PrimState m) a)
 {-# INLINE munstreamRUnknown #-}
 munstreamRUnknown s
   = do
       v <- unsafeNew 0
-      (v', i) <- MStream.foldM put (v, 0) s
+      (v', i) <- MBundle.foldM put (v, 0) s
       let n = length v'
-      return $ ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 398) Ck.Internal) "unstreamRUnknown" i (n-i) n
+      return $ ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 488) Ck.Internal) "unstreamRUnknown" i (n-i) n
              $ unsafeSlice i (n-i) v'
   where
     {-# INLINE [0] put #-}
@@ -475,7 +572,7 @@ null v = length v == 0
 -- | Yield a part of the mutable vector without copying it.
 slice :: MVector v a => Int -> Int -> v s a -> v s a
 {-# INLINE slice #-}
-slice i n v = ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 423) Ck.Bounds) "slice" i n (length v)
+slice i n v = ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 513) Ck.Bounds) "slice" i n (length v)
             $ unsafeSlice i n v
 
 take :: MVector v a => Int -> v s a -> v s a
@@ -514,7 +611,7 @@ unsafeSlice :: MVector v a => Int  -- ^ starting index
                            -> v s a
                            -> v s a
 {-# INLINE unsafeSlice #-}
-unsafeSlice i n v = ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 462) Ck.Unsafe) "unsafeSlice" i n (length v)
+unsafeSlice i n v = ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 552) Ck.Unsafe) "unsafeSlice" i n (length v)
                   $ basicUnsafeSlice i n v
 
 unsafeInit :: MVector v a => v s a -> v s a
@@ -536,7 +633,7 @@ unsafeDrop n v = unsafeSlice n (length v - n) v
 -- Overlapping
 -- -----------
 
--- Check whether two vectors overlap.
+-- | Check whether two vectors overlap.
 overlaps :: MVector v a => v s a -> v s a -> Bool
 {-# INLINE overlaps #-}
 overlaps = basicOverlaps
@@ -547,13 +644,13 @@ overlaps = basicOverlaps
 -- | Create a mutable vector of the given length.
 new :: (PrimMonad m, MVector v a) => Int -> m (v (PrimState m) a)
 {-# INLINE new #-}
-new n = ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 495) Ck.Bounds) "new" n
-      $ unsafeNew n
+new n = ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 585) Ck.Bounds) "new" n
+      $ unsafeNew n >>= \v -> basicInitialize v >> return v
 
--- | Create a mutable vector of the given length. The length is not checked.
+-- | Create a mutable vector of the given length. The memory is not initialized.
 unsafeNew :: (PrimMonad m, MVector v a) => Int -> m (v (PrimState m) a)
 {-# INLINE unsafeNew #-}
-unsafeNew n = ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 501) Ck.Unsafe) "unsafeNew" n
+unsafeNew n = ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 591) Ck.Unsafe) "unsafeNew" n
             $ basicUnsafeNew n
 
 -- | Create a mutable vector of the given length (0 if the length is negative)
@@ -566,7 +663,7 @@ replicate n x = basicUnsafeReplicate (delay_inline max 0 n) x
 -- and fill it with values produced by repeatedly executing the monadic action.
 replicateM :: (PrimMonad m, MVector v a) => Int -> m a -> m (v (PrimState m) a)
 {-# INLINE replicateM #-}
-replicateM n m = munstream (MStream.replicateM n m)
+replicateM n m = munstream (MBundle.replicateM n m)
 
 -- | Create a copy of a mutable vector.
 clone :: (PrimMonad m, MVector v a) => v (PrimState m) a -> m (v (PrimState m) a)
@@ -584,42 +681,54 @@ clone v = do
 grow :: (PrimMonad m, MVector v a)
                 => v (PrimState m) a -> Int -> m (v (PrimState m) a)
 {-# INLINE grow #-}
-grow v by = ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 532) Ck.Bounds) "grow" by
-          $ unsafeGrow v by
+grow v by = ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 622) Ck.Bounds) "grow" by
+          $ do vnew <- unsafeGrow v by
+               basicInitialize $ basicUnsafeSlice (length v) by vnew
+               return vnew
 
 growFront :: (PrimMonad m, MVector v a)
                 => v (PrimState m) a -> Int -> m (v (PrimState m) a)
 {-# INLINE growFront #-}
-growFront v by = ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 538) Ck.Bounds) "growFront" by
-               $ unsafeGrowFront v by
+growFront v by = ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 630) Ck.Bounds) "growFront" by
+               $ do vnew <- unsafeGrowFront v by
+                    basicInitialize $ basicUnsafeSlice 0 by vnew
+                    return vnew
+
+enlarge_delta :: MVector v a => v s a -> Int
+enlarge_delta v = max (length v) 1
 
 -- | Grow a vector logarithmically
 enlarge :: (PrimMonad m, MVector v a)
                 => v (PrimState m) a -> m (v (PrimState m) a)
 {-# INLINE enlarge #-}
-enlarge v = unsafeGrow v (max (length v) 1)
+enlarge v = do vnew <- unsafeGrow v by
+               basicInitialize $ basicUnsafeSlice (length v) by vnew
+               return vnew
+  where
+    by = enlarge_delta v
 
 enlargeFront :: (PrimMonad m, MVector v a)
                 => v (PrimState m) a -> m (v (PrimState m) a, Int)
 {-# INLINE enlargeFront #-}
 enlargeFront v = do
                    v' <- unsafeGrowFront v by
+                   basicInitialize $ basicUnsafeSlice 0 by v'
                    return (v', by)
   where
-    by = max (length v) 1
+    by = enlarge_delta v
 
 -- | Grow a vector by the given number of elements. The number must be
 -- positive but this is not checked.
 unsafeGrow :: (PrimMonad m, MVector v a)
                         => v (PrimState m) a -> Int -> m (v (PrimState m) a)
 {-# INLINE unsafeGrow #-}
-unsafeGrow v n = ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 563) Ck.Unsafe) "unsafeGrow" n
+unsafeGrow v n = ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 663) Ck.Unsafe) "unsafeGrow" n
                $ basicUnsafeGrow v n
 
 unsafeGrowFront :: (PrimMonad m, MVector v a)
                         => v (PrimState m) a -> Int -> m (v (PrimState m) a)
 {-# INLINE unsafeGrowFront #-}
-unsafeGrowFront v by = ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 569) Ck.Unsafe) "unsafeGrowFront" by
+unsafeGrowFront v by = ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 669) Ck.Unsafe) "unsafeGrowFront" by
                      $ do
                          let n = length v
                          v' <- basicUnsafeNew (by+n)
@@ -630,7 +739,7 @@ unsafeGrowFront v by = ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 569) Ck
 -- ------------------------
 
 -- | Reset all elements of the vector to some undefined value, clearing all
--- references to external objects. This is usually a noop for unboxed vectors. 
+-- references to external objects. This is usually a noop for unboxed vectors.
 clear :: (PrimMonad m, MVector v a) => v (PrimState m) a -> m ()
 {-# INLINE clear #-}
 clear = basicClear
@@ -641,47 +750,60 @@ clear = basicClear
 -- | Yield the element at the given position.
 read :: (PrimMonad m, MVector v a) => v (PrimState m) a -> Int -> m a
 {-# INLINE read #-}
-read v i = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 591) Ck.Bounds) "read" i (length v)
+read v i = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 691) Ck.Bounds) "read" i (length v)
          $ unsafeRead v i
 
 -- | Replace the element at the given position.
 write :: (PrimMonad m, MVector v a) => v (PrimState m) a -> Int -> a -> m ()
 {-# INLINE write #-}
-write v i x = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 597) Ck.Bounds) "write" i (length v)
+write v i x = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 697) Ck.Bounds) "write" i (length v)
             $ unsafeWrite v i x
+
+-- | Modify the element at the given position.
+modify :: (PrimMonad m, MVector v a) => v (PrimState m) a -> (a -> a) -> Int -> m ()
+{-# INLINE modify #-}
+modify v f i = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 703) Ck.Bounds) "modify" i (length v)
+             $ unsafeModify v f i
 
 -- | Swap the elements at the given positions.
 swap :: (PrimMonad m, MVector v a) => v (PrimState m) a -> Int -> Int -> m ()
 {-# INLINE swap #-}
-swap v i j = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 603) Ck.Bounds) "swap" i (length v)
-           $ ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 604) Ck.Bounds) "swap" j (length v)
+swap v i j = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 709) Ck.Bounds) "swap" i (length v)
+           $ ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 710) Ck.Bounds) "swap" j (length v)
            $ unsafeSwap v i j
 
 -- | Replace the element at the give position and return the old element.
 exchange :: (PrimMonad m, MVector v a) => v (PrimState m) a -> Int -> a -> m a
 {-# INLINE exchange #-}
-exchange v i x = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 610) Ck.Bounds) "exchange" i (length v)
+exchange v i x = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 716) Ck.Bounds) "exchange" i (length v)
                $ unsafeExchange v i x
 
 -- | Yield the element at the given position. No bounds checks are performed.
 unsafeRead :: (PrimMonad m, MVector v a) => v (PrimState m) a -> Int -> m a
 {-# INLINE unsafeRead #-}
-unsafeRead v i = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 616) Ck.Unsafe) "unsafeRead" i (length v)
+unsafeRead v i = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 722) Ck.Unsafe) "unsafeRead" i (length v)
                $ basicUnsafeRead v i
 
 -- | Replace the element at the given position. No bounds checks are performed.
 unsafeWrite :: (PrimMonad m, MVector v a)
                                 => v (PrimState m) a -> Int -> a -> m ()
 {-# INLINE unsafeWrite #-}
-unsafeWrite v i x = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 623) Ck.Unsafe) "unsafeWrite" i (length v)
+unsafeWrite v i x = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 729) Ck.Unsafe) "unsafeWrite" i (length v)
                   $ basicUnsafeWrite v i x
+
+-- | Modify the element at the given position. No bounds checks are performed.
+unsafeModify :: (PrimMonad m, MVector v a) => v (PrimState m) a -> (a -> a) -> Int -> m ()
+{-# INLINE unsafeModify #-}
+unsafeModify v f i = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 735) Ck.Unsafe) "unsafeModify" i (length v)
+                   $ basicUnsafeRead v i >>= \x ->
+                     basicUnsafeWrite v i (f x)
 
 -- | Swap the elements at the given positions. No bounds checks are performed.
 unsafeSwap :: (PrimMonad m, MVector v a)
                 => v (PrimState m) a -> Int -> Int -> m ()
 {-# INLINE unsafeSwap #-}
-unsafeSwap v i j = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 630) Ck.Unsafe) "unsafeSwap" i (length v)
-                 $ ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 631) Ck.Unsafe) "unsafeSwap" j (length v)
+unsafeSwap v i j = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 743) Ck.Unsafe) "unsafeSwap" i (length v)
+                 $ ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 744) Ck.Unsafe) "unsafeSwap" j (length v)
                  $ do
                      x <- unsafeRead v i
                      y <- unsafeRead v j
@@ -693,7 +815,7 @@ unsafeSwap v i j = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 630) Ck.Unsa
 unsafeExchange :: (PrimMonad m, MVector v a)
                                 => v (PrimState m) a -> Int -> a -> m a
 {-# INLINE unsafeExchange #-}
-unsafeExchange v i x = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 643) Ck.Unsafe) "unsafeExchange" i (length v)
+unsafeExchange v i x = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 756) Ck.Unsafe) "unsafeExchange" i (length v)
                      $ do
                          y <- unsafeRead v i
                          unsafeWrite v i x
@@ -709,18 +831,19 @@ set = basicSet
 
 -- | Copy a vector. The two vectors must have the same length and may not
 -- overlap.
-copy :: (PrimMonad m, MVector v a)
-                => v (PrimState m) a -> v (PrimState m) a -> m ()
+copy :: (PrimMonad m, MVector v a) => v (PrimState m) a   -- ^ target
+                                   -> v (PrimState m) a   -- ^ source
+                                   -> m ()
 {-# INLINE copy #-}
-copy dst src = ((Ck.check "Data/Vector/Generic/Mutable.hs" 662) Ck.Bounds) "copy" "overlapping vectors"
+copy dst src = ((Ck.check "Data/Vector/Generic/Mutable.hs" 776) Ck.Bounds) "copy" "overlapping vectors"
                                           (not (dst `overlaps` src))
-             $ ((Ck.check "Data/Vector/Generic/Mutable.hs" 664) Ck.Bounds) "copy" "length mismatch"
+             $ ((Ck.check "Data/Vector/Generic/Mutable.hs" 778) Ck.Bounds) "copy" "length mismatch"
                                           (length dst == length src)
              $ unsafeCopy dst src
 
 -- | Move the contents of a vector. The two vectors must have the same
 -- length.
--- 
+--
 -- If the vectors do not overlap, then this is equivalent to 'copy'.
 -- Otherwise, the copying is performed as if the source vector were
 -- copied to a temporary vector and then the temporary vector was copied
@@ -728,7 +851,7 @@ copy dst src = ((Ck.check "Data/Vector/Generic/Mutable.hs" 662) Ck.Bounds) "copy
 move :: (PrimMonad m, MVector v a)
                 => v (PrimState m) a -> v (PrimState m) a -> m ()
 {-# INLINE move #-}
-move dst src = ((Ck.check "Data/Vector/Generic/Mutable.hs" 678) Ck.Bounds) "move" "length mismatch"
+move dst src = ((Ck.check "Data/Vector/Generic/Mutable.hs" 792) Ck.Bounds) "move" "length mismatch"
                                           (length dst == length src)
              $ unsafeMove dst src
 
@@ -738,15 +861,15 @@ unsafeCopy :: (PrimMonad m, MVector v a) => v (PrimState m) a   -- ^ target
                                          -> v (PrimState m) a   -- ^ source
                                          -> m ()
 {-# INLINE unsafeCopy #-}
-unsafeCopy dst src = ((Ck.check "Data/Vector/Generic/Mutable.hs" 688) Ck.Unsafe) "unsafeCopy" "length mismatch"
+unsafeCopy dst src = ((Ck.check "Data/Vector/Generic/Mutable.hs" 802) Ck.Unsafe) "unsafeCopy" "length mismatch"
                                          (length dst == length src)
-                   $ ((Ck.check "Data/Vector/Generic/Mutable.hs" 690) Ck.Unsafe) "unsafeCopy" "overlapping vectors"
+                   $ ((Ck.check "Data/Vector/Generic/Mutable.hs" 804) Ck.Unsafe) "unsafeCopy" "overlapping vectors"
                                          (not (dst `overlaps` src))
                    $ (dst `seq` src `seq` basicUnsafeCopy dst src)
 
 -- | Move the contents of a vector. The two vectors must have the same
 -- length, but this is not checked.
--- 
+--
 -- If the vectors do not overlap, then this is equivalent to 'unsafeCopy'.
 -- Otherwise, the copying is performed as if the source vector were
 -- copied to a temporary vector and then the temporary vector was copied
@@ -755,7 +878,7 @@ unsafeMove :: (PrimMonad m, MVector v a) => v (PrimState m) a   -- ^ target
                                          -> v (PrimState m) a   -- ^ source
                                          -> m ()
 {-# INLINE unsafeMove #-}
-unsafeMove dst src = ((Ck.check "Data/Vector/Generic/Mutable.hs" 705) Ck.Unsafe) "unsafeMove" "length mismatch"
+unsafeMove dst src = ((Ck.check "Data/Vector/Generic/Mutable.hs" 819) Ck.Unsafe) "unsafeMove" "length mismatch"
                                          (length dst == length src)
                    $ (dst `seq` src `seq` basicUnsafeMove dst src)
 
@@ -763,49 +886,49 @@ unsafeMove dst src = ((Ck.check "Data/Vector/Generic/Mutable.hs" 705) Ck.Unsafe)
 -- ------------
 
 accum :: (PrimMonad m, MVector v a)
-        => (a -> b -> a) -> v (PrimState m) a -> Stream (Int, b) -> m ()
+      => (a -> b -> a) -> v (PrimState m) a -> Bundle u (Int, b) -> m ()
 {-# INLINE accum #-}
-accum f !v s = Stream.mapM_ upd s
+accum f !v s = Bundle.mapM_ upd s
   where
     {-# INLINE [0] upd #-}
     upd (i,b) = do
-                  a <- ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 719) Ck.Bounds) "accum" i n
+                  a <- ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 833) Ck.Bounds) "accum" i n
                      $ unsafeRead v i
                   unsafeWrite v i (f a b)
 
     !n = length v
 
 update :: (PrimMonad m, MVector v a)
-                        => v (PrimState m) a -> Stream (Int, a) -> m ()
+                        => v (PrimState m) a -> Bundle u (Int, a) -> m ()
 {-# INLINE update #-}
-update !v s = Stream.mapM_ upd s
+update !v s = Bundle.mapM_ upd s
   where
     {-# INLINE [0] upd #-}
-    upd (i,b) = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 731) Ck.Bounds) "update" i n
+    upd (i,b) = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 845) Ck.Bounds) "update" i n
               $ unsafeWrite v i b
 
     !n = length v
 
 unsafeAccum :: (PrimMonad m, MVector v a)
-            => (a -> b -> a) -> v (PrimState m) a -> Stream (Int, b) -> m ()
+            => (a -> b -> a) -> v (PrimState m) a -> Bundle u (Int, b) -> m ()
 {-# INLINE unsafeAccum #-}
-unsafeAccum f !v s = Stream.mapM_ upd s
+unsafeAccum f !v s = Bundle.mapM_ upd s
   where
     {-# INLINE [0] upd #-}
     upd (i,b) = do
-                  a <- ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 743) Ck.Unsafe) "accum" i n
+                  a <- ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 857) Ck.Unsafe) "accum" i n
                      $ unsafeRead v i
                   unsafeWrite v i (f a b)
 
     !n = length v
 
 unsafeUpdate :: (PrimMonad m, MVector v a)
-                        => v (PrimState m) a -> Stream (Int, a) -> m ()
+                        => v (PrimState m) a -> Bundle u (Int, a) -> m ()
 {-# INLINE unsafeUpdate #-}
-unsafeUpdate !v s = Stream.mapM_ upd s
+unsafeUpdate !v s = Bundle.mapM_ upd s
   where
     {-# INLINE [0] upd #-}
-    upd (i,b) = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 755) Ck.Unsafe) "accum" i n
+    upd (i,b) = ((Ck.checkIndex "Data/Vector/Generic/Mutable.hs" 869) Ck.Unsafe) "accum" i n
                   $ unsafeWrite v i b
 
     !n = length v
@@ -848,21 +971,21 @@ unstablePartition f !v = from_left 0 (length v)
                                from_left (i+1) j
                         else from_right i (j-1)
 
-unstablePartitionStream :: (PrimMonad m, MVector v a)
-        => (a -> Bool) -> Stream a -> m (v (PrimState m) a, v (PrimState m) a)
-{-# INLINE unstablePartitionStream #-}
-unstablePartitionStream f s
-  = case upperBound (Stream.size s) of
+unstablePartitionBundle :: (PrimMonad m, MVector v a)
+        => (a -> Bool) -> Bundle u a -> m (v (PrimState m) a, v (PrimState m) a)
+{-# INLINE unstablePartitionBundle #-}
+unstablePartitionBundle f s
+  = case upperBound (Bundle.size s) of
       Just n  -> unstablePartitionMax f s n
       Nothing -> partitionUnknown f s
 
 unstablePartitionMax :: (PrimMonad m, MVector v a)
-        => (a -> Bool) -> Stream a -> Int
+        => (a -> Bool) -> Bundle u a -> Int
         -> m (v (PrimState m) a, v (PrimState m) a)
 {-# INLINE unstablePartitionMax #-}
 unstablePartitionMax f s n
   = do
-      v <- ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 812) Ck.Internal) "unstablePartitionMax" n
+      v <- ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 926) Ck.Internal) "unstablePartitionMax" n
            $ unsafeNew n
       let {-# INLINE [0] put #-}
           put (i, j) x
@@ -872,24 +995,24 @@ unstablePartitionMax f s n
             | otherwise = do
                             unsafeWrite v (j-1) x
                             return (i, j-1)
-                                
-      (i,j) <- Stream.foldM' put (0, n) s
+
+      (i,j) <- Bundle.foldM' put (0, n) s
       return (unsafeSlice 0 i v, unsafeSlice j (n-j) v)
 
-partitionStream :: (PrimMonad m, MVector v a)
-        => (a -> Bool) -> Stream a -> m (v (PrimState m) a, v (PrimState m) a)
-{-# INLINE partitionStream #-}
-partitionStream f s
-  = case upperBound (Stream.size s) of
+partitionBundle :: (PrimMonad m, MVector v a)
+        => (a -> Bool) -> Bundle u a -> m (v (PrimState m) a, v (PrimState m) a)
+{-# INLINE partitionBundle #-}
+partitionBundle f s
+  = case upperBound (Bundle.size s) of
       Just n  -> partitionMax f s n
       Nothing -> partitionUnknown f s
 
 partitionMax :: (PrimMonad m, MVector v a)
-  => (a -> Bool) -> Stream a -> Int -> m (v (PrimState m) a, v (PrimState m) a)
+  => (a -> Bool) -> Bundle u a -> Int -> m (v (PrimState m) a, v (PrimState m) a)
 {-# INLINE partitionMax #-}
 partitionMax f s n
   = do
-      v <- ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 839) Ck.Internal) "unstablePartitionMax" n
+      v <- ((Ck.checkLength "Data/Vector/Generic/Mutable.hs" 953) Ck.Internal) "unstablePartitionMax" n
          $ unsafeNew n
 
       let {-# INLINE [0] put #-}
@@ -901,10 +1024,10 @@ partitionMax f s n
             | otherwise = let j' = j-1 in
                           do
                             unsafeWrite v j' x
-                            return (i,j') 
-                            
-      (i,j) <- Stream.foldM' put (0,n) s
-      ((Ck.check "Data/Vector/Generic/Mutable.hs" 854) Ck.Internal) "partitionMax" "invalid indices" (i <= j)
+                            return (i,j')
+
+      (i,j) <- Bundle.foldM' put (0,n) s
+      ((Ck.check "Data/Vector/Generic/Mutable.hs" 968) Ck.Internal) "partitionMax" "invalid indices" (i <= j)
         $ return ()
       let l = unsafeSlice 0 i v
           r = unsafeSlice j (n-j) v
@@ -912,15 +1035,15 @@ partitionMax f s n
       return (l,r)
 
 partitionUnknown :: (PrimMonad m, MVector v a)
-        => (a -> Bool) -> Stream a -> m (v (PrimState m) a, v (PrimState m) a)
+        => (a -> Bool) -> Bundle u a -> m (v (PrimState m) a, v (PrimState m) a)
 {-# INLINE partitionUnknown #-}
 partitionUnknown f s
   = do
       v1 <- unsafeNew 0
       v2 <- unsafeNew 0
-      (v1', n1, v2', n2) <- Stream.foldM' put (v1, 0, v2, 0) s
-      ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 869) Ck.Internal) "partitionUnknown" 0 n1 (length v1')
-        $ ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 870) Ck.Internal) "partitionUnknown" 0 n2 (length v2')
+      (v1', n1, v2', n2) <- Bundle.foldM' put (v1, 0, v2, 0) s
+      ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 983) Ck.Internal) "partitionUnknown" 0 n1 (length v1')
+        $ ((Ck.checkSlice "Data/Vector/Generic/Mutable.hs" 984) Ck.Internal) "partitionUnknown" 0 n2 (length v2')
         $ return (unsafeSlice 0 n1 v1', unsafeSlice 0 n2 v2')
   where
     -- NOTE: The case distinction has to be on the outside because
@@ -936,3 +1059,38 @@ partitionUnknown f s
                       v2' <- unsafeAppend1 v2 i2 x
                       return (v1, i1, v2', i2+1)
 
+{-
+http://en.wikipedia.org/wiki/Permutation#Algorithms_to_generate_permutations
+
+The following algorithm generates the next permutation lexicographically after
+a given permutation. It changes the given permutation in-place.
+
+1. Find the largest index k such that a[k] < a[k + 1]. If no such index exists,
+   the permutation is the last permutation.
+2. Find the largest index l greater than k such that a[k] < a[l].
+3. Swap the value of a[k] with that of a[l].
+4. Reverse the sequence from a[k + 1] up to and including the final element a[n]
+-}
+
+-- | Compute the next (lexicographically) permutation of given vector in-place.
+--   Returns False when input is the last permtuation
+nextPermutation :: (PrimMonad m,Ord e,MVector v e) => v (PrimState m) e -> m Bool
+nextPermutation v
+    | dim < 2 = return False
+    | otherwise = do
+        val <- unsafeRead v 0
+        (k,l) <- loop val (-1) 0 val 1
+        if k < 0
+         then return False
+         else unsafeSwap v k l >>
+              reverse (unsafeSlice (k+1) (dim-k-1) v) >>
+              return True
+    where loop !kval !k !l !prev !i
+              | i == dim = return (k,l)
+              | otherwise  = do
+                  cur <- unsafeRead v i
+                  -- TODO: make tuple unboxed
+                  let (kval',k') = if prev < cur then (prev,i-1) else (kval,k)
+                      l' = if kval' < cur then i else l
+                  loop kval' k' l' cur (i+1)
+          dim = length v

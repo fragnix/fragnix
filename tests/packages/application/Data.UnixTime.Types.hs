@@ -1,5 +1,5 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/Data/UnixTime/Types.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/Data/UnixTime/Types.hs" #-}
 {-# LINE 1 "Data/UnixTime/Types.hsc" #-}
 module Data.UnixTime.Types where
 {-# LINE 2 "Data/UnixTime/Types.hsc" #-}
@@ -18,9 +18,6 @@ import Data.Binary
 
 
 {-# LINE 14 "Data/UnixTime/Types.hsc" #-}
-
-
-{-# LINE 16 "Data/UnixTime/Types.hsc" #-}
 
 -- |
 -- Data structure for Unix time.
@@ -43,29 +40,29 @@ data UnixTime = UnixTime {
 
 instance Storable UnixTime where
     sizeOf _    = ((16))
-{-# LINE 38 "Data/UnixTime/Types.hsc" #-}
+{-# LINE 36 "Data/UnixTime/Types.hsc" #-}
     alignment _ = (8)
-{-# LINE 39 "Data/UnixTime/Types.hsc" #-}
+{-# LINE 37 "Data/UnixTime/Types.hsc" #-}
     peek ptr    = UnixTime
             <$> ((\hsc_ptr -> peekByteOff hsc_ptr 0))  ptr
-{-# LINE 41 "Data/UnixTime/Types.hsc" #-}
+{-# LINE 39 "Data/UnixTime/Types.hsc" #-}
             <*> ((\hsc_ptr -> peekByteOff hsc_ptr 8)) ptr
-{-# LINE 42 "Data/UnixTime/Types.hsc" #-}
+{-# LINE 40 "Data/UnixTime/Types.hsc" #-}
     poke ptr ut = do
             ((\hsc_ptr -> pokeByteOff hsc_ptr 0))  ptr (utSeconds ut)
-{-# LINE 44 "Data/UnixTime/Types.hsc" #-}
+{-# LINE 42 "Data/UnixTime/Types.hsc" #-}
             ((\hsc_ptr -> pokeByteOff hsc_ptr 8)) ptr (utMicroSeconds ut)
+{-# LINE 43 "Data/UnixTime/Types.hsc" #-}
+
+
 {-# LINE 45 "Data/UnixTime/Types.hsc" #-}
-
-
-{-# LINE 47 "Data/UnixTime/Types.hsc" #-}
 instance Binary UnixTime where
         put (UnixTime (CTime sec) msec) = do
             put sec
             put msec
         get = UnixTime <$> (CTime `fmap` get) <*> get
 
-{-# LINE 53 "Data/UnixTime/Types.hsc" #-}
+{-# LINE 51 "Data/UnixTime/Types.hsc" #-}
 
 -- |
 -- Format of the strptime()/strftime() style.
@@ -73,13 +70,6 @@ type Format = ByteString
 
 -- |
 -- Data structure for UnixTime diff.
---
--- >>> (3 :: UnixDiffTime) + 2
--- UnixDiffTime {udtSeconds = 5, udtMicroSeconds = 0}
--- >>> (2 :: UnixDiffTime) - 5
--- UnixDiffTime {udtSeconds = -3, udtMicroSeconds = 0}
--- >>> (3 :: UnixDiffTime) * 2
--- UnixDiffTime {udtSeconds = 6, udtMicroSeconds = 0}
 --
 -- It is up to the user to ensure that @'udtMicroSeconds' < 1000000@.
 -- Helpers such as 'Data.UnixTime.microSecondsToUnixDiffTime' can help

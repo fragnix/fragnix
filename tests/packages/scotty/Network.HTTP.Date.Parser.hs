@@ -6,8 +6,8 @@ module Network.HTTP.Date.Parser (parseHTTPDate) where
 
 import Control.Applicative
 import Control.Monad
-import Data.Attoparsec
-import Data.Attoparsec.Char8
+import Data.Attoparsec.ByteString
+import Data.Attoparsec.ByteString.Char8
 import Data.ByteString
 import Data.Char
 import Network.HTTP.Date.Types
@@ -33,7 +33,9 @@ rfc1123Date = do
     sp
     (h,n,s) <- time
     sp
-    void $ string "GMT"
+    -- RFC 2616 defines GMT only but there are actually ill-formed ones such 
+    -- as "+0000" and "UTC" in the wild.
+    void $ string "GMT" <|> string "+0000" <|> string "UTC"
     return $ defaultHTTPDate {
         hdYear   = y
       , hdMonth  = m

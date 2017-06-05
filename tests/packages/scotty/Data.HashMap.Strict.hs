@@ -45,7 +45,14 @@
 
 
 
-{-# LANGUAGE BangPatterns, CPP #-}
+
+
+
+
+
+
+
+{-# LANGUAGE BangPatterns, CPP, PatternGuards #-}
 
 {-# LANGUAGE Trustworthy #-}
 
@@ -92,11 +99,14 @@ module Data.HashMap.Strict
     , insertWith
     , delete
     , adjust
+    , update
+    , alter
 
       -- * Combine
       -- ** Union
     , union
     , unionWith
+    , unionWithKey
     , unions
 
       -- * Transformations
@@ -106,8 +116,10 @@ module Data.HashMap.Strict
 
       -- * Difference and intersection
     , difference
+    , differenceWith
     , intersection
     , intersectionWith
+    , intersectionWithKey
 
       -- * Folds
     , foldl'
@@ -118,6 +130,8 @@ module Data.HashMap.Strict
       -- * Filter
     , HM.filter
     , filterWithKey
+    , mapMaybe
+    , mapMaybeWithKey
 
       -- * Conversions
     , keys
@@ -137,8 +151,9 @@ import Prelude hiding (map)
 import qualified Data.HashMap.Array as A
 import qualified Data.HashMap.Base as HM
 import Data.HashMap.Base hiding (
-    adjust, fromList, fromListWith, insert, insertWith, intersectionWith,
-    map, mapWithKey, singleton, unionWith)
+    alter, adjust, fromList, fromListWith, insert, insertWith, differenceWith,
+    intersectionWith, intersectionWithKey, map, mapWithKey, mapMaybe,
+    mapMaybeWithKey, singleton, update, unionWith, unionWithKey)
 import Data.HashMap.Unsafe (runST)
 
 -- $strictness
@@ -272,6 +287,23 @@ adjust f k0 m0 = go h0 k0 0 m0
         | otherwise = t
 {-# INLINABLE adjust #-}
 
+-- | /O(log n)/  The expression (@'update' f k map@) updates the value @x@ at @k@,
+-- (if it is in the map). If (f k x) is @'Nothing', the element is deleted.
+-- If it is (@'Just' y), the key k is bound to the new value y.
+update :: (Eq k, Hashable k) => (a -> Maybe a) -> k -> HashMap k a -> HashMap k a
+update f = alter (>>= f)
+{-# INLINABLE update #-}
+
+-- | /O(log n)/  The expression (@'alter' f k map@) alters the value @x@ at @k@, or
+-- absence thereof. @alter@ can be used to insert, delete, or update a value in a
+-- map. In short : @'lookup' k ('alter' f k m) = f ('lookup' k m)@.
+alter :: (Eq k, Hashable k) => (Maybe v -> Maybe v) -> k -> HashMap k v -> HashMap k v
+alter f k m =
+  case f (HM.lookup k m) of
+    Nothing -> delete k m
+    Just v  -> insert k v m
+{-# INLINABLE alter #-}
+
 ------------------------------------------------------------------------
 -- * Combine
 
@@ -279,7 +311,14 @@ adjust f k0 m0 = go h0 k0 0 m0
 -- the provided function (first argument) will be used to compute the result.
 unionWith :: (Eq k, Hashable k) => (v -> v -> v) -> HashMap k v -> HashMap k v
           -> HashMap k v
-unionWith f = go 0
+unionWith f = unionWithKey (const f)
+{-# INLINE unionWith #-}
+
+-- | /O(n+m)/ The union of two maps.  If a key occurs in both maps,
+-- the provided function (first argument) will be used to compute the result.
+unionWithKey :: (Eq k, Hashable k) => (k -> v -> v -> v) -> HashMap k v -> HashMap k v
+          -> HashMap k v
+unionWithKey f = go 0
   where
     -- empty vs. anything
     go !_ t1 Empty = t1
@@ -287,17 +326,17 @@ unionWith f = go 0
     -- leaf vs. leaf
     go s t1@(Leaf h1 l1@(L k1 v1)) t2@(Leaf h2 l2@(L k2 v2))
         | h1 == h2  = if k1 == k2
-                      then leaf h1 k1 (f v1 v2)
+                      then leaf h1 k1 (f k1 v1 v2)
                       else collision h1 l1 l2
         | otherwise = goDifferentHash s h1 h2 t1 t2
     go s t1@(Leaf h1 (L k1 v1)) t2@(Collision h2 ls2)
-        | h1 == h2  = Collision h1 (updateOrSnocWith f k1 v1 ls2)
+        | h1 == h2  = Collision h1 (updateOrSnocWithKey f k1 v1 ls2)
         | otherwise = goDifferentHash s h1 h2 t1 t2
     go s t1@(Collision h1 ls1) t2@(Leaf h2 (L k2 v2))
-        | h1 == h2  = Collision h1 (updateOrSnocWith (flip f) k2 v2 ls1)
+        | h1 == h2  = Collision h1 (updateOrSnocWithKey (flip . f) k2 v2 ls1)
         | otherwise = goDifferentHash s h1 h2 t1 t2
     go s t1@(Collision h1 ls1) t2@(Collision h2 ls2)
-        | h1 == h2  = Collision h1 (updateOrConcatWith f ls1 ls2)
+        | h1 == h2  = Collision h1 (updateOrConcatWithKey f ls1 ls2)
         | otherwise = goDifferentHash s h1 h2 t1 t2
     -- branch vs. branch
     go s (BitmapIndexed b1 ary1) (BitmapIndexed b2 ary2) =
@@ -359,7 +398,7 @@ unionWith f = go 0
       where
         m1 = mask h1 s
         m2 = mask h2 s
-{-# INLINE unionWith #-}
+{-# INLINE unionWithKey #-}
 
 ------------------------------------------------------------------------
 -- * Transformations
@@ -381,10 +420,44 @@ map :: (v1 -> v2) -> HashMap k v1 -> HashMap k v2
 map f = mapWithKey (const f)
 {-# INLINE map #-}
 
+
+------------------------------------------------------------------------
+-- * Filter
+
+-- | /O(n)/ Transform this map by applying a function to every value
+--   and retaining only some of them.
+mapMaybeWithKey :: (k -> v1 -> Maybe v2) -> HashMap k v1 -> HashMap k v2
+mapMaybeWithKey f = filterMapAux onLeaf onColl
+  where onLeaf (Leaf h (L k v)) | Just v' <- f k v = Just (leaf h k v')
+        onLeaf _ = Nothing
+
+        onColl (L k v) | Just v' <- f k v = Just (L k v')
+                       | otherwise = Nothing
+{-# INLINE mapMaybeWithKey #-}
+
+-- | /O(n)/ Transform this map by applying a function to every value
+--   and retaining only some of them.
+mapMaybe :: (v1 -> Maybe v2) -> HashMap k v1 -> HashMap k v2
+mapMaybe f = mapMaybeWithKey (const f)
+{-# INLINE mapMaybe #-}
+
+
 -- TODO: Should we add a strict traverseWithKey?
 
 ------------------------------------------------------------------------
 -- * Difference and intersection
+
+-- | /O(n*log m)/ Difference with a combining function. When two equal keys are
+-- encountered, the combining function is applied to the values of these keys.
+-- If it returns 'Nothing', the element is discarded (proper set difference). If
+-- it returns (@'Just' y@), the element is updated with a new value @y@.
+differenceWith :: (Eq k, Hashable k) => (v -> w -> Maybe v) -> HashMap k v -> HashMap k w -> HashMap k v
+differenceWith f a b = foldlWithKey' go empty a
+  where
+    go m k v = case HM.lookup k b of
+                 Nothing -> insert k v m
+                 Just w  -> maybe m (\y -> insert k y m) (f v w)
+{-# INLINABLE differenceWith #-}
 
 -- | /O(n+m)/ Intersection of two maps. If a key occurs in both maps
 -- the provided function is used to combine the values from the two
@@ -398,6 +471,18 @@ intersectionWith f a b = foldlWithKey' go empty a
                  _      -> m
 {-# INLINABLE intersectionWith #-}
 
+-- | /O(n+m)/ Intersection of two maps. If a key occurs in both maps
+-- the provided function is used to combine the values from the two
+-- maps.
+intersectionWithKey :: (Eq k, Hashable k) => (k -> v1 -> v2 -> v3)
+                    -> HashMap k v1 -> HashMap k v2 -> HashMap k v3
+intersectionWithKey f a b = foldlWithKey' go empty a
+  where
+    go m k v = case HM.lookup k b of
+                 Just w -> insert k (f k v w) m
+                 _      -> m
+{-# INLINABLE intersectionWithKey #-}
+
 ------------------------------------------------------------------------
 -- ** Lists
 
@@ -409,7 +494,18 @@ fromList = L.foldl' (\ m (k, !v) -> HM.unsafeInsert k v m) empty
 {-# INLINABLE fromList #-}
 
 -- | /O(n*log n)/ Construct a map from a list of elements.  Uses
--- the provided function to merge duplicate entries.
+-- the provided function f to merge duplicate entries (f newVal oldVal).
+--
+-- For example:
+--
+-- > fromListWith (+) [ (x, 1) | x <- xs ]
+--
+-- will create a map with number of occurrences of each element in xs.
+--
+-- > fromListWith (++) [ (k, [v]) | (k, v) <- xs ]
+--
+-- will group all values by their keys in a list 'xs :: [(k, v)]' and
+-- return a 'HashMap k [v]'.
 fromListWith :: (Eq k, Hashable k) => (v -> v -> v) -> [(k, v)] -> HashMap k v
 fromListWith f = L.foldl' (\ m (k, v) -> unsafeInsertWith f k v m) empty
 {-# INLINE fromListWith #-}
@@ -434,7 +530,17 @@ updateWith f k0 ary0 = go k0 ary0 0 (A.length ary0)
 -- array.
 updateOrSnocWith :: Eq k => (v -> v -> v) -> k -> v -> A.Array (Leaf k v)
                  -> A.Array (Leaf k v)
-updateOrSnocWith f k0 v0 ary0 = go k0 v0 ary0 0 (A.length ary0)
+updateOrSnocWith f = updateOrSnocWithKey (const f)
+{-# INLINABLE updateOrSnocWith #-}
+
+-- | Append the given key and value to the array. If the key is
+-- already present, instead update the value of the key by applying
+-- the given function to the new and old value (in that order). The
+-- value is always evaluated to WHNF before being inserted into the
+-- array.
+updateOrSnocWithKey :: Eq k => (k -> v -> v -> v) -> k -> v -> A.Array (Leaf k v)
+                 -> A.Array (Leaf k v)
+updateOrSnocWithKey f k0 v0 ary0 = go k0 v0 ary0 0 (A.length ary0)
   where
     go !k v !ary !i !n
         | i >= n = A.run $ do
@@ -445,9 +551,9 @@ updateOrSnocWith f k0 v0 ary0 = go k0 v0 ary0 0 (A.length ary0)
             A.write mary n l
             return mary
         | otherwise = case A.index ary i of
-            (L kx y) | k == kx   -> let !v' = f v y in A.update ary i (L k v')
+            (L kx y) | k == kx   -> let !v' = f k v y in A.update ary i (L k v')
                      | otherwise -> go k v ary (i+1) n
-{-# INLINABLE updateOrSnocWith #-}
+{-# INLINABLE updateOrSnocWithKey #-}
 
 ------------------------------------------------------------------------
 -- Smart constructors

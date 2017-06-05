@@ -41,7 +41,14 @@
 
 
 
+
+
+
+
+
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE Safe #-}
+{-# LANGUAGE AutoDeriveTypeable #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Control.Monad.Trans.Class
@@ -49,7 +56,7 @@
 --                (c) Oregon Graduate Institute of Science and Technology, 2001
 -- License     :  BSD-style (see the file LICENSE)
 --
--- Maintainer  :  ross@soi.city.ac.uk
+-- Maintainer  :  R.Paterson@city.ac.uk
 -- Stability   :  experimental
 -- Portability :  portable
 --
@@ -106,20 +113,27 @@ unwrap the transformer, exposing a computation of the inner monad.
 major release they will be separate functions.)
 
 All of the monad transformers except 'Control.Monad.Trans.Cont.ContT'
-are functors on the category of monads: in addition to defining a
-mapping of monads, they also define a mapping from transformations
-between base monads to transformations between transformed monads,
-called @map@/XXX/@T@.  Thus given a monad transformation @t :: M a -> N a@,
-the combinator 'Control.Monad.Trans.State.Lazy.mapStateT' constructs
-a monad transformation
+and 'Control.Monad.Trans.Cont.SelectT' are functors on the category
+of monads: in addition to defining a mapping of monads, they
+also define a mapping from transformations between base monads to
+transformations between transformed monads, called @map@/XXX/@T@.
+Thus given a monad transformation @t :: M a -> N a@, the combinator
+'Control.Monad.Trans.State.Lazy.mapStateT' constructs a monad
+transformation
 
 > mapStateT t :: StateT s M a -> StateT s N a
+
+For these monad transformers, 'lift' is a natural transformation in the
+category of monads, i.e. for any monad transformation @t :: M a -> N a@,
+
+* @map@/XXX/@T t . 'lift' = 'lift' . t@
 
 Each of the monad transformers introduces relevant operations.
 In a sequence of monad transformers, most of these operations.can be
 lifted through other transformers using 'lift' or the @map@/XXX/@T@
 combinator, but a few with more complex type signatures require
-specialized lifting combinators, called @lift@/Op/.
+specialized lifting combinators, called @lift@/Op/
+(see "Control.Monad.Signatures").
 -}
 
 {- $strict
@@ -231,8 +245,9 @@ a monad that supports all these things as a stack of monad transformers:
 > import Control.Monad.Trans.State
 > import qualified Control.Monad.Trans.Reader as R
 > import qualified Control.Monad.Trans.Except as E
+> import Control.Monad.IO.Class
 >
-> type InterpM = StateT Store (R.ReaderT Env (E.ExceptT Err []))
+> type InterpM = StateT Store (R.ReaderT Env (E.ExceptT Err IO))
 
 for suitable types @Store@, @Env@ and @Err@.
 

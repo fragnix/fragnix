@@ -55,7 +55,26 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE BangPatterns, CPP #-}
+{-# LANGUAGE Safe #-}
 
 module System.Log.FastLogger.Logger (
     Logger(..)
@@ -66,8 +85,9 @@ module System.Log.FastLogger.Logger (
 
 import Control.Concurrent (MVar, newMVar, withMVar)
 import Control.Monad (when)
+import Foreign.Marshal.Alloc (allocaBytes)
 import Foreign.Ptr (plusPtr)
-import GHC.IO.FD (FD, writeRawBufferPtr)
+import System.Log.FastLogger.FileIO
 import System.Log.FastLogger.IO
 import System.Log.FastLogger.LogStr
 import System.Log.FastLogger.IORef
@@ -91,7 +111,13 @@ pushLog :: FD -> Logger -> LogStr -> IO ()
 pushLog fd logger@(Logger mbuf size ref) nlogmsg@(LogStr nlen nbuilder)
   | nlen > size = do
       flushLog fd logger
-      withMVar mbuf $ \buf -> toBufIOWith buf size (write fd) nbuilder
+
+      -- Make sure we have a large enough buffer to hold the entire
+      -- contents, thereby allowing for a single write system call and
+      -- avoiding interleaving. This does not address the possibility
+      -- of write not writing the entire buffer at once.
+      allocaBytes nlen $ \buf -> withMVar mbuf $ \_ ->
+        toBufIOWith buf nlen (write fd) nbuilder
   | otherwise = do
     mmsg <- atomicModifyIORef' ref checkBuf
     case mmsg of
@@ -133,6 +159,6 @@ write :: FD -> Buffer -> Int -> IO ()
 write fd buf len' = loop buf (fromIntegral len')
   where
     loop bf !len = do
-        written <- writeRawBufferPtr "write" fd bf 0 (fromIntegral len)
+        written <- writeRawBufferPtr2FD fd bf len
         when (written < len) $
             loop (bf `plusPtr` fromIntegral written) (len - written)

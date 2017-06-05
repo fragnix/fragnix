@@ -1,9 +1,9 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/IO.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/IO.hs" #-}
 {-# LINE 1 "System/Posix/IO.hsc" #-}
 
-{-# LINE 4 "System/Posix/IO.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LINE 2 "System/Posix/IO.hsc" #-}
+{-# LANGUAGE Safe #-}
 
 {-# LINE 6 "System/Posix/IO.hsc" #-}
 -----------------------------------------------------------------------------
@@ -11,7 +11,7 @@
 -- Module      :  System.Posix.IO
 -- Copyright   :  (c) The University of Glasgow 2002
 -- License     :  BSD-style (see the file libraries/base/LICENSE)
--- 
+--
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  provisional
 -- Portability :  non-portable (requires POSIX)
@@ -67,7 +67,7 @@ module System.Posix.IO (
 
     -- ** Converting file descriptors to\/from Handles
     handleToFd,
-    fdToHandle,  
+    fdToHandle,
 
   ) where
 
@@ -94,4 +94,4 @@ openFd name how maybe_mode flags = do
 
 createFile :: FilePath -> FileMode -> IO Fd
 createFile name mode
-  = openFd name WriteOnly (Just mode) defaultFileFlags{ trunc=True } 
+  = openFd name WriteOnly (Just mode) defaultFileFlags{ trunc=True }

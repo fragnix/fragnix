@@ -1,67 +1,22 @@
-{-# LANGUAGE Haskell2010, DeriveGeneric #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/IP/Addr.hs" #-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric      #-}
 module Data.IP.Addr where
 
 import Control.Monad
 import Data.Bits
 import Data.Char
+import Data.Data (Data)
 import Data.List (foldl', intersperse)
 import Data.String
+import Data.Typeable (Typeable)
 import Data.Word
 import Network.Socket
 import Numeric (showHex, showInt)
 import System.ByteOrder
 import Text.Appar.String
+import GHC.Enum (succError,predError)
 import GHC.Generics
 
 ----------------------------------------------------------------
@@ -78,7 +33,40 @@ True
 
 data IP = IPv4 { ipv4 :: IPv4 }
         | IPv6 { ipv6 :: IPv6 }
-        deriving (Eq, Ord, Generic)
+        deriving (Data,Generic,Typeable)
+
+{-|
+  Equality over IP addresses. Correctly compare IPv4 and IPv4-embedded-in-IPv6 addresses.
+
+>>> (read "2001:db8:00:00:00:00:00:01" :: IP) == (read "2001:db8:00:00:00:00:00:01" :: IP)
+True
+>>> (read "2001:db8:00:00:00:00:00:01" :: IP) == (read "2001:db8:00:00:00:00:00:05" :: IP)
+False
+>>> (read "127.0.0.1" :: IP) == (read "127.0.0.1" :: IP)
+True
+>>> (read "127.0.0.1" :: IP) == (read "10.0.0.1" :: IP)
+False
+>>> (read "::ffff:127.0.0.1" :: IP) == (read "127.0.0.1" :: IP)
+True
+>>> (read "::ffff:127.0.0.1" :: IP) == (read "127.0.0.9" :: IP)
+False
+>>> (read "::ffff:127.0.0.1" :: IP) >= (read "127.0.0.1" :: IP)
+True
+>>> (read "::ffff:127.0.0.1" :: IP) <= (read "127.0.0.1" :: IP)
+True
+-}
+instance Eq IP where
+  (IPv4 ip1) == (IPv4 ip2) = ip1 == ip2
+  (IPv6 ip1) == (IPv6 ip2) = ip1 == ip2
+  (IPv4 ip1) == (IPv6 ip2) = ipv4ToIPv6 ip1 == ip2
+  (IPv6 ip1) == (IPv4 ip2) = ip1 == ipv4ToIPv6 ip2
+
+
+instance Ord IP where
+  (IPv4 ip1) `compare` (IPv4 ip2) = ip1 `compare` ip2
+  (IPv6 ip1) `compare` (IPv6 ip2) = ip1 `compare` ip2
+  (IPv4 ip1) `compare` (IPv6 ip2) = ipv4ToIPv6 ip1 `compare` ip2
+  (IPv6 ip1) `compare` (IPv4 ip2) = ip1 `compare` ipv4ToIPv6 ip2
 
 instance Show IP where
     show (IPv4 ip) = show ip
@@ -98,7 +86,7 @@ type IPv6Addr = (Word32,Word32,Word32,Word32)
 192.0.2.1
 -}
 newtype IPv4 = IP4 IPv4Addr
-  deriving (Eq, Ord,Generic)
+  deriving (Eq, Ord, Bounded, Data, Generic, Typeable)
 
 {-|
   The abstract data type to express an IPv6 address.
@@ -120,7 +108,107 @@ newtype IPv4 = IP4 IPv4Addr
 ::1
 -}
 newtype IPv6 = IP6 IPv6Addr
-  deriving (Eq, Ord,Generic)
+  deriving (Eq, Ord, Bounded, Data, Generic, Typeable)
+
+
+----------------------------------------------------------------
+--
+-- Enum
+--
+
+instance Enum IPv4 where
+    fromEnum (IP4 a) = fromEnum a
+    toEnum = IP4 . toEnum
+
+instance Enum IPv6 where
+    -- fromEnum and toEnum are not really useful, but I defined them anyway
+    fromEnum (IP6 (a,b,c,d)) = let a' = fromEnum a `shift` 96
+                                   b' = fromEnum b `shift` 64
+                                   c' = fromEnum c `shift` 32
+                                   d' = fromEnum d
+                               in a' .|. b' .|. c' .|. d'
+    toEnum i = let i' = fromIntegral i :: Integer
+                   a = fromIntegral (i' `shiftR` 96 .&. 0xffffffff)
+                   b = fromIntegral (i' `shiftR` 64 .&. 0xffffffff)
+                   c = fromIntegral (i' `shiftR` 32 .&. 0xffffffff)
+                   d = fromIntegral (i'             .&. 0xffffffff)
+               in IP6 (a,b,c,d)
+
+    succ (IP6 (0xffffffff,0xffffffff,0xffffffff,0xffffffff)) = succError "IPv6"
+    succ (IP6 (a,         0xffffffff,0xffffffff,0xffffffff)) = IP6 (succ a,0,0,0)
+    succ (IP6 (a,                  b,0xffffffff,0xffffffff)) = IP6 (a,succ b,0,0)
+    succ (IP6 (a,                  b,         c,0xffffffff)) = IP6 (a,b,succ c,0)
+    succ (IP6 (a,                  b,         c,         d)) = IP6 (a,b,c,succ d)
+
+    pred (IP6 (0,0,0,0)) = predError "IPv6"
+    pred (IP6 (a,0,0,0)) = IP6 (pred a, 0xffffffff, 0xffffffff, 0xffffffff)
+    pred (IP6 (a,b,0,0)) = IP6 (     a,     pred b, 0xffffffff, 0xffffffff)
+    pred (IP6 (a,b,c,0)) = IP6 (     a,          b,     pred c, 0xffffffff)
+    pred (IP6 (a,b,c,d)) = IP6 (     a,          b,          c,     pred d)
+
+    enumFrom ip = ip:gen ip
+        where gen i = let i' = succ i in i':gen i'
+
+    enumFromTo ip ip' = ip:gen ip
+        where gen i
+                | i == ip' = []
+                | otherwise = let i' = succ i in i':gen i'
+
+    -- These two are implemented via the integer enum instance.
+    -- A more correct implementation would essentially require
+    -- implementing instance Num IPv6, which isn't something
+    -- I wanna do. Another approach is to use Word128 to store
+    -- an IPv6 address.
+    enumFromThen ip ip' = fmap integerToIP6 [ip6ToInteger ip, ip6ToInteger ip' ..]
+    enumFromThenTo ip inc fin = fmap integerToIP6 [ip6ToInteger ip, ip6ToInteger inc .. ip6ToInteger fin]
+
+instance Enum IP where
+    fromEnum (IPv4 ip) = fromEnum ip
+    fromEnum (IPv6 ip) = fromEnum ip
+
+    -- Because Int cannot hold an IPv6 anyway
+    toEnum = IPv4 . toEnum
+
+    succ (IPv4 ip) = IPv4 $ succ ip
+    succ (IPv6 ip) = IPv6 $ succ ip
+
+    pred (IPv4 ip) = IPv4 $ pred ip
+    pred (IPv6 ip) = IPv6 $ pred ip
+
+    enumFrom (IPv4 ip) = fmap IPv4 $ enumFrom ip
+    enumFrom (IPv6 ip) = fmap IPv6 $ enumFrom ip
+
+    enumFromTo (IPv4 ip) (IPv4 ip') = fmap IPv4 $ enumFromTo ip ip'
+    enumFromTo (IPv6 ip) (IPv6 ip') = fmap IPv6 $ enumFromTo ip ip'
+    enumFromTo _ _ = error "enumFromTo: Incompatible IP families"
+
+    enumFromThen (IPv4 ip) (IPv4 ip') = fmap IPv4 $ enumFromThen ip ip'
+    enumFromThen (IPv6 ip) (IPv6 ip') = fmap IPv6 $ enumFromThen ip ip'
+    enumFromThen _ _ = error "enumFromThen: Incompatible IP families"
+
+    enumFromThenTo (IPv4 ip) (IPv4 inc) (IPv4 fin) = fmap IPv4 $ enumFromThenTo ip inc fin
+    enumFromThenTo (IPv6 ip) (IPv6 inc) (IPv6 fin) = fmap IPv6 $ enumFromThenTo ip inc fin
+    enumFromThenTo _ _ _ = error "enumFromThenTo: Incompatible IP families"
+
+ip6ToInteger :: IPv6 -> Integer
+ip6ToInteger (IP6 (a,b,c,d)) = let a' = word32ToInteger a `shift` 96
+                                   b' = word32ToInteger b `shift` 64
+                                   c' = word32ToInteger c `shift` 32
+                                   d' = word32ToInteger d
+                               in a' .|. b' .|. c' .|. d'
+    where
+        word32ToInteger :: Word32 -> Integer
+        word32ToInteger = toEnum . fromEnum
+
+integerToIP6 :: Integer -> IPv6
+integerToIP6 i = let a = integerToWord32 (i `shiftR` 96 .&. 0xffffffff)
+                     b = integerToWord32 (i `shiftR` 64 .&. 0xffffffff)
+                     c = integerToWord32 (i `shiftR` 32 .&. 0xffffffff)
+                     d = integerToWord32 (i             .&. 0xffffffff)
+                 in IP6 (a,b,c,d)
+    where
+        integerToWord32 :: Integer -> Word32
+        integerToWord32 = toEnum . fromEnum
 
 ----------------------------------------------------------------
 --
@@ -197,6 +285,22 @@ toIPv6 ad = IP6 (x1,x2,x3,x4)
     toWord32 [a1,a2] = fromIntegral $ shift a1 16 + a2
     toWord32 _       = error "toWord32"
 
+{-|
+  The 'toIPv6b' function takes a list of 'Int'
+  where each member repserents a single byte and returns 'IPv6'.
+
+>>> toIPv6b [0x20,0x01,0xD,0xB8,0,0,0,0,0,0,0,0,0,0,0,1]
+2001:db8::1
+-}
+toIPv6b :: [Int] -> IPv6
+toIPv6b ad = IP6 (x1,x2,x3,x4)
+  where
+    [x1,x2,x3,x4] = map toWord32 $ split4 ad
+    split4 [] = []
+    split4 x  = take 4 x : split4 (drop 4 x)
+    toWord32 [a1,a2,a3,a4] = fromIntegral $ shift a1 24 + shift a2 16 + shift a3 8 + a4
+    toWord32 _       = error "toWord32"
+
 ----------------------------------------------------------------
 --
 -- IPToInt
@@ -222,6 +326,18 @@ fromIPv6 (IP6 (w1, w2, w3, w4)) = map fromEnum (concatMap split [w1,w2,w3,w4])
   where
     split :: Word32 -> [Word32]
     split n = [n `shiftR` 0x10 .&. 0xffff, n .&. 0xffff]
+
+{-|
+  The 'fromIPv6b' function converts 'IPv6' to a list of 'Int'
+  where each member represents a single byte.
+
+>>> fromIPv6b (toIPv6b [0x20,0x01,0xD,0xB8,0,0,0,0,0,0,0,0,0,0,0,1])
+[32,1,13,184,0,0,0,0,0,0,0,0,0,0,0,1]
+-}
+fromIPv6b :: IPv6 -> [Int]
+fromIPv6b (IP6 (w1, w2, w3, w4)) = map fromEnum (concatMap split [w1,w2,w3,w4])
+  where
+    split n = fmap (\s -> n `shiftR` s .&. 0xff) [24,16,8,0]
 
 ----------------------------------------------------------------
 --
@@ -400,3 +516,9 @@ fixByteOrder s = d1 .|. d2 .|. d3 .|. d4
     d2 = shiftL s  8 .&. 0x00ff0000
     d3 = shiftR s  8 .&. 0x0000ff00
     d4 = shiftR s 24 .&. 0x000000ff
+
+-- | Convert IPv4 address to IPv4-embedded-in-IPv6
+ipv4ToIPv6 :: IPv4 -> IPv6
+ipv4ToIPv6 ip = toIPv6b [0,0,0,0,0,0,0,0,0,0,0xff,0xff,i1,i2,i3,i4]
+  where
+    [i1,i2,i3,i4] = fromIPv4 ip

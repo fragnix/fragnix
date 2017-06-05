@@ -55,13 +55,33 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE Safe #-}
 
 module System.Log.FastLogger.IORef (
        IORef
      , newIORef
      , readIORef
      , atomicModifyIORef'
+     , writeIORef
      ) where
 
 import Data.IORef

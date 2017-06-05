@@ -1,6 +1,67 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/HTTP/Types/URI.hs" #-}
-{-# LANGUAGE OverloadedStrings #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE OverloadedStrings, CPP #-}
 module Network.HTTP.Types.URI
 (
   -- * Query string
@@ -40,7 +101,6 @@ import           Data.Bits
 import           Data.Char
 import           Data.List
 import           Data.Maybe
-import           Data.Monoid
 import           Data.Text                      (Text)
 import           Data.Text.Encoding             (encodeUtf8, decodeUtf8With)
 import           Data.Text.Encoding.Error       (lenientDecode)
@@ -198,7 +258,9 @@ urlEncodeBuilder True  = urlEncodeBuilder' unreservedQS
 urlEncodeBuilder False = urlEncodeBuilder' unreservedPI
 
 -- | Percent-encoding for URLs.
-urlEncode :: Bool -> B.ByteString -> B.ByteString
+urlEncode :: Bool -- ^ Whether to decode '+' to ' '
+          -> B.ByteString -- ^ The ByteString to encode as URL
+          -> B.ByteString -- ^ The encoded URL
 urlEncode q = Blaze.toByteString . urlEncodeBuilder q
 
 -- | Percent-decoding.
@@ -215,7 +277,7 @@ urlDecode replacePlus z = fst $ B.unfoldrN (B.length z) go z
                 x' <- hexVal x
                 (y, ys) <- B.uncons xs
                 y' <- hexVal y
-                Just $ (combine x' y', ys)
+                Just (combine x' y', ys)
             Just (w, ws) -> Just (w, ws)
     hexVal w
         | 48 <= w && w <= 57  = Just $ w - 48 -- 0 - 9

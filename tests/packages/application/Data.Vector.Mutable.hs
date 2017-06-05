@@ -1,4 +1,4 @@
-{-# LANGUAGE Haskell2010, CPP, DeriveDataTypeable #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Vector/Mutable.hs" #-}
 
 
@@ -47,8 +47,15 @@
 
 
 
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, BangPatterns,
-             TypeFamilies  #-}
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP, DeriveDataTypeable, MultiParamTypeClasses, FlexibleInstances, BangPatterns, TypeFamilies #-}
 
 -- |
 -- Module      : Data.Vector.Mutable
@@ -58,7 +65,7 @@
 -- Maintainer  : Roman Leshchinskiy <rl@cse.unsw.edu.au>
 -- Stability   : experimental
 -- Portability : non-portable
--- 
+--
 -- Mutable boxed vectors.
 --
 
@@ -90,10 +97,11 @@ module Data.Vector.Mutable (
   clear,
 
   -- * Accessing individual elements
-  read, write, swap,
-  unsafeRead, unsafeWrite, unsafeSwap,
+  read, write, modify, swap,
+  unsafeRead, unsafeWrite, unsafeModify, unsafeSwap,
 
   -- * Modifying vectors
+  nextPermutation,
 
   -- ** Filling and copying
   set, copy, move, unsafeCopy, unsafeMove
@@ -104,9 +112,7 @@ import qualified Data.Vector.Generic.Mutable as G
 import           Data.Primitive.Array
 import           Control.Monad.Primitive
 
-import Control.DeepSeq ( NFData, rnf )
-
-import Prelude hiding ( length, null, replicate, reverse, map, read,
+import Prelude hiding ( length, null, replicate, reverse, read,
                         take, drop, splitAt, init, tail )
 
 import Data.Typeable ( Typeable )
@@ -114,7 +120,6 @@ import Data.Typeable ( Typeable )
 
 
 import qualified Data.Vector.Internal.Check as Ck
-
 
 
 
@@ -143,7 +148,7 @@ instance G.MVector MVector a where
   basicLength (MVector _ n _) = n
 
   {-# INLINE basicUnsafeSlice #-}
-  basicUnsafeSlice j m (MVector i n arr) = MVector (i+j) m arr
+  basicUnsafeSlice j m (MVector i _ arr) = MVector (i+j) m arr
 
   {-# INLINE basicOverlaps #-}
   basicOverlaps (MVector i m arr1) (MVector j n arr2)
@@ -158,6 +163,10 @@ instance G.MVector MVector a where
         arr <- newArray n uninitialised
         return (MVector 0 n arr)
 
+  {-# INLINE basicInitialize #-}
+  -- initialization is unnecessary for boxed vectors
+  basicInitialize _ = return ()
+
   {-# INLINE basicUnsafeReplicate #-}
   basicUnsafeReplicate n x
     = do
@@ -165,15 +174,15 @@ instance G.MVector MVector a where
         return (MVector 0 n arr)
 
   {-# INLINE basicUnsafeRead #-}
-  basicUnsafeRead (MVector i n arr) j = readArray arr (i+j)
+  basicUnsafeRead (MVector i _ arr) j = readArray arr (i+j)
 
   {-# INLINE basicUnsafeWrite #-}
-  basicUnsafeWrite (MVector i n arr) j x = writeArray arr (i+j) x
+  basicUnsafeWrite (MVector i _ arr) j x = writeArray arr (i+j) x
 
   {-# INLINE basicUnsafeCopy #-}
   basicUnsafeCopy (MVector i n dst) (MVector j _ src)
     = copyMutableArray dst i src j n
-  
+
   basicUnsafeMove dst@(MVector iDst n arrDst) src@(MVector iSrc _ arrSrc)
     = case n of
         0 -> return ()
@@ -200,14 +209,14 @@ instance G.MVector MVector a where
 {-# INLINE moveBackwards #-}
 moveBackwards :: PrimMonad m => MutableArray (PrimState m) a -> Int -> Int -> Int -> m ()
 moveBackwards !arr !dstOff !srcOff !len =
-  ((Ck.check "Data/Vector/Mutable.hs" 148) Ck.Internal) "moveBackwards" "not a backwards move" (dstOff < srcOff)
+  ((Ck.check "Data/Vector/Mutable.hs" 150) Ck.Internal) "moveBackwards" "not a backwards move" (dstOff < srcOff)
   $ loopM len $ \ i -> readArray arr (srcOff + i) >>= writeArray arr (dstOff + i)
 
 {-# INLINE moveForwardsSmallOverlap #-}
 -- Performs a move when dstOff > srcOff, optimized for when the overlap of the intervals is small.
 moveForwardsSmallOverlap :: PrimMonad m => MutableArray (PrimState m) a -> Int -> Int -> Int -> m ()
 moveForwardsSmallOverlap !arr !dstOff !srcOff !len =
-  ((Ck.check "Data/Vector/Mutable.hs" 155) Ck.Internal) "moveForwardsSmallOverlap" "not a forward move" (dstOff > srcOff)
+  ((Ck.check "Data/Vector/Mutable.hs" 157) Ck.Internal) "moveForwardsSmallOverlap" "not a forward move" (dstOff > srcOff)
   $ do
       tmp <- newArray overlap uninitialised
       loopM overlap $ \ i -> readArray arr (dstOff + i) >>= writeArray tmp i
@@ -218,7 +227,7 @@ moveForwardsSmallOverlap !arr !dstOff !srcOff !len =
 -- Performs a move when dstOff > srcOff, optimized for when the overlap of the intervals is large.
 moveForwardsLargeOverlap :: PrimMonad m => MutableArray (PrimState m) a -> Int -> Int -> Int -> m ()
 moveForwardsLargeOverlap !arr !dstOff !srcOff !len =
-  ((Ck.check "Data/Vector/Mutable.hs" 166) Ck.Internal) "moveForwardsLargeOverlap" "not a forward move" (dstOff > srcOff)
+  ((Ck.check "Data/Vector/Mutable.hs" 168) Ck.Internal) "moveForwardsLargeOverlap" "not a forward move" (dstOff > srcOff)
   $ do
       queue <- newArray nonOverlap uninitialised
       loopM nonOverlap $ \ i -> readArray arr (srcOff + i) >>= writeArray queue i
@@ -309,7 +318,7 @@ unsafeTail = G.unsafeTail
 -- Overlapping
 -- -----------
 
--- Check whether two vectors overlap.
+-- | Check whether two vectors overlap.
 overlaps :: MVector s a -> MVector s a -> Bool
 {-# INLINE overlaps #-}
 overlaps = G.overlaps
@@ -322,7 +331,7 @@ new :: PrimMonad m => Int -> m (MVector (PrimState m) a)
 {-# INLINE new #-}
 new = G.new
 
--- | Create a mutable vector of the given length. The length is not checked.
+-- | Create a mutable vector of the given length. The memory is not initialized.
 unsafeNew :: PrimMonad m => Int -> m (MVector (PrimState m) a)
 {-# INLINE unsafeNew #-}
 unsafeNew = G.unsafeNew
@@ -365,7 +374,7 @@ unsafeGrow = G.unsafeGrow
 -- ------------------------
 
 -- | Reset all elements of the vector to some undefined value, clearing all
--- references to external objects. This is usually a noop for unboxed vectors. 
+-- references to external objects. This is usually a noop for unboxed vectors.
 clear :: PrimMonad m => MVector (PrimState m) a -> m ()
 {-# INLINE clear #-}
 clear = G.clear
@@ -383,6 +392,11 @@ write :: PrimMonad m => MVector (PrimState m) a -> Int -> a -> m ()
 {-# INLINE write #-}
 write = G.write
 
+-- | Modify the element at the given position.
+modify :: PrimMonad m => MVector (PrimState m) a -> (a -> a) -> Int -> m ()
+{-# INLINE modify #-}
+modify = G.modify
+
 -- | Swap the elements at the given positions.
 swap :: PrimMonad m => MVector (PrimState m) a -> Int -> Int -> m ()
 {-# INLINE swap #-}
@@ -398,6 +412,11 @@ unsafeRead = G.unsafeRead
 unsafeWrite :: PrimMonad m => MVector (PrimState m) a -> Int -> a -> m ()
 {-# INLINE unsafeWrite #-}
 unsafeWrite = G.unsafeWrite
+
+-- | Modify the element at the given position. No bounds checks are performed.
+unsafeModify :: PrimMonad m => MVector (PrimState m) a -> (a -> a) -> Int -> m ()
+{-# INLINE unsafeModify #-}
+unsafeModify = G.unsafeModify
 
 -- | Swap the elements at the given positions. No bounds checks are performed.
 unsafeSwap :: PrimMonad m => MVector (PrimState m) a -> Int -> Int -> m ()
@@ -429,7 +448,7 @@ unsafeCopy = G.unsafeCopy
 
 -- | Move the contents of a vector. The two vectors must have the same
 -- length.
--- 
+--
 -- If the vectors do not overlap, then this is equivalent to 'copy'.
 -- Otherwise, the copying is performed as if the source vector were
 -- copied to a temporary vector and then the temporary vector was copied
@@ -441,7 +460,7 @@ move = G.move
 
 -- | Move the contents of a vector. The two vectors must have the same
 -- length, but this is not checked.
--- 
+--
 -- If the vectors do not overlap, then this is equivalent to 'unsafeCopy'.
 -- Otherwise, the copying is performed as if the source vector were
 -- copied to a temporary vector and then the temporary vector was copied
@@ -452,3 +471,8 @@ unsafeMove :: PrimMonad m => MVector (PrimState m) a   -- ^ target
 {-# INLINE unsafeMove #-}
 unsafeMove = G.unsafeMove
 
+-- | Compute the next (lexicographically) permutation of given vector in-place.
+--   Returns False when input is the last permtuation
+nextPermutation :: (PrimMonad m,Ord e) => MVector (PrimState m) e -> m Bool
+{-# INLINE nextPermutation #-}
+nextPermutation = G.nextPermutation

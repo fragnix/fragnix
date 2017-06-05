@@ -47,8 +47,17 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE BangPatterns, CPP, FlexibleInstances, KindSignatures,
-    ScopedTypeVariables, Trustworthy, TypeOperators, TypeSynonymInstances #-}
+    ScopedTypeVariables, TypeOperators, TypeSynonymInstances #-}
+{-# LANGUAGE Safe #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -----------------------------------------------------------------------------
@@ -74,31 +83,43 @@ import Data.Binary.Get
 import Data.Binary.Put
 import Data.Bits
 import Data.Word
+import Data.Monoid ((<>))
 import GHC.Generics
+import Prelude -- Silence AMP warning.
 
 -- Type without constructors
-instance GBinary V1 where
-    gput _ = return ()
+instance GBinaryPut V1 where
+    gput _ = pure ()
+
+instance GBinaryGet V1 where
     gget   = return undefined
 
 -- Constructor without arguments
-instance GBinary U1 where
-    gput U1 = return ()
+instance GBinaryPut U1 where
+    gput U1 = pure ()
+
+instance GBinaryGet U1 where
     gget    = return U1
 
 -- Product: constructor with parameters
-instance (GBinary a, GBinary b) => GBinary (a :*: b) where
-    gput (x :*: y) = gput x >> gput y
+instance (GBinaryPut a, GBinaryPut b) => GBinaryPut (a :*: b) where
+    gput (x :*: y) = gput x <> gput y
+
+instance (GBinaryGet a, GBinaryGet b) => GBinaryGet (a :*: b) where
     gget = (:*:) <$> gget <*> gget
 
 -- Metadata (constructor name, etc)
-instance GBinary a => GBinary (M1 i c a) where
+instance GBinaryPut a => GBinaryPut (M1 i c a) where
     gput = gput . unM1
+
+instance GBinaryGet a => GBinaryGet (M1 i c a) where
     gget = M1 <$> gget
 
 -- Constants, additional parameters, and rank-1 recursion
-instance Binary a => GBinary (K1 i a) where
+instance Binary a => GBinaryPut (K1 i a) where
     gput = put . unK1
+
+instance Binary a => GBinaryGet (K1 i a) where
     gget = K1 <$> get
 
 -- Borrowed from the cereal package.
@@ -111,14 +132,15 @@ instance Binary a => GBinary (K1 i a) where
 -- use two bytes, and so on till 2^64-1.
 
 
-instance ( GSum     a, GSum     b
-         , GBinary a, GBinary b
-         , SumSize    a, SumSize    b) => GBinary (a :+: b) where
+instance ( GSumPut  a, GSumPut  b
+         , SumSize    a, SumSize    b) => GBinaryPut (a :+: b) where
     gput | (size - 1) <= fromIntegral (maxBound :: Word8) = putSum (0 :: Word8) (fromIntegral size) | (size - 1) <= fromIntegral (maxBound :: Word16) = putSum (0 :: Word16) (fromIntegral size) | (size - 1) <= fromIntegral (maxBound :: Word32) = putSum (0 :: Word32) (fromIntegral size) | (size - 1) <= fromIntegral (maxBound :: Word64) = putSum (0 :: Word64) (fromIntegral size)
          | otherwise = sizeError "encode" size
       where
         size = unTagged (sumSize :: Tagged (a :+: b) Word64)
 
+instance ( GSumGet  a, GSumGet  b
+         , SumSize    a, SumSize    b) => GBinaryGet (a :+: b) where
     gget | (size - 1) <= fromIntegral (maxBound :: Word8) = (get :: Get Word8) >>= checkGetSum (fromIntegral size) | (size - 1) <= fromIntegral (maxBound :: Word16) = (get :: Get Word16) >>= checkGetSum (fromIntegral size) | (size - 1) <= fromIntegral (maxBound :: Word32) = (get :: Get Word32) >>= checkGetSum (fromIntegral size) | (size - 1) <= fromIntegral (maxBound :: Word64) = (get :: Get Word64) >>= checkGetSum (fromIntegral size)
          | otherwise = sizeError "decode" size
       where
@@ -130,23 +152,26 @@ sizeError s size =
 
 ------------------------------------------------------------------------
 
-checkGetSum :: (Ord word, Num word, Bits word, GSum f)
+checkGetSum :: (Ord word, Num word, Bits word, GSumGet f)
             => word -> word -> Get (f a)
 checkGetSum size code | code < size = getSum code size
                       | otherwise   = fail "Unknown encoding for constructor"
 {-# INLINE checkGetSum #-}
 
-class GSum f where
+class GSumGet f where
     getSum :: (Ord word, Num word, Bits word) => word -> word -> Get (f a)
+
+class GSumPut f where
     putSum :: (Num w, Bits w, Binary w) => w -> w -> f a -> Put
 
-instance (GSum a, GSum b, GBinary a, GBinary b) => GSum (a :+: b) where
+instance (GSumGet a, GSumGet b) => GSumGet (a :+: b) where
     getSum !code !size | code < sizeL = L1 <$> getSum code           sizeL
                        | otherwise    = R1 <$> getSum (code - sizeL) sizeR
         where
           sizeL = size `shiftR` 1
           sizeR = size - sizeL
 
+instance (GSumPut a, GSumPut b) => GSumPut (a :+: b) where
     putSum !code !size s = case s of
                              L1 x -> putSum code           sizeL x
                              R1 x -> putSum (code + sizeL) sizeR x
@@ -154,10 +179,11 @@ instance (GSum a, GSum b, GBinary a, GBinary b) => GSum (a :+: b) where
           sizeL = size `shiftR` 1
           sizeR = size - sizeL
 
-instance GBinary a => GSum (C1 c a) where
+instance GBinaryGet a => GSumGet (C1 c a) where
     getSum _ _ = gget
 
-    putSum !code _ x = put code *> gput x
+instance GBinaryPut a => GSumPut (C1 c a) where
+    putSum !code _ x = put code <> gput x
 
 ------------------------------------------------------------------------
 

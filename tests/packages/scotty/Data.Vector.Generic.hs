@@ -1,4 +1,4 @@
-{-# LANGUAGE Haskell2010, CPP, DeriveDataTypeable #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Vector/Generic.hs" #-}
 
 
@@ -47,7 +47,15 @@
 
 
 
-{-# LANGUAGE Rank2Types, MultiParamTypeClasses, FlexibleContexts,
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP, Rank2Types, MultiParamTypeClasses, FlexibleContexts,
              TypeFamilies, ScopedTypeVariables, BangPatterns #-}
 -- |
 -- Module      : Data.Vector.Generic
@@ -57,7 +65,7 @@
 -- Maintainer  : Roman Leshchinskiy <rl@cse.unsw.edu.au>
 -- Stability   : experimental
 -- Portability : non-portable
--- 
+--
 -- Generic interface to pure vectors.
 --
 
@@ -88,17 +96,18 @@ module Data.Vector.Generic (
   empty, singleton, replicate, generate, iterateN,
 
   -- ** Monadic initialisation
-  replicateM, generateM, create,
+  replicateM, generateM, iterateNM, create, createT,
 
   -- ** Unfolding
   unfoldr, unfoldrN,
+  unfoldrM, unfoldrNM,
   constructN, constructrN,
 
   -- ** Enumeration
   enumFromN, enumFromStepN, enumFromTo, enumFromThenTo,
 
   -- ** Concatenation
-  cons, snoc, (++), concat,
+  cons, snoc, (++), concat, concatNE,
 
   -- ** Restricting memory usage
   force,
@@ -113,7 +122,7 @@ module Data.Vector.Generic (
   accum, accumulate, accumulate_,
   unsafeAccum, unsafeAccumulate, unsafeAccumulate_,
 
-  -- ** Permutations 
+  -- ** Permutations
   reverse, backpermute, unsafeBackpermute,
 
   -- ** Safe destructive updates
@@ -128,7 +137,7 @@ module Data.Vector.Generic (
   map, imap, concatMap,
 
   -- ** Monadic mapping
-  mapM, mapM_, forM, forM_,
+  mapM, imapM, mapM_, imapM_, forM, forM_,
 
   -- ** Zipping
   zipWith, zipWith3, zipWith4, zipWith5, zipWith6,
@@ -136,7 +145,7 @@ module Data.Vector.Generic (
   zip, zip3, zip4, zip5, zip6,
 
   -- ** Monadic zipping
-  zipWithM, zipWithM_,
+  zipWithM, izipWithM, zipWithM_, izipWithM_,
 
   -- ** Unzipping
   unzip, unzip3, unzip4, unzip5, unzip6,
@@ -144,7 +153,9 @@ module Data.Vector.Generic (
   -- * Working with predicates
 
   -- ** Filtering
-  filter, ifilter, filterM,
+  filter, ifilter, uniq,
+  mapMaybe, imapMaybe,
+  filterM,
   takeWhile, dropWhile,
 
   -- ** Partitioning
@@ -164,8 +175,9 @@ module Data.Vector.Generic (
   minIndex, minIndexBy, maxIndex, maxIndexBy,
 
   -- ** Monadic folds
-  foldM, foldM', fold1M, fold1M',
-  foldM_, foldM'_, fold1M_, fold1M'_,
+  foldM, ifoldM, foldM', ifoldM',
+  fold1M, fold1M', foldM_, ifoldM_,
+  foldM'_, ifoldM'_, fold1M_, fold1M'_,
 
   -- ** Monadic sequencing
   sequence, sequence_,
@@ -174,9 +186,11 @@ module Data.Vector.Generic (
   prescanl, prescanl',
   postscanl, postscanl',
   scanl, scanl', scanl1, scanl1',
+  iscanl, iscanl',
   prescanr, prescanr',
   postscanr, postscanr',
   scanr, scanr', scanr1, scanr1',
+  iscanr, iscanr',
 
   -- * Conversions
 
@@ -191,7 +205,7 @@ module Data.Vector.Generic (
 
   -- * Fusion support
 
-  -- ** Conversion to/from Streams
+  -- ** Conversion to/from Bundles
   stream, unstream, streamR, unstreamR,
 
   -- ** Recycling support
@@ -201,9 +215,11 @@ module Data.Vector.Generic (
 
   -- ** Comparisons
   eq, cmp,
+  eqBy, cmpBy,
 
   -- ** Show and Read
   showsPrec, readPrec,
+  liftShowsPrec, liftReadsPrec,
 
   -- ** @Data@ and @Typeable@
   gfoldl, dataCast, mkType
@@ -211,22 +227,21 @@ module Data.Vector.Generic (
 
 import           Data.Vector.Generic.Base
 
-import           Data.Vector.Generic.Mutable ( MVector )
 import qualified Data.Vector.Generic.Mutable as M
 
 import qualified Data.Vector.Generic.New as New
 import           Data.Vector.Generic.New ( New )
 
-import qualified Data.Vector.Fusion.Stream as Stream
-import           Data.Vector.Fusion.Stream ( Stream, MStream, Step(..), inplace, liftStream )
-import qualified Data.Vector.Fusion.Stream.Monadic as MStream
-import           Data.Vector.Fusion.Stream.Size
+import qualified Data.Vector.Fusion.Bundle as Bundle
+import           Data.Vector.Fusion.Bundle ( Bundle, MBundle, lift, inplace )
+import qualified Data.Vector.Fusion.Bundle.Monadic as MBundle
+import           Data.Vector.Fusion.Stream.Monadic ( Stream )
+import qualified Data.Vector.Fusion.Stream.Monadic as S
+import           Data.Vector.Fusion.Bundle.Size
 import           Data.Vector.Fusion.Util
 
 import Control.Monad.ST ( ST, runST )
 import Control.Monad.Primitive
-import qualified Control.Monad as Monad
-import qualified Data.List as List
 import Prelude hiding ( length, null,
                         replicate, (++), concat,
                         head, last,
@@ -243,6 +258,7 @@ import Prelude hiding ( length, null,
                         showsPrec )
 
 import qualified Text.Read as Read
+import qualified Data.List.NonEmpty as NonEmpty
 
 import Data.Typeable ( Typeable, gcast1 )
 
@@ -253,36 +269,23 @@ import qualified Data.Vector.Internal.Check as Ck
 
 
 
-
 import Data.Data ( Data, DataType )
 import Data.Data ( mkNoRepType )
+
+import qualified Data.Traversable as T (Traversable(mapM))
 
 -- Length information
 -- ------------------
 
--- | /O(1)/ Yield the length of the vector.
+-- | /O(1)/ Yield the length of the vector
 length :: Vector v a => v a -> Int
-{-# INLINE [1] length #-}
-length v = basicLength v
+{-# INLINE length #-}
+length = Bundle.length . stream'
 
-{-# RULES
-
-"length/unstream [Vector]" forall s.
-  length (new (New.unstream s)) = Stream.length s
-
-  #-}
-
--- | /O(1)/ Test whether a vector if empty
+-- | /O(1)/ Test whether a vector is empty
 null :: Vector v a => v a -> Bool
-{-# INLINE [1] null #-}
-null v = basicLength v == 0
-
-{-# RULES
-
-"null/unstream [Vector]" forall s.
-  null (new (New.unstream s)) = Stream.null s
-
-  #-}
+{-# INLINE null #-}
+null = Bundle.null . stream
 
 -- Indexing
 -- --------
@@ -291,7 +294,7 @@ infixl 9 !
 -- | O(1) Indexing
 (!) :: Vector v a => v a -> Int -> a
 {-# INLINE [1] (!) #-}
-(!) v i = ((Ck.checkIndex "Data/Vector/Generic.hs" 249) Ck.Bounds) "(!)" i (length v)
+(!) v i = ((Ck.checkIndex "Data/Vector/Generic.hs" 245) Ck.Bounds) "(!)" i (length v)
         $ unId (basicUnsafeIndexM v i)
 
 infixl 9 !?
@@ -314,7 +317,7 @@ last v = v ! (length v - 1)
 -- | /O(1)/ Unsafe indexing without bounds checking
 unsafeIndex :: Vector v a => v a -> Int -> a
 {-# INLINE [1] unsafeIndex #-}
-unsafeIndex v i = ((Ck.checkIndex "Data/Vector/Generic.hs" 272) Ck.Unsafe) "unsafeIndex" i (length v)
+unsafeIndex v i = ((Ck.checkIndex "Data/Vector/Generic.hs" 268) Ck.Unsafe) "unsafeIndex" i (length v)
                 $ unId (basicUnsafeIndexM v i)
 
 -- | /O(1)/ First element without checking if the vector is empty
@@ -330,27 +333,27 @@ unsafeLast v = unsafeIndex v (length v - 1)
 {-# RULES
 
 "(!)/unstream [Vector]" forall i s.
-  new (New.unstream s) ! i = s Stream.!! i
+  new (New.unstream s) ! i = s Bundle.!! i
 
 "(!?)/unstream [Vector]" forall i s.
-  new (New.unstream s) !? i = s Stream.!? i
+  new (New.unstream s) !? i = s Bundle.!? i
 
 "head/unstream [Vector]" forall s.
-  head (new (New.unstream s)) = Stream.head s
+  head (new (New.unstream s)) = Bundle.head s
 
 "last/unstream [Vector]" forall s.
-  last (new (New.unstream s)) = Stream.last s
+  last (new (New.unstream s)) = Bundle.last s
 
 "unsafeIndex/unstream [Vector]" forall i s.
-  unsafeIndex (new (New.unstream s)) i = s Stream.!! i
+  unsafeIndex (new (New.unstream s)) i = s Bundle.!! i
 
 "unsafeHead/unstream [Vector]" forall s.
-  unsafeHead (new (New.unstream s)) = Stream.head s
+  unsafeHead (new (New.unstream s)) = Bundle.head s
 
 "unsafeLast/unstream [Vector]" forall s.
-  unsafeLast (new (New.unstream s)) = Stream.last s
+  unsafeLast (new (New.unstream s)) = Bundle.last s  #-}
 
- #-}
+
 
 -- Monadic indexing
 -- ----------------
@@ -376,7 +379,7 @@ unsafeLast v = unsafeIndex v (length v - 1)
 --
 indexM :: (Vector v a, Monad m) => v a -> Int -> m a
 {-# INLINE [1] indexM #-}
-indexM v i = ((Ck.checkIndex "Data/Vector/Generic.hs" 334) Ck.Bounds) "indexM" i (length v)
+indexM v i = ((Ck.checkIndex "Data/Vector/Generic.hs" 330) Ck.Bounds) "indexM" i (length v)
            $ basicUnsafeIndexM v i
 
 -- | /O(1)/ First element of a vector in a monad. See 'indexM' for an
@@ -395,7 +398,7 @@ lastM v = indexM v (length v - 1)
 -- explanation of why this is useful.
 unsafeIndexM :: (Vector v a, Monad m) => v a -> Int -> m a
 {-# INLINE [1] unsafeIndexM #-}
-unsafeIndexM v i = ((Ck.checkIndex "Data/Vector/Generic.hs" 353) Ck.Unsafe) "unsafeIndexM" i (length v)
+unsafeIndexM v i = ((Ck.checkIndex "Data/Vector/Generic.hs" 349) Ck.Unsafe) "unsafeIndexM" i (length v)
                  $ basicUnsafeIndexM v i
 
 -- | /O(1)/ First element in a monad without checking for empty vectors.
@@ -413,24 +416,24 @@ unsafeLastM v = unsafeIndexM v (length v - 1)
 {-# RULES
 
 "indexM/unstream [Vector]" forall s i.
-  indexM (new (New.unstream s)) i = liftStream s MStream.!! i
+  indexM (new (New.unstream s)) i = lift s MBundle.!! i
 
 "headM/unstream [Vector]" forall s.
-  headM (new (New.unstream s)) = MStream.head (liftStream s)
+  headM (new (New.unstream s)) = MBundle.head (lift s)
 
 "lastM/unstream [Vector]" forall s.
-  lastM (new (New.unstream s)) = MStream.last (liftStream s)
+  lastM (new (New.unstream s)) = MBundle.last (lift s)
 
 "unsafeIndexM/unstream [Vector]" forall s i.
-  unsafeIndexM (new (New.unstream s)) i = liftStream s MStream.!! i
+  unsafeIndexM (new (New.unstream s)) i = lift s MBundle.!! i
 
 "unsafeHeadM/unstream [Vector]" forall s.
-  unsafeHeadM (new (New.unstream s)) = MStream.head (liftStream s)
+  unsafeHeadM (new (New.unstream s)) = MBundle.head (lift s)
 
 "unsafeLastM/unstream [Vector]" forall s.
-  unsafeLastM (new (New.unstream s)) = MStream.last (liftStream s)
+  unsafeLastM (new (New.unstream s)) = MBundle.last (lift s)   #-}
 
-  #-}
+
 
 -- Extracting subvectors (slicing)
 -- -------------------------------
@@ -442,7 +445,7 @@ slice :: Vector v a => Int   -- ^ @i@ starting index
                     -> v a
                     -> v a
 {-# INLINE [1] slice #-}
-slice i n v = ((Ck.checkSlice "Data/Vector/Generic.hs" 400) Ck.Bounds) "slice" i n (length v)
+slice i n v = ((Ck.checkSlice "Data/Vector/Generic.hs" 396) Ck.Bounds) "slice" i n (length v)
             $ basicUnsafeSlice i n v
 
 -- | /O(1)/ Yield all but the last element without copying. The vector may not
@@ -494,7 +497,7 @@ unsafeSlice :: Vector v a => Int   -- ^ @i@ starting index
                           -> v a
                           -> v a
 {-# INLINE [1] unsafeSlice #-}
-unsafeSlice i n v = ((Ck.checkSlice "Data/Vector/Generic.hs" 452) Ck.Unsafe) "unsafeSlice" i n (length v)
+unsafeSlice i n v = ((Ck.checkSlice "Data/Vector/Generic.hs" 448) Ck.Unsafe) "unsafeSlice" i n (length v)
                   $ basicUnsafeSlice i n v
 
 -- | /O(1)/ Yield all but the last element without copying. The vector may not
@@ -545,9 +548,9 @@ unsafeDrop n v = unsafeSlice n (length v - n) v
   unsafeInit (new p) = new (New.unsafeInit p)
 
 "unsafeTail/new [Vector]" forall p.
-  unsafeTail (new p) = new (New.unsafeTail p)
+  unsafeTail (new p) = new (New.unsafeTail p)   #-}
 
-  #-}
+
 
 -- Initialisation
 -- --------------
@@ -555,31 +558,31 @@ unsafeDrop n v = unsafeSlice n (length v - n) v
 -- | /O(1)/ Empty vector
 empty :: Vector v a => v a
 {-# INLINE empty #-}
-empty = unstream Stream.empty
+empty = unstream Bundle.empty
 
 -- | /O(1)/ Vector with exactly one element
 singleton :: forall v a. Vector v a => a -> v a
 {-# INLINE singleton #-}
 singleton x = elemseq (undefined :: v a) x
-            $ unstream (Stream.singleton x)
+            $ unstream (Bundle.singleton x)
 
 -- | /O(n)/ Vector of the given length with the same value in each position
 replicate :: forall v a. Vector v a => Int -> a -> v a
 {-# INLINE replicate #-}
 replicate n x = elemseq (undefined :: v a) x
               $ unstream
-              $ Stream.replicate n x
+              $ Bundle.replicate n x
 
 -- | /O(n)/ Construct a vector of the given length by applying the function to
 -- each index
 generate :: Vector v a => Int -> (Int -> a) -> v a
 {-# INLINE generate #-}
-generate n f = unstream (Stream.generate n f)
+generate n f = unstream (Bundle.generate n f)
 
 -- | /O(n)/ Apply function n times to value. Zeroth element is original value.
 iterateN :: Vector v a => Int -> (a -> a) -> a -> v a
 {-# INLINE iterateN #-}
-iterateN n f x = unstream (Stream.iterateN n f x)
+iterateN n f x = unstream (Bundle.iterateN n f x)
 
 -- Unfolding
 -- ---------
@@ -592,16 +595,32 @@ iterateN n f x = unstream (Stream.iterateN n f x)
 -- >  = <10,9,8,7,6,5,4,3,2,1>
 unfoldr :: Vector v a => (b -> Maybe (a, b)) -> b -> v a
 {-# INLINE unfoldr #-}
-unfoldr f = unstream . Stream.unfoldr f
+unfoldr f = unstream . Bundle.unfoldr f
 
--- | /O(n)/ Construct a vector with at most @n@ by repeatedly applying the
--- generator function to the a seed. The generator function yields 'Just' the
+-- | /O(n)/ Construct a vector with at most @n@ elements by repeatedly applying
+-- the generator function to a seed. The generator function yields 'Just' the
 -- next element and the new seed or 'Nothing' if there are no more elements.
 --
 -- > unfoldrN 3 (\n -> Just (n,n-1)) 10 = <10,9,8>
 unfoldrN  :: Vector v a => Int -> (b -> Maybe (a, b)) -> b -> v a
 {-# INLINE unfoldrN #-}
-unfoldrN n f = unstream . Stream.unfoldrN n f
+unfoldrN n f = unstream . Bundle.unfoldrN n f
+
+-- | /O(n)/ Construct a vector by repeatedly applying the monadic
+-- generator function to a seed. The generator function yields 'Just'
+-- the next element and the new seed or 'Nothing' if there are no more
+-- elements.
+unfoldrM :: (Monad m, Vector v a) => (b -> m (Maybe (a, b))) -> b -> m (v a)
+{-# INLINE unfoldrM #-}
+unfoldrM f = unstreamM . MBundle.unfoldrM f
+
+-- | /O(n)/ Construct a vector by repeatedly applying the monadic
+-- generator function to a seed. The generator function yields 'Just'
+-- the next element and the new seed or 'Nothing' if there are no more
+-- elements.
+unfoldrNM :: (Monad m, Vector v a) => Int -> (b -> m (Maybe (a, b))) -> b -> m (v a)
+{-# INLINE unfoldrNM #-}
+unfoldrNM n f = unstreamM . MBundle.unfoldrNM n f
 
 -- | /O(n)/ Construct a vector with @n@ elements by repeatedly applying the
 -- generator function to the already constructed part of the vector.
@@ -629,7 +648,7 @@ constructN !n f = runST (
                           v'' <- unsafeFreeze v'
                           fill v'' (i+1)
 
-    fill v i = return v
+    fill v _ = return v
 
 -- | /O(n)/ Construct a vector with @n@ elements from right to left by
 -- repeatedly applying the generator function to the already constructed part
@@ -658,7 +677,7 @@ constructrN !n f = runST (
                           v'' <- unsafeFreeze v'
                           fill v'' (i+1)
 
-    fill v i = return v
+    fill v _ = return v
 
 
 -- Enumeration
@@ -681,7 +700,7 @@ enumFromStepN :: forall v a. (Vector v a, Num a) => a -> a -> Int -> v a
 enumFromStepN x y n = elemseq (undefined :: v a) x
                     $ elemseq (undefined :: v a) y
                     $ unstream
-                    $ Stream.enumFromStepN  x y n
+                    $ Bundle.enumFromStepN  x y n
 
 -- | /O(n)/ Enumerate values from @x@ to @y@.
 --
@@ -689,7 +708,7 @@ enumFromStepN x y n = elemseq (undefined :: v a) x
 -- 'enumFromN' instead.
 enumFromTo :: (Vector v a, Enum a) => a -> a -> v a
 {-# INLINE enumFromTo #-}
-enumFromTo x y = unstream (Stream.enumFromTo x y)
+enumFromTo x y = unstream (Bundle.enumFromTo x y)
 
 -- | /O(n)/ Enumerate values from @x@ to @y@ with a specific step @z@.
 --
@@ -697,7 +716,7 @@ enumFromTo x y = unstream (Stream.enumFromTo x y)
 -- 'enumFromStepN' instead.
 enumFromThenTo :: (Vector v a, Enum a) => a -> a -> a -> v a
 {-# INLINE enumFromThenTo #-}
-enumFromThenTo x y z = unstream (Stream.enumFromThenTo x y z)
+enumFromThenTo x y z = unstream (Bundle.enumFromThenTo x y z)
 
 -- Concatenation
 -- -------------
@@ -707,7 +726,7 @@ cons :: forall v a. Vector v a => a -> v a -> v a
 {-# INLINE cons #-}
 cons x v = elemseq (undefined :: v a) x
          $ unstream
-         $ Stream.cons x
+         $ Bundle.cons x
          $ stream v
 
 -- | /O(n)/ Append an element
@@ -715,31 +734,38 @@ snoc :: forall v a. Vector v a => v a -> a -> v a
 {-# INLINE snoc #-}
 snoc v x = elemseq (undefined :: v a) x
          $ unstream
-         $ Stream.snoc (stream v) x
+         $ Bundle.snoc (stream v) x
 
 infixr 5 ++
 -- | /O(m+n)/ Concatenate two vectors
 (++) :: Vector v a => v a -> v a -> v a
 {-# INLINE (++) #-}
-v ++ w = unstream (stream v Stream.++ stream w)
+v ++ w = unstream (stream v Bundle.++ stream w)
 
 -- | /O(n)/ Concatenate all vectors in the list
 concat :: Vector v a => [v a] -> v a
 {-# INLINE concat #-}
-concat vs = unstream (Stream.flatten mk step (Exact n) (Stream.fromList vs))
+concat = unstream . Bundle.fromVectors
+{-
+concat vs = unstream (Bundle.flatten mk step (Exact n) (Bundle.fromList vs))
   where
     n = List.foldl' (\k v -> k + length v) 0 vs
 
     {-# INLINE [0] step #-}
     step (v,i,k)
       | i < k = case unsafeIndexM v i of
-                  Box x -> Stream.Yield x (v,i+1,k)
-      | otherwise = Stream.Done
+                  Box x -> Bundle.Yield x (v,i+1,k)
+      | otherwise = Bundle.Done
 
     {-# INLINE mk #-}
     mk v = let k = length v
            in
            k `seq` (v,0,k)
+-}
+
+-- | /O(n)/ Concatenate all vectors in the non-empty list
+concatNE :: Vector v a => NonEmpty.NonEmpty (v a) -> v a
+concatNE = concat . NonEmpty.toList
 
 -- Monadic initialisation
 -- ----------------------
@@ -748,13 +774,18 @@ concat vs = unstream (Stream.flatten mk step (Exact n) (Stream.fromList vs))
 -- results in a vector.
 replicateM :: (Monad m, Vector v a) => Int -> m a -> m (v a)
 {-# INLINE replicateM #-}
-replicateM n m = unstreamM (MStream.replicateM n m)
+replicateM n m = unstreamM (MBundle.replicateM n m)
 
 -- | /O(n)/ Construct a vector of the given length by applying the monadic
 -- action to each index
 generateM :: (Monad m, Vector v a) => Int -> (Int -> m a) -> m (v a)
 {-# INLINE generateM #-}
-generateM n f = unstreamM (MStream.generateM n f)
+generateM n f = unstreamM (MBundle.generateM n f)
+
+-- | /O(n)/ Apply monadic function n times to value. Zeroth element is original value.
+iterateNM :: (Monad m, Vector v a) => Int -> (a -> m a) -> a -> m (v a)
+{-# INLINE iterateNM #-}
+iterateNM n f x = unstreamM (MBundle.iterateNM n f x)
 
 -- | Execute the monadic action and freeze the resulting vector.
 --
@@ -764,6 +795,13 @@ generateM n f = unstreamM (MStream.generateM n f)
 create :: Vector v a => (forall s. ST s (Mutable v s a)) -> v a
 {-# INLINE create #-}
 create p = new (New.create p)
+
+-- | Execute the monadic action and freeze the resulting vectors.
+createT
+  :: (T.Traversable f, Vector v a)
+  => (forall s. ST s (f (Mutable v s a))) -> f (v a)
+{-# INLINE createT #-}
+createT p = runST (p >>= T.mapM unsafeFreeze)
 
 -- Restricting memory usage
 -- ------------------------
@@ -796,7 +834,7 @@ force v = new (clone v)
                    -> [(Int, a)] -- ^ list of index/value pairs (of length @n@)
                    -> v a
 {-# INLINE (//) #-}
-v // us = update_stream v (Stream.fromList us)
+v // us = update_stream v (Bundle.fromList us)
 
 -- | /O(m+n)/ For each pair @(i,a)@ from the vector of index/value pairs,
 -- replace the vector element at position @i@ by @a@.
@@ -828,16 +866,16 @@ update_ :: (Vector v a, Vector v Int)
         -> v a   -- ^ value vector (of length @n2@)
         -> v a
 {-# INLINE update_ #-}
-update_ v is w = update_stream v (Stream.zipWith (,) (stream is) (stream w))
+update_ v is w = update_stream v (Bundle.zipWith (,) (stream is) (stream w))
 
-update_stream :: Vector v a => v a -> Stream (Int,a) -> v a
+update_stream :: Vector v a => v a -> Bundle u (Int,a) -> v a
 {-# INLINE update_stream #-}
-update_stream = modifyWithStream M.update
+update_stream = modifyWithBundle M.update
 
 -- | Same as ('//') but without bounds checking.
 unsafeUpd :: Vector v a => v a -> [(Int, a)] -> v a
 {-# INLINE unsafeUpd #-}
-unsafeUpd v us = unsafeUpdate_stream v (Stream.fromList us)
+unsafeUpd v us = unsafeUpdate_stream v (Bundle.fromList us)
 
 -- | Same as 'update' but without bounds checking.
 unsafeUpdate :: (Vector v a, Vector v (Int, a)) => v a -> v (Int, a) -> v a
@@ -848,11 +886,11 @@ unsafeUpdate v w = unsafeUpdate_stream v (stream w)
 unsafeUpdate_ :: (Vector v a, Vector v Int) => v a -> v Int -> v a -> v a
 {-# INLINE unsafeUpdate_ #-}
 unsafeUpdate_ v is w
-  = unsafeUpdate_stream v (Stream.zipWith (,) (stream is) (stream w))
+  = unsafeUpdate_stream v (Bundle.zipWith (,) (stream is) (stream w))
 
-unsafeUpdate_stream :: Vector v a => v a -> Stream (Int,a) -> v a
+unsafeUpdate_stream :: Vector v a => v a -> Bundle u (Int,a) -> v a
 {-# INLINE unsafeUpdate_stream #-}
-unsafeUpdate_stream = modifyWithStream M.unsafeUpdate
+unsafeUpdate_stream = modifyWithBundle M.unsafeUpdate
 
 -- Accumulations
 -- -------------
@@ -867,7 +905,7 @@ accum :: Vector v a
       -> [(Int,b)]     -- ^ list of index/value pairs (of length @n@)
       -> v a
 {-# INLINE accum #-}
-accum f v us = accum_stream f v (Stream.fromList us)
+accum f v us = accum_stream f v (Bundle.fromList us)
 
 -- | /O(m+n)/ For each pair @(i,b)@ from the vector of pairs, replace the vector
 -- element @a@ at position @i@ by @f a b@.
@@ -901,18 +939,18 @@ accumulate_ :: (Vector v a, Vector v Int, Vector v b)
                 -> v b           -- ^ value vector (of length @n2@)
                 -> v a
 {-# INLINE accumulate_ #-}
-accumulate_ f v is xs = accum_stream f v (Stream.zipWith (,) (stream is)
+accumulate_ f v is xs = accum_stream f v (Bundle.zipWith (,) (stream is)
                                                              (stream xs))
-                                        
 
-accum_stream :: Vector v a => (a -> b -> a) -> v a -> Stream (Int,b) -> v a
+
+accum_stream :: Vector v a => (a -> b -> a) -> v a -> Bundle u (Int,b) -> v a
 {-# INLINE accum_stream #-}
-accum_stream f = modifyWithStream (M.accum f)
+accum_stream f = modifyWithBundle (M.accum f)
 
 -- | Same as 'accum' but without bounds checking.
 unsafeAccum :: Vector v a => (a -> b -> a) -> v a -> [(Int,b)] -> v a
 {-# INLINE unsafeAccum #-}
-unsafeAccum f v us = unsafeAccum_stream f v (Stream.fromList us)
+unsafeAccum f v us = unsafeAccum_stream f v (Bundle.fromList us)
 
 -- | Same as 'accumulate' but without bounds checking.
 unsafeAccumulate :: (Vector v a, Vector v (Int, b))
@@ -925,12 +963,12 @@ unsafeAccumulate_ :: (Vector v a, Vector v Int, Vector v b)
                 => (a -> b -> a) -> v a -> v Int -> v b -> v a
 {-# INLINE unsafeAccumulate_ #-}
 unsafeAccumulate_ f v is xs
-  = unsafeAccum_stream f v (Stream.zipWith (,) (stream is) (stream xs))
+  = unsafeAccum_stream f v (Bundle.zipWith (,) (stream is) (stream xs))
 
 unsafeAccum_stream
-  :: Vector v a => (a -> b -> a) -> v a -> Stream (Int,b) -> v a
+  :: Vector v a => (a -> b -> a) -> v a -> Bundle u (Int,b) -> v a
 {-# INLINE unsafeAccum_stream #-}
-unsafeAccum_stream f = modifyWithStream (M.unsafeAccum f)
+unsafeAccum_stream f = modifyWithBundle (M.unsafeAccum f)
 
 -- Permutations
 -- ------------
@@ -957,8 +995,8 @@ backpermute :: (Vector v a, Vector v Int)
 backpermute v is = seq v
                  $ seq n
                  $ unstream
-                 $ Stream.unbox
-                 $ Stream.map index
+                 $ Bundle.unbox
+                 $ Bundle.map index
                  $ stream is
   where
     n = length v
@@ -966,7 +1004,7 @@ backpermute v is = seq v
     {-# INLINE index #-}
     -- NOTE: we do it this way to avoid triggering LiberateCase on n in
     -- polymorphic code
-    index i = ((Ck.checkIndex "Data/Vector/Generic.hs" 924) Ck.Bounds) "backpermute" i n
+    index i = ((Ck.checkIndex "Data/Vector/Generic.hs" 955) Ck.Bounds) "backpermute" i n
             $ basicUnsafeIndexM v i
 
 -- | Same as 'backpermute' but without bounds checking.
@@ -975,8 +1013,8 @@ unsafeBackpermute :: (Vector v a, Vector v Int) => v a -> v Int -> v a
 unsafeBackpermute v is = seq v
                        $ seq n
                        $ unstream
-                       $ Stream.unbox
-                       $ Stream.map index
+                       $ Bundle.unbox
+                       $ Bundle.map index
                        $ stream is
   where
     n = length v
@@ -984,7 +1022,7 @@ unsafeBackpermute v is = seq v
     {-# INLINE index #-}
     -- NOTE: we do it this way to avoid triggering LiberateCase on n in
     -- polymorphic code
-    index i = ((Ck.checkIndex "Data/Vector/Generic.hs" 942) Ck.Unsafe) "unsafeBackpermute" i n
+    index i = ((Ck.checkIndex "Data/Vector/Generic.hs" 973) Ck.Unsafe) "unsafeBackpermute" i n
             $ basicUnsafeIndexM v i
 
 -- Safe destructive updates
@@ -1003,11 +1041,11 @@ modify p = new . New.modify p . clone
 
 -- We have to make sure that this is strict in the stream but we can't seq on
 -- it while fusion is happening. Hence this ugliness.
-modifyWithStream :: Vector v a
-                 => (forall s. Mutable v s a -> Stream b -> ST s ())
-                 -> v a -> Stream b -> v a
-{-# INLINE modifyWithStream #-}
-modifyWithStream p v s = new (New.modifyWithStream p (clone v) s)
+modifyWithBundle :: Vector v a
+                 => (forall s. Mutable v s a -> Bundle u b -> ST s ())
+                 -> v a -> Bundle u b -> v a
+{-# INLINE modifyWithBundle #-}
+modifyWithBundle p v s = new (New.modifyWithBundle p (clone v) s)
 
 -- Indexing
 -- --------
@@ -1015,7 +1053,7 @@ modifyWithStream p v s = new (New.modifyWithStream p (clone v) s)
 -- | /O(n)/ Pair each element in a vector with its index
 indexed :: (Vector v a, Vector v (Int,a)) => v a -> v (Int,a)
 {-# INLINE indexed #-}
-indexed = unstream . Stream.indexed . stream
+indexed = unstream . Bundle.indexed . stream
 
 -- Mapping
 -- -------
@@ -1023,12 +1061,12 @@ indexed = unstream . Stream.indexed . stream
 -- | /O(n)/ Map a function over a vector
 map :: (Vector v a, Vector v b) => (a -> b) -> v a -> v b
 {-# INLINE map #-}
-map f = unstream . inplace (MStream.map f) . stream
+map f = unstream . inplace (S.map f) id . stream
 
 -- | /O(n)/ Apply a function to every element of a vector and its index
 imap :: (Vector v a, Vector v b) => (Int -> a -> b) -> v a -> v b
 {-# INLINE imap #-}
-imap f = unstream . inplace (MStream.map (uncurry f) . MStream.indexed)
+imap f = unstream . inplace (S.map (uncurry f) . S.indexed) id
                   . stream
 
 -- | Map a function over a vector and concatenate the results.
@@ -1036,27 +1074,35 @@ concatMap :: (Vector v a, Vector v b) => (a -> v b) -> v a -> v b
 {-# INLINE concatMap #-}
 -- NOTE: We can't fuse concatMap anyway so don't pretend we do.
 -- This seems to be slightly slower
--- concatMap f = concat . Stream.toList . Stream.map f . stream
+-- concatMap f = concat . Bundle.toList . Bundle.map f . stream
 
 -- Slowest
--- concatMap f = unstream . Stream.concatMap (stream . f) . stream
+-- concatMap f = unstream . Bundle.concatMap (stream . f) . stream
 
--- Seems to be fastest
+-- Used to be fastest
+{-
 concatMap f = unstream
-            . Stream.flatten mk step Unknown
+            . Bundle.flatten mk step Unknown
             . stream
   where
     {-# INLINE [0] step #-}
     step (v,i,k)
       | i < k = case unsafeIndexM v i of
-                  Box x -> Stream.Yield x (v,i+1,k)
-      | otherwise = Stream.Done
+                  Box x -> Bundle.Yield x (v,i+1,k)
+      | otherwise = Bundle.Done
 
     {-# INLINE mk #-}
     mk x = let v = f x
                k = length v
            in
            k `seq` (v,0,k)
+-}
+
+-- This seems to be fastest now
+concatMap f = unstream
+            . Bundle.concatVectors
+            . Bundle.map f
+            . stream
 
 -- Monadic mapping
 -- ---------------
@@ -1065,16 +1111,28 @@ concatMap f = unstream
 -- vector of results
 mapM :: (Monad m, Vector v a, Vector v b) => (a -> m b) -> v a -> m (v b)
 {-# INLINE mapM #-}
-mapM f = unstreamM . Stream.mapM f . stream
+mapM f = unstreamM . Bundle.mapM f . stream
+
+-- | /O(n)/ Apply the monadic action to every element of a vector and its
+-- index, yielding a vector of results
+imapM :: (Monad m, Vector v a, Vector v b)
+      => (Int -> a -> m b) -> v a -> m (v b)
+imapM f = unstreamM . Bundle.mapM (uncurry f) . Bundle.indexed . stream
 
 -- | /O(n)/ Apply the monadic action to all elements of a vector and ignore the
 -- results
 mapM_ :: (Monad m, Vector v a) => (a -> m b) -> v a -> m ()
 {-# INLINE mapM_ #-}
-mapM_ f = Stream.mapM_ f . stream
+mapM_ f = Bundle.mapM_ f . stream
+
+-- | /O(n)/ Apply the monadic action to every element of a vector and its
+-- index, ignoring the results
+imapM_ :: (Monad m, Vector v a) => (Int -> a -> m b) -> v a -> m ()
+{-# INLINE imapM_ #-}
+imapM_ f = Bundle.mapM_ (uncurry f) . Bundle.indexed . stream
 
 -- | /O(n)/ Apply the monadic action to all elements of the vector, yielding a
--- vector of results. Equvalent to @flip 'mapM'@.
+-- vector of results. Equivalent to @flip 'mapM'@.
 forM :: (Monad m, Vector v a, Vector v b) => v a -> (a -> m b) -> m (v b)
 {-# INLINE forM #-}
 forM as f = mapM f as
@@ -1092,21 +1150,21 @@ forM_ as f = mapM_ f as
 zipWith :: (Vector v a, Vector v b, Vector v c)
         => (a -> b -> c) -> v a -> v b -> v c
 {-# INLINE zipWith #-}
-zipWith f xs ys = unstream (Stream.zipWith f (stream xs) (stream ys))
+zipWith f = \xs ys -> unstream (Bundle.zipWith f (stream xs) (stream ys))
 
 -- | Zip three vectors with the given function.
 zipWith3 :: (Vector v a, Vector v b, Vector v c, Vector v d)
          => (a -> b -> c -> d) -> v a -> v b -> v c -> v d
 {-# INLINE zipWith3 #-}
-zipWith3 f as bs cs = unstream (Stream.zipWith3 f (stream as)
+zipWith3 f = \as bs cs -> unstream (Bundle.zipWith3 f (stream as)
                                                   (stream bs)
                                                   (stream cs))
 
 zipWith4 :: (Vector v a, Vector v b, Vector v c, Vector v d, Vector v e)
          => (a -> b -> c -> d -> e) -> v a -> v b -> v c -> v d -> v e
 {-# INLINE zipWith4 #-}
-zipWith4 f as bs cs ds
-  = unstream (Stream.zipWith4 f (stream as)
+zipWith4 f = \as bs cs ds ->
+    unstream (Bundle.zipWith4 f (stream as)
                                 (stream bs)
                                 (stream cs)
                                 (stream ds))
@@ -1116,8 +1174,8 @@ zipWith5 :: (Vector v a, Vector v b, Vector v c, Vector v d, Vector v e,
          => (a -> b -> c -> d -> e -> f) -> v a -> v b -> v c -> v d -> v e
                                          -> v f
 {-# INLINE zipWith5 #-}
-zipWith5 f as bs cs ds es
-  = unstream (Stream.zipWith5 f (stream as)
+zipWith5 f = \as bs cs ds es ->
+    unstream (Bundle.zipWith5 f (stream as)
                                 (stream bs)
                                 (stream cs)
                                 (stream ds)
@@ -1128,8 +1186,8 @@ zipWith6 :: (Vector v a, Vector v b, Vector v c, Vector v d, Vector v e,
          => (a -> b -> c -> d -> e -> f -> g)
          -> v a -> v b -> v c -> v d -> v e -> v f -> v g
 {-# INLINE zipWith6 #-}
-zipWith6 f as bs cs ds es fs
-  = unstream (Stream.zipWith6 f (stream as)
+zipWith6 f = \as bs cs ds es fs ->
+    unstream (Bundle.zipWith6 f (stream as)
                                 (stream bs)
                                 (stream cs)
                                 (stream ds)
@@ -1141,23 +1199,23 @@ zipWith6 f as bs cs ds es fs
 izipWith :: (Vector v a, Vector v b, Vector v c)
         => (Int -> a -> b -> c) -> v a -> v b -> v c
 {-# INLINE izipWith #-}
-izipWith f xs ys = unstream
-                  (Stream.zipWith (uncurry f) (Stream.indexed (stream xs))
-                                                              (stream ys))
+izipWith f = \xs ys ->
+    unstream (Bundle.zipWith (uncurry f) (Bundle.indexed (stream xs))
+                                                         (stream ys))
 
 izipWith3 :: (Vector v a, Vector v b, Vector v c, Vector v d)
          => (Int -> a -> b -> c -> d) -> v a -> v b -> v c -> v d
 {-# INLINE izipWith3 #-}
-izipWith3 f as bs cs
-  = unstream (Stream.zipWith3 (uncurry f) (Stream.indexed (stream as))
+izipWith3 f = \as bs cs ->
+    unstream (Bundle.zipWith3 (uncurry f) (Bundle.indexed (stream as))
                                                           (stream bs)
                                                           (stream cs))
 
 izipWith4 :: (Vector v a, Vector v b, Vector v c, Vector v d, Vector v e)
          => (Int -> a -> b -> c -> d -> e) -> v a -> v b -> v c -> v d -> v e
 {-# INLINE izipWith4 #-}
-izipWith4 f as bs cs ds
-  = unstream (Stream.zipWith4 (uncurry f) (Stream.indexed (stream as))
+izipWith4 f = \as bs cs ds ->
+    unstream (Bundle.zipWith4 (uncurry f) (Bundle.indexed (stream as))
                                                           (stream bs)
                                                           (stream cs)
                                                           (stream ds))
@@ -1167,8 +1225,8 @@ izipWith5 :: (Vector v a, Vector v b, Vector v c, Vector v d, Vector v e,
          => (Int -> a -> b -> c -> d -> e -> f) -> v a -> v b -> v c -> v d
                                                 -> v e -> v f
 {-# INLINE izipWith5 #-}
-izipWith5 f as bs cs ds es
-  = unstream (Stream.zipWith5 (uncurry f) (Stream.indexed (stream as))
+izipWith5 f = \as bs cs ds es ->
+    unstream (Bundle.zipWith5 (uncurry f) (Bundle.indexed (stream as))
                                                           (stream bs)
                                                           (stream cs)
                                                           (stream ds)
@@ -1179,8 +1237,8 @@ izipWith6 :: (Vector v a, Vector v b, Vector v c, Vector v d, Vector v e,
          => (Int -> a -> b -> c -> d -> e -> f -> g)
          -> v a -> v b -> v c -> v d -> v e -> v f -> v g
 {-# INLINE izipWith6 #-}
-izipWith6 f as bs cs ds es fs
-  = unstream (Stream.zipWith6 (uncurry f) (Stream.indexed (stream as))
+izipWith6 f = \as bs cs ds es fs ->
+    unstream (Bundle.zipWith6 (uncurry f) (Bundle.indexed (stream as))
                                                           (stream bs)
                                                           (stream cs)
                                                           (stream ds)
@@ -1223,14 +1281,32 @@ zipWithM :: (Monad m, Vector v a, Vector v b, Vector v c)
          => (a -> b -> m c) -> v a -> v b -> m (v c)
 -- FIXME: specialise for ST and IO?
 {-# INLINE zipWithM #-}
-zipWithM f as bs = unstreamM $ Stream.zipWithM f (stream as) (stream bs)
+zipWithM f = \as bs -> unstreamM $ Bundle.zipWithM f (stream as) (stream bs)
+
+-- | /O(min(m,n))/ Zip the two vectors with a monadic action that also takes
+-- the element index and yield a vector of results
+izipWithM :: (Monad m, Vector v a, Vector v b, Vector v c)
+         => (Int -> a -> b -> m c) -> v a -> v b -> m (v c)
+{-# INLINE izipWithM #-}
+izipWithM m as bs = unstreamM . Bundle.zipWithM (uncurry m)
+                                (Bundle.indexed (stream as))
+                                $ stream bs
 
 -- | /O(min(m,n))/ Zip the two vectors with the monadic action and ignore the
 -- results
 zipWithM_ :: (Monad m, Vector v a, Vector v b)
           => (a -> b -> m c) -> v a -> v b -> m ()
 {-# INLINE zipWithM_ #-}
-zipWithM_ f as bs = Stream.zipWithM_ f (stream as) (stream bs)
+zipWithM_ f = \as bs -> Bundle.zipWithM_ f (stream as) (stream bs)
+
+-- | /O(min(m,n))/ Zip the two vectors with a monadic action that also takes
+-- the element index and ignore the results
+izipWithM_ :: (Monad m, Vector v a, Vector v b)
+          => (Int -> a -> b -> m c) -> v a -> v b -> m ()
+{-# INLINE izipWithM_ #-}
+izipWithM_ m as bs = Bundle.zipWithM_ (uncurry m)
+                      (Bundle.indexed (stream as))
+                      $ stream bs
 
 -- Unzipping
 -- ---------
@@ -1243,39 +1319,39 @@ unzip xs = (map fst xs, map snd xs)
 unzip3 :: (Vector v a, Vector v b, Vector v c, Vector v (a, b, c))
        => v (a, b, c) -> (v a, v b, v c)
 {-# INLINE unzip3 #-}
-unzip3 xs = (map (\(a, b, c) -> a) xs,
-             map (\(a, b, c) -> b) xs,
-             map (\(a, b, c) -> c) xs)
+unzip3 xs = (map (\(a, _, _) -> a) xs,
+             map (\(_, b, _) -> b) xs,
+             map (\(_, _, c) -> c) xs)
 
 unzip4 :: (Vector v a, Vector v b, Vector v c, Vector v d,
            Vector v (a, b, c, d))
        => v (a, b, c, d) -> (v a, v b, v c, v d)
 {-# INLINE unzip4 #-}
-unzip4 xs = (map (\(a, b, c, d) -> a) xs,
-             map (\(a, b, c, d) -> b) xs,
-             map (\(a, b, c, d) -> c) xs,
-             map (\(a, b, c, d) -> d) xs)
+unzip4 xs = (map (\(a, _, _, _) -> a) xs,
+             map (\(_, b, _, _) -> b) xs,
+             map (\(_, _, c, _) -> c) xs,
+             map (\(_, _, _, d) -> d) xs)
 
 unzip5 :: (Vector v a, Vector v b, Vector v c, Vector v d, Vector v e,
            Vector v (a, b, c, d, e))
        => v (a, b, c, d, e) -> (v a, v b, v c, v d, v e)
 {-# INLINE unzip5 #-}
-unzip5 xs = (map (\(a, b, c, d, e) -> a) xs,
-             map (\(a, b, c, d, e) -> b) xs,
-             map (\(a, b, c, d, e) -> c) xs,
-             map (\(a, b, c, d, e) -> d) xs,
-             map (\(a, b, c, d, e) -> e) xs)
+unzip5 xs = (map (\(a, _, _, _, _) -> a) xs,
+             map (\(_, b, _, _, _) -> b) xs,
+             map (\(_, _, c, _, _) -> c) xs,
+             map (\(_, _, _, d, _) -> d) xs,
+             map (\(_, _, _, _, e) -> e) xs)
 
 unzip6 :: (Vector v a, Vector v b, Vector v c, Vector v d, Vector v e,
            Vector v f, Vector v (a, b, c, d, e, f))
        => v (a, b, c, d, e, f) -> (v a, v b, v c, v d, v e, v f)
 {-# INLINE unzip6 #-}
-unzip6 xs = (map (\(a, b, c, d, e, f) -> a) xs,
-             map (\(a, b, c, d, e, f) -> b) xs,
-             map (\(a, b, c, d, e, f) -> c) xs,
-             map (\(a, b, c, d, e, f) -> d) xs,
-             map (\(a, b, c, d, e, f) -> e) xs,
-             map (\(a, b, c, d, e, f) -> f) xs)
+unzip6 xs = (map (\(a, _, _, _, _, _) -> a) xs,
+             map (\(_, b, _, _, _, _) -> b) xs,
+             map (\(_, _, c, _, _, _) -> c) xs,
+             map (\(_, _, _, d, _, _) -> d) xs,
+             map (\(_, _, _, _, e, _) -> e) xs,
+             map (\(_, _, _, _, _, f) -> f) xs)
 
 -- Filtering
 -- ---------
@@ -1283,33 +1359,50 @@ unzip6 xs = (map (\(a, b, c, d, e, f) -> a) xs,
 -- | /O(n)/ Drop elements that do not satisfy the predicate
 filter :: Vector v a => (a -> Bool) -> v a -> v a
 {-# INLINE filter #-}
-filter f = unstream . inplace (MStream.filter f) . stream
+filter f = unstream . inplace (S.filter f) toMax . stream
 
 -- | /O(n)/ Drop elements that do not satisfy the predicate which is applied to
 -- values and their indices
 ifilter :: Vector v a => (Int -> a -> Bool) -> v a -> v a
 {-# INLINE ifilter #-}
 ifilter f = unstream
-          . inplace (MStream.map snd . MStream.filter (uncurry f)
-                                     . MStream.indexed)
+          . inplace (S.map snd . S.filter (uncurry f) . S.indexed) toMax
           . stream
+
+-- | /O(n)/ Drop repeated adjacent elements.
+uniq :: (Vector v a, Eq a) => v a -> v a
+{-# INLINE uniq #-}
+uniq = unstream . inplace S.uniq toMax . stream
+
+-- | /O(n)/ Drop elements when predicate returns Nothing
+mapMaybe :: (Vector v a, Vector v b) => (a -> Maybe b) -> v a -> v b
+{-# INLINE mapMaybe #-}
+mapMaybe f = unstream . inplace (S.mapMaybe f) toMax . stream
+
+-- | /O(n)/ Drop elements when predicate, applied to index and value, returns Nothing
+imapMaybe :: (Vector v a, Vector v b) => (Int -> a -> Maybe b) -> v a -> v b
+{-# INLINE imapMaybe #-}
+imapMaybe f = unstream
+          . inplace (S.mapMaybe (uncurry f) . S.indexed) toMax
+          . stream
+
 
 -- | /O(n)/ Drop elements that do not satisfy the monadic predicate
 filterM :: (Monad m, Vector v a) => (a -> m Bool) -> v a -> m (v a)
 {-# INLINE filterM #-}
-filterM f = unstreamM . Stream.filterM f . stream
+filterM f = unstreamM . Bundle.filterM f . stream
 
 -- | /O(n)/ Yield the longest prefix of elements satisfying the predicate
 -- without copying.
 takeWhile :: Vector v a => (a -> Bool) -> v a -> v a
 {-# INLINE takeWhile #-}
-takeWhile f = unstream . Stream.takeWhile f . stream
+takeWhile f = unstream . Bundle.takeWhile f . stream
 
 -- | /O(n)/ Drop the longest prefix of elements that satisfy the predicate
 -- without copying.
 dropWhile :: Vector v a => (a -> Bool) -> v a -> v a
 {-# INLINE dropWhile #-}
-dropWhile f = unstream . Stream.dropWhile f . stream
+dropWhile f = unstream . Bundle.dropWhile f . stream
 
 -- Parititioning
 -- -------------
@@ -1325,11 +1418,11 @@ partition f = partition_stream f . stream
 -- FIXME: Make this inplace-fusible (look at how stable_partition is
 -- implemented in C++)
 
-partition_stream :: Vector v a => (a -> Bool) -> Stream a -> (v a, v a)
+partition_stream :: Vector v a => (a -> Bool) -> Bundle u a -> (v a, v a)
 {-# INLINE [1] partition_stream #-}
 partition_stream f s = s `seq` runST (
   do
-    (mv1,mv2) <- M.partitionStream f s
+    (mv1,mv2) <- M.partitionBundle f s
     v1 <- unsafeFreeze mv1
     v2 <- unsafeFreeze mv2
     return (v1,v2))
@@ -1343,11 +1436,11 @@ unstablePartition :: Vector v a => (a -> Bool) -> v a -> (v a, v a)
 unstablePartition f = unstablePartition_stream f . stream
 
 unstablePartition_stream
-  :: Vector v a => (a -> Bool) -> Stream a -> (v a, v a)
+  :: Vector v a => (a -> Bool) -> Bundle u a -> (v a, v a)
 {-# INLINE [1] unstablePartition_stream #-}
 unstablePartition_stream f s = s `seq` runST (
   do
-    (mv1,mv2) <- M.unstablePartitionStream f s
+    (mv1,mv2) <- M.unstablePartitionBundle f s
     v1 <- unsafeFreeze mv1
     v2 <- unsafeFreeze mv2
     return (v1,v2))
@@ -1365,9 +1458,9 @@ unstablePartition_new f (New.New p) = runST (
 
 "unstablePartition" forall f p.
   unstablePartition_stream f (stream (new p))
-    = unstablePartition_new f p
+    = unstablePartition_new f p   #-}
 
-  #-}
+
 
 
 -- FIXME: make span and break fusible
@@ -1385,7 +1478,7 @@ break :: Vector v a => (a -> Bool) -> v a -> (v a, v a)
 break f xs = case findIndex f xs of
                Just i  -> (unsafeSlice 0 i xs, unsafeSlice i (length xs - i) xs)
                Nothing -> (xs, empty)
-    
+
 
 -- Searching
 -- ---------
@@ -1394,33 +1487,32 @@ infix 4 `elem`
 -- | /O(n)/ Check if the vector contains an element
 elem :: (Vector v a, Eq a) => a -> v a -> Bool
 {-# INLINE elem #-}
-elem x = Stream.elem x . stream
+elem x = Bundle.elem x . stream
 
 infix 4 `notElem`
 -- | /O(n)/ Check if the vector does not contain an element (inverse of 'elem')
 notElem :: (Vector v a, Eq a) => a -> v a -> Bool
 {-# INLINE notElem #-}
-notElem x = Stream.notElem x . stream
+notElem x = Bundle.notElem x . stream
 
 -- | /O(n)/ Yield 'Just' the first element matching the predicate or 'Nothing'
 -- if no such element exists.
 find :: Vector v a => (a -> Bool) -> v a -> Maybe a
 {-# INLINE find #-}
-find f = Stream.find f . stream
+find f = Bundle.find f . stream
 
 -- | /O(n)/ Yield 'Just' the index of the first element matching the predicate
 -- or 'Nothing' if no such element exists.
 findIndex :: Vector v a => (a -> Bool) -> v a -> Maybe Int
 {-# INLINE findIndex #-}
-findIndex f = Stream.findIndex f . stream
+findIndex f = Bundle.findIndex f . stream
 
 -- | /O(n)/ Yield the indices of elements satisfying the predicate in ascending
 -- order.
 findIndices :: (Vector v a, Vector v Int) => (a -> Bool) -> v a -> v Int
 {-# INLINE findIndices #-}
 findIndices f = unstream
-              . inplace (MStream.map fst . MStream.filter (f . snd)
-                                         . MStream.indexed)
+              . inplace (S.map fst . S.filter (f . snd) . S.indexed) toMax
               . stream
 
 -- | /O(n)/ Yield 'Just' the index of the first occurence of the given element or
@@ -1442,65 +1534,65 @@ elemIndices x = findIndices (x==)
 -- | /O(n)/ Left fold
 foldl :: Vector v b => (a -> b -> a) -> a -> v b -> a
 {-# INLINE foldl #-}
-foldl f z = Stream.foldl f z . stream
+foldl f z = Bundle.foldl f z . stream
 
 -- | /O(n)/ Left fold on non-empty vectors
 foldl1 :: Vector v a => (a -> a -> a) -> v a -> a
 {-# INLINE foldl1 #-}
-foldl1 f = Stream.foldl1 f . stream
+foldl1 f = Bundle.foldl1 f . stream
 
 -- | /O(n)/ Left fold with strict accumulator
 foldl' :: Vector v b => (a -> b -> a) -> a -> v b -> a
 {-# INLINE foldl' #-}
-foldl' f z = Stream.foldl' f z . stream
+foldl' f z = Bundle.foldl' f z . stream
 
 -- | /O(n)/ Left fold on non-empty vectors with strict accumulator
 foldl1' :: Vector v a => (a -> a -> a) -> v a -> a
 {-# INLINE foldl1' #-}
-foldl1' f = Stream.foldl1' f . stream
+foldl1' f = Bundle.foldl1' f . stream
 
 -- | /O(n)/ Right fold
 foldr :: Vector v a => (a -> b -> b) -> b -> v a -> b
 {-# INLINE foldr #-}
-foldr f z = Stream.foldr f z . stream
+foldr f z = Bundle.foldr f z . stream
 
 -- | /O(n)/ Right fold on non-empty vectors
 foldr1 :: Vector v a => (a -> a -> a) -> v a -> a
 {-# INLINE foldr1 #-}
-foldr1 f = Stream.foldr1 f . stream
+foldr1 f = Bundle.foldr1 f . stream
 
 -- | /O(n)/ Right fold with a strict accumulator
 foldr' :: Vector v a => (a -> b -> b) -> b -> v a -> b
 {-# INLINE foldr' #-}
-foldr' f z = Stream.foldl' (flip f) z . streamR
+foldr' f z = Bundle.foldl' (flip f) z . streamR
 
 -- | /O(n)/ Right fold on non-empty vectors with strict accumulator
 foldr1' :: Vector v a => (a -> a -> a) -> v a -> a
 {-# INLINE foldr1' #-}
-foldr1' f = Stream.foldl1' (flip f) . streamR
+foldr1' f = Bundle.foldl1' (flip f) . streamR
 
 -- | /O(n)/ Left fold (function applied to each element and its index)
 ifoldl :: Vector v b => (a -> Int -> b -> a) -> a -> v b -> a
 {-# INLINE ifoldl #-}
-ifoldl f z = Stream.foldl (uncurry . f) z . Stream.indexed . stream
+ifoldl f z = Bundle.foldl (uncurry . f) z . Bundle.indexed . stream
 
 -- | /O(n)/ Left fold with strict accumulator (function applied to each element
 -- and its index)
 ifoldl' :: Vector v b => (a -> Int -> b -> a) -> a -> v b -> a
 {-# INLINE ifoldl' #-}
-ifoldl' f z = Stream.foldl' (uncurry . f) z . Stream.indexed . stream
+ifoldl' f z = Bundle.foldl' (uncurry . f) z . Bundle.indexed . stream
 
 -- | /O(n)/ Right fold (function applied to each element and its index)
 ifoldr :: Vector v a => (Int -> a -> b -> b) -> b -> v a -> b
 {-# INLINE ifoldr #-}
-ifoldr f z = Stream.foldr (uncurry f) z . Stream.indexed . stream
+ifoldr f z = Bundle.foldr (uncurry f) z . Bundle.indexed . stream
 
 -- | /O(n)/ Right fold with strict accumulator (function applied to each
 -- element and its index)
 ifoldr' :: Vector v a => (Int -> a -> b -> b) -> b -> v a -> b
 {-# INLINE ifoldr' #-}
-ifoldr' f z xs = Stream.foldl' (flip (uncurry f)) z
-               $ Stream.indexedR (length xs) $ streamR xs
+ifoldr' f z xs = Bundle.foldl' (flip (uncurry f)) z
+               $ Bundle.indexedR (length xs) $ streamR xs
 
 -- Specialised folds
 -- -----------------
@@ -1508,47 +1600,47 @@ ifoldr' f z xs = Stream.foldl' (flip (uncurry f)) z
 -- | /O(n)/ Check if all elements satisfy the predicate.
 all :: Vector v a => (a -> Bool) -> v a -> Bool
 {-# INLINE all #-}
-all f = Stream.and . Stream.map f . stream
+all f = Bundle.and . Bundle.map f . stream
 
 -- | /O(n)/ Check if any element satisfies the predicate.
 any :: Vector v a => (a -> Bool) -> v a -> Bool
 {-# INLINE any #-}
-any f = Stream.or . Stream.map f . stream
+any f = Bundle.or . Bundle.map f . stream
 
 -- | /O(n)/ Check if all elements are 'True'
 and :: Vector v Bool => v Bool -> Bool
 {-# INLINE and #-}
-and = Stream.and . stream
+and = Bundle.and . stream
 
 -- | /O(n)/ Check if any element is 'True'
 or :: Vector v Bool => v Bool -> Bool
 {-# INLINE or #-}
-or = Stream.or . stream
+or = Bundle.or . stream
 
 -- | /O(n)/ Compute the sum of the elements
 sum :: (Vector v a, Num a) => v a -> a
 {-# INLINE sum #-}
-sum = Stream.foldl' (+) 0 . stream
+sum = Bundle.foldl' (+) 0 . stream
 
 -- | /O(n)/ Compute the produce of the elements
 product :: (Vector v a, Num a) => v a -> a
 {-# INLINE product #-}
-product = Stream.foldl' (*) 1 . stream
+product = Bundle.foldl' (*) 1 . stream
 
 -- | /O(n)/ Yield the maximum element of the vector. The vector may not be
 -- empty.
 maximum :: (Vector v a, Ord a) => v a -> a
 {-# INLINE maximum #-}
-maximum = Stream.foldl1' max . stream
+maximum = Bundle.foldl1' max . stream
 
 -- | /O(n)/ Yield the maximum element of the vector according to the given
 -- comparison function. The vector may not be empty.
 maximumBy :: Vector v a => (a -> a -> Ordering) -> v a -> a
 {-# INLINE maximumBy #-}
-maximumBy cmp = Stream.foldl1' maxBy . stream
+maximumBy cmpr = Bundle.foldl1' maxBy . stream
   where
     {-# INLINE maxBy #-}
-    maxBy x y = case cmp x y of
+    maxBy x y = case cmpr x y of
                   LT -> y
                   _  -> x
 
@@ -1556,16 +1648,16 @@ maximumBy cmp = Stream.foldl1' maxBy . stream
 -- empty.
 minimum :: (Vector v a, Ord a) => v a -> a
 {-# INLINE minimum #-}
-minimum = Stream.foldl1' min . stream
+minimum = Bundle.foldl1' min . stream
 
 -- | /O(n)/ Yield the minimum element of the vector according to the given
 -- comparison function. The vector may not be empty.
 minimumBy :: Vector v a => (a -> a -> Ordering) -> v a -> a
 {-# INLINE minimumBy #-}
-minimumBy cmp = Stream.foldl1' minBy . stream
+minimumBy cmpr = Bundle.foldl1' minBy . stream
   where
     {-# INLINE minBy #-}
-    minBy x y = case cmp x y of
+    minBy x y = case cmpr x y of
                   GT -> y
                   _  -> x
 
@@ -1579,10 +1671,10 @@ maxIndex = maxIndexBy compare
 -- the given comparison function. The vector may not be empty.
 maxIndexBy :: Vector v a => (a -> a -> Ordering) -> v a -> Int
 {-# INLINE maxIndexBy #-}
-maxIndexBy cmp = fst . Stream.foldl1' imax . Stream.indexed . stream
+maxIndexBy cmpr = fst . Bundle.foldl1' imax . Bundle.indexed . stream
   where
     imax (i,x) (j,y) = i `seq` j `seq`
-                       case cmp x y of
+                       case cmpr x y of
                          LT -> (j,y)
                          _  -> (i,x)
 
@@ -1596,10 +1688,10 @@ minIndex = minIndexBy compare
 -- the given comparison function. The vector may not be empty.
 minIndexBy :: Vector v a => (a -> a -> Ordering) -> v a -> Int
 {-# INLINE minIndexBy #-}
-minIndexBy cmp = fst . Stream.foldl1' imin . Stream.indexed . stream
+minIndexBy cmpr = fst . Bundle.foldl1' imin . Bundle.indexed . stream
   where
     imin (i,x) (j,y) = i `seq` j `seq`
-                       case cmp x y of
+                       case cmpr x y of
                          GT -> (j,y)
                          _  -> (i,x)
 
@@ -1609,22 +1701,33 @@ minIndexBy cmp = fst . Stream.foldl1' imin . Stream.indexed . stream
 -- | /O(n)/ Monadic fold
 foldM :: (Monad m, Vector v b) => (a -> b -> m a) -> a -> v b -> m a
 {-# INLINE foldM #-}
-foldM m z = Stream.foldM m z . stream
+foldM m z = Bundle.foldM m z . stream
+
+-- | /O(n)/ Monadic fold (action applied to each element and its index)
+ifoldM :: (Monad m, Vector v b) => (a -> Int -> b -> m a) -> a -> v b -> m a
+{-# INLINE ifoldM #-}
+ifoldM m z = Bundle.foldM (uncurry . m) z . Bundle.indexed . stream
 
 -- | /O(n)/ Monadic fold over non-empty vectors
 fold1M :: (Monad m, Vector v a) => (a -> a -> m a) -> v a -> m a
 {-# INLINE fold1M #-}
-fold1M m = Stream.fold1M m . stream
+fold1M m = Bundle.fold1M m . stream
 
 -- | /O(n)/ Monadic fold with strict accumulator
 foldM' :: (Monad m, Vector v b) => (a -> b -> m a) -> a -> v b -> m a
 {-# INLINE foldM' #-}
-foldM' m z = Stream.foldM' m z . stream
+foldM' m z = Bundle.foldM' m z . stream
+
+-- | /O(n)/ Monadic fold with strict accumulator (action applied to each
+-- element and its index)
+ifoldM' :: (Monad m, Vector v b) => (a -> Int -> b -> m a) -> a -> v b -> m a
+{-# INLINE ifoldM' #-}
+ifoldM' m z = Bundle.foldM' (uncurry . m) z . Bundle.indexed . stream
 
 -- | /O(n)/ Monadic fold over non-empty vectors with strict accumulator
 fold1M' :: (Monad m, Vector v a) => (a -> a -> m a) -> v a -> m a
 {-# INLINE fold1M' #-}
-fold1M' m = Stream.fold1M' m . stream
+fold1M' m = Bundle.fold1M' m . stream
 
 discard :: Monad m => m a -> m ()
 {-# INLINE discard #-}
@@ -1633,23 +1736,35 @@ discard m = m >> return ()
 -- | /O(n)/ Monadic fold that discards the result
 foldM_ :: (Monad m, Vector v b) => (a -> b -> m a) -> a -> v b -> m ()
 {-# INLINE foldM_ #-}
-foldM_ m z = discard . Stream.foldM m z . stream
+foldM_ m z = discard . Bundle.foldM m z . stream
+
+-- | /O(n)/ Monadic fold that discards the result (action applied to
+-- each element and its index)
+ifoldM_ :: (Monad m, Vector v b) => (a -> Int -> b -> m a) -> a -> v b -> m ()
+{-# INLINE ifoldM_ #-}
+ifoldM_ m z = discard . Bundle.foldM (uncurry . m) z . Bundle.indexed . stream
 
 -- | /O(n)/ Monadic fold over non-empty vectors that discards the result
 fold1M_ :: (Monad m, Vector v a) => (a -> a -> m a) -> v a -> m ()
 {-# INLINE fold1M_ #-}
-fold1M_ m = discard . Stream.fold1M m . stream
+fold1M_ m = discard . Bundle.fold1M m . stream
 
 -- | /O(n)/ Monadic fold with strict accumulator that discards the result
 foldM'_ :: (Monad m, Vector v b) => (a -> b -> m a) -> a -> v b -> m ()
 {-# INLINE foldM'_ #-}
-foldM'_ m z = discard . Stream.foldM' m z . stream
+foldM'_ m z = discard . Bundle.foldM' m z . stream
+
+-- | /O(n)/ Monadic fold with strict accumulator that discards the result
+-- (action applied to each element and its index)
+ifoldM'_ :: (Monad m, Vector v b) => (a -> Int -> b -> m a) -> a -> v b -> m ()
+{-# INLINE ifoldM'_ #-}
+ifoldM'_ m z = discard . Bundle.foldM' (uncurry . m) z . Bundle.indexed . stream
 
 -- | /O(n)/ Monad fold over non-empty vectors with strict accumulator
 -- that discards the result
 fold1M'_ :: (Monad m, Vector v a) => (a -> a -> m a) -> v a -> m ()
 {-# INLINE fold1M'_ #-}
-fold1M'_ m = discard . Stream.fold1M' m . stream
+fold1M'_ m = discard . Bundle.fold1M' m . stream
 
 -- Monadic sequencing
 -- ------------------
@@ -1677,12 +1792,12 @@ sequence_ = mapM_ id
 --
 prescanl :: (Vector v a, Vector v b) => (a -> b -> a) -> a -> v b -> v a
 {-# INLINE prescanl #-}
-prescanl f z = unstream . inplace (MStream.prescanl f z) . stream
+prescanl f z = unstream . inplace (S.prescanl f z) id . stream
 
 -- | /O(n)/ Prescan with strict accumulator
 prescanl' :: (Vector v a, Vector v b) => (a -> b -> a) -> a -> v b -> v a
 {-# INLINE prescanl' #-}
-prescanl' f z = unstream . inplace (MStream.prescanl' f z) . stream
+prescanl' f z = unstream . inplace (S.prescanl' f z) id . stream
 
 -- | /O(n)/ Scan
 --
@@ -1694,12 +1809,12 @@ prescanl' f z = unstream . inplace (MStream.prescanl' f z) . stream
 --
 postscanl :: (Vector v a, Vector v b) => (a -> b -> a) -> a -> v b -> v a
 {-# INLINE postscanl #-}
-postscanl f z = unstream . inplace (MStream.postscanl f z) . stream
+postscanl f z = unstream . inplace (S.postscanl f z) id . stream
 
 -- | /O(n)/ Scan with strict accumulator
 postscanl' :: (Vector v a, Vector v b) => (a -> b -> a) -> a -> v b -> v a
 {-# INLINE postscanl' #-}
-postscanl' f z = unstream . inplace (MStream.postscanl' f z) . stream
+postscanl' f z = unstream . inplace (S.postscanl' f z) id . stream
 
 -- | /O(n)/ Haskell-style scan
 --
@@ -1708,15 +1823,32 @@ postscanl' f z = unstream . inplace (MStream.postscanl' f z) . stream
 -- >         yi = f y(i-1) x(i-1)
 --
 -- Example: @scanl (+) 0 \<1,2,3,4\> = \<0,1,3,6,10\>@
--- 
+--
 scanl :: (Vector v a, Vector v b) => (a -> b -> a) -> a -> v b -> v a
 {-# INLINE scanl #-}
-scanl f z = unstream . Stream.scanl f z . stream
+scanl f z = unstream . Bundle.scanl f z . stream
 
 -- | /O(n)/ Haskell-style scan with strict accumulator
 scanl' :: (Vector v a, Vector v b) => (a -> b -> a) -> a -> v b -> v a
 {-# INLINE scanl' #-}
-scanl' f z = unstream . Stream.scanl' f z . stream
+scanl' f z = unstream . Bundle.scanl' f z . stream
+
+-- | /O(n)/ Scan over a vector with its index
+iscanl :: (Vector v a, Vector v b) => (Int -> a -> b -> a) -> a -> v b -> v a
+{-# INLINE iscanl #-}
+iscanl f z =
+    unstream
+  . inplace (S.scanl (\a (i, b) -> f i a b) z . S.indexed) (+1)
+  . stream
+
+-- | /O(n)/ Scan over a vector (strictly) with its index
+iscanl' :: (Vector v a, Vector v b) => (Int -> a -> b -> a) -> a -> v b -> v a
+{-# INLINE iscanl' #-}
+iscanl' f z =
+    unstream
+  . inplace (S.scanl' (\a (i, b) -> f i a b) z . S.indexed) (+1)
+  . stream
+
 
 -- | /O(n)/ Scan over a non-empty vector
 --
@@ -1726,12 +1858,12 @@ scanl' f z = unstream . Stream.scanl' f z . stream
 --
 scanl1 :: Vector v a => (a -> a -> a) -> v a -> v a
 {-# INLINE scanl1 #-}
-scanl1 f = unstream . inplace (MStream.scanl1 f) . stream
+scanl1 f = unstream . inplace (S.scanl1 f) id . stream
 
 -- | /O(n)/ Scan over a non-empty vector with a strict accumulator
 scanl1' :: Vector v a => (a -> a -> a) -> v a -> v a
 {-# INLINE scanl1' #-}
-scanl1' f = unstream . inplace (MStream.scanl1' f) . stream
+scanl1' f = unstream . inplace (S.scanl1' f) id . stream
 
 -- | /O(n)/ Right-to-left prescan
 --
@@ -1741,43 +1873,63 @@ scanl1' f = unstream . inplace (MStream.scanl1' f) . stream
 --
 prescanr :: (Vector v a, Vector v b) => (a -> b -> b) -> b -> v a -> v b
 {-# INLINE prescanr #-}
-prescanr f z = unstreamR . inplace (MStream.prescanl (flip f) z) . streamR
+prescanr f z = unstreamR . inplace (S.prescanl (flip f) z) id . streamR
 
 -- | /O(n)/ Right-to-left prescan with strict accumulator
 prescanr' :: (Vector v a, Vector v b) => (a -> b -> b) -> b -> v a -> v b
 {-# INLINE prescanr' #-}
-prescanr' f z = unstreamR . inplace (MStream.prescanl' (flip f) z) . streamR
+prescanr' f z = unstreamR . inplace (S.prescanl' (flip f) z) id . streamR
 
 -- | /O(n)/ Right-to-left scan
 postscanr :: (Vector v a, Vector v b) => (a -> b -> b) -> b -> v a -> v b
 {-# INLINE postscanr #-}
-postscanr f z = unstreamR . inplace (MStream.postscanl (flip f) z) . streamR
+postscanr f z = unstreamR . inplace (S.postscanl (flip f) z) id . streamR
 
 -- | /O(n)/ Right-to-left scan with strict accumulator
 postscanr' :: (Vector v a, Vector v b) => (a -> b -> b) -> b -> v a -> v b
 {-# INLINE postscanr' #-}
-postscanr' f z = unstreamR . inplace (MStream.postscanl' (flip f) z) . streamR
+postscanr' f z = unstreamR . inplace (S.postscanl' (flip f) z) id . streamR
 
 -- | /O(n)/ Right-to-left Haskell-style scan
 scanr :: (Vector v a, Vector v b) => (a -> b -> b) -> b -> v a -> v b
 {-# INLINE scanr #-}
-scanr f z = unstreamR . Stream.scanl (flip f) z . streamR
+scanr f z = unstreamR . Bundle.scanl (flip f) z . streamR
 
 -- | /O(n)/ Right-to-left Haskell-style scan with strict accumulator
 scanr' :: (Vector v a, Vector v b) => (a -> b -> b) -> b -> v a -> v b
 {-# INLINE scanr' #-}
-scanr' f z = unstreamR . Stream.scanl' (flip f) z . streamR
+scanr' f z = unstreamR . Bundle.scanl' (flip f) z . streamR
+
+-- | /O(n)/ Right-to-left scan over a vector with its index
+iscanr :: (Vector v a, Vector v b) => (Int -> a -> b -> b) -> b -> v a -> v b
+{-# INLINE iscanr #-}
+iscanr f z v =
+    unstreamR
+  . inplace (S.scanl (flip $ uncurry f) z . S.indexedR n) (+1)
+  . streamR
+  $ v
+ where n = length v
+
+-- | /O(n)/ Right-to-left scan over a vector (strictly) with its index
+iscanr' :: (Vector v a, Vector v b) => (Int -> a -> b -> b) -> b -> v a -> v b
+{-# INLINE iscanr' #-}
+iscanr' f z v =
+    unstreamR
+  . inplace (S.scanl' (flip $ uncurry f) z . S.indexedR n) (+1)
+  . streamR
+  $ v
+ where n = length v
 
 -- | /O(n)/ Right-to-left scan over a non-empty vector
 scanr1 :: Vector v a => (a -> a -> a) -> v a -> v a
 {-# INLINE scanr1 #-}
-scanr1 f = unstreamR . inplace (MStream.scanl1 (flip f)) . streamR
+scanr1 f = unstreamR . inplace (S.scanl1 (flip f)) id . streamR
 
 -- | /O(n)/ Right-to-left scan over a non-empty vector with a strict
 -- accumulator
 scanr1' :: Vector v a => (a -> a -> a) -> v a -> v a
 {-# INLINE scanr1' #-}
-scanr1' f = unstreamR . inplace (MStream.scanl1' (flip f)) . streamR
+scanr1' f = unstreamR . inplace (S.scanl1' (flip f)) id . streamR
 
 -- Conversions - Lists
 -- ------------------------
@@ -1785,12 +1937,12 @@ scanr1' f = unstreamR . inplace (MStream.scanl1' (flip f)) . streamR
 -- | /O(n)/ Convert a vector to a list
 toList :: Vector v a => v a -> [a]
 {-# INLINE toList #-}
-toList = Stream.toList . stream
+toList = Bundle.toList . stream
 
 -- | /O(n)/ Convert a list to a vector
 fromList :: Vector v a => [a] -> v a
 {-# INLINE fromList #-}
-fromList = unstream . Stream.fromList
+fromList = unstream . Bundle.fromList
 
 -- | /O(n)/ Convert the first @n@ elements of a list to a vector
 --
@@ -1799,7 +1951,7 @@ fromList = unstream . Stream.fromList
 -- @
 fromListN :: Vector v a => Int -> [a] -> v a
 {-# INLINE fromListN #-}
-fromListN n = unstream . Stream.fromListN n
+fromListN n = unstream . Bundle.fromListN n
 
 -- Conversions - Immutable vectors
 -- -------------------------------
@@ -1807,7 +1959,7 @@ fromListN n = unstream . Stream.fromListN n
 -- | /O(n)/ Convert different vector types
 convert :: (Vector v a, Vector w a) => v a -> w a
 {-# INLINE convert #-}
-convert = unstream . stream
+convert = unstream . Bundle.reVector . stream
 
 -- Conversions - Mutable vectors
 -- -----------------------------
@@ -1844,9 +1996,9 @@ thaw v = do
   unsafeThaw (new p) = New.runPrim p
 
 "thaw/new [Vector]" forall p.
-  thaw (new p) = New.runPrim p
+  thaw (new p) = New.runPrim p   #-}
 
-  #-}
+
 
 {-
 -- | /O(n)/ Yield a mutable vector containing copies of each vector in the
@@ -1876,7 +2028,7 @@ thawMany vs = do
 copy
   :: (PrimMonad m, Vector v a) => Mutable v (PrimState m) a -> v a -> m ()
 {-# INLINE copy #-}
-copy dst src = ((Ck.check "Data/Vector/Generic.hs" 1834) Ck.Bounds) "copy" "length mismatch"
+copy dst src = ((Ck.check "Data/Vector/Generic.hs" 1979) Ck.Bounds) "copy" "length mismatch"
                                           (M.length dst == length src)
              $ unsafeCopy dst src
 
@@ -1885,17 +2037,26 @@ copy dst src = ((Ck.check "Data/Vector/Generic.hs" 1834) Ck.Bounds) "copy" "leng
 unsafeCopy
   :: (PrimMonad m, Vector v a) => Mutable v (PrimState m) a -> v a -> m ()
 {-# INLINE unsafeCopy #-}
-unsafeCopy dst src = ((Ck.check "Data/Vector/Generic.hs" 1843) Ck.Unsafe) "unsafeCopy" "length mismatch"
+unsafeCopy dst src = ((Ck.check "Data/Vector/Generic.hs" 1988) Ck.Unsafe) "unsafeCopy" "length mismatch"
                                          (M.length dst == length src)
                    $ (dst `seq` src `seq` basicUnsafeCopy dst src)
 
--- Conversions to/from Streams
+-- Conversions to/from Bundles
 -- ---------------------------
 
--- | /O(1)/ Convert a vector to a 'Stream'
-stream :: Vector v a => v a -> Stream a
+-- | /O(1)/ Convert a vector to a 'Bundle'
+stream :: Vector v a => v a -> Bundle v a
 {-# INLINE [1] stream #-}
-stream v = v `seq` n `seq` (Stream.unfoldr get 0 `Stream.sized` Exact n)
+stream v = stream' v
+
+-- Same as 'stream', but can be used to avoid having a cycle in the dependency
+-- graph of functions, which forces GHC to create a loop breaker.
+stream' :: Vector v a => v a -> Bundle v a
+{-# INLINE stream' #-}
+stream' v = Bundle.fromVector v
+
+{-
+stream v = v `seq` n `seq` (Bundle.unfoldr get 0 `Bundle.sized` Exact n)
   where
     n = length v
 
@@ -1904,9 +2065,10 @@ stream v = v `seq` n `seq` (Stream.unfoldr get 0 `Stream.sized` Exact n)
     {-# INLINE get #-}
     get i | i >= n    = Nothing
           | otherwise = case basicUnsafeIndexM v i of Box x -> Just (x, i+1)
+-}
 
--- | /O(n)/ Construct a vector from a 'Stream'
-unstream :: Vector v a => Stream a -> v a
+-- | /O(n)/ Construct a vector from a 'Bundle'
+unstream :: Vector v a => Bundle v a -> v a
 {-# INLINE unstream #-}
 unstream s = new (New.unstream s)
 
@@ -1922,19 +2084,19 @@ unstream s = new (New.unstream s)
   clone (new p) = p
 
 "inplace [Vector]"
-  forall (f :: forall m. Monad m => MStream m a -> MStream m a) m.
-  New.unstream (inplace f (stream (new m))) = New.transform f m
+  forall (f :: forall m. Monad m => Stream m a -> Stream m a) g m.
+  New.unstream (inplace f g (stream (new m))) = New.transform f g m
 
 "uninplace [Vector]"
-  forall (f :: forall m. Monad m => MStream m a -> MStream m a) m.
-  stream (new (New.transform f m)) = inplace f (stream (new m))
+  forall (f :: forall m. Monad m => Stream m a -> Stream m a) g m.
+  stream (new (New.transform f g m)) = inplace f g (stream (new m))  #-}
 
- #-}
 
--- | /O(1)/ Convert a vector to a 'Stream', proceeding from right to left
-streamR :: Vector v a => v a -> Stream a
+
+-- | /O(1)/ Convert a vector to a 'Bundle', proceeding from right to left
+streamR :: Vector v a => v a -> Bundle u a
 {-# INLINE [1] streamR #-}
-streamR v = v `seq` n `seq` (Stream.unfoldr get n `Stream.sized` Exact n)
+streamR v = v `seq` n `seq` (Bundle.unfoldr get n `Bundle.sized` Exact n)
   where
     n = length v
 
@@ -1944,8 +2106,8 @@ streamR v = v `seq` n `seq` (Stream.unfoldr get n `Stream.sized` Exact n)
             in
             case basicUnsafeIndexM v i' of Box x -> Just (x, i')
 
--- | /O(n)/ Construct a vector from a 'Stream', proceeding from right to left
-unstreamR :: Vector v a => Stream a -> v a
+-- | /O(n)/ Construct a vector from a 'Bundle', proceeding from right to left
+unstreamR :: Vector v a => Bundle v a -> v a
 {-# INLINE unstreamR #-}
 unstreamR s = new (New.unstreamR s)
 
@@ -1964,40 +2126,40 @@ unstreamR s = new (New.unstreamR s)
   New.unstreamR (stream (new p)) = New.modify M.reverse p
 
 "inplace right [Vector]"
-  forall (f :: forall m. Monad m => MStream m a -> MStream m a) m.
-  New.unstreamR (inplace f (streamR (new m))) = New.transformR f m
+  forall (f :: forall m. Monad m => Stream m a -> Stream m a) g m.
+  New.unstreamR (inplace f g (streamR (new m))) = New.transformR f g m
 
 "uninplace right [Vector]"
-  forall (f :: forall m. Monad m => MStream m a -> MStream m a) m.
-  streamR (new (New.transformR f m)) = inplace f (streamR (new m))
+  forall (f :: forall m. Monad m => Stream m a -> Stream m a) g m.
+  streamR (new (New.transformR f g m)) = inplace f g (streamR (new m))  #-}
 
- #-}
 
-unstreamM :: (Monad m, Vector v a) => MStream m a -> m (v a)
+
+unstreamM :: (Monad m, Vector v a) => MBundle m u a -> m (v a)
 {-# INLINE [1] unstreamM #-}
 unstreamM s = do
-                xs <- MStream.toList s
-                return $ unstream $ Stream.unsafeFromList (MStream.size s) xs
+                xs <- MBundle.toList s
+                return $ unstream $ Bundle.unsafeFromList (MBundle.size s) xs
 
-unstreamPrimM :: (PrimMonad m, Vector v a) => MStream m a -> m (v a)
+unstreamPrimM :: (PrimMonad m, Vector v a) => MBundle m u a -> m (v a)
 {-# INLINE [1] unstreamPrimM #-}
 unstreamPrimM s = M.munstream s >>= unsafeFreeze
 
 -- FIXME: the next two functions are only necessary for the specialisations
-unstreamPrimM_IO :: Vector v a => MStream IO a -> IO (v a)
+unstreamPrimM_IO :: Vector v a => MBundle IO u a -> IO (v a)
 {-# INLINE unstreamPrimM_IO #-}
 unstreamPrimM_IO = unstreamPrimM
 
-unstreamPrimM_ST :: Vector v a => MStream (ST s) a -> ST s (v a)
+unstreamPrimM_ST :: Vector v a => MBundle (ST s) u a -> ST s (v a)
 {-# INLINE unstreamPrimM_ST #-}
 unstreamPrimM_ST = unstreamPrimM
 
 {-# RULES
 
 "unstreamM[IO]" unstreamM = unstreamPrimM_IO
-"unstreamM[ST]" unstreamM = unstreamPrimM_ST
+"unstreamM[ST]" unstreamM = unstreamPrimM_ST  #-}
 
- #-}
+
 
 
 -- Recycling support
@@ -2029,6 +2191,11 @@ eq :: (Vector v a, Eq a) => v a -> v a -> Bool
 {-# INLINE eq #-}
 xs `eq` ys = stream xs == stream ys
 
+-- | /O(n)/
+eqBy :: (Vector v a, Vector v b) => (a -> b -> Bool) -> v a -> v b -> Bool
+{-# INLINE eqBy #-}
+eqBy e xs ys = Bundle.eqBy e (stream xs) (stream ys)
+
 -- | /O(n)/ Compare two vectors lexicographically. All 'Vector' instances are
 -- also instances of 'Ord' and it is usually more appropriate to use those. This
 -- function is primarily intended for implementing 'Ord' instances for new
@@ -2037,21 +2204,32 @@ cmp :: (Vector v a, Ord a) => v a -> v a -> Ordering
 {-# INLINE cmp #-}
 cmp xs ys = compare (stream xs) (stream ys)
 
+-- | /O(n)/
+cmpBy :: (Vector v a, Vector v b) => (a -> b -> Ordering) -> v a -> v b -> Ordering
+cmpBy c xs ys = Bundle.cmpBy c (stream xs) (stream ys)
+
 -- Show
 -- ----
 
 -- | Generic definition of 'Prelude.showsPrec'
 showsPrec :: (Vector v a, Show a) => Int -> v a -> ShowS
 {-# INLINE showsPrec #-}
-showsPrec p v = showParen (p > 10) $ showString "fromList " . shows (toList v)
+showsPrec _ = shows . toList
+
+liftShowsPrec :: (Vector v a) => (Int -> a -> ShowS) -> ([a] -> ShowS) -> Int -> v a -> ShowS
+{-# INLINE liftShowsPrec #-}
+liftShowsPrec _ s _ = s . toList
 
 -- | Generic definition of 'Text.Read.readPrec'
 readPrec :: (Vector v a, Read a) => Read.ReadPrec (v a)
 {-# INLINE readPrec #-}
-readPrec = Read.parens $ Read.prec 10 $ do
-  Read.Ident "fromList" <- Read.lexP
+readPrec = do
   xs <- Read.readPrec
   return (fromList xs)
+
+-- | /Note:/ uses 'ReadS'
+liftReadsPrec :: (Vector v a) => (Int -> Read.ReadS a) -> ReadS [a] -> Int -> Read.ReadS (v a)
+liftReadsPrec _ r _ s = [ (fromList v, s') | (v, s') <- r s ]
 
 -- Data and Typeable
 -- -----------------
@@ -2074,4 +2252,3 @@ dataCast :: (Vector v a, Data a, Typeable v, Typeable t)
          => (forall d. Data  d => c (t d)) -> Maybe  (c (v a))
 {-# INLINE dataCast #-}
 dataCast f = gcast1 f
-

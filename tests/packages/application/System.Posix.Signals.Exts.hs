@@ -1,5 +1,12 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Signals/Exts.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Signals/Exts.hs" #-}
+
+
+
+
+
+
+
 
 
 
@@ -48,11 +55,7 @@
 {-# LINE 1 "System/Posix/Signals/Exts.hsc" #-}
 {-# LANGUAGE CPP #-}
 {-# LINE 2 "System/Posix/Signals/Exts.hsc" #-}
-
-{-# LINE 3 "System/Posix/Signals/Exts.hsc" #-}
 {-# LANGUAGE Safe #-}
-
-{-# LINE 5 "System/Posix/Signals/Exts.hsc" #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -69,7 +72,7 @@
 -----------------------------------------------------------------------------
 
 
-{-# LINE 21 "System/Posix/Signals/Exts.hsc" #-}
+{-# LINE 19 "System/Posix/Signals/Exts.hsc" #-}
 
 
 
@@ -351,12 +354,42 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LINE 22 "System/Posix/Signals/Exts.hsc" #-}
+
+{-# LINE 23 "System/Posix/Signals/Exts.hsc" #-}
 
 {-# LINE 24 "System/Posix/Signals/Exts.hsc" #-}
-
-{-# LINE 25 "System/Posix/Signals/Exts.hsc" #-}
-
-{-# LINE 26 "System/Posix/Signals/Exts.hsc" #-}
 
 module System.Posix.Signals.Exts (
   module System.Posix.Signals

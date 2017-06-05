@@ -47,15 +47,25 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE Safe #-}
+
 
 -----------------------------------------------------------------------------
 -- |
 -- Module      : Data.Binary.Put
 -- Copyright   : Lennart Kolmodin
 -- License     : BSD3-style (see LICENSE)
--- 
+--
 -- Maintainer  : Lennart Kolmodin <kolmodin@gmail.com>
 -- Stability   : stable
 -- Portability : Portable to Hugs and GHC. Requires MPTCs
@@ -79,41 +89,70 @@ module Data.Binary.Put (
 
     -- * Primitives
     , putWord8
+    , putInt8
     , putByteString
     , putLazyByteString
+    , putShortByteString
 
     -- * Big-endian primitives
     , putWord16be
     , putWord32be
     , putWord64be
+    , putInt16be
+    , putInt32be
+    , putInt64be
+    , putFloatbe
+    , putDoublebe
 
     -- * Little-endian primitives
     , putWord16le
     , putWord32le
     , putWord64le
+    , putInt16le
+    , putInt32le
+    , putInt64le
+    , putFloatle
+    , putDoublele
 
     -- * Host-endian, unaligned writes
     , putWordhost           -- :: Word   -> Put
     , putWord16host         -- :: Word16 -> Put
     , putWord32host         -- :: Word32 -> Put
     , putWord64host         -- :: Word64 -> Put
+    , putInthost            -- :: Int    -> Put
+    , putInt16host          -- :: Int16  -> Put
+    , putInt32host          -- :: Int32  -> Put
+    , putInt64host          -- :: Int64  -> Put
+    , putFloathost
+    , putDoublehost
+
+    -- * Unicode
+    , putCharUtf8
+    , putStringUtf8
 
   ) where
 
-import Data.Monoid
+import qualified Data.Monoid as Monoid
 import Data.Binary.Builder (Builder, toLazyByteString)
 import qualified Data.Binary.Builder as B
 
+import Data.Int
 import Data.Word
 import qualified Data.ByteString      as S
 import qualified Data.ByteString.Lazy as L
+import Data.ByteString.Short
+
+import Data.Semigroup
 
 import Control.Applicative
+import Prelude -- Silence AMP warning.
 
+-- needed for casting Floats/Doubles to words.
+import Data.Binary.FloatCast (floatToWord, doubleToWord)
 
 ------------------------------------------------------------------------
 
--- XXX Strict in buffer only. 
+-- XXX Strict in buffer only.
 data PairS a = PairS a !Builder
 
 sndS :: PairS a -> Builder
@@ -130,28 +169,51 @@ instance Functor PutM where
         {-# INLINE fmap #-}
 
 instance Applicative PutM where
-        pure    = return
+        pure a  = Put $ PairS a Monoid.mempty
+        {-# INLINE pure #-}
+
         m <*> k = Put $
             let PairS f w  = unPut m
                 PairS x w' = unPut k
-            in PairS (f x) (w `mappend` w')
+            in PairS (f x) (w `Monoid.mappend` w')
+
+        m *> k  = Put $
+            let PairS _ w  = unPut m
+                PairS b w' = unPut k
+            in PairS b (w `Monoid.mappend` w')
+        {-# INLINE (*>) #-}
 
 -- Standard Writer monad, with aggressive inlining
 instance Monad PutM where
-    return a = Put $ PairS a mempty
-    {-# INLINE return #-}
-
     m >>= k  = Put $
         let PairS a w  = unPut m
             PairS b w' = unPut (k a)
-        in PairS b (w `mappend` w')
+        in PairS b (w `Monoid.mappend` w')
     {-# INLINE (>>=) #-}
 
-    m >> k  = Put $
-        let PairS _ w  = unPut m
-            PairS b w' = unPut k
-        in PairS b (w `mappend` w')
+    return = pure
+    {-# INLINE return #-}
+
+    (>>) = (*>)
     {-# INLINE (>>) #-}
+
+instance Monoid.Monoid (PutM ()) where
+    mempty = pure ()
+    {-# INLINE mempty #-}
+
+    mappend = (<>)
+    {-# INLINE mappend #-}
+
+mappend' :: Put -> Put -> Put
+mappend' m k = Put $
+    let PairS _ w  = unPut m
+        PairS _ w' = unPut k
+    in PairS () (w `Monoid.mappend` w')
+{-# INLINE mappend' #-}
+
+instance Semigroup (PutM ()) where
+    (<>) = mappend'
+    {-# INLINE (<>) #-}
 
 tell :: Builder -> Put
 tell b = Put $ PairS () b
@@ -189,6 +251,11 @@ putWord8            :: Word8 -> Put
 putWord8            = tell . B.singleton
 {-# INLINE putWord8 #-}
 
+-- | Efficiently write a signed byte into the output buffer
+putInt8            :: Int8 -> Put
+putInt8            = tell . B.singleton . fromIntegral
+{-# INLINE putInt8 #-}
+
 -- | An efficient primitive to write a strict ByteString into the output buffer.
 -- It flushes the current buffer, and writes the argument into a new chunk.
 putByteString       :: S.ByteString -> Put
@@ -200,6 +267,11 @@ putByteString       = tell . B.fromByteString
 putLazyByteString   :: L.ByteString -> Put
 putLazyByteString   = tell . B.fromLazyByteString
 {-# INLINE putLazyByteString #-}
+
+-- | Write 'ShortByteString' to the buffer
+putShortByteString :: ShortByteString -> Put
+putShortByteString = tell . B.fromShortByteString
+{-# INLINE putShortByteString #-}
 
 -- | Write a Word16 in big endian format
 putWord16be         :: Word16 -> Put
@@ -231,6 +303,37 @@ putWord64le         :: Word64 -> Put
 putWord64le         = tell . B.putWord64le
 {-# INLINE putWord64le #-}
 
+-- | Write an Int16 in big endian format
+putInt16be         :: Int16 -> Put
+putInt16be         = tell . B.putInt16be
+{-# INLINE putInt16be #-}
+
+-- | Write an Int16 in little endian format
+putInt16le         :: Int16 -> Put
+putInt16le         = tell . B.putInt16le
+{-# INLINE putInt16le #-}
+
+-- | Write an Int32 in big endian format
+putInt32be         :: Int32 -> Put
+putInt32be         = tell . B.putInt32be
+{-# INLINE putInt32be #-}
+
+-- | Write an Int32 in little endian format
+putInt32le         :: Int32 -> Put
+putInt32le         = tell . B.putInt32le
+{-# INLINE putInt32le #-}
+
+-- | Write an Int64 in big endian format
+putInt64be         :: Int64 -> Put
+putInt64be         = tell . B.putInt64be
+{-# INLINE putInt64be #-}
+
+-- | Write an Int64 in little endian format
+putInt64le         :: Int64 -> Put
+putInt64le         = tell . B.putInt64le
+{-# INLINE putInt64le #-}
+
+
 ------------------------------------------------------------------------
 
 -- | /O(1)./ Write a single native machine word. The word is
@@ -261,3 +364,78 @@ putWord32host       = tell . B.putWord32host
 putWord64host       :: Word64 -> Put
 putWord64host       = tell . B.putWord64host
 {-# INLINE putWord64host #-}
+
+-- | /O(1)./ Write a single native machine word. The word is
+-- written in host order, host endian form, for the machine you're on.
+-- On a 64 bit machine the Int is an 8 byte value, on a 32 bit machine,
+-- 4 bytes. Values written this way are not portable to
+-- different endian or word sized machines, without conversion.
+--
+putInthost         :: Int -> Put
+putInthost         = tell . B.putInthost
+{-# INLINE putInthost #-}
+
+-- | /O(1)./ Write an Int16 in native host order and host endianness.
+-- For portability issues see @putInthost@.
+putInt16host       :: Int16 -> Put
+putInt16host       = tell . B.putInt16host
+{-# INLINE putInt16host #-}
+
+-- | /O(1)./ Write an Int32 in native host order and host endianness.
+-- For portability issues see @putInthost@.
+putInt32host       :: Int32 -> Put
+putInt32host       = tell . B.putInt32host
+{-# INLINE putInt32host #-}
+
+-- | /O(1)./ Write an Int64 in native host order
+-- On a 32 bit machine we write two host order Int32s, in big endian form.
+-- For portability issues see @putInthost@.
+putInt64host       :: Int64 -> Put
+putInt64host       = tell . B.putInt64host
+{-# INLINE putInt64host #-}
+
+------------------------------------------------------------------------
+-- Floats/Doubles
+
+-- | Write a 'Float' in big endian IEEE-754 format.
+putFloatbe :: Float -> Put
+putFloatbe = putWord32be . floatToWord
+{-# INLINE putFloatbe #-}
+
+-- | Write a 'Float' in little endian IEEE-754 format.
+putFloatle :: Float -> Put
+putFloatle = putWord32le . floatToWord
+{-# INLINE putFloatle #-}
+
+-- | Write a 'Float' in native in IEEE-754 format and host endian.
+putFloathost :: Float -> Put
+putFloathost = putWord32host . floatToWord
+{-# INLINE putFloathost #-}
+
+-- | Write a 'Double' in big endian IEEE-754 format.
+putDoublebe :: Double -> Put
+putDoublebe = putWord64be . doubleToWord
+{-# INLINE putDoublebe #-}
+
+-- | Write a 'Double' in little endian IEEE-754 format.
+putDoublele :: Double -> Put
+putDoublele = putWord64le . doubleToWord
+{-# INLINE putDoublele #-}
+
+-- | Write a 'Double' in native in IEEE-754 format and host endian.
+putDoublehost :: Double -> Put
+putDoublehost = putWord64host . doubleToWord
+{-# INLINE putDoublehost #-}
+
+------------------------------------------------------------------------
+-- Unicode
+
+-- | Write a character using UTF-8 encoding.
+putCharUtf8 :: Char -> Put
+putCharUtf8 = tell . B.putCharUtf8
+{-# INLINE putCharUtf8 #-}
+
+-- | Write a String using UTF-8 encoding.
+putStringUtf8 :: String -> Put
+putStringUtf8 = tell . B.putStringUtf8
+{-# INLINE putStringUtf8 #-}

@@ -1,5 +1,12 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Signals.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Signals.hs" #-}
+
+
+
+
+
+
+
 
 
 
@@ -49,11 +56,7 @@
 {-# LANGUAGE CApiFFI, CPP, DeriveDataTypeable, NondecreasingIndentation #-}
 {-# LINE 2 "System/Posix/Signals.hsc" #-}
 {-# OPTIONS_GHC -fno-cse #-} -- global variables
-
-{-# LINE 4 "System/Posix/Signals.hsc" #-}
 {-# LANGUAGE Trustworthy #-}
-
-{-# LINE 6 "System/Posix/Signals.hsc" #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  System.Posix.Signals
@@ -69,7 +72,7 @@
 -----------------------------------------------------------------------------
 
 
-{-# LINE 21 "System/Posix/Signals.hsc" #-}
+{-# LINE 19 "System/Posix/Signals.hsc" #-}
 
 
 
@@ -351,12 +354,42 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LINE 22 "System/Posix/Signals.hsc" #-}
+
+{-# LINE 23 "System/Posix/Signals.hsc" #-}
 
 {-# LINE 24 "System/Posix/Signals.hsc" #-}
-
-{-# LINE 25 "System/Posix/Signals.hsc" #-}
-
-{-# LINE 26 "System/Posix/Signals.hsc" #-}
 
 module System.Posix.Signals (
   -- * The Signal type
@@ -385,10 +418,10 @@ module System.Posix.Signals (
   userDefinedSignal1, sigUSR1,
   userDefinedSignal2, sigUSR2,
 
-{-# LINE 54 "System/Posix/Signals.hsc" #-}
+{-# LINE 52 "System/Posix/Signals.hsc" #-}
   pollableEvent, sigPOLL,
 
-{-# LINE 56 "System/Posix/Signals.hsc" #-}
+{-# LINE 54 "System/Posix/Signals.hsc" #-}
   profilingTimerExpired, sigPROF,
   badSystemCall, sigSYS,
   breakpointTrap, sigTRAP,
@@ -402,14 +435,10 @@ module System.Posix.Signals (
   signalProcess,
   signalProcessGroup,
 
-
-{-# LINE 70 "System/Posix/Signals.hsc" #-}
   -- * Handling signals
   Handler(Default,Ignore,Catch,CatchOnce,CatchInfo,CatchInfoOnce),
   SignalInfo(..), SignalSpecificInfo(..),
   installHandler,
-
-{-# LINE 75 "System/Posix/Signals.hsc" #-}
 
   -- * Signal sets
   SignalSet,
@@ -424,18 +453,10 @@ module System.Posix.Signals (
 
   -- * Waiting for signals
   getPendingSignals,
-
-{-# LINE 90 "System/Posix/Signals.hsc" #-}
   awaitSignal,
 
-{-# LINE 92 "System/Posix/Signals.hsc" #-}
-
-
-{-# LINE 94 "System/Posix/Signals.hsc" #-}
   -- * The @NOCLDSTOP@ flag
   setStoppedChildFlag, queryStoppedChildFlag,
-
-{-# LINE 97 "System/Posix/Signals.hsc" #-}
 
   -- MISSING FUNCTIONALITY:
   -- sigaction(), (inc. the sigaction structure + flags etc.)
@@ -459,8 +480,6 @@ import System.Posix.Process.Internals
 import Data.Dynamic
 
 
-{-# LINE 120 "System/Posix/Signals.hsc" #-}
-
 
 
 
@@ -469,8 +488,6 @@ import Data.Dynamic
 
 
 import GHC.Conc hiding (Signal)
-
-{-# LINE 124 "System/Posix/Signals.hsc" #-}
 
 -- -----------------------------------------------------------------------------
 -- Specific signals
@@ -519,11 +536,11 @@ sigUSR1   = 10
 sigUSR2   :: CInt
 sigUSR2   = 12
 
-{-# LINE 172 "System/Posix/Signals.hsc" #-}
+{-# LINE 162 "System/Posix/Signals.hsc" #-}
 sigPOLL   :: CInt
 sigPOLL   = 29
 
-{-# LINE 175 "System/Posix/Signals.hsc" #-}
+{-# LINE 165 "System/Posix/Signals.hsc" #-}
 sigPROF   :: CInt
 sigPROF   = 27
 sigSYS    :: CInt
@@ -600,11 +617,11 @@ userDefinedSignal2 :: Signal
 userDefinedSignal2 = sigUSR2
 
 
-{-# LINE 251 "System/Posix/Signals.hsc" #-}
+{-# LINE 241 "System/Posix/Signals.hsc" #-}
 pollableEvent :: Signal
 pollableEvent = sigPOLL
 
-{-# LINE 254 "System/Posix/Signals.hsc" #-}
+{-# LINE 244 "System/Posix/Signals.hsc" #-}
 
 profilingTimerExpired :: Signal
 profilingTimerExpired = sigPROF
@@ -654,17 +671,18 @@ foreign import ccall unsafe "killpg"
 raiseSignal :: Signal -> IO ()
 raiseSignal sig = throwErrnoIfMinus1_ "raiseSignal" (c_raise sig)
 
+-- See also note in GHC's rts/RtsUtils.c
+-- This is somewhat fragile because we need to keep the
+-- `#if`-conditional in sync with GHC's runtime.
 
-{-# LINE 307 "System/Posix/Signals.hsc" #-}
+{-# LINE 300 "System/Posix/Signals.hsc" #-}
 foreign import ccall unsafe "raise"
   c_raise :: CInt -> IO CInt
 
-{-# LINE 310 "System/Posix/Signals.hsc" #-}
+{-# LINE 303 "System/Posix/Signals.hsc" #-}
 
 
-{-# LINE 312 "System/Posix/Signals.hsc" #-}
 type Signal = CInt
-
 
 -- | The actions to perform when a signal is received.
 data Handler = Default
@@ -672,13 +690,13 @@ data Handler = Default
              -- not yet: | Hold
              | Catch (IO ())
              | CatchOnce (IO ())
-             | CatchInfo (SignalInfo -> IO ())     -- ^ /Since: 2.7.0.0/
-             | CatchInfoOnce (SignalInfo -> IO ()) -- ^ /Since: 2.7.0.0/
+             | CatchInfo (SignalInfo -> IO ())     -- ^ @since 2.7.0.0
+             | CatchInfoOnce (SignalInfo -> IO ()) -- ^ @since 2.7.0.0
   deriving (Typeable)
 
 -- | Information about a received signal (derived from @siginfo_t@).
 --
--- /Since: 2.7.0.0/
+-- @since 2.7.0.0
 data SignalInfo = SignalInfo {
       siginfoSignal   :: Signal,
       siginfoError    :: Errno,
@@ -688,7 +706,7 @@ data SignalInfo = SignalInfo {
 -- | Information specific to a particular type of signal
 -- (derived from @siginfo_t@).
 --
--- /Since: 2.7.0.0/
+-- @since 2.7.0.0
 data SignalSpecificInfo
   = NoSignalSpecificInfo
   | SigChldInfo {
@@ -712,7 +730,7 @@ installHandler :: Signal
                -> IO Handler            -- ^ old handler
 
 
-{-# LINE 364 "System/Posix/Signals.hsc" #-}
+{-# LINE 356 "System/Posix/Signals.hsc" #-}
 
 installHandler sig handler _maybe_mask = do
   ensureIOManagerIsRunning  -- for the threaded RTS
@@ -783,17 +801,17 @@ unmarshalSigInfo :: ForeignPtr Word8 -> IO SignalInfo
 unmarshalSigInfo fp = do
   withForeignPtr fp $ \p -> do
     sig   <- ((\hsc_ptr -> peekByteOff hsc_ptr 0)) p
-{-# LINE 434 "System/Posix/Signals.hsc" #-}
+{-# LINE 426 "System/Posix/Signals.hsc" #-}
     errno <- ((\hsc_ptr -> peekByteOff hsc_ptr 4)) p
-{-# LINE 435 "System/Posix/Signals.hsc" #-}
+{-# LINE 427 "System/Posix/Signals.hsc" #-}
     extra <- case sig of
                 _ | sig == sigCHLD -> do
                     pid <- ((\hsc_ptr -> peekByteOff hsc_ptr 16)) p
-{-# LINE 438 "System/Posix/Signals.hsc" #-}
+{-# LINE 430 "System/Posix/Signals.hsc" #-}
                     uid <- ((\hsc_ptr -> peekByteOff hsc_ptr 20)) p
-{-# LINE 439 "System/Posix/Signals.hsc" #-}
+{-# LINE 431 "System/Posix/Signals.hsc" #-}
                     wstat <- ((\hsc_ptr -> peekByteOff hsc_ptr 24)) p
-{-# LINE 440 "System/Posix/Signals.hsc" #-}
+{-# LINE 432 "System/Posix/Signals.hsc" #-}
                     pstat <- decipherWaitStatus wstat
                     return SigChldInfo { siginfoPid = pid,
                                          siginfoUid = uid,
@@ -807,9 +825,7 @@ unmarshalSigInfo fp = do
         siginfoSpecific = extra }
 
 
-{-# LINE 453 "System/Posix/Signals.hsc" #-}
-
-{-# LINE 454 "System/Posix/Signals.hsc" #-}
+{-# LINE 445 "System/Posix/Signals.hsc" #-}
 
 -- -----------------------------------------------------------------------------
 -- Alarms
@@ -824,8 +840,6 @@ scheduleAlarm secs = do
 foreign import ccall unsafe "alarm"
   c_alarm :: CUInt -> IO CUInt
 
-
-{-# LINE 469 "System/Posix/Signals.hsc" #-}
 -- -----------------------------------------------------------------------------
 -- The NOCLDSTOP flag
 
@@ -844,8 +858,6 @@ queryStoppedChildFlag :: IO Bool
 queryStoppedChildFlag = do
     rc <- peek nocldstop
     return (rc == (0::Int))
-
-{-# LINE 488 "System/Posix/Signals.hsc" #-}
 
 -- -----------------------------------------------------------------------------
 -- Manipulating signal sets
@@ -936,9 +948,6 @@ getPendingSignals = do
    throwErrnoIfMinus1_ "getPendingSignals" (c_sigpending p)
   return (SignalSet fp)
 
-
-{-# LINE 579 "System/Posix/Signals.hsc" #-}
-
 -- | @awaitSignal iset@ suspends execution until an interrupt is received.
 -- If @iset@ is @Just s@, @awaitSignal@ calls @sigsuspend@, installing
 -- @s@ as the new signal mask before suspending execution; otherwise, it
@@ -968,10 +977,8 @@ awaitSignal maybe_sigset = do
 foreign import ccall unsafe "sigsuspend"
   c_sigsuspend :: Ptr CSigset -> IO CInt
 
-{-# LINE 609 "System/Posix/Signals.hsc" #-}
 
-
-{-# LINE 631 "System/Posix/Signals.hsc" #-}
+{-# LINE 608 "System/Posix/Signals.hsc" #-}
 foreign import capi unsafe "signal.h sigdelset"
   c_sigdelset   :: Ptr CSigset -> CInt -> IO CInt
 
@@ -981,7 +988,7 @@ foreign import capi unsafe "signal.h sigfillset"
 foreign import capi unsafe "signal.h sigismember"
   c_sigismember :: Ptr CSigset -> CInt -> IO CInt
 
-{-# LINE 640 "System/Posix/Signals.hsc" #-}
+{-# LINE 617 "System/Posix/Signals.hsc" #-}
 
 foreign import ccall unsafe "sigpending"
   c_sigpending :: Ptr CSigset -> IO CInt

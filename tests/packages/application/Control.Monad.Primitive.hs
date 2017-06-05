@@ -43,7 +43,18 @@
 
 
 
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP, MagicHash, UnboxedTuples, TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
 -- Module      : Control.Monad.Primitive
@@ -58,18 +69,37 @@
 
 module Control.Monad.Primitive (
   PrimMonad(..), RealWorld, primitive_,
-  primToPrim, primToIO, primToST,
-  unsafePrimToPrim, unsafePrimToIO, unsafePrimToST,
-  unsafeInlinePrim, unsafeInlineIO, unsafeInlineST,
-  touch
+  PrimBase(..),
+  liftPrim, primToPrim, primToIO, primToST, ioToPrim, stToPrim,
+  unsafePrimToPrim, unsafePrimToIO, unsafePrimToST, unsafeIOToPrim,
+  unsafeSTToPrim, unsafeInlinePrim, unsafeInlineIO, unsafeInlineST,
+  touch, evalPrim
 ) where
 
 import GHC.Prim   ( State#, RealWorld, touch# )
 import GHC.Base   ( unsafeCoerce#, realWorld# )
+import GHC.Base   ( seq# )
 import GHC.IO     ( IO(..) )
 import GHC.ST     ( ST(..) )
 
--- | Class of primitive state-transformer monads
+import Control.Monad.Trans.Class (lift)
+
+import Control.Monad.Trans.Identity ( IdentityT (IdentityT) )
+import Control.Monad.Trans.List     ( ListT    )
+import Control.Monad.Trans.Maybe    ( MaybeT   )
+import Control.Monad.Trans.Error    ( ErrorT, Error)
+import Control.Monad.Trans.Reader   ( ReaderT  )
+import Control.Monad.Trans.State    ( StateT   )
+import Control.Monad.Trans.Writer   ( WriterT  )
+import Control.Monad.Trans.RWS      ( RWST     )
+
+import Control.Monad.Trans.Except   ( ExceptT  )
+
+import qualified Control.Monad.Trans.RWS.Strict    as Strict ( RWST   )
+import qualified Control.Monad.Trans.State.Strict  as Strict ( StateT )
+import qualified Control.Monad.Trans.Writer.Strict as Strict ( WriterT )
+
+-- | Class of monads which can perform primitive state-transformer actions
 class Monad m => PrimMonad m where
   -- | State token type
   type PrimState m
@@ -77,7 +107,12 @@ class Monad m => PrimMonad m where
   -- | Execute a primitive operation
   primitive :: (State# (PrimState m) -> (# State# (PrimState m), a #)) -> m a
 
-
+-- | Class of primitive monads for state-transformer actions.
+--
+-- Unlike 'PrimMonad', this typeclass requires that the @Monad@ be fully
+-- expressed as a state transformer, therefore disallowing other monad
+-- transformers on top of the base @IO@ or @ST@.
+class PrimMonad m => PrimBase m where
   -- | Expose the internal structure of the monad
   internal :: m a -> State# (PrimState m) -> (# State# (PrimState m), a #)
 
@@ -92,51 +127,136 @@ primitive_ f = primitive (\s# ->
 instance PrimMonad IO where
   type PrimState IO = RealWorld
   primitive = IO
-  internal (IO p) = p
   {-# INLINE primitive #-}
+instance PrimBase IO where
+  internal (IO p) = p
   {-# INLINE internal #-}
+
+instance PrimMonad m => PrimMonad (IdentityT m) where
+  type PrimState (IdentityT m) = PrimState m
+  primitive = lift . primitive
+  {-# INLINE primitive #-}
+instance PrimBase m => PrimBase (IdentityT m) where
+  internal (IdentityT m) = internal m
+  {-# INLINE internal #-}
+instance PrimMonad m => PrimMonad (ListT m) where
+  type PrimState (ListT m) = PrimState m
+  primitive = lift . primitive
+  {-# INLINE primitive #-}
+instance PrimMonad m => PrimMonad (MaybeT m) where
+  type PrimState (MaybeT m) = PrimState m
+  primitive = lift . primitive
+  {-# INLINE primitive #-}
+instance (Error e, PrimMonad m) => PrimMonad (ErrorT e m) where
+  type PrimState (ErrorT e m) = PrimState m
+  primitive = lift . primitive
+  {-# INLINE primitive #-}
+instance PrimMonad m => PrimMonad (ReaderT r m) where
+  type PrimState (ReaderT r m) = PrimState m
+  primitive = lift . primitive
+  {-# INLINE primitive #-}
+instance PrimMonad m => PrimMonad (StateT s m) where
+  type PrimState (StateT s m) = PrimState m
+  primitive = lift . primitive
+  {-# INLINE primitive #-}
+instance (Monoid w, PrimMonad m) => PrimMonad (WriterT w m) where
+  type PrimState (WriterT w m) = PrimState m
+  primitive = lift . primitive
+  {-# INLINE primitive #-}
+instance (Monoid w, PrimMonad m) => PrimMonad (RWST r w s m) where
+  type PrimState (RWST r w s m) = PrimState m
+  primitive = lift . primitive
+  {-# INLINE primitive #-}
+
+instance PrimMonad m => PrimMonad (ExceptT e m) where
+  type PrimState (ExceptT e m) = PrimState m
+  primitive = lift . primitive
+  {-# INLINE primitive #-}
+
+instance PrimMonad m => PrimMonad (Strict.StateT s m) where
+  type PrimState (Strict.StateT s m) = PrimState m
+  primitive = lift . primitive
+  {-# INLINE primitive #-}
+instance (Monoid w, PrimMonad m) => PrimMonad (Strict.WriterT w m) where
+  type PrimState (Strict.WriterT w m) = PrimState m
+  primitive = lift . primitive
+  {-# INLINE primitive #-}
+instance (Monoid w, PrimMonad m) => PrimMonad (Strict.RWST r w s m) where
+  type PrimState (Strict.RWST r w s m) = PrimState m
+  primitive = lift . primitive
+  {-# INLINE primitive #-}
 
 instance PrimMonad (ST s) where
   type PrimState (ST s) = s
   primitive = ST
-  internal (ST p) = p
   {-# INLINE primitive #-}
+instance PrimBase (ST s) where
+  internal (ST p) = p
   {-# INLINE internal #-}
 
--- | Convert a 'PrimMonad' to another monad with the same state token.
-primToPrim :: (PrimMonad m1, PrimMonad m2, PrimState m1 ~ PrimState m2)
+-- | Lifts a 'PrimBase' into another 'PrimMonad' with the same underlying state
+-- token type.
+liftPrim
+  :: (PrimBase m1, PrimMonad m2, PrimState m1 ~ PrimState m2) => m1 a -> m2 a
+{-# INLINE liftPrim #-}
+liftPrim = primToPrim
+
+-- | Convert a 'PrimBase' to another monad with the same state token.
+primToPrim :: (PrimBase m1, PrimMonad m2, PrimState m1 ~ PrimState m2)
         => m1 a -> m2 a
 {-# INLINE primToPrim #-}
 primToPrim m = primitive (internal m)
 
--- | Convert a 'PrimMonad' with a 'RealWorld' state token to 'IO'
-primToIO :: (PrimMonad m, PrimState m ~ RealWorld) => m a -> IO a
+-- | Convert a 'PrimBase' with a 'RealWorld' state token to 'IO'
+primToIO :: (PrimBase m, PrimState m ~ RealWorld) => m a -> IO a
 {-# INLINE primToIO #-}
 primToIO = primToPrim
 
--- | Convert a 'PrimMonad' to 'ST'
-primToST :: PrimMonad m => m a -> ST (PrimState m) a
+-- | Convert a 'PrimBase' to 'ST'
+primToST :: PrimBase m => m a -> ST (PrimState m) a
 {-# INLINE primToST #-}
 primToST = primToPrim
 
--- | Convert a 'PrimMonad' to another monad with a possibly different state
+-- | Convert an 'IO' action to a 'PrimMonad'.
+ioToPrim :: (PrimMonad m, PrimState m ~ RealWorld) => IO a -> m a
+{-# INLINE ioToPrim #-}
+ioToPrim = primToPrim
+
+-- | Convert an 'ST' action to a 'PrimMonad'.
+stToPrim :: PrimMonad m => ST (PrimState m) a -> m a
+{-# INLINE stToPrim #-}
+stToPrim = primToPrim
+
+-- | Convert a 'PrimBase' to another monad with a possibly different state
 -- token. This operation is highly unsafe!
-unsafePrimToPrim :: (PrimMonad m1, PrimMonad m2) => m1 a -> m2 a
+unsafePrimToPrim :: (PrimBase m1, PrimMonad m2) => m1 a -> m2 a
 {-# INLINE unsafePrimToPrim #-}
 unsafePrimToPrim m = primitive (unsafeCoerce# (internal m))
 
--- | Convert any 'PrimMonad' to 'ST' with an arbitrary state token. This
+-- | Convert any 'PrimBase' to 'ST' with an arbitrary state token. This
 -- operation is highly unsafe!
-unsafePrimToST :: PrimMonad m => m a -> ST s a
+unsafePrimToST :: PrimBase m => m a -> ST s a
 {-# INLINE unsafePrimToST #-}
 unsafePrimToST = unsafePrimToPrim
 
--- | Convert any 'PrimMonad' to 'IO'. This operation is highly unsafe!
-unsafePrimToIO :: PrimMonad m => m a -> IO a
+-- | Convert any 'PrimBase' to 'IO'. This operation is highly unsafe!
+unsafePrimToIO :: PrimBase m => m a -> IO a
 {-# INLINE unsafePrimToIO #-}
 unsafePrimToIO = unsafePrimToPrim
 
-unsafeInlinePrim :: PrimMonad m => m a -> a
+-- | Convert an 'ST' action with an arbitraty state token to any 'PrimMonad'.
+-- This operation is highly unsafe!
+unsafeSTToPrim :: PrimMonad m => ST s a -> m a
+{-# INLINE unsafeSTToPrim #-}
+unsafeSTToPrim = unsafePrimToPrim
+
+-- | Convert an 'IO' action to any 'PrimMonad'. This operation is highly
+-- unsafe!
+unsafeIOToPrim :: PrimMonad m => IO a -> m a
+{-# INLINE unsafeIOToPrim #-}
+unsafeIOToPrim = unsafePrimToPrim
+
+unsafeInlinePrim :: PrimBase m => m a -> a
 {-# INLINE unsafeInlinePrim #-}
 unsafeInlinePrim m = unsafeInlineIO (unsafePrimToIO m)
 
@@ -153,3 +273,6 @@ touch :: PrimMonad m => a -> m ()
 touch x = unsafePrimToPrim
         $ (primitive (\s -> case touch# x s of { s' -> (# s', () #) }) :: IO ())
 
+-- | Create an action to force a value; generalizes 'Control.Exception.evaluate'
+evalPrim :: forall a m . PrimMonad m => a -> m a
+evalPrim a = primitive (\s -> seq# a s)

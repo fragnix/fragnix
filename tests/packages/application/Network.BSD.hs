@@ -1,5 +1,12 @@
 {-# LANGUAGE Haskell98, CPP, DeriveDataTypeable, ForeignFunctionInterface, TypeSynonymInstances #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/Network/BSD.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/Network/BSD.hs" #-}
+
+
+
+
+
+
+
 
 
 
@@ -144,6 +151,14 @@ module Network.BSD
     , endNetworkEntry
 
 {-# LINE 89 "Network/BSD.hsc" #-}
+
+
+{-# LINE 91 "Network/BSD.hsc" #-}
+    -- * Interface names
+    , ifNameToIndex
+
+{-# LINE 94 "Network/BSD.hsc" #-}
+
     ) where
 
 import Network.Socket
@@ -152,8 +167,8 @@ import Control.Concurrent (MVar, newMVar, withMVar)
 import qualified Control.Exception as E
 import Foreign.C.String (CString, peekCString, withCString)
 
-{-# LINE 99 "Network/BSD.hsc" #-}
-import Foreign.C.Types ( CInt(..), CULong(..), CSize(..) )
+{-# LINE 105 "Network/BSD.hsc" #-}
+import Foreign.C.Types ( CInt(..), CUInt(..), CULong(..), CSize(..) )
 import Foreign.Ptr (Ptr, nullPtr)
 import Foreign.Storable (Storable(..))
 import Foreign.Marshal.Array (allocaArray0, peekArray0)
@@ -197,34 +212,34 @@ data ServiceEntry  =
 
 instance Storable ServiceEntry where
    sizeOf    _ = 32
-{-# LINE 143 "Network/BSD.hsc" #-}
+{-# LINE 149 "Network/BSD.hsc" #-}
    alignment _ = alignment (undefined :: CInt) -- ???
 
    peek p = do
         s_name    <- ((\hsc_ptr -> peekByteOff hsc_ptr 0)) p >>= peekCString
-{-# LINE 147 "Network/BSD.hsc" #-}
+{-# LINE 153 "Network/BSD.hsc" #-}
         s_aliases <- ((\hsc_ptr -> peekByteOff hsc_ptr 8)) p
-{-# LINE 148 "Network/BSD.hsc" #-}
+{-# LINE 154 "Network/BSD.hsc" #-}
                            >>= peekArray0 nullPtr
                            >>= mapM peekCString
         s_port    <- ((\hsc_ptr -> peekByteOff hsc_ptr 16)) p
-{-# LINE 151 "Network/BSD.hsc" #-}
+{-# LINE 157 "Network/BSD.hsc" #-}
         s_proto   <- ((\hsc_ptr -> peekByteOff hsc_ptr 24)) p >>= peekCString
-{-# LINE 152 "Network/BSD.hsc" #-}
+{-# LINE 158 "Network/BSD.hsc" #-}
         return (ServiceEntry {
                         serviceName     = s_name,
                         serviceAliases  = s_aliases,
 
-{-# LINE 158 "Network/BSD.hsc" #-}
+{-# LINE 164 "Network/BSD.hsc" #-}
                            -- s_port is already in network byte order, but it
                            -- might be the wrong size.
-                        servicePort     = PortNum (fromIntegral (s_port :: CInt)),
+                        servicePort     = (fromIntegral (s_port :: CInt)),
 
-{-# LINE 162 "Network/BSD.hsc" #-}
+{-# LINE 168 "Network/BSD.hsc" #-}
                         serviceProtocol = s_proto
                 })
 
-   poke _p = error "Storable.poke(BSD.ServiceEntry) not implemented"
+   poke = throwUnsupportedOperationPoke "ServiceEntry"
 
 
 -- | Get service by name.
@@ -234,8 +249,8 @@ getServiceByName :: ServiceName         -- Service Name
 getServiceByName name proto = withLock $ do
  withCString name  $ \ cstr_name  -> do
  withCString proto $ \ cstr_proto -> do
- throwNoSuchThingIfNull "getServiceByName" "no such service entry"
-   $ (trySysCall (c_getservbyname cstr_name cstr_proto))
+ throwNoSuchThingIfNull "Network.BSD.getServiceByName" "no such service entry"
+   $ c_getservbyname cstr_name cstr_proto
  >>= peek
 
 foreign import ccall unsafe "getservbyname"
@@ -243,10 +258,10 @@ foreign import ccall unsafe "getservbyname"
 
 -- | Get the service given a 'PortNumber' and 'ProtocolName'.
 getServiceByPort :: PortNumber -> ProtocolName -> IO ServiceEntry
-getServiceByPort (PortNum port) proto = withLock $ do
+getServiceByPort port proto = withLock $ do
  withCString proto $ \ cstr_proto -> do
- throwNoSuchThingIfNull "getServiceByPort" "no such service entry"
-   $ (trySysCall (c_getservbyport (fromIntegral port) cstr_proto))
+ throwNoSuchThingIfNull "Network.BSD.getServiceByPort" "no such service entry"
+   $ c_getservbyport (fromIntegral port) cstr_proto
  >>= peek
 
 foreign import ccall unsafe "getservbyport"
@@ -259,22 +274,22 @@ getServicePortNumber name = do
     return port
 
 
-{-# LINE 200 "Network/BSD.hsc" #-}
+{-# LINE 206 "Network/BSD.hsc" #-}
 getServiceEntry :: IO ServiceEntry
 getServiceEntry = withLock $ do
- throwNoSuchThingIfNull "getServiceEntry" "no such service entry"
-   $ trySysCall c_getservent
+ throwNoSuchThingIfNull "Network.BSD.getServiceEntry" "no such service entry"
+   $ c_getservent
  >>= peek
 
 foreign import ccall unsafe "getservent" c_getservent :: IO (Ptr ServiceEntry)
 
 setServiceEntry :: Bool -> IO ()
-setServiceEntry flg = withLock $ trySysCall $ c_setservent (fromBool flg)
+setServiceEntry flg = withLock $ c_setservent (fromBool flg)
 
 foreign import ccall unsafe  "setservent" c_setservent :: CInt -> IO ()
 
 endServiceEntry :: IO ()
-endServiceEntry = withLock $ trySysCall $ c_endservent
+endServiceEntry = withLock $ c_endservent
 
 foreign import ccall unsafe  "endservent" c_endservent :: IO ()
 
@@ -283,7 +298,7 @@ getServiceEntries stayOpen = do
   setServiceEntry stayOpen
   getEntries (getServiceEntry) (endServiceEntry)
 
-{-# LINE 223 "Network/BSD.hsc" #-}
+{-# LINE 229 "Network/BSD.hsc" #-}
 
 -- ---------------------------------------------------------------------------
 -- Protocol Entries
@@ -306,35 +321,36 @@ data ProtocolEntry =
 
 instance Storable ProtocolEntry where
    sizeOf    _ = 24
-{-# LINE 245 "Network/BSD.hsc" #-}
+{-# LINE 251 "Network/BSD.hsc" #-}
    alignment _ = alignment (undefined :: CInt) -- ???
 
    peek p = do
         p_name    <- ((\hsc_ptr -> peekByteOff hsc_ptr 0)) p >>= peekCString
-{-# LINE 249 "Network/BSD.hsc" #-}
+{-# LINE 255 "Network/BSD.hsc" #-}
         p_aliases <- ((\hsc_ptr -> peekByteOff hsc_ptr 8)) p
-{-# LINE 250 "Network/BSD.hsc" #-}
+{-# LINE 256 "Network/BSD.hsc" #-}
                            >>= peekArray0 nullPtr
                            >>= mapM peekCString
 
-{-# LINE 259 "Network/BSD.hsc" #-}
+{-# LINE 265 "Network/BSD.hsc" #-}
         p_proto        <- ((\hsc_ptr -> peekByteOff hsc_ptr 16)) p
-{-# LINE 260 "Network/BSD.hsc" #-}
+{-# LINE 266 "Network/BSD.hsc" #-}
 
-{-# LINE 261 "Network/BSD.hsc" #-}
+{-# LINE 267 "Network/BSD.hsc" #-}
         return (ProtocolEntry {
                         protoName    = p_name,
                         protoAliases = p_aliases,
                         protoNumber  = p_proto
                 })
 
-   poke _p = error "Storable.poke(BSD.ProtocolEntry) not implemented"
+   poke = throwUnsupportedOperationPoke "ProtocolEntry"
+
 
 getProtocolByName :: ProtocolName -> IO ProtocolEntry
 getProtocolByName name = withLock $ do
  withCString name $ \ name_cstr -> do
- throwNoSuchThingIfNull "getProtocolByName" ("no such protocol name: " ++ name)
-   $ (trySysCall.c_getprotobyname) name_cstr
+ throwNoSuchThingIfNull "Network.BSD.getProtocolByName" ("no such protocol name: " ++ name)
+   $ c_getprotobyname name_cstr
  >>= peek
 
 foreign import  ccall unsafe  "getprotobyname"
@@ -343,8 +359,8 @@ foreign import  ccall unsafe  "getprotobyname"
 
 getProtocolByNumber :: ProtocolNumber -> IO ProtocolEntry
 getProtocolByNumber num = withLock $ do
- throwNoSuchThingIfNull "getProtocolByNumber" ("no such protocol number: " ++ show num)
-   $ (trySysCall.c_getprotobynumber) (fromIntegral num)
+ throwNoSuchThingIfNull "Network.BSD.getProtocolByNumber" ("no such protocol number: " ++ show num)
+   $ c_getprotobynumber (fromIntegral num)
  >>= peek
 
 foreign import ccall unsafe  "getprotobynumber"
@@ -357,22 +373,22 @@ getProtocolNumber proto = do
  return num
 
 
-{-# LINE 296 "Network/BSD.hsc" #-}
+{-# LINE 303 "Network/BSD.hsc" #-}
 getProtocolEntry :: IO ProtocolEntry    -- Next Protocol Entry from DB
 getProtocolEntry = withLock $ do
- ent <- throwNoSuchThingIfNull "getProtocolEntry" "no such protocol entry"
-                $ trySysCall c_getprotoent
+ ent <- throwNoSuchThingIfNull "Network.BSD.getProtocolEntry" "no such protocol entry"
+                $ c_getprotoent
  peek ent
 
 foreign import ccall unsafe  "getprotoent" c_getprotoent :: IO (Ptr ProtocolEntry)
 
 setProtocolEntry :: Bool -> IO ()       -- Keep DB Open ?
-setProtocolEntry flg = withLock $ trySysCall $ c_setprotoent (fromBool flg)
+setProtocolEntry flg = withLock $ c_setprotoent (fromBool flg)
 
 foreign import ccall unsafe "setprotoent" c_setprotoent :: CInt -> IO ()
 
 endProtocolEntry :: IO ()
-endProtocolEntry = withLock $ trySysCall $ c_endprotoent
+endProtocolEntry = withLock $ c_endprotoent
 
 foreign import ccall unsafe "endprotoent" c_endprotoent :: IO ()
 
@@ -381,7 +397,7 @@ getProtocolEntries stayOpen = withLock $ do
   setProtocolEntry stayOpen
   getEntries (getProtocolEntry) (endProtocolEntry)
 
-{-# LINE 319 "Network/BSD.hsc" #-}
+{-# LINE 326 "Network/BSD.hsc" #-}
 
 -- ---------------------------------------------------------------------------
 -- Host lookups
@@ -396,42 +412,42 @@ data HostEntry =
 
 instance Storable HostEntry where
    sizeOf    _ = 32
-{-# LINE 333 "Network/BSD.hsc" #-}
+{-# LINE 340 "Network/BSD.hsc" #-}
    alignment _ = alignment (undefined :: CInt) -- ???
 
    peek p = do
         h_name       <- ((\hsc_ptr -> peekByteOff hsc_ptr 0)) p >>= peekCString
-{-# LINE 337 "Network/BSD.hsc" #-}
+{-# LINE 344 "Network/BSD.hsc" #-}
         h_aliases    <- ((\hsc_ptr -> peekByteOff hsc_ptr 8)) p
-{-# LINE 338 "Network/BSD.hsc" #-}
+{-# LINE 345 "Network/BSD.hsc" #-}
                                 >>= peekArray0 nullPtr
                                 >>= mapM peekCString
         h_addrtype   <- ((\hsc_ptr -> peekByteOff hsc_ptr 16)) p
-{-# LINE 341 "Network/BSD.hsc" #-}
+{-# LINE 348 "Network/BSD.hsc" #-}
         -- h_length       <- (#peek struct hostent, h_length) p
         h_addr_list  <- ((\hsc_ptr -> peekByteOff hsc_ptr 24)) p
-{-# LINE 343 "Network/BSD.hsc" #-}
+{-# LINE 350 "Network/BSD.hsc" #-}
                                 >>= peekArray0 nullPtr
                                 >>= mapM peek
         return (HostEntry {
                         hostName       = h_name,
                         hostAliases    = h_aliases,
 
-{-# LINE 351 "Network/BSD.hsc" #-}
+{-# LINE 358 "Network/BSD.hsc" #-}
                         hostFamily     = unpackFamily h_addrtype,
 
-{-# LINE 353 "Network/BSD.hsc" #-}
+{-# LINE 360 "Network/BSD.hsc" #-}
                         hostAddresses  = h_addr_list
                 })
 
-   poke _p = error "Storable.poke(BSD.ServiceEntry) not implemented"
+   poke = throwUnsupportedOperationPoke "HostEntry"
 
 
 -- convenience function:
 hostAddress :: HostEntry -> HostAddress
 hostAddress (HostEntry nm _ _ ls) =
  case ls of
-   []    -> error ("BSD.hostAddress: empty network address list for " ++ nm)
+   []    -> error $ "Network.BSD.hostAddress: empty network address list for " ++ nm
    (x:_) -> x
 
 -- getHostByName must use the same lock as the *hostent functions
@@ -441,8 +457,8 @@ hostAddress (HostEntry nm _ _ ls) =
 getHostByName :: HostName -> IO HostEntry
 getHostByName name = withLock $ do
   withCString name $ \ name_cstr -> do
-   ent <- throwNoSuchThingIfNull "getHostByName" "no such host entry"
-                $ trySysCall $ c_gethostbyname name_cstr
+   ent <- throwNoSuchThingIfNull "Network.BSD.getHostByName" "no such host entry"
+                $ c_gethostbyname name_cstr
    peek ent
 
 foreign import ccall safe "gethostbyname"
@@ -455,25 +471,25 @@ foreign import ccall safe "gethostbyname"
 getHostByAddr :: Family -> HostAddress -> IO HostEntry
 getHostByAddr family addr = do
  with addr $ \ ptr_addr -> withLock $ do
- throwNoSuchThingIfNull         "getHostByAddr" "no such host entry"
-   $ trySysCall $ c_gethostbyaddr ptr_addr (fromIntegral (sizeOf addr)) (packFamily family)
+ throwNoSuchThingIfNull "Network.BSD.getHostByAddr" "no such host entry"
+   $ c_gethostbyaddr ptr_addr (fromIntegral (sizeOf addr)) (packFamily family)
  >>= peek
 
 foreign import ccall safe "gethostbyaddr"
    c_gethostbyaddr :: Ptr HostAddress -> CInt -> CInt -> IO (Ptr HostEntry)
 
 
-{-# LINE 395 "Network/BSD.hsc" #-}
+{-# LINE 402 "Network/BSD.hsc" #-}
 getHostEntry :: IO HostEntry
 getHostEntry = withLock $ do
- throwNoSuchThingIfNull         "getHostEntry" "unable to retrieve host entry"
-   $ trySysCall $ c_gethostent
+ throwNoSuchThingIfNull "Network.BSD.getHostEntry" "unable to retrieve host entry"
+   $ c_gethostent
  >>= peek
 
 foreign import ccall unsafe "gethostent" c_gethostent :: IO (Ptr HostEntry)
 
 setHostEntry :: Bool -> IO ()
-setHostEntry flg = withLock $ trySysCall $ c_sethostent (fromBool flg)
+setHostEntry flg = withLock $ c_sethostent (fromBool flg)
 
 foreign import ccall unsafe "sethostent" c_sethostent :: CInt -> IO ()
 
@@ -487,7 +503,7 @@ getHostEntries stayOpen = do
   setHostEntry stayOpen
   getEntries (getHostEntry) (endHostEntry)
 
-{-# LINE 418 "Network/BSD.hsc" #-}
+{-# LINE 425 "Network/BSD.hsc" #-}
 
 -- ---------------------------------------------------------------------------
 -- Accessing network information
@@ -510,20 +526,20 @@ data NetworkEntry =
 
 instance Storable NetworkEntry where
    sizeOf    _ = 32
-{-# LINE 440 "Network/BSD.hsc" #-}
+{-# LINE 447 "Network/BSD.hsc" #-}
    alignment _ = alignment (undefined :: CInt) -- ???
 
    peek p = do
         n_name         <- ((\hsc_ptr -> peekByteOff hsc_ptr 0)) p >>= peekCString
-{-# LINE 444 "Network/BSD.hsc" #-}
+{-# LINE 451 "Network/BSD.hsc" #-}
         n_aliases      <- ((\hsc_ptr -> peekByteOff hsc_ptr 8)) p
-{-# LINE 445 "Network/BSD.hsc" #-}
+{-# LINE 452 "Network/BSD.hsc" #-}
                                 >>= peekArray0 nullPtr
                                 >>= mapM peekCString
         n_addrtype     <- ((\hsc_ptr -> peekByteOff hsc_ptr 16)) p
-{-# LINE 448 "Network/BSD.hsc" #-}
+{-# LINE 455 "Network/BSD.hsc" #-}
         n_net          <- ((\hsc_ptr -> peekByteOff hsc_ptr 20)) p
-{-# LINE 449 "Network/BSD.hsc" #-}
+{-# LINE 456 "Network/BSD.hsc" #-}
         return (NetworkEntry {
                         networkName      = n_name,
                         networkAliases   = n_aliases,
@@ -532,16 +548,16 @@ instance Storable NetworkEntry where
                         networkAddress   = n_net
                 })
 
-   poke _p = error "Storable.poke(BSD.NetEntry) not implemented"
+   poke = throwUnsupportedOperationPoke "NetworkEntry"
 
 
 
-{-# LINE 461 "Network/BSD.hsc" #-}
+{-# LINE 468 "Network/BSD.hsc" #-}
 getNetworkByName :: NetworkName -> IO NetworkEntry
 getNetworkByName name = withLock $ do
  withCString name $ \ name_cstr -> do
-  throwNoSuchThingIfNull "getNetworkByName" "no such network entry"
-    $ trySysCall $ c_getnetbyname name_cstr
+  throwNoSuchThingIfNull "Network.BSD.getNetworkByName" "no such network entry"
+    $ c_getnetbyname name_cstr
   >>= peek
 
 foreign import ccall unsafe "getnetbyname"
@@ -549,8 +565,8 @@ foreign import ccall unsafe "getnetbyname"
 
 getNetworkByAddr :: NetworkAddr -> Family -> IO NetworkEntry
 getNetworkByAddr addr family = withLock $ do
- throwNoSuchThingIfNull "getNetworkByAddr" "no such network entry"
-   $ trySysCall $ c_getnetbyaddr addr (packFamily family)
+ throwNoSuchThingIfNull "Network.BSD.getNetworkByAddr" "no such network entry"
+   $ c_getnetbyaddr addr (packFamily family)
  >>= peek
 
 foreign import ccall unsafe "getnetbyaddr"
@@ -558,8 +574,8 @@ foreign import ccall unsafe "getnetbyaddr"
 
 getNetworkEntry :: IO NetworkEntry
 getNetworkEntry = withLock $ do
- throwNoSuchThingIfNull "getNetworkEntry" "no more network entries"
-          $ trySysCall $ c_getnetent
+ throwNoSuchThingIfNull "Network.BSD.getNetworkEntry" "no more network entries"
+          $ c_getnetent
  >>= peek
 
 foreign import ccall unsafe "getnetent" c_getnetent :: IO (Ptr NetworkEntry)
@@ -568,13 +584,13 @@ foreign import ccall unsafe "getnetent" c_getnetent :: IO (Ptr NetworkEntry)
 -- whether a connection is maintained open between various
 -- networkEntry calls
 setNetworkEntry :: Bool -> IO ()
-setNetworkEntry flg = withLock $ trySysCall $ c_setnetent (fromBool flg)
+setNetworkEntry flg = withLock $ c_setnetent (fromBool flg)
 
 foreign import ccall unsafe "setnetent" c_setnetent :: CInt -> IO ()
 
 -- | Close the connection to the network name database.
 endNetworkEntry :: IO ()
-endNetworkEntry = withLock $ trySysCall $ c_endnetent
+endNetworkEntry = withLock $ c_endnetent
 
 foreign import ccall unsafe "endnetent" c_endnetent :: IO ()
 
@@ -584,13 +600,33 @@ getNetworkEntries stayOpen = do
   setNetworkEntry stayOpen
   getEntries (getNetworkEntry) (endNetworkEntry)
 
-{-# LINE 508 "Network/BSD.hsc" #-}
+{-# LINE 515 "Network/BSD.hsc" #-}
+
+-- ---------------------------------------------------------------------------
+-- Interface names
+
+
+{-# LINE 520 "Network/BSD.hsc" #-}
+
+-- returns the index of the network interface corresponding to the name ifname.
+ifNameToIndex :: String -> IO (Maybe Int)
+ifNameToIndex ifname = do
+  index <- withCString ifname c_if_nametoindex
+  -- On failure zero is returned. We'll return Nothing.
+  return $ if index == 0 then Nothing else Just $ fromIntegral index
+
+foreign import ccall safe "if_nametoindex"
+   c_if_nametoindex :: CString -> IO CUInt
+
+
+{-# LINE 532 "Network/BSD.hsc" #-}
+
 
 -- Mutex for name service lockdown
 
 {-# NOINLINE lock #-}
 lock :: MVar ()
-lock = unsafePerformIO $ newMVar ()
+lock = unsafePerformIO $ withSocketsDo $ newMVar ()
 
 withLock :: IO a -> IO a
 withLock act = withMVar lock (\_ -> act)
@@ -605,7 +641,7 @@ getHostName :: IO HostName
 getHostName = do
   let size = 256
   allocaArray0 size $ \ cstr -> do
-    throwSocketErrorIfMinus1_ "getHostName" $ c_gethostname cstr (fromIntegral size)
+    throwSocketErrorIfMinus1_ "Network.BSD.getHostName" $ c_gethostname cstr (fromIntegral size)
     peekCString cstr
 
 foreign import ccall unsafe "gethostname"
@@ -627,21 +663,18 @@ getEntries getOne atEnd = loop
         Just v  -> loop >>= \ vs -> atEnd >> return (v:vs)
 
 
--- ---------------------------------------------------------------------------
--- Winsock only:
---   The BSD API networking calls made locally return NULL upon failure.
---   That failure may very well be due to WinSock not being initialised,
---   so if NULL is seen try init'ing and repeat the call.
-
-{-# LINE 556 "Network/BSD.hsc" #-}
-trySysCall :: IO a -> IO a
-trySysCall act = act
-
-{-# LINE 566 "Network/BSD.hsc" #-}
-
 throwNoSuchThingIfNull :: String -> String -> IO (Ptr a) -> IO (Ptr a)
 throwNoSuchThingIfNull loc desc act = do
   ptr <- act
   if (ptr == nullPtr)
    then ioError (ioeSetErrorString (mkIOError NoSuchThing loc Nothing Nothing) desc)
    else return ptr
+
+throwUnsupportedOperationPoke :: String -> Ptr a -> a -> IO ()
+throwUnsupportedOperationPoke typ _ _ =
+  ioError $ ioeSetErrorString ioe "Operation not implemented"
+  where
+    ioe = mkIOError UnsupportedOperation
+                    ("Network.BSD: instance Storable " ++ typ ++ ": poke")
+                    Nothing
+                    Nothing

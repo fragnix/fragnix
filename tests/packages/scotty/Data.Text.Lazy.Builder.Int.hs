@@ -51,6 +51,19 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE BangPatterns, CPP, MagicHash, RankNTypes, ScopedTypeVariables,
     UnboxedTuples #-}
 {-# LANGUAGE Trustworthy #-}
@@ -58,7 +71,7 @@
 -- Module:      Data.Text.Lazy.Builder.Int
 -- Copyright:   (c) 2013 Bryan O'Sullivan
 --              (c) 2011 MailRank, Inc.
--- License:     BSD3
+-- License:     BSD-style
 -- Maintainer:  Bryan O'Sullivan <bos@serpentine.com>
 -- Stability:   experimental
 -- Portability: portable
@@ -84,7 +97,7 @@ import GHC.Num (quotRemInteger)
 import GHC.Types (Int(..))
 import Control.Monad.ST
 
-import GHC.Integer.GMP.Internals
+import GHC.Integer.GMP.Internals (Integer(S#))
 
 
 decimal :: Integral a => a -> Builder
@@ -93,7 +106,7 @@ decimal :: Integral a => a -> Builder
 {-# RULES "decimal/Int16" decimal = boundedDecimal :: Int16 -> Builder #-}
 {-# RULES "decimal/Int32" decimal = boundedDecimal :: Int32 -> Builder #-}
 {-# RULES "decimal/Int64" decimal = boundedDecimal :: Int64 -> Builder #-}
-{-# RULES "decimal/Word" decimal = positive :: Word -> Builder #-}
+{-# RULES "decimal/Word" decimal = positive :: Data.Word.Word -> Builder #-}
 {-# RULES "decimal/Word8" decimal = positive :: Word8 -> Builder #-}
 {-# RULES "decimal/Word16" decimal = positive :: Word16 -> Builder #-}
 {-# RULES "decimal/Word32" decimal = positive :: Word32 -> Builder #-}
@@ -283,7 +296,7 @@ integer base i
                     (# x,y #) -> pblock q <> pblock r <> putB ns
                         where q = fromInteger x
                               r = fromInteger y
-    putB _ = mempty
+    putB _ = Data.Monoid.mempty
 
     int :: Int -> Builder
     int x | base == 10 = decimal x

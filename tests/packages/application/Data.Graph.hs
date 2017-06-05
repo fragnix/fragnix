@@ -47,9 +47,40 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE StandaloneDeriving #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -403,7 +434,6 @@
 -- License     :  BSD-style (see the file libraries/base/LICENSE)
 --
 -- Maintainer  :  libraries@haskell.org
--- Stability   :  experimental
 -- Portability :  portable
 --
 -- A version of the graph algorithms described in:
@@ -456,10 +486,17 @@ import Data.Tree (Tree(Node), Forest)
 
 -- std interfaces
 import Control.Applicative
+import Data.Foldable as F
 import Control.DeepSeq (NFData(rnf))
 import Data.Maybe
 import Data.Array
 import Data.List
+import Data.Functor.Classes
+import Data.Semigroup (Semigroup (..))
+import GHC.Generics (Generic, Generic1)
+import Data.Data (Data)
+import Data.Typeable
+
 
 -------------------------------------------------------------------------
 --                                                                      -
@@ -472,6 +509,39 @@ data SCC vertex = AcyclicSCC vertex     -- ^ A single vertex that is not
                                         -- in any cycle.
                 | CyclicSCC  [vertex]   -- ^ A maximal set of mutually
                                         -- reachable vertices.
+  deriving (Eq, Show, Read)
+
+deriving instance Typeable SCC
+
+deriving instance Data vertex => Data (SCC vertex)
+
+deriving instance Generic1 SCC
+
+deriving instance Generic (SCC vertex)
+
+instance Eq1 SCC where
+  liftEq eq (AcyclicSCC v1) (AcyclicSCC v2) = eq v1 v2
+  liftEq eq (CyclicSCC vs1) (CyclicSCC vs2) = liftEq eq vs1 vs2
+  liftEq _ _ _ = False
+instance Show1 SCC where
+  liftShowsPrec sp _sl d (AcyclicSCC v) = showsUnaryWith sp "AcyclicSCC" d v
+  liftShowsPrec _sp sl d (CyclicSCC vs) = showsUnaryWith (const sl) "CyclicSCC" d vs
+instance Read1 SCC where
+  liftReadsPrec rp rl = readsData $
+    readsUnaryWith rp "AcyclicSCC" AcyclicSCC <>
+    readsUnaryWith (const rl) "CyclicSCC" CyclicSCC
+
+instance F.Foldable SCC where
+  foldr c n (AcyclicSCC v) = c v n
+  foldr c n (CyclicSCC vs) = foldr c n vs
+
+instance Traversable SCC where
+  -- We treat the non-empty cyclic case specially to cut one
+  -- fmap application.
+  traverse f (AcyclicSCC vertex) = AcyclicSCC <$> f vertex
+  traverse _f (CyclicSCC []) = pure (CyclicSCC [])
+  traverse f (CyclicSCC (x : xs)) =
+    liftA2 (\x' xs' -> CyclicSCC (x' : xs')) (f x) (traverse f xs)
 
 instance NFData a => NFData (SCC a) where
     rnf (AcyclicSCC v) = rnf v
@@ -672,7 +742,7 @@ chop (Node v ts : us)
 newtype SetM s a = SetM { runSetM :: STArray s Vertex Bool -> ST s a }
 
 instance Monad (SetM s) where
-    return x     = SetM $ const (return x)
+    return = pure
     {-# INLINE return #-}
     SetM v >>= f = SetM $ \s -> do { x <- v s; runSetM (f x) s }
     {-# INLINE (>>=) #-}

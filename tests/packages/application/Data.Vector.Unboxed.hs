@@ -1,4 +1,4 @@
-{-# LANGUAGE Haskell2010, CPP, DeriveDataTypeable #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Vector/Unboxed.hs" #-}
 
 
@@ -47,7 +47,15 @@
 
 
 
-{-# LANGUAGE Rank2Types, TypeFamilies #-}
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP, Rank2Types, TypeFamilies #-}
 
 -- |
 -- Module      : Data.Vector.Unboxed
@@ -111,10 +119,11 @@ module Data.Vector.Unboxed (
   empty, singleton, replicate, generate, iterateN,
 
   -- ** Monadic initialisation
-  replicateM, generateM, create,
+  replicateM, generateM, iterateNM, create, createT,
 
   -- ** Unfolding
   unfoldr, unfoldrN,
+  unfoldrM, unfoldrNM,
   constructN, constructrN,
 
   -- ** Enumeration
@@ -136,7 +145,7 @@ module Data.Vector.Unboxed (
   accum, accumulate, accumulate_,
   unsafeAccum, unsafeAccumulate, unsafeAccumulate_,
 
-  -- ** Permutations 
+  -- ** Permutations
   reverse, backpermute, unsafeBackpermute,
 
   -- ** Safe destructive updates
@@ -151,7 +160,7 @@ module Data.Vector.Unboxed (
   map, imap, concatMap,
 
   -- ** Monadic mapping
-  mapM, mapM_, forM, forM_,
+  mapM, imapM, mapM_, imapM_, forM, forM_,
 
   -- ** Zipping
   zipWith, zipWith3, zipWith4, zipWith5, zipWith6,
@@ -159,7 +168,7 @@ module Data.Vector.Unboxed (
   zip, zip3, zip4, zip5, zip6,
 
   -- ** Monadic zipping
-  zipWithM, zipWithM_,
+  zipWithM, izipWithM, zipWithM_, izipWithM_,
 
   -- ** Unzipping
   unzip, unzip3, unzip4, unzip5, unzip6,
@@ -167,7 +176,9 @@ module Data.Vector.Unboxed (
   -- * Working with predicates
 
   -- ** Filtering
-  filter, ifilter, filterM,
+  filter, ifilter, uniq,
+  mapMaybe, imapMaybe,
+  filterM,
   takeWhile, dropWhile,
 
   -- ** Partitioning
@@ -187,8 +198,9 @@ module Data.Vector.Unboxed (
   minIndex, minIndexBy, maxIndex, maxIndexBy,
 
   -- ** Monadic folds
-  foldM, foldM', fold1M, fold1M',
-  foldM_, foldM'_, fold1M_, fold1M'_,
+  foldM, ifoldM, foldM', ifoldM',
+  fold1M, fold1M', foldM_, ifoldM_,
+  foldM'_, ifoldM'_, fold1M_, fold1M'_,
 
   -- * Prefix sums (scans)
   prescanl, prescanl',
@@ -212,7 +224,7 @@ module Data.Vector.Unboxed (
 
 import Data.Vector.Unboxed.Base
 import qualified Data.Vector.Generic as G
-import qualified Data.Vector.Fusion.Stream as Stream
+import qualified Data.Vector.Fusion.Bundle as Bundle
 import Data.Vector.Fusion.Util ( delayed_min )
 
 import Control.Monad.ST ( ST )
@@ -231,17 +243,14 @@ import Prelude hiding ( length, null,
                         scanl, scanl1, scanr, scanr1,
                         enumFromTo, enumFromThenTo,
                         mapM, mapM_ )
-import qualified Prelude
 
-import Text.Read     ( Read(..), readListPrecDefault )
+import Text.Read      ( Read(..), readListPrecDefault )
+import Data.Semigroup ( Semigroup(..) )
 
-import Data.Monoid   ( Monoid(..) )
 
 import qualified GHC.Exts as Exts (IsList(..))
 
 
-
-import qualified Data.Vector.Internal.Check as Ck
 
 
 
@@ -250,27 +259,34 @@ import qualified Data.Vector.Internal.Check as Ck
 -- See http://trac.haskell.org/vector/ticket/12
 instance (Unbox a, Eq a) => Eq (Vector a) where
   {-# INLINE (==) #-}
-  xs == ys = Stream.eq (G.stream xs) (G.stream ys)
+  xs == ys = Bundle.eq (G.stream xs) (G.stream ys)
 
   {-# INLINE (/=) #-}
-  xs /= ys = not (Stream.eq (G.stream xs) (G.stream ys))
+  xs /= ys = not (Bundle.eq (G.stream xs) (G.stream ys))
 
 -- See http://trac.haskell.org/vector/ticket/12
 instance (Unbox a, Ord a) => Ord (Vector a) where
   {-# INLINE compare #-}
-  compare xs ys = Stream.cmp (G.stream xs) (G.stream ys)
+  compare xs ys = Bundle.cmp (G.stream xs) (G.stream ys)
 
   {-# INLINE (<) #-}
-  xs < ys = Stream.cmp (G.stream xs) (G.stream ys) == LT
+  xs < ys = Bundle.cmp (G.stream xs) (G.stream ys) == LT
 
   {-# INLINE (<=) #-}
-  xs <= ys = Stream.cmp (G.stream xs) (G.stream ys) /= GT
+  xs <= ys = Bundle.cmp (G.stream xs) (G.stream ys) /= GT
 
   {-# INLINE (>) #-}
-  xs > ys = Stream.cmp (G.stream xs) (G.stream ys) == GT
+  xs > ys = Bundle.cmp (G.stream xs) (G.stream ys) == GT
 
   {-# INLINE (>=) #-}
-  xs >= ys = Stream.cmp (G.stream xs) (G.stream ys) /= LT
+  xs >= ys = Bundle.cmp (G.stream xs) (G.stream ys) /= LT
+
+instance Unbox a => Semigroup (Vector a) where
+  {-# INLINE (<>) #-}
+  (<>) = (++)
+
+  {-# INLINE sconcat #-}
+  sconcat = G.concatNE
 
 instance Unbox a => Monoid (Vector a) where
   {-# INLINE mempty #-}
@@ -300,12 +316,12 @@ instance (Unbox e) => Exts.IsList (Vector e) where
 -- Length information
 -- ------------------
 
--- | /O(1)/ Yield the length of the vector.
+-- | /O(1)/ Yield the length of the vector
 length :: Unbox a => Vector a -> Int
 {-# INLINE length #-}
 length = G.length
 
--- | /O(1)/ Test whether a vector if empty
+-- | /O(1)/ Test whether a vector is empty
 null :: Unbox a => Vector a -> Bool
 {-# INLINE null #-}
 null = G.null
@@ -523,14 +539,30 @@ unfoldr :: Unbox a => (b -> Maybe (a, b)) -> b -> Vector a
 {-# INLINE unfoldr #-}
 unfoldr = G.unfoldr
 
--- | /O(n)/ Construct a vector with at most @n@ by repeatedly applying the
--- generator function to the a seed. The generator function yields 'Just' the
+-- | /O(n)/ Construct a vector with at most @n@ elements by repeatedly applying
+-- the generator function to a seed. The generator function yields 'Just' the
 -- next element and the new seed or 'Nothing' if there are no more elements.
 --
 -- > unfoldrN 3 (\n -> Just (n,n-1)) 10 = <10,9,8>
 unfoldrN :: Unbox a => Int -> (b -> Maybe (a, b)) -> b -> Vector a
 {-# INLINE unfoldrN #-}
 unfoldrN = G.unfoldrN
+
+-- | /O(n)/ Construct a vector by repeatedly applying the monadic
+-- generator function to a seed. The generator function yields 'Just'
+-- the next element and the new seed or 'Nothing' if there are no more
+-- elements.
+unfoldrM :: (Monad m, Unbox a) => (b -> m (Maybe (a, b))) -> b -> m (Vector a)
+{-# INLINE unfoldrM #-}
+unfoldrM = G.unfoldrM
+
+-- | /O(n)/ Construct a vector by repeatedly applying the monadic
+-- generator function to a seed. The generator function yields 'Just'
+-- the next element and the new seed or 'Nothing' if there are no more
+-- elements.
+unfoldrNM :: (Monad m, Unbox a) => Int -> (b -> m (Maybe (a, b))) -> b -> m (Vector a)
+{-# INLINE unfoldrNM #-}
+unfoldrNM = G.unfoldrNM
 
 -- | /O(n)/ Construct a vector with @n@ elements by repeatedly applying the
 -- generator function to the already constructed part of the vector.
@@ -625,6 +657,11 @@ generateM :: (Monad m, Unbox a) => Int -> (Int -> m a) -> m (Vector a)
 {-# INLINE generateM #-}
 generateM = G.generateM
 
+-- | /O(n)/ Apply monadic function n times to value. Zeroth element is original value.
+iterateNM :: (Monad m, Unbox a) => Int -> (a -> m a) -> a -> m (Vector a)
+{-# INLINE iterateNM #-}
+iterateNM = G.iterateNM
+
 -- | Execute the monadic action and freeze the resulting vector.
 --
 -- @
@@ -634,6 +671,11 @@ create :: Unbox a => (forall s. ST s (MVector s a)) -> Vector a
 {-# INLINE create #-}
 -- NOTE: eta-expanded due to http://hackage.haskell.org/trac/ghc/ticket/4120
 create p = G.create p
+
+-- | Execute the monadic action and freeze the resulting vectors.
+createT :: (Traversable f, Unbox a) => (forall s. ST s (f (MVector s a))) -> f (Vector a)
+{-# INLINE createT #-}
+createT p = G.createT p
 
 -- Restricting memory usage
 -- ------------------------
@@ -661,7 +703,7 @@ force = G.force
 -- > <5,9,2,7> // [(2,1),(0,3),(2,8)] = <3,9,8,7>
 --
 (//) :: Unbox a => Vector a   -- ^ initial vector (of length @m@)
-                -> [(Int, a)] -- ^ list of index/value pairs (of length @n@) 
+                -> [(Int, a)] -- ^ list of index/value pairs (of length @n@)
                 -> Vector a
 {-# INLINE (//) #-}
 (//) = (G.//)
@@ -850,14 +892,27 @@ mapM :: (Monad m, Unbox a, Unbox b) => (a -> m b) -> Vector a -> m (Vector b)
 {-# INLINE mapM #-}
 mapM = G.mapM
 
+-- | /O(n)/ Apply the monadic action to every element of a vector and its
+-- index, yielding a vector of results
+imapM :: (Monad m, Unbox a, Unbox b)
+      => (Int -> a -> m b) -> Vector a -> m (Vector b)
+{-# INLINE imapM #-}
+imapM = G.imapM
+
 -- | /O(n)/ Apply the monadic action to all elements of a vector and ignore the
 -- results
 mapM_ :: (Monad m, Unbox a) => (a -> m b) -> Vector a -> m ()
 {-# INLINE mapM_ #-}
 mapM_ = G.mapM_
 
+-- | /O(n)/ Apply the monadic action to every element of a vector and its
+-- index, ignoring the results
+imapM_ :: (Monad m, Unbox a) => (Int -> a -> m b) -> Vector a -> m ()
+{-# INLINE imapM_ #-}
+imapM_ = G.imapM_
+
 -- | /O(n)/ Apply the monadic action to all elements of the vector, yielding a
--- vector of results. Equvalent to @flip 'mapM'@.
+-- vector of results. Equivalent to @flip 'mapM'@.
 forM :: (Monad m, Unbox a, Unbox b) => Vector a -> (a -> m b) -> m (Vector b)
 {-# INLINE forM #-}
 forM = G.forM
@@ -947,12 +1002,26 @@ zipWithM :: (Monad m, Unbox a, Unbox b, Unbox c)
 {-# INLINE zipWithM #-}
 zipWithM = G.zipWithM
 
+-- | /O(min(m,n))/ Zip the two vectors with a monadic action that also takes
+-- the element index and yield a vector of results
+izipWithM :: (Monad m, Unbox a, Unbox b, Unbox c)
+         => (Int -> a -> b -> m c) -> Vector a -> Vector b -> m (Vector c)
+{-# INLINE izipWithM #-}
+izipWithM = G.izipWithM
+
 -- | /O(min(m,n))/ Zip the two vectors with the monadic action and ignore the
 -- results
 zipWithM_ :: (Monad m, Unbox a, Unbox b)
           => (a -> b -> m c) -> Vector a -> Vector b -> m ()
 {-# INLINE zipWithM_ #-}
 zipWithM_ = G.zipWithM_
+
+-- | /O(min(m,n))/ Zip the two vectors with a monadic action that also takes
+-- the element index and ignore the results
+izipWithM_ :: (Monad m, Unbox a, Unbox b)
+          => (Int -> a -> b -> m c) -> Vector a -> Vector b -> m ()
+{-# INLINE izipWithM_ #-}
+izipWithM_ = G.izipWithM_
 
 -- Filtering
 -- ---------
@@ -962,11 +1031,26 @@ filter :: Unbox a => (a -> Bool) -> Vector a -> Vector a
 {-# INLINE filter #-}
 filter = G.filter
 
+-- | /O(n)/ Drop repeated adjacent elements.
+uniq :: (Unbox a, Eq a) => Vector a -> Vector a
+{-# INLINE uniq #-}
+uniq = G.uniq
+
 -- | /O(n)/ Drop elements that do not satisfy the predicate which is applied to
 -- values and their indices
 ifilter :: Unbox a => (Int -> a -> Bool) -> Vector a -> Vector a
 {-# INLINE ifilter #-}
 ifilter = G.ifilter
+
+-- | /O(n)/ Drop elements when predicate returns Nothing
+mapMaybe :: (Unbox a, Unbox b) => (a -> Maybe b) -> Vector a -> Vector b
+{-# INLINE mapMaybe #-}
+mapMaybe = G.mapMaybe
+
+-- | /O(n)/ Drop elements when predicate, applied to index and value, returns Nothing
+imapMaybe :: (Unbox a, Unbox b) => (Int -> a -> Maybe b) -> Vector a -> Vector b
+{-# INLINE imapMaybe #-}
+imapMaybe = G.imapMaybe
 
 -- | /O(n)/ Drop elements that do not satisfy the monadic predicate
 filterM :: (Monad m, Unbox a) => (a -> m Bool) -> Vector a -> m (Vector a)
@@ -1216,6 +1300,11 @@ foldM :: (Monad m, Unbox b) => (a -> b -> m a) -> a -> Vector b -> m a
 {-# INLINE foldM #-}
 foldM = G.foldM
 
+-- | /O(n)/ Monadic fold (action applied to each element and its index)
+ifoldM :: (Monad m, Unbox b) => (a -> Int -> b -> m a) -> a -> Vector b -> m a
+{-# INLINE ifoldM #-}
+ifoldM = G.ifoldM
+
 -- | /O(n)/ Monadic fold over non-empty vectors
 fold1M :: (Monad m, Unbox a) => (a -> a -> m a) -> Vector a -> m a
 {-# INLINE fold1M #-}
@@ -1225,6 +1314,12 @@ fold1M = G.fold1M
 foldM' :: (Monad m, Unbox b) => (a -> b -> m a) -> a -> Vector b -> m a
 {-# INLINE foldM' #-}
 foldM' = G.foldM'
+
+-- | /O(n)/ Monadic fold with strict accumulator (action applied to each
+-- element and its index)
+ifoldM' :: (Monad m, Unbox b) => (a -> Int -> b -> m a) -> a -> Vector b -> m a
+{-# INLINE ifoldM' #-}
+ifoldM' = G.ifoldM'
 
 -- | /O(n)/ Monadic fold over non-empty vectors with strict accumulator
 fold1M' :: (Monad m, Unbox a) => (a -> a -> m a) -> Vector a -> m a
@@ -1236,6 +1331,12 @@ foldM_ :: (Monad m, Unbox b) => (a -> b -> m a) -> a -> Vector b -> m ()
 {-# INLINE foldM_ #-}
 foldM_ = G.foldM_
 
+-- | /O(n)/ Monadic fold that discards the result (action applied to each
+-- element and its index)
+ifoldM_ :: (Monad m, Unbox b) => (a -> Int -> b -> m a) -> a -> Vector b -> m ()
+{-# INLINE ifoldM_ #-}
+ifoldM_ = G.ifoldM_
+
 -- | /O(n)/ Monadic fold over non-empty vectors that discards the result
 fold1M_ :: (Monad m, Unbox a) => (a -> a -> m a) -> Vector a -> m ()
 {-# INLINE fold1M_ #-}
@@ -1245,6 +1346,13 @@ fold1M_ = G.fold1M_
 foldM'_ :: (Monad m, Unbox b) => (a -> b -> m a) -> a -> Vector b -> m ()
 {-# INLINE foldM'_ #-}
 foldM'_ = G.foldM'_
+
+-- | /O(n)/ Monadic fold with strict accumulator that discards the result
+-- (action applied to each element and its index)
+ifoldM'_ :: (Monad m, Unbox b)
+         => (a -> Int -> b -> m a) -> a -> Vector b -> m ()
+{-# INLINE ifoldM'_ #-}
+ifoldM'_ = G.ifoldM'_
 
 -- | /O(n)/ Monadic fold over non-empty vectors with strict accumulator
 -- that discards the result
@@ -1296,7 +1404,7 @@ postscanl' = G.postscanl'
 -- >         yi = f y(i-1) x(i-1)
 --
 -- Example: @scanl (+) 0 \<1,2,3,4\> = \<0,1,3,6,10\>@
--- 
+--
 scanl :: (Unbox a, Unbox b) => (a -> b -> a) -> a -> Vector b -> Vector a
 {-# INLINE scanl #-}
 scanl = G.scanl
@@ -1420,7 +1528,7 @@ unsafeCopy
   :: (Unbox a, PrimMonad m) => MVector (PrimState m) a -> Vector a -> m ()
 {-# INLINE unsafeCopy #-}
 unsafeCopy = G.unsafeCopy
-           
+
 -- | /O(n)/ Copy an immutable vector into a mutable one. The two vectors must
 -- have the same length.
 copy :: (Unbox a, PrimMonad m) => MVector (PrimState m) a -> Vector a -> m ()
@@ -1434,14 +1542,14 @@ zip :: (Unbox a, Unbox b) => Vector a -> Vector b -> Vector (a, b)
 zip as bs = V_2 len (unsafeSlice 0 len as) (unsafeSlice 0 len bs)
   where len = length as `delayed_min` length bs
 {-# RULES "stream/zip [Vector.Unboxed]" forall as bs .
-  G.stream (zip as bs) = Stream.zipWith (,) (G.stream as)
-                                            (G.stream bs)
-  #-}
+  G.stream (zip as bs) = Bundle.zipWith (,) (G.stream as)
+                                            (G.stream bs)   #-}
+
 -- | /O(1)/ Unzip 2 vectors
 unzip :: (Unbox a, Unbox b) => Vector (a, b) -> (Vector a,
                                                  Vector b)
 {-# INLINE unzip #-}
-unzip (V_2 n_ as bs) = (as, bs)
+unzip (V_2 _ as bs) = (as, bs)
 -- | /O(1)/ Zip 3 vectors
 zip3 :: (Unbox a, Unbox b, Unbox c) => Vector a ->
                                        Vector b ->
@@ -1453,16 +1561,16 @@ zip3 as bs cs = V_3 len (unsafeSlice 0 len as)
   where
     len = length as `delayed_min` length bs `delayed_min` length cs
 {-# RULES "stream/zip3 [Vector.Unboxed]" forall as bs cs .
-  G.stream (zip3 as bs cs) = Stream.zipWith3 (, ,) (G.stream as)
+  G.stream (zip3 as bs cs) = Bundle.zipWith3 (, ,) (G.stream as)
                                                    (G.stream bs)
-                                                   (G.stream cs)
-  #-}
+                                                   (G.stream cs)   #-}
+
 -- | /O(1)/ Unzip 3 vectors
 unzip3 :: (Unbox a,
            Unbox b,
            Unbox c) => Vector (a, b, c) -> (Vector a, Vector b, Vector c)
 {-# INLINE unzip3 #-}
-unzip3 (V_3 n_ as bs cs) = (as, bs, cs)
+unzip3 (V_3 _ as bs cs) = (as, bs, cs)
 -- | /O(1)/ Zip 4 vectors
 zip4 :: (Unbox a, Unbox b, Unbox c, Unbox d) => Vector a ->
                                                 Vector b ->
@@ -1479,11 +1587,11 @@ zip4 as bs cs ds = V_4 len (unsafeSlice 0 len as)
           length cs `delayed_min`
           length ds
 {-# RULES "stream/zip4 [Vector.Unboxed]" forall as bs cs ds .
-  G.stream (zip4 as bs cs ds) = Stream.zipWith4 (, , ,) (G.stream as)
+  G.stream (zip4 as bs cs ds) = Bundle.zipWith4 (, , ,) (G.stream as)
                                                         (G.stream bs)
                                                         (G.stream cs)
-                                                        (G.stream ds)
-  #-}
+                                                        (G.stream ds)   #-}
+
 -- | /O(1)/ Unzip 4 vectors
 unzip4 :: (Unbox a,
            Unbox b,
@@ -1493,7 +1601,7 @@ unzip4 :: (Unbox a,
                                                Vector c,
                                                Vector d)
 {-# INLINE unzip4 #-}
-unzip4 (V_4 n_ as bs cs ds) = (as, bs, cs, ds)
+unzip4 (V_4 _ as bs cs ds) = (as, bs, cs, ds)
 -- | /O(1)/ Zip 5 vectors
 zip5 :: (Unbox a,
          Unbox b,
@@ -1521,12 +1629,12 @@ zip5 as bs cs ds es = V_5 len (unsafeSlice 0 len as)
                  bs
                  cs
                  ds
-                 es) = Stream.zipWith5 (, , , ,) (G.stream as)
+                 es) = Bundle.zipWith5 (, , , ,) (G.stream as)
                                                  (G.stream bs)
                                                  (G.stream cs)
                                                  (G.stream ds)
-                                                 (G.stream es)
-  #-}
+                                                 (G.stream es)   #-}
+
 -- | /O(1)/ Unzip 5 vectors
 unzip5 :: (Unbox a,
            Unbox b,
@@ -1538,7 +1646,7 @@ unzip5 :: (Unbox a,
                                                   Vector d,
                                                   Vector e)
 {-# INLINE unzip5 #-}
-unzip5 (V_5 n_ as bs cs ds es) = (as, bs, cs, ds, es)
+unzip5 (V_5 _ as bs cs ds es) = (as, bs, cs, ds, es)
 -- | /O(1)/ Zip 6 vectors
 zip6 :: (Unbox a,
          Unbox b,
@@ -1571,13 +1679,13 @@ zip6 as bs cs ds es fs = V_6 len (unsafeSlice 0 len as)
                  cs
                  ds
                  es
-                 fs) = Stream.zipWith6 (, , , , ,) (G.stream as)
+                 fs) = Bundle.zipWith6 (, , , , ,) (G.stream as)
                                                    (G.stream bs)
                                                    (G.stream cs)
                                                    (G.stream ds)
                                                    (G.stream es)
-                                                   (G.stream fs)
-  #-}
+                                                   (G.stream fs)   #-}
+
 -- | /O(1)/ Unzip 6 vectors
 unzip6 :: (Unbox a,
            Unbox b,
@@ -1591,5 +1699,4 @@ unzip6 :: (Unbox a,
                                                      Vector e,
                                                      Vector f)
 {-# INLINE unzip6 #-}
-unzip6 (V_6 n_ as bs cs ds es fs) = (as, bs, cs, ds, es, fs)
-
+unzip6 (V_6 _ as bs cs ds es fs) = (as, bs, cs, ds, es, fs)

@@ -1,37 +1,105 @@
 {-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Control/AutoUpdate.hs" #-}
--- | A common problem is the desire to have an action run at a scheduled
--- interval, but only if it is needed. For example, instead of having
--- every web request result in a new @getCurrentTime@ call, we'd like to
--- have a single worker thread run every second, updating an @IORef@.
--- However, if the request frequency is less than once per second, this is
--- a pessimization, and worse, kills idle GC.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
+-- | In a multithreaded environment, running actions on a regularly scheduled
+-- background thread can dramatically improve performance.
+-- For example, web servers need to return the current time with each HTTP response.
+-- For a high-volume server, it's much faster for a dedicated thread to run every
+-- second, and write the current time to a shared 'IORef', than it is for each
+-- request to make its own call to 'getCurrentTime'.
 --
--- This library allows you to define actions which will either be
--- performed by a dedicated thread or, in times of low volume, will be
--- executed by the calling thread.
+-- But for a low-volume server, whose request frequency is less than once per 
+-- second, that approach will result in /more/ calls to 'getCurrentTime' than 
+-- necessary, and worse, kills idle GC.
+--
+-- This library solves that problem by allowing you to define actions which will
+-- either be performed by a dedicated thread, or, in times of low volume, will 
+-- be executed by the calling thread.
+--
+-- Example usage:
+--
+-- @
+-- import "Data.Time"
+-- import "Control.AutoUpdate"
+--
+-- getTime <- 'mkAutoUpdate' 'defaultUpdateSettings'
+--              { 'updateAction' = 'Data.Time.Clock.getCurrentTime'
+--              , 'updateFreq' = 1000000 -- The default frequency, once per second
+--              }
+-- currentTime <- getTime
+-- @
+--
+-- For more examples, <http://www.yesodweb.com/blog/2014/08/announcing-auto-update see the blog post introducing this library>.
 module Control.AutoUpdate (
       -- * Type
       UpdateSettings
     , defaultUpdateSettings
       -- * Accessors
+    , updateAction
     , updateFreq
     , updateSpawnThreshold
-    , updateAction
       -- * Creation
     , mkAutoUpdate
+    , mkAutoUpdateWithModify
     ) where
 
 import           Control.Concurrent      (forkIO, threadDelay)
 import           Control.Concurrent.MVar (newEmptyMVar, putMVar, readMVar,
                                           takeMVar, tryPutMVar)
-import           Control.Exception       (SomeException, catch, throw, mask_, try)
+import           Control.Exception       (SomeException, catch, mask_, throw,
+                                          try)
 import           Control.Monad           (void)
 import           Data.IORef              (newIORef, readIORef, writeIORef)
 
--- | Default value for creating an @UpdateSettings@.
+-- | Default value for creating an 'UpdateSettings'.
 --
--- Since 0.1.0
+-- @since 0.1.0
 defaultUpdateSettings :: UpdateSettings ()
 defaultUpdateSettings = UpdateSettings
     { updateFreq = 1000000
@@ -41,46 +109,57 @@ defaultUpdateSettings = UpdateSettings
 
 -- | Settings to control how values are updated.
 --
--- This should be constructed using @defaultUpdateSettings@ and record
+-- This should be constructed using 'defaultUpdateSettings' and record
 -- update syntax, e.g.:
 --
 -- @
--- let set = defaultUpdateSettings { updateAction = getCurrentTime }
+-- let settings = 'defaultUpdateSettings' { 'updateAction' = 'Data.Time.Clock.getCurrentTime' }
 -- @
 --
--- Since 0.1.0
+-- @since 0.1.0
 data UpdateSettings a = UpdateSettings
     { updateFreq           :: Int
     -- ^ Microseconds between update calls. Same considerations as
-    -- @threadDelay@ apply.
+    -- 'threadDelay' apply.
     --
     -- Default: 1 second (1000000)
     --
-    -- Since 0.1.0
+    -- @since 0.1.0
     , updateSpawnThreshold :: Int
     -- ^ NOTE: This value no longer has any effect, since worker threads are
     -- dedicated instead of spawned on demand.
     --
-    -- Previously, this determined: How many times the data must be requested
+    -- Previously, this determined how many times the data must be requested
     -- before we decide to spawn a dedicated thread.
     --
     -- Default: 3
     --
-    -- Since 0.1.0
+    -- @since 0.1.0
     , updateAction         :: IO a
     -- ^ Action to be performed to get the current value.
     --
     -- Default: does nothing.
     --
-    -- Since 0.1.0
+    -- @since 0.1.0
     }
 
 -- | Generate an action which will either read from an automatically
 -- updated value, or run the update action in the current thread.
 --
--- Since 0.1.0
+-- @since 0.1.0
 mkAutoUpdate :: UpdateSettings a -> IO (IO a)
-mkAutoUpdate us = do
+mkAutoUpdate us = mkAutoUpdateHelper us Nothing
+
+-- | Generate an action which will either read from an automatically
+-- updated value, or run the update action in the current thread if
+-- the first time or the provided modify action after that.
+--
+-- @since 0.1.4
+mkAutoUpdateWithModify :: UpdateSettings a -> (a -> IO a) -> IO (IO a)
+mkAutoUpdateWithModify us f = mkAutoUpdateHelper us (Just f)
+
+mkAutoUpdateHelper :: UpdateSettings a -> Maybe (a -> IO a) -> IO (IO a)
+mkAutoUpdateHelper us updateActionModify = do
     -- A baton to tell the worker thread to generate a new value.
     needsRunning <- newEmptyMVar
 
@@ -123,12 +202,12 @@ mkAutoUpdate us = do
         -- This infinite loop makes up out worker thread. It takes an a
         -- responseVar value where the next value should be putMVar'ed to for
         -- the benefit of any requesters currently blocked on it.
-        let loop responseVar = do
+        let loop responseVar maybea = do
                 -- block until a value is actually needed
                 takeMVar needsRunning
 
                 -- new value requested, so run the updateAction
-                a <- catchSome $ updateAction us
+                a <- catchSome $ maybe (updateAction us) id (updateActionModify <*> maybea)
 
                 -- we got a new value, update currRef and lastValue
                 writeIORef currRef $ Right a
@@ -143,10 +222,10 @@ mkAutoUpdate us = do
                 -- variable.
                 responseVar' <- newEmptyMVar
                 writeIORef currRef $ Left responseVar'
-                loop responseVar'
+                loop responseVar' (Just a)
 
         -- Kick off the loop, with the initial responseVar0 variable.
-        loop responseVar0
+        loop responseVar0 Nothing
 
     return $ do
         mval <- readIORef currRef
@@ -160,7 +239,7 @@ mkAutoUpdate us = do
             -- we have a current value, use it
             Right val -> return val
 
--- | Turn a runtime exception into an impure exception, so that all @IO@
+-- | Turn a runtime exception into an impure exception, so that all 'IO'
 -- actions will complete successfully. This simply defers the exception until
 -- the value is forced.
 catchSome :: IO a -> IO a

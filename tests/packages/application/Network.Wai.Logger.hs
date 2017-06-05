@@ -1,5 +1,83 @@
 {-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Network/Wai/Logger.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
+
 -- | Apache style logger for WAI applications.
 --
 -- An example:
@@ -20,51 +98,50 @@
 -- >     run 3000 $ logApp aplogger
 -- >
 -- > logApp :: ApacheLogger -> Application
--- > logApp aplogger req = do
+-- > logApp aplogger req response = do
 -- >     liftIO $ aplogger req status (Just len)
--- >     return $ responseBuilder status hdr msg
+-- >     response $ responseBuilder status hdr msg
 -- >   where
 -- >     status = status200
--- >     hdr = [("Content-Type", "text/plain")
--- >           ,("Content-Length", BS.pack (show len))]
+-- >     hdr = [("Content-Type", "text/plain")]
 -- >     pong = "PONG"
+-- >     msg = fromByteString pong
 -- >     len = fromIntegral $ BS.length pong
--- >     msg = toLogStr pong
 
 module Network.Wai.Logger (
   -- * High level functions
     ApacheLogger
   , withStdoutLogger
+  , ServerPushLogger
   -- * Creating a logger
-  , ApacheLoggerActions(..)
+  , ApacheLoggerActions
+  , apacheLogger
+  , serverpushLogger
+  , logRotator
+  , logRemover
   , initLogger
   -- * Types
   , IPAddrSource(..)
   , LogType(..)
   , FileLogSpec(..)
-  -- * Date cacher
+  -- * Utilities
+  , showSockAddr
+  , logCheck
+  -- * Backward compability
   , clockDateCacher
   , ZonedDate
   , DateCacheGetter
   , DateCacheUpdater
-  -- * Utilities
-  , logCheck
-  , showSockAddr
   ) where
 
-import Control.Applicative ((<$>))
-import Control.AutoUpdate (mkAutoUpdate, defaultUpdateSettings, updateAction)
-import Control.Concurrent (MVar, newMVar, tryTakeMVar, putMVar)
-import Control.Exception (handle, SomeException(..), bracket)
-import Control.Monad (when, void)
+import Control.Exception (bracket)
+import Control.Monad (void)
+import Data.ByteString (ByteString)
 import Network.HTTP.Types (Status)
 import Network.Wai (Request)
-import System.EasyFile (getFileSize)
 import System.Log.FastLogger
 
 import Network.Wai.Logger.Apache
-import Network.Wai.Logger.Date
-import Network.Wai.Logger.IORef
 import Network.Wai.Logger.IP (showSockAddr)
 
 ----------------------------------------------------------------
@@ -77,8 +154,8 @@ withStdoutLogger app = bracket setup teardown $ \(aplogger, _) ->
     app aplogger
   where
     setup = do
-        (getter, _updater) <- clockDateCacher
-        apf <- initLogger FromFallback (LogStdout 4096) getter
+        tgetter <- newTimeCache simpleTimeFormat
+        apf <- initLogger FromFallback (LogStdout 4096) tgetter
         let aplogger = apacheLogger apf
             remover = logRemover apf
         return (aplogger, remover)
@@ -89,145 +166,77 @@ withStdoutLogger app = bracket setup teardown $ \(aplogger, _) ->
 -- | Apache style logger.
 type ApacheLogger = Request -> Status -> Maybe Integer -> IO ()
 
+-- | HTTP/2 server push logger in Apache style.
+type ServerPushLogger = Request -> ByteString -> Integer -> IO ()
+
+-- | Function set of Apache style logger.
 data ApacheLoggerActions = ApacheLoggerActions {
+    -- | The Apache logger.
     apacheLogger :: ApacheLogger
+    -- | The HTTP/2 server push logger.
+  , serverpushLogger :: ServerPushLogger
     -- | This is obsoleted. Rotation is done on-demand.
     --   So, this is now an empty action.
   , logRotator :: IO ()
-    -- | Removing resources relating Apache logger.
+    -- | Removing resources relating to Apache logger.
     --   E.g. flushing and deallocating internal buffers.
   , logRemover :: IO ()
   }
 
--- | Logger Type.
-data LogType = LogNone                     -- ^ No logging.
-             | LogStdout BufSize           -- ^ Logging to stdout.
-                                           --   'BufSize' is a buffer size
-                                           --   for each capability.
-             | LogFile FileLogSpec BufSize -- ^ Logging to a file.
-                                           --   'BufSize' is a buffer size
-                                           --   for each capability.
-                                           --   File rotation is done on-demand.
-             | LogCallback (LogStr -> IO ()) (IO ())
-
 ----------------------------------------------------------------
 
--- |
--- Creating 'ApacheLogger' according to 'LogType'.
-initLogger :: IPAddrSource -> LogType -> DateCacheGetter
+-- | Creating 'ApacheLogger' according to 'LogType'.
+initLogger :: IPAddrSource -> LogType -> IO FormattedTime
            -> IO ApacheLoggerActions
-initLogger _     LogNone             _       = noLoggerInit
-initLogger ipsrc (LogStdout size)    dateget = stdoutLoggerInit ipsrc size dateget
-initLogger ipsrc (LogFile spec size) dateget = fileLoggerInit ipsrc spec size dateget
-initLogger ipsrc (LogCallback cb flush) dateget = callbackLoggerInit ipsrc cb flush dateget
+initLogger ipsrc typ tgetter = do
+    (fl, cleanUp) <- newFastLogger typ
+    return $ ApacheLoggerActions {
+        apacheLogger     = apache fl ipsrc tgetter
+      , serverpushLogger = serverpush fl ipsrc tgetter
+      , logRotator       = return ()
+      , logRemover       = cleanUp
+      }
+
+--- | Checking if a log file can be written if 'LogType' is 'LogFileNoRotate' or 'LogFile'.
+logCheck :: LogType -> IO ()
+logCheck LogNone          = return ()
+logCheck (LogStdout _)    = return ()
+logCheck (LogStderr _)    = return ()
+logCheck (LogFileNoRotate fp _)  = check fp
+logCheck (LogFile spec _)        = check (log_file spec)
+logCheck (LogCallback _ _) = return ()
 
 ----------------------------------------------------------------
 
-noLoggerInit :: IO ApacheLoggerActions
-noLoggerInit = return ApacheLoggerActions {
-    apacheLogger = noLogger
-  , logRotator = noRotator
-  , logRemover = noRemover
-  }
-  where
-    noLogger _ _ _ = return ()
-    noRotator = return ()
-    noRemover = return ()
-
-stdoutLoggerInit :: IPAddrSource -> BufSize -> DateCacheGetter
-                 -> IO ApacheLoggerActions
-stdoutLoggerInit ipsrc size dateget = do
-    lgrset <- newStdoutLoggerSet size
-    let logger = apache (pushLogStr lgrset) ipsrc dateget
-        noRotator = return ()
-        remover = rmLoggerSet lgrset
-    return ApacheLoggerActions {
-        apacheLogger = logger
-      , logRotator = noRotator
-      , logRemover = remover
-      }
-
-fileLoggerInit :: IPAddrSource -> FileLogSpec -> BufSize -> DateCacheGetter
-               -> IO ApacheLoggerActions
-fileLoggerInit ipsrc spec size dateget = do
-    lgrset <- newFileLoggerSet size $ log_file spec
-    ref <- newIORef (0 :: Int)
-    mvar <- newMVar ()
-    let logger a b c = do
-            cnt <- decrease ref
-            apache (pushLogStr lgrset) ipsrc dateget a b c
-            when (cnt <= 0) $ tryRotate lgrset spec ref mvar
-        noRotator = return ()
-        remover = rmLoggerSet lgrset
-    return ApacheLoggerActions {
-        apacheLogger = logger
-      , logRotator = noRotator
-      , logRemover = remover
-      }
-
-decrease :: IORef Int -> IO Int
-decrease ref = atomicModifyIORef' ref (\x -> (x - 1, x - 1))
-
-callbackLoggerInit :: IPAddrSource -> (LogStr -> IO ()) -> IO () -> DateCacheGetter
-                   -> IO ApacheLoggerActions
-callbackLoggerInit ipsrc cb flush dateget = do
-    flush' <- mkAutoUpdate defaultUpdateSettings
-        { updateAction = flush
-        }
-    let logger a b c = apache cb ipsrc dateget a b c >> flush'
-        noRotator = return ()
-        remover = return ()
-    return ApacheLoggerActions {
-        apacheLogger = logger
-      , logRotator = noRotator
-      , logRemover = remover
-      }
-
-----------------------------------------------------------------
-
-apache :: (LogStr -> IO ()) -> IPAddrSource -> DateCacheGetter -> ApacheLogger
+apache :: (LogStr -> IO ()) -> IPAddrSource -> IO FormattedTime -> ApacheLogger
 apache cb ipsrc dateget req st mlen = do
     zdata <- dateget
     cb (apacheLogStr ipsrc zdata req st mlen)
 
-----------------------------------------------------------------
+serverpush :: (LogStr -> IO ()) -> IPAddrSource -> IO FormattedTime -> ServerPushLogger
+serverpush cb ipsrc dateget req path size = do
+    zdata <- dateget
+    cb (serverpushLogStr ipsrc zdata req path size)
 
-tryRotate :: LoggerSet -> FileLogSpec -> IORef Int -> MVar () -> IO ()
-tryRotate lgrset spec ref mvar = bracket lock unlock rotateFiles
-  where
-    lock           = tryTakeMVar mvar
-    unlock Nothing = return ()
-    unlock _       = putMVar mvar ()
-    rotateFiles Nothing = return ()
-    rotateFiles _       = do
-        msiz <- getSize
-        case msiz of
-            -- A file is not available.
-            -- So, let's set a big value to the counter so that
-            -- this function is not called frequently.
-            Nothing -> writeIORef ref 1000000
-            Just siz
-                | siz > limit -> do
-                    rotate spec
-                    renewLoggerSet lgrset
-                    writeIORef ref $ estimate limit
-                | otherwise -> do
-                    writeIORef ref $ estimate (limit - siz)
-    file = log_file spec
-    limit = log_file_size spec
-    getSize = handle (\(SomeException _) -> return Nothing) $ do
-        -- The log file is locked by GHC.
-        -- We need to get its file size by the way not using locks.
-        Just . fromIntegral <$> getFileSize file
-    -- 200 is an ad-hoc value for the length of log line.
-    estimate x = fromInteger (x `div` 200)
+---------------------------------------------------------------
 
-----------------------------------------------------------------
+-- | Getting cached 'ZonedDate'.
+type DateCacheGetter = IO ZonedDate
+
+-- | Updateing cached 'ZonedDate'. This should be called every second.
+--   See the source code of 'withStdoutLogger'.
+type DateCacheUpdater = IO ()
+
+-- | A type for zoned date.
+type ZonedDate = FormattedTime
 
 -- |
--- Checking if a log file can be written if 'LogType' is 'LogFile'.
-logCheck :: LogType -> IO ()
-logCheck LogNone          = return ()
-logCheck (LogStdout _)    = return ()
-logCheck (LogFile spec _) = check spec
-logCheck (LogCallback _ _) = return ()
+-- Returning 'DateCacheGetter' and 'DateCacheUpdater'.
+--
+-- Note: Since version 2.1.2, this function uses the auto-update package
+-- internally, and therefore the @DateCacheUpdater@ value returned need
+-- not be called. To wit, the return value is in fact an empty action.
+clockDateCacher :: IO (DateCacheGetter, DateCacheUpdater)
+clockDateCacher = do
+    tgetter <- newTimeCache simpleTimeFormat
+    return (tgetter, return ())

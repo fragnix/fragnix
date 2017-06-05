@@ -1,5 +1,11 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Control/Concurrent/STM/TVar.hs" #-}
+
+
+
+
+
+
 
 
 
@@ -113,5 +119,5 @@ swapTVar var new = do
 --
 -- @since 2.4.3
 mkWeakTVar :: TVar a -> IO () -> IO (Weak (TVar a))
-mkWeakTVar t@(TVar t#) f = IO $ \s ->
-    case mkWeak# t# t f s of (# s1, w #) -> (# s1, Weak w #)
+mkWeakTVar t@(TVar t#) (IO finalizer) = IO $ \s ->
+    case mkWeak# t# t finalizer s of (# s1, w #) -> (# s1, Weak w #)

@@ -65,23 +65,33 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE OverloadedStrings, CPP #-}
 
 module Network.Wai.Logger.Apache (
     IPAddrSource(..)
   , apacheLogStr
+  , serverpushLogStr
   ) where
 
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
-import Data.CaseInsensitive (CI)
 import Data.List (find)
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Network.HTTP.Types (Status, statusCode)
 import Network.Wai (Request(..))
-import Network.Wai.Logger.Date
 import Network.Wai.Logger.IP
 import System.Log.FastLogger
 
@@ -99,7 +109,7 @@ data IPAddrSource =
   | FromFallback
 
 -- | Apache style log format.
-apacheLogStr :: IPAddrSource -> ZonedDate -> Request -> Status -> Maybe Integer -> LogStr
+apacheLogStr :: IPAddrSource -> FormattedTime -> Request -> Status -> Maybe Integer -> LogStr
 apacheLogStr ipsrc tmstr req status msize =
       toLogStr (getSourceIP ipsrc req)
   <> " - - ["
@@ -115,14 +125,32 @@ apacheLogStr ipsrc tmstr req status msize =
   <> " "
   <> toLogStr (maybe "-" show msize)
   <> " \""
-  <> toLogStr (lookupRequestField' "referer" req)
+  <> toLogStr (fromMaybe "" mr)
   <> "\" \""
-  <> toLogStr (lookupRequestField' "user-agent" req)
+  <> toLogStr (fromMaybe "" mua)
   <> "\"\n"
   where
+    mr  = requestHeaderReferer req
+    mua = requestHeaderUserAgent req
 
-lookupRequestField' :: CI ByteString -> Request -> ByteString
-lookupRequestField' k req = fromMaybe "" . lookup k $ requestHeaders req
+-- | HTTP/2 Push log format in the Apache style.
+serverpushLogStr :: IPAddrSource -> FormattedTime -> Request -> ByteString -> Integer -> LogStr
+serverpushLogStr ipsrc tmstr req path size =
+      toLogStr (getSourceIP ipsrc req)
+  <> " - - ["
+  <> toLogStr tmstr
+  <> "] \"PUSH "
+  <> toLogStr path
+  <> " HTTP/2\" 200 "
+  <> toLogStr (show size)
+  <> " \""
+  <> toLogStr ref
+  <> "\" \""
+  <> toLogStr (fromMaybe "" mua)
+  <> "\"\n"
+  where
+    ref  = rawPathInfo req
+    mua = requestHeaderUserAgent req
 
 -- getSourceIP = getSourceIP fromString fromByteString
 

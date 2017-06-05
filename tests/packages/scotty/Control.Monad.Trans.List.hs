@@ -41,7 +41,14 @@
 
 
 
+
+
+
+
+
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE Safe #-}
+{-# LANGUAGE AutoDeriveTypeable #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Control.Monad.Trans.List
@@ -49,7 +56,7 @@
 --                (c) Oregon Graduate Institute of Science and Technology, 2001
 -- License     :  BSD-style (see the file LICENSE)
 --
--- Maintainer  :  ross@soi.city.ac.uk
+-- Maintainer  :  R.Paterson@city.ac.uk
 -- Stability   :  experimental
 -- Portability :  portable
 --
@@ -57,7 +64,8 @@
 -- which must be commutative.
 -----------------------------------------------------------------------------
 
-module Control.Monad.Trans.List (
+module Control.Monad.Trans.List
+  {-# DEPRECATED "This transformer is invalid on most monads" #-} (
     -- * The ListT monad transformer
     ListT(..),
     mapListT,
@@ -73,6 +81,8 @@ import Data.Functor.Classes
 
 import Control.Applicative
 import Control.Monad
+import qualified Control.Monad.Fail as Fail
+import Control.Monad.Zip (MonadZip(mzipWith))
 import Data.Foldable (Foldable(foldMap))
 import Data.Traversable (Traversable(traverse))
 
@@ -81,76 +91,109 @@ import Data.Traversable (Traversable(traverse))
 -- /Note:/ this does not yield a monad unless the argument monad is commutative.
 newtype ListT m a = ListT { runListT :: m [a] }
 
-instance (Eq1 m, Eq a) => Eq (ListT m a) where
-    ListT x == ListT y = eq1 x y
+instance (Eq1 m) => Eq1 (ListT m) where
+    liftEq eq (ListT x) (ListT y) = liftEq (liftEq eq) x y
+    {-# INLINE liftEq #-}
 
-instance (Ord1 m, Ord a) => Ord (ListT m a) where
-    compare (ListT x) (ListT y) = compare1 x y
+instance (Ord1 m) => Ord1 (ListT m) where
+    liftCompare comp (ListT x) (ListT y) = liftCompare (liftCompare comp) x y
+    {-# INLINE liftCompare #-}
 
-instance (Read1 m, Read a) => Read (ListT m a) where
-    readsPrec = readsData $ readsUnary1 "ListT" ListT
+instance (Read1 m) => Read1 (ListT m) where
+    liftReadsPrec rp rl = readsData $
+        readsUnaryWith (liftReadsPrec rp' rl') "ListT" ListT
+      where
+        rp' = liftReadsPrec rp rl
+        rl' = liftReadList rp rl
 
-instance (Show1 m, Show a) => Show (ListT m a) where
-    showsPrec d (ListT m) = showsUnary1 "ListT" d m
+instance (Show1 m) => Show1 (ListT m) where
+    liftShowsPrec sp sl d (ListT m) =
+        showsUnaryWith (liftShowsPrec sp' sl') "ListT" d m
+      where
+        sp' = liftShowsPrec sp sl
+        sl' = liftShowList sp sl
 
-instance (Eq1 m) => Eq1 (ListT m) where eq1 = (==)
-instance (Ord1 m) => Ord1 (ListT m) where compare1 = compare
-instance (Read1 m) => Read1 (ListT m) where readsPrec1 = readsPrec
-instance (Show1 m) => Show1 (ListT m) where showsPrec1 = showsPrec
+instance (Eq1 m, Eq a) => Eq (ListT m a) where (==) = eq1
+instance (Ord1 m, Ord a) => Ord (ListT m a) where compare = compare1
+instance (Read1 m, Read a) => Read (ListT m a) where readsPrec = readsPrec1
+instance (Show1 m, Show a) => Show (ListT m a) where showsPrec = showsPrec1
 
 -- | Map between 'ListT' computations.
 --
 -- * @'runListT' ('mapListT' f m) = f ('runListT' m)@
 mapListT :: (m [a] -> n [b]) -> ListT m a -> ListT n b
 mapListT f m = ListT $ f (runListT m)
+{-# INLINE mapListT #-}
 
 instance (Functor m) => Functor (ListT m) where
     fmap f = mapListT $ fmap $ map f
+    {-# INLINE fmap #-}
 
 instance (Foldable f) => Foldable (ListT f) where
     foldMap f (ListT a) = foldMap (foldMap f) a
+    {-# INLINE foldMap #-}
 
 instance (Traversable f) => Traversable (ListT f) where
     traverse f (ListT a) = ListT <$> traverse (traverse f) a
+    {-# INLINE traverse #-}
 
 instance (Applicative m) => Applicative (ListT m) where
     pure a  = ListT $ pure [a]
+    {-# INLINE pure #-}
     f <*> v = ListT $ (<*>) <$> runListT f <*> runListT v
+    {-# INLINE (<*>) #-}
 
 instance (Applicative m) => Alternative (ListT m) where
     empty   = ListT $ pure []
+    {-# INLINE empty #-}
     m <|> n = ListT $ (++) <$> runListT m <*> runListT n
+    {-# INLINE (<|>) #-}
 
 instance (Monad m) => Monad (ListT m) where
-    return a = ListT $ return [a]
     m >>= k  = ListT $ do
         a <- runListT m
         b <- mapM (runListT . k) a
         return (concat b)
+    {-# INLINE (>>=) #-}
     fail _ = ListT $ return []
+    {-# INLINE fail #-}
+
+instance (Monad m) => Fail.MonadFail (ListT m) where
+    fail _ = ListT $ return []
+    {-# INLINE fail #-}
 
 instance (Monad m) => MonadPlus (ListT m) where
     mzero       = ListT $ return []
+    {-# INLINE mzero #-}
     m `mplus` n = ListT $ do
         a <- runListT m
         b <- runListT n
         return (a ++ b)
+    {-# INLINE mplus #-}
 
 instance MonadTrans ListT where
     lift m = ListT $ do
         a <- m
         return [a]
+    {-# INLINE lift #-}
 
 instance (MonadIO m) => MonadIO (ListT m) where
     liftIO = lift . liftIO
+    {-# INLINE liftIO #-}
+
+instance (MonadZip m) => MonadZip (ListT m) where
+    mzipWith f (ListT a) (ListT b) = ListT $ mzipWith (zipWith f) a b
+    {-# INLINE mzipWith #-}
 
 -- | Lift a @callCC@ operation to the new monad.
 liftCallCC :: CallCC m [a] [b] -> CallCC (ListT m) a b
 liftCallCC callCC f = ListT $
     callCC $ \ c ->
     runListT (f (\ a -> ListT $ c [a]))
+{-# INLINE liftCallCC #-}
 
 -- | Lift a @catchE@ operation to the new monad.
 liftCatch :: Catch e m [a] -> Catch e (ListT m) a
 liftCatch catchE m h = ListT $ runListT m
     `catchE` \ e -> runListT (h e)
+{-# INLINE liftCatch #-}

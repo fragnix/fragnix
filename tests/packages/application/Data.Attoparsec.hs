@@ -2,7 +2,7 @@
 {-# LINE 1 "Data/Attoparsec.hs" #-}
 -- |
 -- Module      :  Data.Attoparsec
--- Copyright   :  Bryan O'Sullivan 2007-2014
+-- Copyright   :  Bryan O'Sullivan 2007-2015
 -- License     :  BSD3
 --
 -- Maintainer  :  bos@serpentine.com

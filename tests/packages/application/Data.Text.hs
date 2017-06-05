@@ -51,6 +51,19 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types, UnboxedTuples #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE Trustworthy #-}
@@ -178,6 +191,7 @@ module Data.Text
     , drop
     , dropEnd
     , takeWhile
+    , takeWhileEnd
     , dropWhile
     , dropWhileEnd
     , dropAround
@@ -240,11 +254,12 @@ module Data.Text
 
     -- * Low level operations
     , copy
+    , unpackCString#
     ) where
 
 import Prelude (Char, Bool(..), Int, Maybe(..), String,
                 Eq(..), Ord(..), Ordering(..), (++),
-                Read(..), Show(..),
+                Read(..),
                 (&&), (||), (+), (-), (.), ($), ($!), (>>),
                 not, return, otherwise, quot)
 import Control.DeepSeq (NFData(rnf))
@@ -255,23 +270,27 @@ import Control.Monad (foldM)
 import Control.Monad.ST (ST)
 import qualified Data.Text.Array as A
 import qualified Data.List as L
+import Data.Binary (Binary(get, put))
 import Data.Monoid (Monoid(..))
+import Data.Semigroup (Semigroup(..))
 import Data.String (IsString(..))
 import qualified Data.Text.Internal.Fusion as S
 import qualified Data.Text.Internal.Fusion.Common as S
+import Data.Text.Encoding (decodeUtf8', encodeUtf8)
 import Data.Text.Internal.Fusion (stream, reverseStream, unstream)
 import Data.Text.Internal.Private (span_)
-import Data.Text.Internal (Text(..), empty, empty_, firstf, mul, safe, text)
+import Data.Text.Internal (Text(..), empty, firstf, mul, safe, text)
+import Data.Text.Show (singleton, unpack, unpackCString#)
 import qualified Prelude as P
 import Data.Text.Unsafe (Iter(..), iter, iter_, lengthWord16, reverseIter,
                          reverseIter_, unsafeHead, unsafeTail)
-import Data.Text.Internal.Unsafe.Char (unsafeChr, unsafeWrite)
+import Data.Text.Internal.Unsafe.Char (unsafeChr)
 import qualified Data.Text.Internal.Functions as F
 import qualified Data.Text.Internal.Encoding.Utf16 as U16
 import Data.Text.Internal.Search (indices)
-import qualified GHC.CString as GHC
+import GHC.Base (eqInt, neInt, gtInt, geInt, ltInt, leInt)
 import qualified GHC.Exts as Exts
-import GHC.Prim (Addr#)
+import Text.Printf (PrintfArg, formatArg, formatString)
 
 -- $strict
 --
@@ -357,15 +376,18 @@ instance Eq Text where
 instance Ord Text where
     compare = compareText
 
-instance Show Text where
-    showsPrec p ps r = showsPrec p (unpack ps) r
-
 instance Read Text where
     readsPrec p str = [(pack x,y) | (x,y) <- readsPrec p str]
 
+-- Semigroup orphan instances for older GHCs are provided by
+-- 'semigroups` package
+
+instance Semigroup Text where
+    (<>) = append
+
 instance Monoid Text where
     mempty  = empty
-    mappend = append
+    mappend = (<>) -- future-proof definition
     mconcat = concat
 
 instance IsString Text where
@@ -377,6 +399,14 @@ instance Exts.IsList Text where
     toList         = unpack
 
 instance NFData Text where rnf !_ = ()
+
+instance Binary Text where
+    put t = put (encodeUtf8 t)
+    get   = do
+      bs <- get
+      case decodeUtf8' bs of
+        P.Left exn -> P.fail (P.show exn)
+        P.Right a -> P.return a
 
 -- | This instance preserves data abstraction at the cost of inefficiency.
 -- We omit reflection services for the sake of data abstraction.
@@ -400,6 +430,10 @@ instance Data Text where
     1 -> k (z pack)
     _ -> P.error "gunfold"
   dataTypeOf _ = textDataType
+
+-- | Only defined for @base-4.7.0.0@ and later
+instance PrintfArg Text where
+  formatArg txt = formatString $ unpack txt
 
 packConstr :: Constr
 packConstr = mkConstr textDataType "pack" [] Prefix
@@ -429,54 +463,6 @@ compareText ta@(Text _arrA _offA lenA) tb@(Text _arrB _offB lenB)
 pack :: String -> Text
 pack = unstream . S.map safe . S.streamList
 {-# INLINE [1] pack #-}
-
--- | /O(n)/ Convert a 'Text' into a 'String'.  Subject to fusion.
-unpack :: Text -> String
-unpack = S.unstreamList . stream
-{-# INLINE [1] unpack #-}
-
--- | /O(n)/ Convert a literal string into a Text.  Subject to fusion.
-unpackCString# :: Addr# -> Text
-unpackCString# addr# = unstream (S.streamCString# addr#)
-{-# NOINLINE unpackCString# #-}
-
-{-# RULES "TEXT literal" forall a.
-    unstream (S.map safe (S.streamList (GHC.unpackCString# a)))
-      = unpackCString# a #-}
-
-{-# RULES "TEXT literal UTF8" forall a.
-    unstream (S.map safe (S.streamList (GHC.unpackCStringUtf8# a)))
-      = unpackCString# a #-}
-
-{-# RULES "TEXT empty literal"
-    unstream (S.map safe (S.streamList []))
-      = empty_ #-}
-
-{-# RULES "TEXT singleton literal" forall a.
-    unstream (S.map safe (S.streamList [a]))
-      = singleton_ a #-}
-
--- | /O(1)/ Convert a character into a Text.  Subject to fusion.
--- Performs replacement on invalid scalar values.
-singleton :: Char -> Text
-singleton = unstream . S.singleton . safe
-{-# INLINE [1] singleton #-}
-
-{-# RULES "TEXT singleton" forall a.
-    unstream (S.singleton (safe a))
-      = singleton_ a #-}
-
--- This is intended to reduce inlining bloat.
-singleton_ :: Char -> Text
-singleton_ c = Text (A.run x) 0 len
-  where x :: ST s (A.MArray s)
-        x = do arr <- A.new len
-               _ <- unsafeWrite arr 0 d
-               return arr
-        len | d < '\x10000' = 1
-            | otherwise     = 2
-        d = safe c
-{-# NOINLINE singleton_ #-}
 
 -- -----------------------------------------------------------------------------
 -- * Basic functions
@@ -534,8 +520,8 @@ head t = S.head (stream t)
 uncons :: Text -> Maybe (Char, Text)
 uncons t@(Text arr off len)
     | len <= 0  = Nothing
-    | otherwise = Just (c, text arr (off+d) (len-d))
-    where Iter c d = iter t 0
+    | otherwise = Just $ let !(Iter c d) = iter t 0
+                         in (c, text arr (off+d) (len-d))
 {-# INLINE [1] uncons #-}
 
 -- | Lifted from Control.Arrow and specialized.
@@ -617,7 +603,9 @@ isSingleton = S.isSingleton . stream
 -- Subject to fusion.
 length :: Text -> Int
 length t = S.length (stream t)
-{-# INLINE length #-}
+{-# INLINE [0] length #-}
+-- length needs to be phased after the compareN/length rules otherwise
+-- it may inline before the rules have an opportunity to fire.
 
 -- | /O(n)/ Compare the count of characters in a 'Text' to a number.
 -- Subject to fusion.
@@ -636,32 +624,32 @@ compareLength t n = S.compareLengthI (stream t) n
 
 {-# RULES
 "TEXT ==N/length -> compareLength/==EQ" [~1] forall t n.
-    (==) (length t) n = compareLength t n == EQ
+    eqInt (length t) n = compareLength t n == EQ
   #-}
 
 {-# RULES
 "TEXT /=N/length -> compareLength//=EQ" [~1] forall t n.
-    (/=) (length t) n = compareLength t n /= EQ
+    neInt (length t) n = compareLength t n /= EQ
   #-}
 
 {-# RULES
 "TEXT <N/length -> compareLength/==LT" [~1] forall t n.
-    (<) (length t) n = compareLength t n == LT
+    ltInt (length t) n = compareLength t n == LT
   #-}
 
 {-# RULES
 "TEXT <=N/length -> compareLength//=GT" [~1] forall t n.
-    (<=) (length t) n = compareLength t n /= GT
+    leInt (length t) n = compareLength t n /= GT
   #-}
 
 {-# RULES
 "TEXT >N/length -> compareLength/==GT" [~1] forall t n.
-    (>) (length t) n = compareLength t n == GT
+    gtInt (length t) n = compareLength t n == GT
   #-}
 
 {-# RULES
 "TEXT >=N/length -> compareLength//=LT" [~1] forall t n.
-    (>=) (length t) n = compareLength t n /= LT
+    geInt (length t) n = compareLength t n /= LT
   #-}
 
 -- -----------------------------------------------------------------------------
@@ -784,7 +772,7 @@ replace needle@(Text _      _      neeLen)
 -- instead of itself.
 toCaseFold :: Text -> Text
 toCaseFold t = unstream (S.toCaseFold (stream t))
-{-# INLINE [0] toCaseFold #-}
+{-# INLINE toCaseFold #-}
 
 -- | /O(n)/ Convert a string to lower case, using simple case
 -- conversion.  Subject to fusion.
@@ -958,13 +946,13 @@ concatMap f = concat . foldr ((:) . f) []
 {-# INLINE concatMap #-}
 
 -- | /O(n)/ 'any' @p@ @t@ determines whether any character in the
--- 'Text' @t@ satisifes the predicate @p@. Subject to fusion.
+-- 'Text' @t@ satisfies the predicate @p@. Subject to fusion.
 any :: (Char -> Bool) -> Text -> Bool
 any p t = S.any p (stream t)
 {-# INLINE any #-}
 
 -- | /O(n)/ 'all' @p@ @t@ determines whether all characters in the
--- 'Text' @t@ satisify the predicate @p@. Subject to fusion.
+-- 'Text' @t@ satisfy the predicate @p@. Subject to fusion.
 all :: (Char -> Bool) -> Text -> Bool
 all p t = S.all p (stream t)
 {-# INLINE all #-}
@@ -1142,8 +1130,8 @@ takeEnd n t@(Text arr off len)
 iterNEnd :: Int -> Text -> Int
 iterNEnd n t@(Text _arr _off len) = loop (len-1) n
   where loop i !m
+          | m <= 0    = i+1
           | i <= 0    = 0
-          | m <= 1    = i
           | otherwise = loop (i+d) (m-1)
           where d = reverseIter_ t i
 
@@ -1195,6 +1183,27 @@ takeWhile p t@(Text arr off len) = loop 0
     unstream (S.takeWhile p (stream t)) = takeWhile p t
   #-}
 
+-- | /O(n)/ 'takeWhileEnd', applied to a predicate @p@ and a 'Text',
+-- returns the longest suffix (possibly empty) of elements that
+-- satisfy @p@.  Subject to fusion.
+-- Examples:
+--
+-- > takeWhileEnd (=='o') "foo" == "oo"
+takeWhileEnd :: (Char -> Bool) -> Text -> Text
+takeWhileEnd p t@(Text arr off len) = loop (len-1) len
+  where loop !i !l | l <= 0    = t
+                   | p c       = loop (i+d) (l+d)
+                   | otherwise = text arr (off+l) (len-l)
+            where (c,d)        = reverseIter t i
+{-# INLINE [1] takeWhileEnd #-}
+
+{-# RULES
+"TEXT takeWhileEnd -> fused" [~1] forall p t.
+    takeWhileEnd p t = S.reverse (S.takeWhile p (S.reverseStream t))
+"TEXT takeWhileEnd -> unfused" [1] forall p t.
+    S.reverse (S.takeWhile p (S.reverseStream t)) = takeWhileEnd p t
+  #-}
+
 -- | /O(n)/ 'dropWhile' @p@ @t@ returns the suffix remaining after
 -- 'takeWhile' @p@ @t@. Subject to fusion.
 dropWhile :: (Char -> Bool) -> Text -> Text
@@ -1213,8 +1222,9 @@ dropWhile p t@(Text arr off len) = loop 0 0
   #-}
 
 -- | /O(n)/ 'dropWhileEnd' @p@ @t@ returns the prefix remaining after
--- dropping characters that fail the predicate @p@ from the end of
+-- dropping characters that satisfy the predicate @p@ from the end of
 -- @t@.  Subject to fusion.
+--
 -- Examples:
 --
 -- > dropWhileEnd (=='.') "foo..." == "foo"
@@ -1234,7 +1244,7 @@ dropWhileEnd p t@(Text arr off len) = loop (len-1) len
   #-}
 
 -- | /O(n)/ 'dropAround' @p@ @t@ returns the substring remaining after
--- dropping characters that fail the predicate @p@ from both the
+-- dropping characters that satisfy the predicate @p@ from both the
 -- beginning and end of @t@.  Subject to fusion.
 dropAround :: (Char -> Bool) -> Text -> Text
 dropAround p = dropWhile p . dropWhileEnd p
@@ -1561,7 +1571,7 @@ countChar c t = S.countChar c (stream t)
 -- equivalent to a pair of 'unpack' operations.
 zip :: Text -> Text -> [(Char,Char)]
 zip a b = S.unstreamList $ S.zipWith (,) (stream a) (stream b)
-{-# INLINE [0] zip #-}
+{-# INLINE zip #-}
 
 -- | /O(n)/ 'zipWith' generalises 'zip' by zipping with the function
 -- given as the first argument, instead of a tupling function.
@@ -1569,7 +1579,7 @@ zip a b = S.unstreamList $ S.zipWith (,) (stream a) (stream b)
 zipWith :: (Char -> Char -> Char) -> Text -> Text -> Text
 zipWith f t1 t2 = unstream (S.zipWith g (stream t1) (stream t2))
     where g a b = safe (f a b)
-{-# INLINE [0] zipWith #-}
+{-# INLINE zipWith #-}
 
 -- | /O(n)/ Breaks a 'Text' up into a list of words, delimited by 'Char's
 -- representing white space.

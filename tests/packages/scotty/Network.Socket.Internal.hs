@@ -1,5 +1,12 @@
 {-# LANGUAGE Haskell98, CPP, DeriveDataTypeable, ForeignFunctionInterface, TypeSynonymInstances #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/Network/Socket/Internal.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/Network/Socket/Internal.hs" #-}
+
+
+
+
+
+
+
 
 
 
@@ -123,13 +130,13 @@ module Network.Socket.Internal
 import Foreign.C.Error (throwErrno, throwErrnoIfMinus1Retry,
                         throwErrnoIfMinus1RetryMayBlock, throwErrnoIfMinus1_,
                         Errno(..), errnoToIOError)
-import Foreign.C.String (peekCString)
+
+{-# LINE 79 "Network/Socket/Internal.hsc" #-}
 import Foreign.C.Types (CInt(..))
-import Foreign.Ptr (Ptr)
 import GHC.Conc (threadWaitRead, threadWaitWrite)
 
 
-{-# LINE 90 "Network/Socket/Internal.hsc" #-}
+{-# LINE 94 "Network/Socket/Internal.hsc" #-}
 
 import Network.Socket.Types
 
@@ -196,7 +203,7 @@ throwSocketErrorIfMinus1RetryMayBlock
         :: String -> IO b -> IO CInt -> IO CInt #-}
 
 
-{-# LINE 156 "Network/Socket/Internal.hsc" #-}
+{-# LINE 160 "Network/Socket/Internal.hsc" #-}
 
 throwSocketErrorIfMinus1RetryMayBlock name on_block act =
     throwErrnoIfMinus1RetryMayBlock name act on_block
@@ -211,7 +218,7 @@ throwSocketErrorCode loc errno =
     ioError (errnoToIOError loc (Errno errno) Nothing Nothing)
 
 
-{-# LINE 216 "Network/Socket/Internal.hsc" #-}
+{-# LINE 220 "Network/Socket/Internal.hsc" #-}
 
 -- | Like 'throwSocketErrorIfMinus1Retry', but if the action fails with
 -- @EWOULDBLOCK@ or similar, wait for the socket to be read-ready,
@@ -234,19 +241,24 @@ throwSocketErrorWaitWrite sock name io =
 -- ---------------------------------------------------------------------------
 -- WinSock support
 
-{-| On Windows operating systems, the networking subsystem has to be
-initialised using 'withSocketsDo' before any networking operations can
-be used.  eg.
+{-| With older versions of the @network@ library on Windows operating systems,
+the networking subsystem must be initialised using 'withSocketsDo' before
+any networking operations can be used. eg.
 
 > main = withSocketsDo $ do {...}
 
-Although this is only strictly necessary on Windows platforms, it is
-harmless on other platforms, so for portability it is good practice to
-use it all the time.
+It is fine to nest calls to 'withSocketsDo', and to perform networking operations
+after 'withSocketsDo' has returned.
+
+In newer versions of the @network@ library it is only necessary to call
+'withSocketsDo' if you are calling the 'MkSocket' constructor directly.
+However, for compatibility with older versions on Windows, it is good practice
+to always call 'withSocketsDo' (it's very cheap).
 -}
+{-# INLINE withSocketsDo #-}
 withSocketsDo :: IO a -> IO a
 
-{-# LINE 250 "Network/Socket/Internal.hsc" #-}
+{-# LINE 259 "Network/Socket/Internal.hsc" #-}
 withSocketsDo x = x
 
-{-# LINE 262 "Network/Socket/Internal.hsc" #-}
+{-# LINE 275 "Network/Socket/Internal.hsc" #-}

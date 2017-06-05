@@ -41,7 +41,13 @@
 
 
 
+
+
+
+
+
 {-# LANGUAGE BangPatterns, CPP, RankNTypes, MagicHash, UnboxedTuples, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, DeriveDataTypeable, UnliftedFFITypes #-}
+{-# LANGUAGE RoleAnnotations #-}
 {-# OPTIONS_HADDOCK hide #-}
 
 -----------------------------------------------------------------------------
@@ -72,8 +78,9 @@ import GHC.Arr          ( STArray )
 import qualified GHC.Arr as Arr
 import qualified GHC.Arr as ArrST
 import GHC.ST           ( ST(..), runST )
-import GHC.Base
-import GHC.Ptr          ( Ptr(..), FunPtr(..), nullPtr, nullFunPtr )
+import GHC.Base         ( IO(..) )
+import GHC.Exts
+import GHC.Ptr          ( nullPtr, nullFunPtr )
 import GHC.Stable       ( StablePtr(..) )
 import GHC.Int          ( Int8(..),  Int16(..),  Int32(..),  Int64(..) )
 import GHC.Word         ( Word8(..), Word16(..), Word32(..), Word64(..) )
@@ -81,6 +88,27 @@ import GHC.IO           ( stToIO )
 import GHC.IOArray      ( IOArray(..),
                           newIOArray, unsafeReadIOArray, unsafeWriteIOArray )
 import Data.Typeable
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -645,8 +673,7 @@ indices arr = case bounds arr of (l,u) -> range (l,u)
 -- | Returns a list of all the elements of an array, in the same order
 -- as their indices.
 elems :: (IArray a e, Ix i) => a i e -> [e]
-elems arr = case bounds arr of
-    (_l, _u) -> [unsafeAt arr i | i <- [0 .. numElements arr - 1]]
+elems arr = [unsafeAt arr i | i <- [0 .. numElements arr - 1]]
 
 {-# INLINE assocs #-}
 -- | Returns the contents of an array as a list of associations.
@@ -772,6 +799,8 @@ instance IArray Arr.Array e where
 --
 data UArray i e = UArray !i !i !Int ByteArray#
                   deriving Typeable
+-- There are class-based invariants on both parameters. See also #9220.
+type role UArray nominal nominal
 
 {-# INLINE unsafeArrayUArray #-}
 unsafeArrayUArray :: (MArray (STUArray s) e (ST s), Ix i)
@@ -1351,6 +1380,9 @@ instance MArray (STArray s) e (Lazy.ST s) where
 -- 'STArray' provides.
 data STUArray s i e = STUArray !i !i !Int (MutableByteArray# s)
                       deriving Typeable
+-- The "ST" parameter must be nominal for the safety of the ST trick.
+-- The other parameters have class constraints. See also #9220.
+type role STUArray nominal nominal nominal
 
 instance Eq (STUArray s i e) where
     STUArray _ _ _ arr1# == STUArray _ _ _ arr2# =
@@ -1728,7 +1760,7 @@ freeze marr = do
   -- use the safe array creation function here.
   return (listArray (l,u) es)
 
-freezeSTUArray :: Ix i => STUArray s i e -> ST s (UArray i e)
+freezeSTUArray :: STUArray s i e -> ST s (UArray i e)
 freezeSTUArray (STUArray l u n marr#) = ST $ \s1# ->
     case sizeofMutableByteArray# marr#  of { n# ->
     case newByteArray# n# s1#           of { (# s2#, marr'# #) ->
@@ -1803,7 +1835,7 @@ thaw arr = case bounds arr of
               | i <- [0 .. n - 1]]
     return marr
 
-thawSTUArray :: Ix i => UArray i e -> ST s (STUArray s i e)
+thawSTUArray :: UArray i e -> ST s (STUArray s i e)
 thawSTUArray (UArray l u n arr#) = ST $ \s1# ->
     case sizeofByteArray# arr#          of { n# ->
     case newByteArray# n# s1#           of { (# s2#, marr# #) ->
@@ -1863,7 +1895,7 @@ unsafeThaw :: (Ix i, IArray a e, MArray b e m) => a i e -> m (b i e)
 unsafeThaw = thaw
 
 {-# INLINE unsafeThawSTUArray #-}
-unsafeThawSTUArray :: Ix i => UArray i e -> ST s (STUArray s i e)
+unsafeThawSTUArray :: UArray i e -> ST s (STUArray s i e)
 unsafeThawSTUArray (UArray l u n marr#) =
     return (STUArray l u n (unsafeCoerce# marr#))
 
@@ -1873,7 +1905,7 @@ unsafeThawSTUArray (UArray l u n marr#) =
     #-}
 
 {-# INLINE unsafeThawIOArray #-}
-unsafeThawIOArray :: Ix ix => Arr.Array ix e -> IO (IOArray ix e)
+unsafeThawIOArray :: Arr.Array ix e -> IO (IOArray ix e)
 unsafeThawIOArray arr = stToIO $ do
     marr <- ArrST.unsafeThawSTArray arr
     return (IOArray marr)
@@ -1882,7 +1914,7 @@ unsafeThawIOArray arr = stToIO $ do
 "unsafeThaw/IOArray"  unsafeThaw = unsafeThawIOArray
     #-}
 
-thawIOArray :: Ix ix => Arr.Array ix e -> IO (IOArray ix e)
+thawIOArray :: Arr.Array ix e -> IO (IOArray ix e)
 thawIOArray arr = stToIO $ do
     marr <- ArrST.thawSTArray arr
     return (IOArray marr)
@@ -1891,7 +1923,7 @@ thawIOArray arr = stToIO $ do
 "thaw/IOArray"  thaw = thawIOArray
     #-}
 
-freezeIOArray :: Ix ix => IOArray ix e -> IO (Arr.Array ix e)
+freezeIOArray :: IOArray ix e -> IO (Arr.Array ix e)
 freezeIOArray (IOArray marr) = stToIO (ArrST.freezeSTArray marr)
 
 {-# RULES
@@ -1899,7 +1931,7 @@ freezeIOArray (IOArray marr) = stToIO (ArrST.freezeSTArray marr)
     #-}
 
 {-# INLINE unsafeFreezeIOArray #-}
-unsafeFreezeIOArray :: Ix ix => IOArray ix e -> IO (Arr.Array ix e)
+unsafeFreezeIOArray :: IOArray ix e -> IO (Arr.Array ix e)
 unsafeFreezeIOArray (IOArray marr) = stToIO (ArrST.unsafeFreezeSTArray marr)
 
 {-# RULES

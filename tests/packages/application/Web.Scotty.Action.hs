@@ -71,17 +71,52 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP               #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
 module Web.Scotty.Action
     ( addHeader
     , body
+    , bodyReader
     , file
     , files
+    , finish
     , header
     , headers
     , html
+    , liftAndCatchIO
     , json
     , jsonData
     , next
@@ -105,22 +140,27 @@ module Web.Scotty.Action
 
 import           Blaze.ByteString.Builder   (fromLazyByteString)
 
-import           Control.Monad.Except
+import qualified Control.Exception          as E
+import           Control.Monad.Error.Class
 import           Control.Monad.Reader
 import qualified Control.Monad.State        as MS
+import           Control.Monad.Trans.Except
 
 import qualified Data.Aeson                 as A
 import qualified Data.ByteString.Char8      as B
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.CaseInsensitive       as CI
-import           Data.Default               (def)
-import           Data.Monoid                (mconcat)
+import           Data.Default.Class         (def)
+import           Data.Int
 import qualified Data.Text                  as ST
 import qualified Data.Text.Lazy             as T
 import           Data.Text.Lazy.Encoding    (encodeUtf8)
+import           Data.Word
 
 import           Network.HTTP.Types
 import           Network.Wai
+
+import           Numeric.Natural
 
 import           Web.Scotty.Internal.Types
 import           Web.Scotty.Util
@@ -146,6 +186,7 @@ defH Nothing    (ActionError e)   = do
     html $ mconcat ["<h1>500 Internal Server Error</h1>", showError e]
 defH h@(Just f) (ActionError e)   = f e `catchError` (defH h) -- so handlers can throw exceptions themselves
 defH _          Next              = next
+defH _          Finish            = return ()
 
 -- | Throw an exception, which can be caught with 'rescue'. Uncaught exceptions
 -- turn into HTTP 500 responses.
@@ -177,6 +218,12 @@ rescue action h = catchError action $ \e -> case e of
     ActionError err -> h err            -- handle errors
     other           -> throwError other -- rethrow internal error types
 
+-- | Like 'liftIO', but catch any IO exceptions and turn them into 'ScottyError's.
+liftAndCatchIO :: (ScottyError e, MonadIO m) => IO a -> ActionT e m a
+liftAndCatchIO io = ActionT $ do
+    r <- liftIO $ liftM Right io `E.catch` (\ e -> return $ Left $ stringError $ show (e :: E.SomeException))
+    either throwError return r
+
 -- | Redirect to given URL. Like throwing an uncatchable exception. Any code after the call to redirect
 -- will not be run.
 --
@@ -188,12 +235,19 @@ rescue action h = catchError action $ \e -> case e of
 redirect :: (ScottyError e, Monad m) => T.Text -> ActionT e m a
 redirect = throwError . Redirect
 
+-- | Finish the execution of the current action. Like throwing an uncatchable
+-- exception. Any code after the call to finish will not be run.
+--
+-- /Since: 0.10.3/
+finish :: (ScottyError e, Monad m) => ActionT e m a
+finish = throwError Finish
+
 -- | Get the 'Request' object.
-request :: (ScottyError e, Monad m) => ActionT e m Request
+request :: Monad m => ActionT e m Request
 request = ActionT $ liftM getReq ask
 
 -- | Get list of uploaded files.
-files :: (ScottyError e, Monad m) => ActionT e m [File]
+files :: Monad m => ActionT e m [File]
 files = ActionT $ liftM getFiles ask
 
 -- | Get a request header. Header name is case-insensitive.
@@ -211,11 +265,17 @@ headers = do
            | (k,v) <- hs ]
 
 -- | Get the request body.
-body :: (ScottyError e, Monad m) => ActionT e m BL.ByteString
-body = ActionT $ liftM getBody ask
+body :: (ScottyError e,  MonadIO m) => ActionT e m BL.ByteString
+body = ActionT ask >>= (liftIO . getBody)
+
+-- | Get an IO action that reads body chunks
+--
+-- * This is incompatible with 'body' since 'body' consumes all chunks.
+bodyReader :: Monad m => ActionT e m (IO B.ByteString)
+bodyReader = ActionT $ getBodyChunk `liftM` ask
 
 -- | Parse the request body as a JSON object and return it. Raises an exception if parse is unsuccessful.
-jsonData :: (A.FromJSON a, ScottyError e, Monad m) => ActionT e m a
+jsonData :: (A.FromJSON a, ScottyError e, MonadIO m) => ActionT e m a
 jsonData = do
     b <- body
     either (\e -> raise $ stringError $ "jsonData - no parse: " ++ e ++ ". Data was:" ++ BL.unpack b) return $ A.eitherDecode b
@@ -235,7 +295,7 @@ param k = do
         Just v  -> either (const next) return $ parseParam v
 
 -- | Get all parameters from capture, form and query (in that order).
-params :: (ScottyError e, Monad m) => ActionT e m [Param]
+params :: Monad m => ActionT e m [Param]
 params = ActionT $ liftM getParams ask
 
 -- | Minimum implemention: 'parseParam'
@@ -277,8 +337,20 @@ instance Parsable Bool where
 
 instance Parsable Double where parseParam = readEither
 instance Parsable Float where parseParam = readEither
+
 instance Parsable Int where parseParam = readEither
+instance Parsable Int8 where parseParam = readEither
+instance Parsable Int16 where parseParam = readEither
+instance Parsable Int32 where parseParam = readEither
+instance Parsable Int64 where parseParam = readEither
 instance Parsable Integer where parseParam = readEither
+
+instance Parsable Word where parseParam = readEither
+instance Parsable Word8 where parseParam = readEither
+instance Parsable Word16 where parseParam = readEither
+instance Parsable Word32 where parseParam = readEither
+instance Parsable Word64 where parseParam = readEither
+instance Parsable Natural where parseParam = readEither
 
 -- | Useful for creating 'Parsable' instances for things that already implement 'Read'. Ex:
 --
@@ -290,11 +362,11 @@ readEither t = case [ x | (x,"") <- reads (T.unpack t) ] of
                 _   -> Left "readEither: ambiguous parse"
 
 -- | Set the HTTP response status. Default is 200.
-status :: (ScottyError e, Monad m) => Status -> ActionT e m ()
+status :: Monad m => Status -> ActionT e m ()
 status = ActionT . MS.modify . setStatus
 
 -- Not exported, but useful in the functions below.
-changeHeader :: (ScottyError e, Monad m)
+changeHeader :: Monad m
              => (CI.CI B.ByteString -> B.ByteString -> [(HeaderName, B.ByteString)] -> [(HeaderName, B.ByteString)])
              -> T.Text -> T.Text -> ActionT e m ()
 changeHeader f k = ActionT
@@ -304,12 +376,12 @@ changeHeader f k = ActionT
                  . lazyTextToStrictByteString
 
 -- | Add to the response headers. Header names are case-insensitive.
-addHeader :: (ScottyError e, Monad m) => T.Text -> T.Text -> ActionT e m ()
+addHeader :: Monad m => T.Text -> T.Text -> ActionT e m ()
 addHeader = changeHeader add
 
 -- | Set one of the response headers. Will override any previously set value for that header.
 -- Header names are case-insensitive.
-setHeader :: (ScottyError e, Monad m) => T.Text -> T.Text -> ActionT e m ()
+setHeader :: Monad m => T.Text -> T.Text -> ActionT e m ()
 setHeader = changeHeader replace
 
 -- | Set the body of the response to the given 'T.Text' value. Also sets \"Content-Type\"
@@ -328,7 +400,7 @@ html t = do
 
 -- | Send a file as the response. Doesn't set the \"Content-Type\" header, so you probably
 -- want to do that on your own with 'setHeader'.
-file :: (ScottyError e, Monad m) => FilePath -> ActionT e m ()
+file :: Monad m => FilePath -> ActionT e m ()
 file = ActionT . MS.modify . setContent . ContentFile
 
 -- | Set the body of the response to the JSON encoding of the given value. Also sets \"Content-Type\"
@@ -341,11 +413,11 @@ json v = do
 -- | Set the body of the response to a Source. Doesn't set the
 -- \"Content-Type\" header, so you probably want to do that on your
 -- own with 'setHeader'.
-stream :: (ScottyError e, Monad m) => StreamingBody -> ActionT e m ()
+stream :: Monad m => StreamingBody -> ActionT e m ()
 stream = ActionT . MS.modify . setContent . ContentStream
 
 -- | Set the body of the response to the given 'BL.ByteString' value. Doesn't set the
 -- \"Content-Type\" header, so you probably want to do that on your
 -- own with 'setHeader'.
-raw :: (ScottyError e, Monad m) => BL.ByteString -> ActionT e m ()
+raw :: Monad m => BL.ByteString -> ActionT e m ()
 raw = ActionT . MS.modify . setContent . ContentBuilder . fromLazyByteString

@@ -1,13 +1,14 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/DynamicLinker/Prim.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/DynamicLinker/Prim.hs" #-}
 {-# LINE 1 "System/Posix/DynamicLinker/Prim.hsc" #-}
-
-{-# LINE 2 "System/Posix/DynamicLinker/Prim.hsc" #-}
 {-# LANGUAGE Trustworthy #-}
+{-# LINE 2 "System/Posix/DynamicLinker/Prim.hsc" #-}
 
-{-# LINE 6 "System/Posix/DynamicLinker/Prim.hsc" #-}
+{-# LINE 3 "System/Posix/DynamicLinker/Prim.hsc" #-}
+{-# OPTIONS_GHC -fno-warn-trustworthy-safe #-}
 
-{-# LINE 7 "System/Posix/DynamicLinker/Prim.hsc" #-}
+{-# LINE 5 "System/Posix/DynamicLinker/Prim.hsc" #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  System.Posix.DynamicLinker.Prim
@@ -18,8 +19,8 @@
 -- Stability   :  provisional
 -- Portability :  non-portable (requires POSIX)
 --
--- DLOpen and friend
---  Derived from GModule.chs by M.Weber & M.Chakravarty which is part of c2hs
+-- @dlopen(3)@ and friends
+--  Derived from @GModule.chs@ by M.Weber & M.Chakravarty which is part of c2hs.
 --  I left the API more or less the same, mostly the flags are different.
 --
 -----------------------------------------------------------------------------
@@ -42,7 +43,7 @@ module System.Posix.DynamicLinker.Prim (
 where
 
 
-{-# LINE 41 "System/Posix/DynamicLinker/Prim.hsc" #-}
+{-# LINE 40 "System/Posix/DynamicLinker/Prim.hsc" #-}
 
 import Data.Bits        ( (.|.) )
 import Foreign.Ptr      ( Ptr, FunPtr, nullPtr )
@@ -50,12 +51,12 @@ import Foreign.C.Types
 import Foreign.C.String ( CString )
 
 
--- |On some hosts (e.g. SuSe and Ubuntu Linux) 'RTLD_NEXT' (and
--- 'RTLD_DEFAULT') are not visible without setting the macro
--- '_GNU_SOURCE'. Since we don't want to define this macro, you can use
+-- |On some hosts (e.g. SuSe and Ubuntu Linux) @RTLD_NEXT@ (and
+-- @RTLD_DEFAULT@) are not visible without setting the macro
+-- @_GNU_SOURCE@. Since we don\'t want to define this macro, you can use
 -- the function 'haveRtldNext' to check wether the flag `Next` is
 -- available. Ideally, this will be optimized by the compiler so that it
--- should be as efficient as an #ifdef.
+-- should be as efficient as an @#ifdef@.
 --
 -- If you fail to test the flag and use it although it is undefined,
 -- 'packDL' will throw an error.
@@ -63,13 +64,17 @@ import Foreign.C.String ( CString )
 haveRtldNext :: Bool
 
 
-{-# LINE 64 "System/Posix/DynamicLinker/Prim.hsc" #-}
-haveRtldNext = False
+{-# LINE 60 "System/Posix/DynamicLinker/Prim.hsc" #-}
+haveRtldNext = True
+foreign import ccall unsafe "__hsunix_rtldNext" rtldNext :: Ptr a
 
-{-# LINE 66 "System/Posix/DynamicLinker/Prim.hsc" #-}
+{-# LINE 65 "System/Posix/DynamicLinker/Prim.hsc" #-}
 
 
-{-# LINE 70 "System/Posix/DynamicLinker/Prim.hsc" #-}
+{-# LINE 67 "System/Posix/DynamicLinker/Prim.hsc" #-}
+foreign import ccall unsafe "__hsunix_rtldDefault" rtldDefault :: Ptr a
+
+{-# LINE 69 "System/Posix/DynamicLinker/Prim.hsc" #-}
 
 haveRtldLocal :: Bool
 haveRtldLocal = True
@@ -95,20 +100,20 @@ packRTLDFlags flags = foldl (\ s f -> (packRTLDFlag f) .|. s) 0 flags
 
 packRTLDFlag :: RTLDFlags -> CInt
 packRTLDFlag RTLD_LAZY = 1
-{-# LINE 95 "System/Posix/DynamicLinker/Prim.hsc" #-}
+{-# LINE 94 "System/Posix/DynamicLinker/Prim.hsc" #-}
 packRTLDFlag RTLD_NOW = 2
-{-# LINE 96 "System/Posix/DynamicLinker/Prim.hsc" #-}
+{-# LINE 95 "System/Posix/DynamicLinker/Prim.hsc" #-}
 packRTLDFlag RTLD_GLOBAL = 256
-{-# LINE 97 "System/Posix/DynamicLinker/Prim.hsc" #-}
+{-# LINE 96 "System/Posix/DynamicLinker/Prim.hsc" #-}
 packRTLDFlag RTLD_LOCAL = 0
-{-# LINE 98 "System/Posix/DynamicLinker/Prim.hsc" #-}
+{-# LINE 97 "System/Posix/DynamicLinker/Prim.hsc" #-}
 
 
 -- |Flags for 'System.Posix.DynamicLinker.dlsym'. Notice that 'Next'
 -- might not be available on your particular platform! Use
--- `haveRtldNext`.
+-- 'haveRtldNext'.
 --
--- If 'RTLD_DEFAULT' is not defined on your platform, `packDL` `Default`
+-- If 'RTLD_DEFAULT' is not defined on your platform, 'packDL' 'Default'
 -- reduces to 'nullPtr'.
 
 data DL = Null | Next | Default | DLHandle (Ptr ()) deriving (Show)
@@ -117,15 +122,15 @@ packDL :: DL -> Ptr ()
 packDL Null = nullPtr
 
 
-{-# LINE 115 "System/Posix/DynamicLinker/Prim.hsc" #-}
-packDL Next = error "RTLD_NEXT not available"
+{-# LINE 112 "System/Posix/DynamicLinker/Prim.hsc" #-}
+packDL Next = rtldNext
 
-{-# LINE 117 "System/Posix/DynamicLinker/Prim.hsc" #-}
+{-# LINE 116 "System/Posix/DynamicLinker/Prim.hsc" #-}
 
 
-{-# LINE 121 "System/Posix/DynamicLinker/Prim.hsc" #-}
-packDL Default = nullPtr
+{-# LINE 118 "System/Posix/DynamicLinker/Prim.hsc" #-}
+packDL Default = rtldDefault
 
-{-# LINE 123 "System/Posix/DynamicLinker/Prim.hsc" #-}
+{-# LINE 122 "System/Posix/DynamicLinker/Prim.hsc" #-}
 
 packDL (DLHandle h) = h

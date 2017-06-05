@@ -43,7 +43,13 @@
 
 
 
--- | Provides ANSI terminal support for Windows and ANSI terminal software running on a Unix-like operating system.
+
+
+
+-- | Provides ANSI terminal support for ANSI terminal software running on a
+-- Unix-like operating system or on a Windows operating system (where supported)
+-- or on other Windows operating systems where the terminal in use is not
+-- ANSI-enabled.
 --
 -- The ANSI escape codes are described at <http://en.wikipedia.org/wiki/ANSI_escape_code> and provide a rich range of
 -- functionality for terminal control, which includes:
@@ -64,13 +70,32 @@
 --    and Unix.
 --
 --  * Chocolate: has an @IO ()@ type but takes a @Handle@.  This outputs the ANSI command on the terminal corresponding
---    to the supplied handle.  Commands issued like this should also work as your expect on both Windows and Unix.
+--    to the supplied handle.  Commands issued like this should also work as you expect on both Windows and Unix.
 --
 --  * Strawberry: has a @String@ type and just consists of an escape code which can be added to any other bit of text
---    before being output.  This version of the API is often convenient to use, but due to fundamental limitations in
---    Windows ANSI terminal support will only work on Unix.  On Windows these codes will always be the empty string,
---    so it is possible to use them portably for e.g. coloring console output on the understanding that you will only
---    see colors if you are running on a Unix-like operating system.
+--    before being output. This version of the API is often convenient to use,
+--    but will not work on Windows operating systems where the terminal in use
+--    is not ANSI-enabled (such as those before Windows 10 Threshold 2). On
+--    versions of Windows where the terminal in use is not ANSI-enabled, these
+--    codes will always be the empty string, so it is possible to use them
+--    portably for e.g. coloring console output on the understanding that you
+--    will only see colors if you are running on an operating system that is
+--    Unix-like or is a version of Windows where the terminal in use is ANSI-
+--    enabled.
+--
+-- Example:
+--
+-- > -- Set colors and write some text in those colors.
+-- > sgrExample :: IO ()
+-- > sgrExample = do
+-- >     setSGR [SetColor Foreground Vivid Red]
+-- >     setSGR [SetColor Background Vivid Blue]
+-- >     putStr "Red-On-Blue"
+-- >     setSGR [Reset]
+-- >     putStr "White-On-Black"
+--
+-- For many more examples, see the project's extensive
+-- <https://raw.githubusercontent.com/feuerbach/ansi-terminal/master/System/Console/ANSI/Example.hs Example.hs> file.
 
 module System.Console.ANSI (
         module System.Console.ANSI.Unix

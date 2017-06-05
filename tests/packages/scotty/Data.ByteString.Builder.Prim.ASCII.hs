@@ -1,6 +1,63 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/ByteString/Builder/Prim/ASCII.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables, ForeignFunctionInterface #-}
+{-# LANGUAGE Trustworthy #-}
 -- | Copyright   : (c) 2010 Jasper Van der Jeugt
 --                 (c) 2010 - 2011 Simon Meier
 -- License       : BSD3-style (see LICENSE)

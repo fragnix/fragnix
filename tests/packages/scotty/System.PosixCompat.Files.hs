@@ -1,5 +1,11 @@
 {-# LANGUAGE Haskell98 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/PosixCompat/Files.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/PosixCompat/Files.hs" #-}
+
+
+
+
+
+
 
 
 
@@ -160,4 +166,4 @@ import System.Posix.Files
 {-# LINE 116 "src/System/PosixCompat/Files.hsc" #-}
 
 
-{-# LINE 462 "src/System/PosixCompat/Files.hsc" #-}
+{-# LINE 493 "src/System/PosixCompat/Files.hsc" #-}

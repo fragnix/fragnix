@@ -43,6 +43,12 @@
 
 
 
+
+
+
+
+
+
 -- Note: this file derives from old-locale:System.Locale.hs, which is copyright (c) The University of Glasgow 2001
 
 module Data.Time.Format.Locale (
@@ -56,7 +62,8 @@ module Data.Time.Format.Locale (
     )
 where
 
-import Data.Time.LocalTime
+import Data.Time.LocalTime.TimeZone
+
 
 data TimeLocale = TimeLocale {
         -- |full and abbreviated week days, starting with Sunday

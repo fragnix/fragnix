@@ -51,6 +51,19 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP, MagicHash, UnboxedTuples #-}
 -- |
 -- Module      : Data.Text.Unsafe

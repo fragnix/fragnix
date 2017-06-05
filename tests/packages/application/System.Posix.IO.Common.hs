@@ -1,13 +1,15 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/IO/Common.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/IO/Common.hs" #-}
 {-# LINE 1 "System/Posix/IO/Common.hsc" #-}
-{-# LANGUAGE NondecreasingIndentation, RecordWildCards #-}
+{-# LANGUAGE CApiFFI #-}
 {-# LINE 2 "System/Posix/IO/Common.hsc" #-}
+{-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE RecordWildCards #-}
 
 {-# LINE 5 "System/Posix/IO/Common.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE Safe #-}
 
-{-# LINE 7 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 9 "System/Posix/IO/Common.hsc" #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -74,8 +76,6 @@ import qualified System.Posix.Internals as Base
 import Foreign
 import Foreign.C
 
-
-{-# LINE 74 "System/Posix/IO/Common.hsc" #-}
 import GHC.IO.Handle.Internals
 import GHC.IO.Handle.Types
 import qualified GHC.IO.FD as FD
@@ -83,13 +83,8 @@ import qualified GHC.IO.Handle.FD as FD
 import GHC.IO.Exception
 import Data.Typeable (cast)
 
-{-# LINE 81 "System/Posix/IO/Common.hsc" #-}
 
-
-{-# LINE 86 "System/Posix/IO/Common.hsc" #-}
-
-
-{-# LINE 88 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 83 "System/Posix/IO/Common.hsc" #-}
 
 -- -----------------------------------------------------------------------------
 -- Pipes
@@ -135,11 +130,11 @@ foreign import ccall unsafe "dup2"
 
 stdInput, stdOutput, stdError :: Fd
 stdInput   = Fd (0)
-{-# LINE 133 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 128 "System/Posix/IO/Common.hsc" #-}
 stdOutput  = Fd (1)
-{-# LINE 134 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 129 "System/Posix/IO/Common.hsc" #-}
 stdError   = Fd (2)
-{-# LINE 135 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 130 "System/Posix/IO/Common.hsc" #-}
 
 data OpenMode = ReadOnly | WriteOnly | ReadWrite
 
@@ -183,30 +178,30 @@ open_ str how maybe_mode (OpenFileFlags appendFlag exclusiveFlag nocttyFlag
 
     flags =
        (if appendFlag    then (1024)   else 0) .|.
-{-# LINE 178 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 173 "System/Posix/IO/Common.hsc" #-}
        (if exclusiveFlag then (128)     else 0) .|.
-{-# LINE 179 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 174 "System/Posix/IO/Common.hsc" #-}
        (if nocttyFlag    then (256)   else 0) .|.
-{-# LINE 180 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 175 "System/Posix/IO/Common.hsc" #-}
        (if nonBlockFlag  then (2048) else 0) .|.
-{-# LINE 181 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 176 "System/Posix/IO/Common.hsc" #-}
        (if truncateFlag  then (512)    else 0)
-{-# LINE 182 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 177 "System/Posix/IO/Common.hsc" #-}
 
     (creat, mode_w) = case maybe_mode of
                         Nothing -> (0,0)
                         Just x  -> ((64), x)
-{-# LINE 186 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 181 "System/Posix/IO/Common.hsc" #-}
 
     open_mode = case how of
                    ReadOnly  -> (0)
-{-# LINE 189 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 184 "System/Posix/IO/Common.hsc" #-}
                    WriteOnly -> (1)
-{-# LINE 190 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 185 "System/Posix/IO/Common.hsc" #-}
                    ReadWrite -> (2)
-{-# LINE 191 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 186 "System/Posix/IO/Common.hsc" #-}
 
-foreign import ccall unsafe "__hscore_open"
+foreign import capi unsafe "HsUnix.h open"
    c_open :: CString -> CInt -> CMode -> IO CInt
 
 -- |Close this file descriptor.  May throw an exception if this is an
@@ -228,9 +223,8 @@ handleToFd :: Handle -> IO Fd
 -- | Converts an 'Fd' into a 'Handle' that can be used with the
 -- standard Haskell IO library (see "System.IO").
 fdToHandle :: Fd -> IO Handle
+fdToHandle fd = FD.fdToHandle (fromIntegral fd)
 
-
-{-# LINE 216 "System/Posix/IO/Common.hsc" #-}
 handleToFd h@(FileHandle _ m) = do
   withHandle' "handleToFd" h m $ handleToFd' h
 handleToFd h@(DuplexHandle _ r w) = do
@@ -254,12 +248,6 @@ handleToFd' h h_@Handle__{haType=_,..} = do
      FD.release fd
      return (Handle__{haType=ClosedHandle,..}, Fd (FD.fdFD fd))
 
-fdToHandle fd = FD.fdToHandle (fromIntegral fd)
-
-{-# LINE 241 "System/Posix/IO/Common.hsc" #-}
-
-
-{-# LINE 251 "System/Posix/IO/Common.hsc" #-}
 
 -- -----------------------------------------------------------------------------
 -- Fd options
@@ -271,13 +259,13 @@ data FdOption = AppendOnWrite     -- ^O_APPEND
 
 fdOption2Int :: FdOption -> CInt
 fdOption2Int CloseOnExec       = (1)
-{-# LINE 262 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 245 "System/Posix/IO/Common.hsc" #-}
 fdOption2Int AppendOnWrite     = (1024)
-{-# LINE 263 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 246 "System/Posix/IO/Common.hsc" #-}
 fdOption2Int NonBlockingRead   = (2048)
-{-# LINE 264 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 247 "System/Posix/IO/Common.hsc" #-}
 fdOption2Int SynchronousWrites = (1052672)
-{-# LINE 265 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 248 "System/Posix/IO/Common.hsc" #-}
 
 -- | May throw an exception if this is an invalid descriptor.
 queryFdOption :: Fd -> FdOption -> IO Bool
@@ -287,9 +275,9 @@ queryFdOption (Fd fd) opt = do
  where
   flag    = case opt of
               CloseOnExec       -> (1)
-{-# LINE 274 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 257 "System/Posix/IO/Common.hsc" #-}
               _                 -> (3)
-{-# LINE 275 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 258 "System/Posix/IO/Common.hsc" #-}
 
 -- | May throw an exception if this is an invalid descriptor.
 setFdOption :: Fd -> FdOption -> Bool -> IO ()
@@ -302,9 +290,9 @@ setFdOption (Fd fd) opt val = do
  where
   (getflag,setflag)= case opt of
               CloseOnExec       -> ((1),(2))
-{-# LINE 287 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 270 "System/Posix/IO/Common.hsc" #-}
               _                 -> ((3),(4))
-{-# LINE 288 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 271 "System/Posix/IO/Common.hsc" #-}
   opt_val = fdOption2Int opt
 
 -- -----------------------------------------------------------------------------
@@ -312,11 +300,11 @@ setFdOption (Fd fd) opt val = do
 
 mode2Int :: SeekMode -> CInt
 mode2Int AbsoluteSeek = (0)
-{-# LINE 295 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 278 "System/Posix/IO/Common.hsc" #-}
 mode2Int RelativeSeek = (1)
-{-# LINE 296 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 279 "System/Posix/IO/Common.hsc" #-}
 mode2Int SeekFromEnd  = (2)
-{-# LINE 297 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 280 "System/Posix/IO/Common.hsc" #-}
 
 -- | May throw an exception if this is an invalid descriptor.
 fdSeek :: Fd -> SeekMode -> FileOffset -> IO FileOffset
@@ -337,67 +325,65 @@ getLock :: Fd -> FileLock -> IO (Maybe (ProcessID, FileLock))
 getLock (Fd fd) lock =
   allocaLock lock $ \p_flock -> do
     throwErrnoIfMinus1_ "getLock" (Base.c_fcntl_lock fd (5) p_flock)
-{-# LINE 317 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 300 "System/Posix/IO/Common.hsc" #-}
     result <- bytes2ProcessIDAndLock p_flock
     return (maybeResult result)
   where
     maybeResult (_, (Unlock, _, _, _)) = Nothing
     maybeResult x = Just x
 
-type CFLock     = ()
-
-allocaLock :: FileLock -> (Ptr CFLock -> IO a) -> IO a
+allocaLock :: FileLock -> (Ptr Base.CFLock -> IO a) -> IO a
 allocaLock (lockreq, mode, start, len) io =
   allocaBytes (32) $ \p -> do
-{-# LINE 328 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 309 "System/Posix/IO/Common.hsc" #-}
     ((\hsc_ptr -> pokeByteOff hsc_ptr 0))   p (lockReq2Int lockreq :: CShort)
-{-# LINE 329 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 310 "System/Posix/IO/Common.hsc" #-}
     ((\hsc_ptr -> pokeByteOff hsc_ptr 2)) p (fromIntegral (mode2Int mode) :: CShort)
-{-# LINE 330 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 311 "System/Posix/IO/Common.hsc" #-}
     ((\hsc_ptr -> pokeByteOff hsc_ptr 8))  p start
-{-# LINE 331 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 312 "System/Posix/IO/Common.hsc" #-}
     ((\hsc_ptr -> pokeByteOff hsc_ptr 16))    p len
-{-# LINE 332 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 313 "System/Posix/IO/Common.hsc" #-}
     io p
 
 lockReq2Int :: LockRequest -> CShort
 lockReq2Int ReadLock  = (0)
-{-# LINE 336 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 317 "System/Posix/IO/Common.hsc" #-}
 lockReq2Int WriteLock = (1)
-{-# LINE 337 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 318 "System/Posix/IO/Common.hsc" #-}
 lockReq2Int Unlock    = (2)
-{-# LINE 338 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 319 "System/Posix/IO/Common.hsc" #-}
 
-bytes2ProcessIDAndLock :: Ptr CFLock -> IO (ProcessID, FileLock)
+bytes2ProcessIDAndLock :: Ptr Base.CFLock -> IO (ProcessID, FileLock)
 bytes2ProcessIDAndLock p = do
   req   <- ((\hsc_ptr -> peekByteOff hsc_ptr 0))   p
-{-# LINE 342 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 323 "System/Posix/IO/Common.hsc" #-}
   mode  <- ((\hsc_ptr -> peekByteOff hsc_ptr 2)) p
-{-# LINE 343 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 324 "System/Posix/IO/Common.hsc" #-}
   start <- ((\hsc_ptr -> peekByteOff hsc_ptr 8))  p
-{-# LINE 344 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 325 "System/Posix/IO/Common.hsc" #-}
   len   <- ((\hsc_ptr -> peekByteOff hsc_ptr 16))    p
-{-# LINE 345 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 326 "System/Posix/IO/Common.hsc" #-}
   pid   <- ((\hsc_ptr -> peekByteOff hsc_ptr 24))    p
-{-# LINE 346 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 327 "System/Posix/IO/Common.hsc" #-}
   return (pid, (int2req req, int2mode mode, start, len))
  where
   int2req :: CShort -> LockRequest
   int2req (0) = ReadLock
-{-# LINE 350 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 331 "System/Posix/IO/Common.hsc" #-}
   int2req (1) = WriteLock
-{-# LINE 351 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 332 "System/Posix/IO/Common.hsc" #-}
   int2req (2) = Unlock
-{-# LINE 352 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 333 "System/Posix/IO/Common.hsc" #-}
   int2req _ = error $ "int2req: bad argument"
 
   int2mode :: CShort -> SeekMode
   int2mode (0) = AbsoluteSeek
-{-# LINE 356 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 337 "System/Posix/IO/Common.hsc" #-}
   int2mode (1) = RelativeSeek
-{-# LINE 357 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 338 "System/Posix/IO/Common.hsc" #-}
   int2mode (2) = SeekFromEnd
-{-# LINE 358 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 339 "System/Posix/IO/Common.hsc" #-}
   int2mode _ = error $ "int2mode: bad argument"
 
 -- | May throw an exception if this is an invalid descriptor.
@@ -405,7 +391,7 @@ setLock :: Fd -> FileLock -> IO ()
 setLock (Fd fd) lock = do
   allocaLock lock $ \p_flock ->
     throwErrnoIfMinus1_ "setLock" (Base.c_fcntl_lock fd (6) p_flock)
-{-# LINE 365 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 346 "System/Posix/IO/Common.hsc" #-}
 
 -- | May throw an exception if this is an invalid descriptor.
 waitToSetLock :: Fd -> FileLock -> IO ()
@@ -413,7 +399,7 @@ waitToSetLock (Fd fd) lock = do
   allocaLock lock $ \p_flock ->
     throwErrnoIfMinus1_ "waitToSetLock"
         (Base.c_fcntl_lock fd (7) p_flock)
-{-# LINE 372 "System/Posix/IO/Common.hsc" #-}
+{-# LINE 353 "System/Posix/IO/Common.hsc" #-}
 
 -- -----------------------------------------------------------------------------
 -- fd{Read,Write}

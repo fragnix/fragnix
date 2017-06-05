@@ -16,6 +16,7 @@
 #define UNICODE
 #include <windows.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #endif
 
 #include <unistd.h>
@@ -53,15 +54,17 @@ typedef PHANDLE ProcHandle;
 
 #if !(defined(_MSC_VER) || defined(__MINGW32__) || defined(_WIN32))
 
-extern ProcHandle runInteractiveProcess( char *const args[], 
-                                         char *workingDirectory, 
-                                         char **environment, 
+extern ProcHandle runInteractiveProcess( char *const args[],
+                                         char *workingDirectory,
+                                         char **environment,
                                          int fdStdIn,
                                          int fdStdOut,
                                          int fdStdErr,
-                                         int *pfdStdInput, 
-                                         int *pfdStdOutput, 
+                                         int *pfdStdInput,
+                                         int *pfdStdOutput,
                                          int *pfdStdError,
+                                         gid_t *childGroup,
+                                         uid_t *childUser,
                                          int reset_int_quit_handlers,
                                          int flags,
                                          char **failed_doing);
@@ -77,7 +80,16 @@ extern ProcHandle runInteractiveProcess( wchar_t *cmd,
                                          int *pfdStdInput,
                                          int *pfdStdOutput,
                                          int *pfdStdError,
-                                         int flags);
+                                         int flags,
+                                         bool useJobObject,
+                                         HANDLE *hJob,
+                                         HANDLE *hIOcpPort );
+
+typedef void(*setterDef)(DWORD, HANDLE);
+typedef HANDLE(*getterDef)(DWORD);
+
+extern int terminateJob( ProcHandle handle );
+extern int waitForJobCompletion( HANDLE hJob, HANDLE ioPort, DWORD timeout, int *pExitCode, setterDef set, getterDef get );
 
 #endif
 

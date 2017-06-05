@@ -45,6 +45,22 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -59,7 +75,7 @@
 
 --------------------------------------------------------------------
 -- |
--- Copyright   :  (C) Edward Kmett 2013-2014, (c) Google Inc. 2012
+-- Copyright   :  (C) Edward Kmett 2013-2015, (c) Google Inc. 2012
 -- License     :  BSD-style (see the file LICENSE)
 -- Maintainer  :  Edward Kmett <ekmett@gmail.com>
 -- Stability   :  experimental
@@ -91,7 +107,6 @@ import Control.Applicative
 import Control.Monad.Catch
 import Control.Monad.Reader as Reader
 import Control.Monad.RWS
-import Data.Foldable
 import Data.Functor.Identity
 import Data.Traversable as Traversable
 
@@ -138,7 +153,7 @@ instance Monad m => Applicative (CatchT m) where
   (<*>) = ap
 
 instance Monad m => Monad (CatchT m) where
-  return a = CatchT (return (Right a))
+  return = pure
   CatchT m >>= k = CatchT $ m >>= \ea -> case ea of
     Left e -> return (Left e)
     Right a -> runCatchT (k a)

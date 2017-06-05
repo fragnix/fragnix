@@ -45,6 +45,13 @@
 
 
 
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE Safe #-}
 -----------------------------------------------------------------------------
@@ -52,12 +59,12 @@
 -- Module      :  System.Posix
 -- Copyright   :  (c) The University of Glasgow 2002
 -- License     :  BSD-style (see the file libraries/base/LICENSE)
--- 
+--
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  provisional
 -- Portability :  non-portable (requires POSIX)
 --
--- POSIX support
+-- <http://pubs.opengroup.org/onlinepubs/9699919799/ POSIX.1-2008> support
 --
 -----------------------------------------------------------------------------
 
@@ -107,7 +114,7 @@ Here we detail our support for the IEEE Std 1003.1-2001 standard.  For
 each header file defined by the standard, we categorise its
 functionality as
 
- - "supported" 
+ - "supported"
 
    Full equivalent functionality is provided by the specified Haskell
    module.
@@ -116,7 +123,7 @@ functionality as
 
    The functionality is not currently provided.
 
- - "to be supported" 
+ - "to be supported"
 
    Currently unsupported, but support is planned for the future.
 
@@ -178,17 +185,17 @@ Unsupported interfaces
 aio.h
 assert.h
 complex.h
-cpio.h 
-ctype.h 
+cpio.h
+ctype.h
 fenv.h
 float.h
 fmtmsg.h
 fnmatch.h
 ftw.h
 glob.h
-iconv.h 
-inttypes.h 
-iso646.h 
+iconv.h
+inttypes.h
+iso646.h
 langinfo.h
 libgen.h
 locale.h	(see System.Locale)

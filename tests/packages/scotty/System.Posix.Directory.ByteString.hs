@@ -1,13 +1,14 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Directory/ByteString.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Directory/ByteString.hs" #-}
 {-# LINE 1 "System/Posix/Directory/ByteString.hsc" #-}
-{-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE CApiFFI #-}
 {-# LINE 2 "System/Posix/Directory/ByteString.hsc" #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
-{-# LINE 3 "System/Posix/Directory/ByteString.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LINE 4 "System/Posix/Directory/ByteString.hsc" #-}
+{-# LANGUAGE Safe #-}
 
-{-# LINE 5 "System/Posix/Directory/ByteString.hsc" #-}
+{-# LINE 8 "System/Posix/Directory/ByteString.hsc" #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -24,7 +25,11 @@
 -----------------------------------------------------------------------------
 
 
-{-# LINE 21 "System/Posix/Directory/ByteString.hsc" #-}
+{-# LINE 24 "System/Posix/Directory/ByteString.hsc" #-}
+
+-- hack copied from System.Posix.Files
+
+{-# LINE 29 "System/Posix/Directory/ByteString.hsc" #-}
 
 module System.Posix.Directory.ByteString (
    -- * Creating and removing directories
@@ -38,15 +43,15 @@ module System.Posix.Directory.ByteString (
    closeDirStream,
    DirStreamOffset,
 
-{-# LINE 34 "System/Posix/Directory/ByteString.hsc" #-}
+{-# LINE 42 "System/Posix/Directory/ByteString.hsc" #-}
    tellDirStream,
 
-{-# LINE 36 "System/Posix/Directory/ByteString.hsc" #-}
+{-# LINE 44 "System/Posix/Directory/ByteString.hsc" #-}
 
-{-# LINE 37 "System/Posix/Directory/ByteString.hsc" #-}
+{-# LINE 45 "System/Posix/Directory/ByteString.hsc" #-}
    seekDirStream,
 
-{-# LINE 39 "System/Posix/Directory/ByteString.hsc" #-}
+{-# LINE 47 "System/Posix/Directory/ByteString.hsc" #-}
 
    -- * The working dirctory
    getWorkingDirectory,
@@ -85,7 +90,7 @@ openDirStream name =
     dirp <- throwErrnoPathIfNullRetry "openDirStream" name $ c_opendir s
     return (DirStream dirp)
 
-foreign import ccall unsafe "__hsunix_opendir"
+foreign import capi unsafe "HsUnix.h opendir"
    c_opendir :: CString  -> IO (Ptr CDir)
 
 -- | @readDirStream dp@ calls @readdir@ to obtain the
@@ -128,27 +133,25 @@ foreign import ccall unsafe "__hscore_d_name"
 -- | @getWorkingDirectory@ calls @getcwd@ to obtain the name
 --   of the current working directory.
 getWorkingDirectory :: IO RawFilePath
-getWorkingDirectory = do
-  p <- mallocBytes long_path_size
-  go p long_path_size
-  where go p bytes = do
-          p' <- c_getcwd p (fromIntegral bytes)
-          if p' /= nullPtr
-             then do s <- peekFilePath p'
-                     free p'
-                     return s
-             else do errno <- getErrno
-                     if errno == eRANGE
-                        then do let bytes' = bytes * 2
-                                p'' <- reallocBytes p bytes'
-                                go p'' bytes'
-                        else throwErrno "getCurrentDirectory"
+getWorkingDirectory = go (4096)
+{-# LINE 129 "System/Posix/Directory/ByteString.hsc" #-}
+  where
+    go bytes = do
+        r <- allocaBytes bytes $ \buf -> do
+            buf' <- c_getcwd buf (fromIntegral bytes)
+            if buf' /= nullPtr
+                then do s <- peekFilePath buf
+                        return (Just s)
+                else do errno <- getErrno
+                        if errno == eRANGE
+                            -- we use Nothing to indicate that we should
+                            -- try again with a bigger buffer
+                            then return Nothing
+                            else throwErrno "getWorkingDirectory"
+        maybe (go (2 * bytes)) return r
 
 foreign import ccall unsafe "getcwd"
    c_getcwd   :: Ptr CChar -> CSize -> IO (Ptr CChar)
-
-foreign import ccall unsafe "__hsunix_long_path_size"
-  long_path_size :: Int
 
 -- | @changeWorkingDirectory dir@ calls @chdir@ to change
 --   the current working directory to @dir@.

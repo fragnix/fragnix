@@ -1,5 +1,80 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Acquire.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE Safe #-}
 -- | This was previously known as the Resource monad. However, that term is
 -- confusing next to the ResourceT transformer, so it has been renamed.
 module Data.Acquire

@@ -1,10 +1,79 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Attoparsec/Zepto.hs" #-}
-{-# LANGUAGE BangPatterns, MagicHash, UnboxedTuples #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE Trustworthy #-} -- Data.ByteString.Unsafe
+{-# LANGUAGE BangPatterns #-}
 
 -- |
 -- Module      :  Data.Attoparsec.Zepto
--- Copyright   :  Bryan O'Sullivan 2007-2014
+-- Copyright   :  Bryan O'Sullivan 2007-2015
 -- License     :  BSD3
 --
 -- Maintainer  :  bos@serpentine.com
@@ -25,101 +94,137 @@
 module Data.Attoparsec.Zepto
     (
       Parser
+    , ZeptoT
     , parse
+    , parseT
     , atEnd
     , string
     , take
     , takeWhile
     ) where
 
-import Data.Word (Word8)
 import Control.Applicative
-import Control.Monad
-import Data.Monoid
+import Control.Monad (MonadPlus(..), ap)
+import qualified Control.Monad.Fail as Fail
+import Control.Monad.IO.Class (MonadIO(..))
+import Data.ByteString (ByteString)
+import Data.Functor.Identity (Identity(runIdentity))
+import Data.Monoid as Mon (Monoid(..))
+import Data.Semigroup (Semigroup(..))
+import Data.Word (Word8)
+import Prelude hiding (take, takeWhile)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Unsafe as B
-import Data.ByteString (ByteString)
-import Prelude hiding (take, takeWhile)
 
 newtype S = S {
       input :: ByteString
     }
 
 data Result a = Fail String
-              | OK !a
+              | OK !a S
 
 -- | A simple parser.
 --
 -- This monad is strict in its state, and the monadic bind operator
 -- ('>>=') evaluates each result to weak head normal form before
 -- passing it along.
-newtype Parser a = Parser {
-      runParser :: S -> (# Result a, S #)
+newtype ZeptoT m a = Parser {
+      runParser :: S -> m (Result a)
     }
 
-instance Functor Parser where
-    fmap f m = Parser $ \s -> case runParser m s of
-                                (# OK a, s' #)     -> (# OK (f a), s' #)
-                                (# Fail err, s' #) -> (# Fail err, s' #)
+type Parser a = ZeptoT Identity a
+
+instance Monad m => Functor (ZeptoT m) where
+    fmap f m = Parser $ \s -> do
+      result <- runParser m s
+      case result of
+        OK a s'  -> return (OK (f a) s')
+        Fail err -> return (Fail err)
     {-# INLINE fmap #-}
 
-instance Monad Parser where
-    return a = Parser $ \s -> (# OK a, s #)
+instance MonadIO m => MonadIO (ZeptoT m) where
+  liftIO act = Parser $ \s -> do
+    result <- liftIO act
+    return (OK result s)
+  {-# INLINE liftIO #-}
+
+instance Monad m => Monad (ZeptoT m) where
+    return = pure
     {-# INLINE return #-}
 
-    m >>= k   = Parser $ \s -> case runParser m s of
-                                 (# OK a, s' #) -> runParser (k a) s'
-                                 (# Fail err, s' #) -> (# Fail err, s' #)
+    m >>= k   = Parser $ \s -> do
+      result <- runParser m s
+      case result of
+        OK a s'  -> runParser (k a) s'
+        Fail err -> return (Fail err)
     {-# INLINE (>>=) #-}
 
-    fail msg = Parser $ \s -> (# Fail msg, s #)
+    fail = Fail.fail
+    {-# INLINE fail #-}
 
-instance MonadPlus Parser where
+instance Monad m => Fail.MonadFail (ZeptoT m) where
+    fail msg = Parser $ \_ -> return (Fail msg)
+    {-# INLINE fail #-}
+
+instance Monad m => MonadPlus (ZeptoT m) where
     mzero = fail "mzero"
     {-# INLINE mzero #-}
 
-    mplus a b = Parser $ \s ->
-                case runParser a s of
-                  (# ok@(OK _), s' #) -> (# ok, s' #)
-                  (# _, _ #) -> case runParser b s of
-                                   (# ok@(OK _), s'' #) -> (# ok, s'' #)
-                                   (# err, s'' #) -> (# err, s'' #)
+    mplus a b = Parser $ \s -> do
+      result <- runParser a s
+      case result of
+        ok@(OK _ _) -> return ok
+        _           -> runParser b s
     {-# INLINE mplus #-}
 
-instance Applicative Parser where
-    pure   = return
+instance (Monad m) => Applicative (ZeptoT m) where
+    pure a = Parser $ \s -> return (OK a s)
     {-# INLINE pure #-}
     (<*>)  = ap
     {-# INLINE (<*>) #-}
 
-gets :: (S -> a) -> Parser a
-gets f = Parser $ \s -> (# OK (f s), s #)
+gets :: Monad m => (S -> a) -> ZeptoT m a
+gets f = Parser $ \s -> return (OK (f s) s)
 {-# INLINE gets #-}
 
-put :: S -> Parser ()
-put s = Parser $ \_ -> (# OK (), s #)
+put :: Monad m => S -> ZeptoT m ()
+put s = Parser $ \_ -> return (OK () s)
 {-# INLINE put #-}
 
 -- | Run a parser.
 parse :: Parser a -> ByteString -> Either String a
-parse p bs = case runParser p (S bs) of
-               (# OK a, _ #) -> Right a
-               (# Fail err, _ #) -> Left err
+parse p bs = case runIdentity (runParser p (S bs)) of
+               (OK a _)   -> Right a
+               (Fail err) -> Left err
+{-# INLINE parse #-}
 
-instance Monoid (Parser a) where
+-- | Run a parser on top of the given base monad.
+parseT :: Monad m => ZeptoT m a -> ByteString -> m (Either String a)
+parseT p bs = do
+  result <- runParser p (S bs)
+  case result of
+    OK a _   -> return (Right a)
+    Fail err -> return (Left err)
+{-# INLINE parseT #-}
+
+instance Monad m => Semigroup (ZeptoT m a) where
+    (<>) = mplus
+    {-# INLINE (<>) #-}
+
+instance Monad m => Mon.Monoid (ZeptoT m a) where
     mempty  = fail "mempty"
     {-# INLINE mempty #-}
-    mappend = mplus
+    mappend = (<>)
     {-# INLINE mappend #-}
 
-instance Alternative Parser where
+instance Monad m => Alternative (ZeptoT m) where
     empty = fail "empty"
     {-# INLINE empty #-}
     (<|>) = mplus
     {-# INLINE (<|>) #-}
 
 -- | Consume input while the predicate returns 'True'.
-takeWhile :: (Word8 -> Bool) -> Parser ByteString
+takeWhile :: Monad m => (Word8 -> Bool) -> ZeptoT m ByteString
 takeWhile p = do
   (h,t) <- gets (B.span p . input)
   put (S t)
@@ -127,7 +232,7 @@ takeWhile p = do
 {-# INLINE takeWhile #-}
 
 -- | Consume @n@ bytes of input.
-take :: Int -> Parser ByteString
+take :: Monad m => Int -> ZeptoT m ByteString
 take !n = do
   s <- gets input
   if B.length s >= n
@@ -136,7 +241,7 @@ take !n = do
 {-# INLINE take #-}
 
 -- | Match a string exactly.
-string :: ByteString -> Parser ()
+string :: Monad m => ByteString -> ZeptoT m ()
 string s = do
   i <- gets input
   if s `B.isPrefixOf` i
@@ -145,7 +250,7 @@ string s = do
 {-# INLINE string #-}
 
 -- | Indicate whether the end of the input has been reached.
-atEnd :: Parser Bool
+atEnd :: Monad m => ZeptoT m Bool
 atEnd = do
   i <- gets input
   return $! B.null i

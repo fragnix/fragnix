@@ -45,6 +45,13 @@
 
 
 
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 -----------------------------------------------------------------------------
 -- |
@@ -63,6 +70,14 @@
 -- facilities, and only supports TCP.
 --
 -----------------------------------------------------------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -215,9 +230,6 @@ module Network
 
     -- ** Improving I\/O Performance over sockets
     {-$performance-}
-
-    -- ** @SIGPIPE@
-    {-$sigpipe-}
     ) where
 
 import Control.Monad (liftM)
@@ -255,9 +267,9 @@ connectTo :: HostName           -- Hostname
 
 -- IPv6 and IPv4.
 
-connectTo hostname (Service serv) = connect' hostname serv
+connectTo hostname (Service serv) = connect' "Network.connectTo" hostname serv
 
-connectTo hostname (PortNumber port) = connect' hostname (show port)
+connectTo hostname (PortNumber port) = connect' "Network.connectTo" hostname (show port)
 
 connectTo _ (UnixSocket path) = do
     bracketOnError
@@ -268,15 +280,15 @@ connectTo _ (UnixSocket path) = do
           socketToHandle sock ReadWriteMode
         )
 
-connect' :: HostName -> ServiceName -> IO Handle
+connect' :: String -> HostName -> ServiceName -> IO Handle
 
-connect' host serv = do
+connect' caller host serv = do
     proto <- getProtocolNumber "tcp"
     let hints = defaultHints { addrFlags = [AI_ADDRCONFIG]
                              , addrProtocol = proto
                              , addrSocketType = Stream }
     addrs <- getAddrInfo (Just hints) (Just host) (Just serv)
-    firstSuccessful $ map tryToConnect addrs
+    firstSuccessful caller $ map tryToConnect addrs
   where
   tryToConnect addr =
     bracketOnError
@@ -318,7 +330,7 @@ listenOn (UnixSocket path) =
         (sClose)
         (\sock -> do
             setSocketOption sock ReuseAddr 1
-            bindSocket sock (SockAddrUnix path)
+            bind sock (SockAddrUnix path)
             listen sock maxListenQueue
             return sock
         )
@@ -343,7 +355,7 @@ listen' serv = do
         (sClose)
         (\sock -> do
             setSocketOption sock ReuseAddr 1
-            bindSocket sock (addrAddress addr)
+            bind sock (addrAddress addr)
             listen sock maxListenQueue
             return sock
         )
@@ -384,6 +396,7 @@ accept sock@(MkSocket _ AF_INET6 _ _ _) = do
                  SockAddrInet  _   a   -> inet_ntoa a
                  SockAddrInet6 _ _ a _ -> return (show a)
                  SockAddrUnix      a   -> return a
+                 SockAddrCan {}        -> ioError $ userError "Network.accept: peer socket address 'SockAddrCan' not supported on this platform."
  handle <- socketToHandle sock' ReadWriteMode
  let port = case addr of
               SockAddrInet  p _     -> p
@@ -395,13 +408,14 @@ accept sock@(MkSocket _ AF_UNIX _ _ _) = do
  handle <- socketToHandle sock' ReadWriteMode
  return (handle, path, -1)
 accept (MkSocket _ family _ _ _) =
-  error $ "Sorry, address family " ++ (show family) ++ " is not supported!"
+  ioError $ userError $ "Network.accept: address family '" ++
+    show family ++ "' not supported."
 
 
--- | Close the socket. All future operations on the socket object will fail.
---   The remote end will receive no more data (after queued data is flushed).
+-- | Close the socket. Sending data to or receiving data from closed socket
+-- may lead to undefined behaviour.
 sClose :: Socket -> IO ()
-sClose = close -- Explicit redefinition because Network.sClose is deperecated,
+sClose = close -- Explicit redefinition because Network.sClose is deprecated,
                -- hence the re-export would also be marked as such.
 
 -- -----------------------------------------------------------------------------
@@ -459,13 +473,11 @@ recvFrom host port = do
 socketPort :: Socket -> IO PortID
 socketPort s = do
     sockaddr <- getSocketName s
-    return (portID sockaddr)
-  where
-   portID sa =
-    case sa of
-     SockAddrInet port _      -> PortNumber port
-     SockAddrInet6 port _ _ _ -> PortNumber port
-     SockAddrUnix path        -> UnixSocket path
+    case sockaddr of
+      SockAddrInet port _      -> return $ PortNumber port
+      SockAddrInet6 port _ _ _ -> return $ PortNumber port
+      SockAddrUnix path        -> return $ UnixSocket path
+      SockAddrCan {}           -> ioError $ userError "Network.socketPort: socket address 'SockAddrCan' not supported."
 
 -- ---------------------------------------------------------------------------
 -- Utils
@@ -499,30 +511,29 @@ For really fast I\/O, it might be worth looking at the 'hGetBuf' and
 'hPutBuf' family of functions in "System.IO".
 -}
 
-{-$sigpipe
-
-On Unix, when writing to a socket and the reading end is
-closed by the remote client, the program is normally sent a
-@SIGPIPE@ signal by the operating system.  The
-default behaviour when a @SIGPIPE@ is received is
-to terminate the program silently, which can be somewhat confusing
-if you haven't encountered this before.  The solution is to
-specify that @SIGPIPE@ is to be ignored, using
-the POSIX library:
-
->  import Posix
->  main = do installHandler sigPIPE Ignore Nothing; ...
--}
-
 catchIO :: IO a -> (Exception.IOException -> IO a) -> IO a
 catchIO = Exception.catch
+
+-- Version of try implemented in terms of the locally defined catchIO
+tryIO :: IO a -> IO (Either Exception.IOException a)
+tryIO m = catchIO (liftM Right m) (return . Left)
 
 -- Returns the first action from a list which does not throw an exception.
 -- If all the actions throw exceptions (and the list of actions is not empty),
 -- the last exception is thrown.
-firstSuccessful :: [IO a] -> IO a
-firstSuccessful [] = error "firstSuccessful: empty list"
-firstSuccessful (p:ps) = catchIO p $ \e ->
-    case ps of
-        [] -> Exception.throwIO e
-        _  -> firstSuccessful ps
+-- The operations are run outside of the catchIO cleanup handler because
+-- catchIO masks asynchronous exceptions in the cleanup handler.
+-- In the case of complete failure, the last exception is actually thrown.
+firstSuccessful :: String -> [IO a] -> IO a
+firstSuccessful caller = go Nothing
+  where
+  -- Attempt the next operation, remember exception on failure
+  go _ (p:ps) =
+    do r <- tryIO p
+       case r of
+         Right x -> return x
+         Left  e -> go (Just e) ps
+
+  -- All operations failed, throw error if one exists
+  go Nothing  [] = ioError $ userError $ caller ++ ": firstSuccessful: empty list"
+  go (Just e) [] = Exception.throwIO e

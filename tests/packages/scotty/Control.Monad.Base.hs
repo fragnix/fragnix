@@ -45,6 +45,16 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE UnicodeSyntax #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -78,13 +88,9 @@ import qualified Control.Monad.Trans.RWS.Lazy as L
 import qualified Control.Monad.Trans.RWS.Strict as S
 import Control.Monad.Trans.Error
 import Control.Monad.Trans.Cont
-
 import Control.Monad.Trans.Except
-
-
 import qualified Control.Monad.ST.Lazy.Safe as L
 import qualified Control.Monad.ST.Safe as S
-
 import Control.Monad.STM (STM)
 
 class (Applicative b, Applicative m, Monad b, Monad m)

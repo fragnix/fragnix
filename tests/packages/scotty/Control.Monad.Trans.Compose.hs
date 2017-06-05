@@ -1,6 +1,10 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "src/Control/Monad/Trans/Compose.hs" #-}
-{-# LANGUAGE FlexibleContexts, KindSignatures #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {-| Composition of monad transformers. A higher-order version of
     "Data.Functor.Compose".
@@ -9,21 +13,31 @@
 module Control.Monad.Trans.Compose (
     -- * ComposeT
     ComposeT(ComposeT, getComposeT),
+    mapComposeT
    ) where
 
 import Control.Applicative (
     Applicative(pure, (<*>), (*>), (<*)), Alternative(empty, (<|>)) )
 import Control.Monad (MonadPlus(mzero, mplus), liftM)
+import Control.Monad.Cont.Class (MonadCont(callCC))
+import Control.Monad.Error.Class (MonadError(throwError, catchError))
 import Control.Monad.Morph (MFunctor(hoist))
+import Control.Monad.RWS.Class (MonadRWS)
+import Control.Monad.Reader.Class (MonadReader(ask, local, reader))
+import Control.Monad.State.Class (MonadState(get, put, state))
 import Control.Monad.Trans.Class (MonadTrans(lift))
+import Control.Monad.Writer.Class (MonadWriter(writer, tell, listen, pass))
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import Data.Foldable (Foldable(fold, foldMap, foldr, foldl, foldr1, foldl1))
 import Data.Traversable (Traversable(traverse, sequenceA, mapM, sequence))
 import Prelude hiding (foldr, foldl, foldr1, foldl1, mapM, sequence)
 
+infixr 9 `ComposeT`
+
 -- | Composition of monad transformers.
 newtype ComposeT (f :: (* -> *) -> * -> *) (g :: (* -> *) -> * -> *) m a
     = ComposeT { getComposeT :: f (g m) a }
+  deriving (Eq, Ord, Read, Show)
 
 instance (MFunctor f, MonadTrans f, MonadTrans g) => MonadTrans (ComposeT f g)
   where
@@ -67,3 +81,32 @@ instance Traversable (f (g m)) => Traversable (ComposeT f g m) where
     sequenceA  (ComposeT m) = fmap  ComposeT (sequenceA  m)
     mapM     f (ComposeT m) = liftM ComposeT (mapM     f m)
     sequence   (ComposeT m) = liftM ComposeT (sequence   m)
+
+instance MonadCont (f (g m)) => MonadCont (ComposeT f g m) where
+    callCC f = ComposeT $ callCC $ \c -> getComposeT (f (ComposeT . c))
+
+instance MonadError e (f (g m)) => MonadError e (ComposeT f g m) where
+    throwError     = ComposeT . throwError
+    catchError m h = ComposeT $ catchError (getComposeT m) (getComposeT . h)
+
+instance MonadRWS r w s (f (g m)) => MonadRWS r w s (ComposeT f g m)
+
+instance MonadReader r (f (g m)) => MonadReader r (ComposeT f g m) where
+    ask    = ComposeT ask
+    local  = mapComposeT . local
+    reader = ComposeT . reader
+
+instance MonadState s (f (g m)) => MonadState s (ComposeT f g m) where
+    get   = ComposeT get
+    put   = ComposeT . put
+    state = ComposeT . state
+
+instance MonadWriter w (f (g m)) => MonadWriter w (ComposeT f g m) where
+    writer = ComposeT . writer
+    tell   = ComposeT . tell
+    listen = mapComposeT listen
+    pass   = mapComposeT pass
+
+-- | Transform the computation inside a 'ComposeT'.
+mapComposeT :: (f (g m) a -> p (q n) b) -> ComposeT f g m a -> ComposeT p q n b
+mapComposeT f = ComposeT . f . getComposeT

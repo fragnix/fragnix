@@ -47,8 +47,35 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE Safe #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -402,7 +429,6 @@
 --                (c) Joachim Breitner 2011
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
--- Stability   :  provisional
 -- Portability :  portable
 --
 -- An efficient implementation of integer sets.
@@ -522,7 +548,7 @@ module Data.IntSet (
 
             ) where
 
-import Data.IntSet.Base as IS
+import Data.IntSet.Internal as IS
 
 -- $strictness
 --

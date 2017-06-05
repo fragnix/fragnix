@@ -41,14 +41,22 @@
 
 
 
+
+
+
+
+
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE Safe #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE AutoDeriveTypeable #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Functor.Reverse
 -- Copyright   :  (c) Russell O'Connor 2009
 -- License     :  BSD-style (see the file LICENSE)
 --
--- Maintainer  :  libraries@haskell.org
+-- Maintainer  :  R.Paterson@city.ac.uk
 -- Stability   :  experimental
 -- Portability :  portable
 --
@@ -63,8 +71,10 @@ module Data.Functor.Reverse (
 import Control.Applicative.Backwards
 import Data.Functor.Classes
 
-import Prelude hiding (foldr, foldr1, foldl, foldl1)
+import Prelude hiding (foldr, foldr1, foldl, foldl1, null, length)
 import Control.Applicative
+import Control.Monad
+import qualified Control.Monad.Fail as Fail
 import Data.Foldable
 import Data.Traversable
 import Data.Monoid
@@ -73,48 +83,83 @@ import Data.Monoid
 -- that process the elements in the reverse order.
 newtype Reverse f a = Reverse { getReverse :: f a }
 
-instance (Eq1 f, Eq a) => Eq (Reverse f a) where
-    Reverse x == Reverse y = eq1 x y
+instance (Eq1 f) => Eq1 (Reverse f) where
+    liftEq eq (Reverse x) (Reverse y) = liftEq eq x y
+    {-# INLINE liftEq #-}
 
-instance (Ord1 f, Ord a) => Ord (Reverse f a) where
-    compare (Reverse x) (Reverse y) = compare1 x y
+instance (Ord1 f) => Ord1 (Reverse f) where
+    liftCompare comp (Reverse x) (Reverse y) = liftCompare comp x y
+    {-# INLINE liftCompare #-}
 
-instance (Read1 f, Read a) => Read (Reverse f a) where
-    readsPrec = readsData $ readsUnary1 "Reverse" Reverse
+instance (Read1 f) => Read1 (Reverse f) where
+    liftReadsPrec rp rl = readsData $
+        readsUnaryWith (liftReadsPrec rp rl) "Reverse" Reverse
 
-instance (Show1 f, Show a) => Show (Reverse f a) where
-    showsPrec d (Reverse x) = showsUnary1 "Reverse" d x
+instance (Show1 f) => Show1 (Reverse f) where
+    liftShowsPrec sp sl d (Reverse x) =
+        showsUnaryWith (liftShowsPrec sp sl) "Reverse" d x
 
-instance (Eq1 f) => Eq1 (Reverse f) where eq1 = (==)
-instance (Ord1 f) => Ord1 (Reverse f) where compare1 = compare
-instance (Read1 f) => Read1 (Reverse f) where readsPrec1 = readsPrec
-instance (Show1 f) => Show1 (Reverse f) where showsPrec1 = showsPrec
+instance (Eq1 f, Eq a) => Eq (Reverse f a) where (==) = eq1
+instance (Ord1 f, Ord a) => Ord (Reverse f a) where compare = compare1
+instance (Read1 f, Read a) => Read (Reverse f a) where readsPrec = readsPrec1
+instance (Show1 f, Show a) => Show (Reverse f a) where showsPrec = showsPrec1
 
 -- | Derived instance.
 instance (Functor f) => Functor (Reverse f) where
     fmap f (Reverse a) = Reverse (fmap f a)
+    {-# INLINE fmap #-}
 
 -- | Derived instance.
 instance (Applicative f) => Applicative (Reverse f) where
     pure a = Reverse (pure a)
+    {-# INLINE pure #-}
     Reverse f <*> Reverse a = Reverse (f <*> a)
+    {-# INLINE (<*>) #-}
 
 -- | Derived instance.
 instance (Alternative f) => Alternative (Reverse f) where
     empty = Reverse empty
+    {-# INLINE empty #-}
     Reverse x <|> Reverse y = Reverse (x <|> y)
+    {-# INLINE (<|>) #-}
+
+-- | Derived instance.
+instance (Monad m) => Monad (Reverse m) where
+    return a = Reverse (return a)
+    {-# INLINE return #-}
+    m >>= f = Reverse (getReverse m >>= getReverse . f)
+    {-# INLINE (>>=) #-}
+    fail msg = Reverse (fail msg)
+    {-# INLINE fail #-}
+
+instance (Fail.MonadFail m) => Fail.MonadFail (Reverse m) where
+    fail msg = Reverse (Fail.fail msg)
+    {-# INLINE fail #-}
+
+-- | Derived instance.
+instance (MonadPlus m) => MonadPlus (Reverse m) where
+    mzero = Reverse mzero
+    {-# INLINE mzero #-}
+    Reverse x `mplus` Reverse y = Reverse (x `mplus` y)
+    {-# INLINE mplus #-}
 
 -- | Fold from right to left.
 instance (Foldable f) => Foldable (Reverse f) where
     foldMap f (Reverse t) = getDual (foldMap (Dual . f) t)
+    {-# INLINE foldMap #-}
     foldr f z (Reverse t) = foldl (flip f) z t
+    {-# INLINE foldr #-}
     foldl f z (Reverse t) = foldr (flip f) z t
+    {-# INLINE foldl #-}
     foldr1 f (Reverse t) = foldl1 (flip f) t
+    {-# INLINE foldr1 #-}
     foldl1 f (Reverse t) = foldr1 (flip f) t
+    {-# INLINE foldl1 #-}
+    null (Reverse t) = null t
+    length (Reverse t) = length t
 
 -- | Traverse from right to left.
 instance (Traversable f) => Traversable (Reverse f) where
     traverse f (Reverse t) =
         fmap Reverse . forwards $ traverse (Backwards . f) t
-    sequenceA (Reverse t) =
-        fmap Reverse . forwards $ sequenceA (fmap Backwards t)
+    {-# INLINE traverse #-}

@@ -1,4 +1,4 @@
-{-# LANGUAGE Haskell2010, DeriveGeneric #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/IP/Op.hs" #-}
 module Data.IP.Op where
 
@@ -21,8 +21,23 @@ class Eq a => Addr a where
     -}
     masked :: a -> a -> a
     {-|
-      The 'intToMask' function takes 'Int' and returns a contiguous
-      mask.
+
+      The 'intToMask' function takes an 'Int' representing the number of bits to
+      be set in the returned contiguous mask. When this integer is positive the
+      bits will be starting from the MSB and from the LSB otherwise.
+
+      >>> intToMask 16 :: IPv4
+      255.255.0.0
+
+      >>> intToMask (-16) :: IPv4
+      0.0.255.255
+
+      >>> intToMask 16 :: IPv6
+      ffff::
+
+      >>> intToMask (-16) :: IPv6
+      ::ffff
+
     -}
     intToMask :: Int -> a
 
@@ -31,8 +46,7 @@ instance Addr IPv4 where
     intToMask = maskIPv4
 
 instance Addr IPv6 where
-    IP6 (a1,a2,a3,a4) `masked` IP6 (m1,m2,m3,m4) =
-        IP6 (a1.&.m1,a2.&.m2,a3.&.m3,a4.&.m4)
+    masked    = maskedIPv6
     intToMask = maskIPv6
 
 ----------------------------------------------------------------
@@ -86,3 +100,25 @@ makeAddrRange ad len = AddrRange adr msk len
   where
     msk = intToMask len
     adr = ad `masked` msk
+
+
+-- | Convert IPv4 range to IPV4-embedded-in-IPV6 range
+ipv4RangeToIPv6 :: AddrRange IPv4 -> AddrRange IPv6
+ipv4RangeToIPv6 range =
+  makeAddrRange (toIPv6 [0,0,0,0,0,0xffff, (i1 `shift` 8) .|. i2, (i3 `shift` 8) .|. i4]) (masklen + 96)
+  where
+    (ip, masklen) = addrRangePair range
+    [i1,i2,i3,i4] = fromIPv4 ip
+
+
+{-|
+  The 'unmakeAddrRange' functions take a 'AddrRange' and
+  returns the network address and a mask length.
+
+>>> addrRangePair ("127.0.0.0/8" :: AddrRange IPv4)
+(127.0.0.0,8)
+>>> addrRangePair ("2000::/8" :: AddrRange IPv6)
+(2000::,8)
+-}
+addrRangePair :: Addr a => AddrRange a -> (a, Int)
+addrRangePair (AddrRange adr _ len) = (adr, len)

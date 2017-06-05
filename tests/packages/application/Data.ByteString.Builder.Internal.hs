@@ -47,6 +47,14 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE ScopedTypeVariables, CPP, BangPatterns, RankNTypes #-}
 {-# LANGUAGE Unsafe #-}
 {-# OPTIONS_HADDOCK hide #-}
@@ -176,10 +184,9 @@ module Data.ByteString.Builder.Internal (
 ) where
 
 import           Control.Arrow (second)
-import           Control.Applicative (Applicative(..), (<$>))
--- import           Control.Exception (return)
 
-import           Data.Monoid
+import           Data.Semigroup (Semigroup((<>)))
+
 import qualified Data.ByteString               as S
 import qualified Data.ByteString.Internal      as S
 import qualified Data.ByteString.Lazy.Internal as L
@@ -419,7 +426,11 @@ runBuilderWith (Builder b) = b
 -- only exported for use in rewriting rules. Use 'mempty' otherwise.
 {-# INLINE[1] empty #-}
 empty :: Builder
-empty = Builder id
+empty = Builder (\cont -> (\range -> cont range))
+-- This eta expansion (hopefully) allows GHC to worker-wrapper the
+-- 'BufferRange' in the 'empty' base case of loops (since
+-- worker-wrapper requires (TODO: verify this) that all paths match
+-- against the wrapped argument.
 
 -- | Concatenate two 'Builder's. This function is only exported for use in rewriting
 -- rules. Use 'mappend' otherwise.
@@ -427,11 +438,15 @@ empty = Builder id
 append :: Builder -> Builder -> Builder
 append (Builder b1) (Builder b2) = Builder $ b1 . b2
 
+instance Semigroup Builder where
+  {-# INLINE (<>) #-}
+  (<>) = append
+
 instance Monoid Builder where
   {-# INLINE mempty #-}
   mempty = empty
   {-# INLINE mappend #-}
-  mappend = append
+  mappend = (<>)
   {-# INLINE mconcat #-}
   mconcat = foldr mappend mempty
 
@@ -524,12 +539,11 @@ instance Applicative Put where
 
 instance Monad Put where
   {-# INLINE return #-}
-  return x = Put $ \k -> k x
+  return = pure
   {-# INLINE (>>=) #-}
   Put m >>= f = Put $ \k -> m (\m' -> unPut (f m') k)
   {-# INLINE (>>) #-}
-  (>>) = ap_r
-
+  (>>) = (*>)
 
 -- Conversion between Put and Builder
 -------------------------------------

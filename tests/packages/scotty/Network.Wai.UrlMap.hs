@@ -1,6 +1,6 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010, OverloadedStrings #-}
 {-# LINE 1 "Network/Wai/UrlMap.hs" #-}
-{-# LANGUAGE OverloadedStrings, TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {- | This module gives you a way to mount applications under sub-URIs.
 For example:
@@ -95,7 +95,7 @@ instance ToApplication UrlMap where
             Nothing ->
                 sendResponse $ responseLBS
                     status404
-                    [("content-type", "text/plain")]
+                    [(hContentType, "text/plain")]
                     "Not found\n"
 
         where

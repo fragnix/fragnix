@@ -1,12 +1,12 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Unistd.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Unistd.hs" #-}
 {-# LINE 1 "System/Posix/Unistd.hsc" #-}
 {-# LANGUAGE CApiFFI #-}
 {-# LINE 2 "System/Posix/Unistd.hsc" #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
-{-# LINE 6 "System/Posix/Unistd.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LINE 4 "System/Posix/Unistd.hsc" #-}
+{-# LANGUAGE Safe #-}
 
 {-# LINE 8 "System/Posix/Unistd.hsc" #-}
 -----------------------------------------------------------------------------
@@ -127,11 +127,7 @@ sleep :: Int -> IO Int
 sleep 0 = return 0
 sleep secs = do r <- c_sleep (fromIntegral secs); return (fromIntegral r)
 
-
-{-# LINE 122 "System/Posix/Unistd.hsc" #-}
 {-# WARNING sleep "This function has several shortcomings (see documentation). Please consider using Control.Concurrent.threadDelay instead." #-}
-
-{-# LINE 124 "System/Posix/Unistd.hsc" #-}
 
 foreign import ccall safe "sleep"
   c_sleep :: CUInt -> IO CUInt
@@ -146,30 +142,30 @@ foreign import ccall safe "sleep"
 --
 usleep :: Int -> IO ()
 
-{-# LINE 138 "System/Posix/Unistd.hsc" #-}
+{-# LINE 136 "System/Posix/Unistd.hsc" #-}
 usleep usecs = nanosleep (fromIntegral usecs * 1000)
 
-{-# LINE 155 "System/Posix/Unistd.hsc" #-}
+{-# LINE 153 "System/Posix/Unistd.hsc" #-}
 
 -- | Sleep for the specified duration (in nanoseconds)
 --
 -- /GHC Note/: the comment for 'usleep' also applies here.
 nanosleep :: Integer -> IO ()
 
-{-# LINE 163 "System/Posix/Unistd.hsc" #-}
+{-# LINE 161 "System/Posix/Unistd.hsc" #-}
 nanosleep 0 = return ()
 nanosleep nsecs = do
   allocaBytes (16) $ \pts1 -> do
-{-# LINE 166 "System/Posix/Unistd.hsc" #-}
+{-# LINE 164 "System/Posix/Unistd.hsc" #-}
   allocaBytes (16) $ \pts2 -> do
-{-# LINE 167 "System/Posix/Unistd.hsc" #-}
+{-# LINE 165 "System/Posix/Unistd.hsc" #-}
      let (tv_sec0, tv_nsec0) = nsecs `divMod` 1000000000
      let
        loop tv_sec tv_nsec = do
          ((\hsc_ptr -> pokeByteOff hsc_ptr 0))  pts1 tv_sec
-{-# LINE 171 "System/Posix/Unistd.hsc" #-}
+{-# LINE 169 "System/Posix/Unistd.hsc" #-}
          ((\hsc_ptr -> pokeByteOff hsc_ptr 8)) pts1 tv_nsec
-{-# LINE 172 "System/Posix/Unistd.hsc" #-}
+{-# LINE 170 "System/Posix/Unistd.hsc" #-}
          res <- c_nanosleep pts1 pts2
          if res == 0
             then return ()
@@ -177,19 +173,19 @@ nanosleep nsecs = do
                     if errno == eINTR
                        then do
                            tv_sec'  <- ((\hsc_ptr -> peekByteOff hsc_ptr 0))  pts2
-{-# LINE 179 "System/Posix/Unistd.hsc" #-}
+{-# LINE 177 "System/Posix/Unistd.hsc" #-}
                            tv_nsec' <- ((\hsc_ptr -> peekByteOff hsc_ptr 8)) pts2
-{-# LINE 180 "System/Posix/Unistd.hsc" #-}
+{-# LINE 178 "System/Posix/Unistd.hsc" #-}
                            loop tv_sec' tv_nsec'
                        else throwErrno "nanosleep"
      loop (fromIntegral tv_sec0 :: CTime) (fromIntegral tv_nsec0 :: CTime)
 
-data CTimeSpec
+data {-# CTYPE "struct timespec" #-} CTimeSpec
 
-foreign import ccall safe "__hsunix_nanosleep"
+foreign import capi safe "HsUnix.h nanosleep"
   c_nanosleep :: Ptr CTimeSpec -> Ptr CTimeSpec -> IO CInt
 
-{-# LINE 189 "System/Posix/Unistd.hsc" #-}
+{-# LINE 187 "System/Posix/Unistd.hsc" #-}
 
 -- -----------------------------------------------------------------------------
 -- System variables
@@ -208,21 +204,21 @@ getSysVar :: SysVar -> IO Integer
 getSysVar v =
     case v of
       ArgumentLimit -> sysconf (0)
-{-# LINE 207 "System/Posix/Unistd.hsc" #-}
+{-# LINE 205 "System/Posix/Unistd.hsc" #-}
       ChildLimit    -> sysconf (1)
-{-# LINE 208 "System/Posix/Unistd.hsc" #-}
+{-# LINE 206 "System/Posix/Unistd.hsc" #-}
       ClockTick     -> sysconf (2)
-{-# LINE 209 "System/Posix/Unistd.hsc" #-}
+{-# LINE 207 "System/Posix/Unistd.hsc" #-}
       GroupLimit    -> sysconf (3)
-{-# LINE 210 "System/Posix/Unistd.hsc" #-}
+{-# LINE 208 "System/Posix/Unistd.hsc" #-}
       OpenFileLimit -> sysconf (4)
-{-# LINE 211 "System/Posix/Unistd.hsc" #-}
+{-# LINE 209 "System/Posix/Unistd.hsc" #-}
       PosixVersion  -> sysconf (29)
-{-# LINE 212 "System/Posix/Unistd.hsc" #-}
+{-# LINE 210 "System/Posix/Unistd.hsc" #-}
       HasSavedIDs   -> sysconf (8)
-{-# LINE 213 "System/Posix/Unistd.hsc" #-}
+{-# LINE 211 "System/Posix/Unistd.hsc" #-}
       HasJobControl -> sysconf (7)
-{-# LINE 214 "System/Posix/Unistd.hsc" #-}
+{-# LINE 212 "System/Posix/Unistd.hsc" #-}
 
 sysconf :: CInt -> IO Integer
 sysconf n = do
@@ -241,17 +237,17 @@ foreign import ccall unsafe "sysconf"
 -- provide @fsync(2)@ (use @#if HAVE_FSYNC@ CPP guard to
 -- detect availability).
 --
--- /Since: 2.7.1.0/
+-- @since 2.7.1.0
 fileSynchronise :: Fd -> IO ()
 
-{-# LINE 235 "System/Posix/Unistd.hsc" #-}
+{-# LINE 233 "System/Posix/Unistd.hsc" #-}
 fileSynchronise fd = do
   throwErrnoIfMinus1_ "fileSynchronise" (c_fsync fd)
 
 foreign import capi safe "unistd.h fsync"
   c_fsync :: Fd -> IO CInt
 
-{-# LINE 246 "System/Posix/Unistd.hsc" #-}
+{-# LINE 244 "System/Posix/Unistd.hsc" #-}
 
 -- | Performs @fdatasync(2)@ operation on file-descriptor.
 --
@@ -259,14 +255,14 @@ foreign import capi safe "unistd.h fsync"
 -- provide @fdatasync(2)@ (use @#if HAVE_FDATASYNC@ CPP guard to
 -- detect availability).
 --
--- /Since: 2.7.1.0/
+-- @since 2.7.1.0
 fileSynchroniseDataOnly :: Fd -> IO ()
 
-{-# LINE 256 "System/Posix/Unistd.hsc" #-}
+{-# LINE 254 "System/Posix/Unistd.hsc" #-}
 fileSynchroniseDataOnly fd = do
   throwErrnoIfMinus1_ "fileSynchroniseDataOnly" (c_fdatasync fd)
 
 foreign import capi safe "unistd.h fdatasync"
   c_fdatasync :: Fd -> IO CInt
 
-{-# LINE 267 "System/Posix/Unistd.hsc" #-}
+{-# LINE 265 "System/Posix/Unistd.hsc" #-}

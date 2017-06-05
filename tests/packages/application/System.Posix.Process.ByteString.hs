@@ -1,9 +1,9 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Process/ByteString.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Process/ByteString.hs" #-}
 {-# LINE 1 "System/Posix/Process/ByteString.hsc" #-}
 
-{-# LINE 4 "System/Posix/Process/ByteString.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LINE 2 "System/Posix/Process/ByteString.hsc" #-}
+{-# LANGUAGE Safe #-}
 
 {-# LINE 6 "System/Posix/Process/ByteString.hsc" #-}
 
@@ -26,12 +26,8 @@ module System.Posix.Process.ByteString (
     -- * Processes
 
     -- ** Forking and executing
-
-{-# LINE 27 "System/Posix/Process/ByteString.hsc" #-}
     forkProcess,
     forkProcessWithUnmask,
-
-{-# LINE 30 "System/Posix/Process/ByteString.hsc" #-}
     executeFile,
 
     -- ** Exiting
@@ -77,7 +73,7 @@ module System.Posix.Process.ByteString (
  ) where
 
 
-{-# LINE 75 "System/Posix/Process/ByteString.hsc" #-}
+{-# LINE 73 "System/Posix/Process/ByteString.hsc" #-}
 
 import Foreign
 import System.Posix.Process.Internals
@@ -95,9 +91,6 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BC
 
 import System.Posix.ByteString.FilePath
-
-
-{-# LINE 96 "System/Posix/Process/ByteString.hsc" #-}
 
 -- | @'executeFile' cmd args env@ calls one of the
 --   @execv*@ family, depending on whether or not the current

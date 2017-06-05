@@ -57,6 +57,22 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -65,8 +81,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE Safe #-}
 -- | Allocate resources which are guaranteed to be released.
 --
 -- For more information, see <https://www.fpcomplete.com/user/snoyberg/library-documentation/resourcet>.
@@ -82,6 +98,7 @@ module Control.Monad.Trans.Resource
       -- * Unwrap
     , runResourceT
       -- * Special actions
+    , resourceForkWith
     , resourceForkIO
       -- * Monad transformation
     , transResourceT
@@ -130,27 +147,11 @@ import qualified Control.Exception as E
 import Data.Monoid (Monoid)
 import qualified Control.Exception.Lifted as L
 
-import Control.Monad.Trans.Identity ( IdentityT)
-import Control.Monad.Trans.List     ( ListT    )
-import Control.Monad.Trans.Maybe    ( MaybeT   )
-import Control.Monad.Trans.Error    ( ErrorT, Error)
-import Control.Monad.Trans.Reader   ( ReaderT  )
-import Control.Monad.Trans.State    ( StateT   )
-import Control.Monad.Trans.Writer   ( WriterT  )
 import Control.Monad.Trans.Resource.Internal
-import Control.Monad.Trans.RWS      ( RWST     )
 
-import qualified Control.Monad.Trans.RWS.Strict    as Strict ( RWST   )
-import qualified Control.Monad.Trans.State.Strict  as Strict ( StateT )
-import qualified Control.Monad.Trans.Writer.Strict as Strict ( WriterT )
 import Control.Concurrent (ThreadId, forkIO)
 
-import Control.Monad.ST (ST)
-
-import qualified Control.Monad.ST.Lazy as Lazy
-
 import Data.Functor.Identity (Identity, runIdentity)
-import Control.Monad.Morph
 import Control.Monad.Catch (MonadThrow, throwM)
 import Control.Monad.Catch.Pure (CatchT, runCatchT)
 import Data.Acquire.Internal (ReleaseType (..))
@@ -169,12 +170,12 @@ register = liftResourceT . registerRIO
 --
 -- Since 0.3.0
 release :: MonadIO m => ReleaseKey -> m ()
-release (ReleaseKey istate rk) = liftIO $ release' istate rk  
+release (ReleaseKey istate rk) = liftIO $ release' istate rk
     (maybe (return ()) id)
 
 -- | Unprotect resource from cleanup actions, this allowes you to send
 -- resource into another resourcet process and reregister it there.
--- It returns an release action that should be run in order to clean 
+-- It returns an release action that should be run in order to clean
 -- resource or Nothing in case if resource is already freed.
 --
 -- Since 0.4.5
@@ -201,11 +202,11 @@ allocate a = liftResourceT . allocateRIO a
 --
 -- Since 0.3.0
 resourceMask :: MonadResource m => ((forall a. ResourceT IO a -> ResourceT IO a) -> ResourceT IO b) -> m b
-resourceMask = liftResourceT . resourceMaskRIO
+resourceMask r = liftResourceT (resourceMaskRIO r)
 
 allocateRIO :: IO a -> (a -> IO ()) -> ResourceT IO (ReleaseKey, a)
-allocateRIO acquire rel = ResourceT $ \istate -> liftIO $ E.mask $ \restore -> do
-    a <- restore acquire
+allocateRIO acquire rel = ResourceT $ \istate -> liftIO $ E.mask_ $ do
+    a <- acquire
     key <- register' istate $ rel a
     return (key, a)
 
@@ -316,17 +317,20 @@ runException_ = runIdentity . runExceptionT_
 -- shared by multiple threads. Once the last thread exits, all remaining
 -- resources will be released.
 --
+-- The first parameter is a function which will be used to create the
+-- thread, such as @forkIO@ or @async@.
+--
 -- Note that abuse of this function will greatly delay the deallocation of
 -- registered resources. This function should be used with care. A general
 -- guideline:
 --
 -- If you are allocating a resource that should be shared by multiple threads,
 -- and will be held for a long time, you should allocate it at the beginning of
--- a new @ResourceT@ block and then call @resourceForkIO@ from there.
+-- a new @ResourceT@ block and then call @resourceForkWith@ from there.
 --
--- Since 0.3.0
-resourceForkIO :: MonadBaseControl IO m => ResourceT m () -> ResourceT m ThreadId
-resourceForkIO (ResourceT f) = ResourceT $ \r -> L.mask $ \restore ->
+-- @since 1.1.9
+resourceForkWith :: MonadBaseControl IO m => (IO () -> IO a) -> ResourceT m () -> ResourceT m a
+resourceForkWith g (ResourceT f) = ResourceT $ \r -> L.mask $ \restore ->
     -- We need to make sure the counter is incremented before this call
     -- returns. Otherwise, the parent thread may call runResourceT before
     -- the child thread increments, and all resources will be freed
@@ -335,13 +339,19 @@ resourceForkIO (ResourceT f) = ResourceT $ \r -> L.mask $ \restore ->
         (stateAlloc r)
         (return ())
         (return ())
-        (liftBaseDiscard forkIO $ bracket_
+        (liftBaseDiscard g $ bracket_
             (return ())
             (stateCleanup ReleaseNormal r)
             (stateCleanup ReleaseException r)
             (restore $ f r))
 
-
+-- | Launch a new reference counted resource context using @forkIO@.
+--
+-- This is defined as @resourceForkWith forkIO@.
+--
+-- @since 0.3.0
+resourceForkIO :: MonadBaseControl IO m => ResourceT m () -> ResourceT m ThreadId
+resourceForkIO = resourceForkWith forkIO
 
 -- | A @Monad@ which can be used as a base for a @ResourceT@.
 --

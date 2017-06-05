@@ -43,17 +43,23 @@
 
 
 
+
+
+
+
+
+
 {-# OPTIONS_GHC -O2 #-}
 {-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
--- For the IsList instance:
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies #-} -- For the IsList and IsString instances
+
+{-# LANGUAGE PatternSynonyms, ViewPatterns #-}
 
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.DList
--- Copyright   :  (c) Don Stewart 2006-2009, (c) Sean Leather 2013
+-- Copyright   :  (c) 2006-2009 Don Stewart, 2013-2016 Sean Leather
 -- License     :  See LICENSE file
 --
 -- Maintainer  :  sean.leather@gmail.com
@@ -64,29 +70,30 @@
 --
 -----------------------------------------------------------------------------
 
-module Data.DList (
+module Data.DList
 
-   DList
+  ( DList(Nil, Cons)
 
   -- * Construction
-  ,fromList      -- :: [a] -> DList a
-  ,toList        -- :: DList a -> [a]
-  ,apply         -- :: DList a -> [a] -> [a]
+  , fromList
+  , toList
+  , apply
 
   -- * Basic functions
-  ,empty         -- :: DList a
-  ,singleton     -- :: a -> DList a
-  ,cons          -- :: a -> DList a -> DList a
-  ,snoc          -- :: DList a -> a -> DList a
-  ,append        -- :: DList a -> DList a -> DList a
-  ,concat        -- :: [DList a] -> DList a
-  ,replicate     -- :: Int -> a -> DList a
-  ,list          -- :: b -> (a -> DList a -> b) -> DList a -> b
-  ,head          -- :: DList a -> a
-  ,tail          -- :: DList a -> DList a
-  ,unfoldr       -- :: (b -> Maybe (a, b)) -> b -> DList a
-  ,foldr         -- :: (a -> b -> b) -> b -> DList a -> b
-  ,map           -- :: (a -> b) -> DList a -> DList b
+  , empty
+  , singleton
+  , cons
+  , snoc
+  , append
+  , concat
+  , replicate
+  , list
+  , head
+  , tail
+  , unfoldr
+  , foldr
+  , map
+
 
   ) where
 
@@ -94,12 +101,13 @@ import Prelude hiding (concat, foldr, map, head, tail, replicate)
 import qualified Data.List as List
 import Control.DeepSeq (NFData(..))
 import Control.Monad as M
-import Data.Monoid
 import Data.Function (on)
 import Data.String (IsString(..))
 
-import Data.Foldable (Foldable)
 import qualified Data.Foldable as F
+
+
+import Data.Semigroup (Semigroup(..))
 
 
 import Text.Read (Lexeme(Ident), lexP, parens, prec, readPrec, readListPrec,
@@ -110,7 +118,7 @@ import GHC.Exts (IsList)
 import qualified GHC.Exts
 
 
-import Control.Applicative(Applicative(..), Alternative, (<|>))
+import Control.Applicative(Alternative, (<|>))
 import qualified Control.Applicative (empty)
 
 -- | A difference list is a function that, given a list, returns the original
@@ -145,6 +153,16 @@ fromList    = DL . (++)
 toList      :: DList a -> [a]
 toList      = ($[]) . unDL
 {-# INLINE toList #-}
+
+-- | A unidirectional pattern synonym using 'toList' in a view pattern and
+-- matching on @[]@
+pattern Nil :: DList a
+pattern Nil <- (toList -> [])
+
+-- | A unidirectional pattern synonym using 'toList' in a view pattern and
+-- matching on @x:xs@ such that you have the pattern @Cons x xs@
+pattern Cons :: a -> [a] -> DList a
+pattern Cons x xs <- (toList -> x:xs)
 
 -- | Apply a dlist to a list to get the underlying list with an extension
 --
@@ -251,7 +269,8 @@ instance Functor DList where
     {-# INLINE fmap #-}
 
 instance Applicative DList where
-    pure  = return
+    pure  = singleton
+    {-# INLINE pure #-}
     (<*>) = ap
 
 instance Alternative DList where
@@ -268,7 +287,7 @@ instance Monad DList where
     = foldr (append . k) empty m
   {-# INLINE (>>=) #-}
 
-  return x = singleton x
+  return   = pure
   {-# INLINE return #-}
 
   fail _   = empty
@@ -309,7 +328,11 @@ instance NFData a => NFData (DList a) where
   rnf = rnf . toList
   {-# INLINE rnf #-}
 
-instance IsString (DList Char) where
+-- This is _not_ a flexible instance to allow certain uses of overloaded
+-- strings. See tests/OverloadedStrings.hs for an example and
+-- https://git.haskell.org/ghc.git/commitdiff/b225b234a6b11e42fef433dcd5d2a38bb4b466bf
+-- for the same change made to the IsString instance for lists.
+instance a ~ Char => IsString (DList a) where
   fromString = fromList
   {-# INLINE fromString #-}
 
@@ -320,3 +343,12 @@ instance IsList (DList a) where
   toList = toList
   {-# INLINE toList #-}
 
+instance Semigroup (DList a) where
+  (<>) = append
+  {-# INLINE (<>) #-}
+  stimes n x
+    | n < 0     = error "Data.DList.stimes: negative multiplier"
+    | otherwise = rep n
+    where
+      rep 0 = empty
+      rep i = x <> rep (pred i)

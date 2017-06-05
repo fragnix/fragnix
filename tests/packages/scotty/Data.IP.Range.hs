@@ -1,63 +1,17 @@
-{-# LANGUAGE Haskell2010, DeriveGeneric #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/IP/Range.hs" #-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE FlexibleInstances  #-}
 module Data.IP.Range where
 
 import Control.Monad
 import Data.Bits
+import Data.Data (Data)
 import Data.IP.Addr
 import Data.IP.Mask
 import Data.String
+import Data.Typeable (Typeable)
 import Text.Appar.String
 import GHC.Generics
 
@@ -76,7 +30,7 @@ True
 
 data IPRange = IPv4Range { ipv4range :: AddrRange IPv4 }
              | IPv6Range { ipv6range :: AddrRange IPv6 }
-        deriving (Eq, Generic)
+        deriving (Eq, Ord, Data, Generic, Typeable)
 
 ----------------------------------------------------------------
 --
@@ -105,7 +59,7 @@ data AddrRange a = AddrRange {
         -- |The 'mlen' function returns a mask length from 'AddrRange'.
       , mlen :: {-# UNPACK #-} !Int
     }
-    deriving (Eq, Ord, Generic)
+    deriving (Eq, Ord, Data, Generic, Typeable)
 
 ----------------------------------------------------------------
 --
@@ -177,6 +131,8 @@ ip6range = do
 
 maskedIPv6 :: IPv6 -> IPv6 -> IPv6
 IP6 (a1,a2,a3,a4) `maskedIPv6` IP6 (m1,m2,m3,m4) = IP6 (a1.&.m1,a2.&.m2,a3.&.m3,a4.&.m4)
+
+
 
 ----------------------------------------------------------------
 --

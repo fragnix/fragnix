@@ -55,8 +55,27 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE Safe #-}
 
 module System.Log.FastLogger.LogStr (
     Builder
@@ -70,12 +89,12 @@ module System.Log.FastLogger.LogStr (
 
 import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as B
+import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as S8
-import Data.ByteString.Internal (ByteString(..))
 import qualified Data.ByteString.Lazy as BL
-import Data.Monoid (Monoid, mempty, mappend)
 import Data.Monoid ((<>))
+import Data.Semigroup (Semigroup)
 import Data.String (IsString(..))
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -95,6 +114,8 @@ fromBuilder = BL.toStrict . B.toLazyByteString
 
 -- | Log message builder. Use ('<>') to append two LogStr in O(1).
 data LogStr = LogStr !Int Builder
+
+instance Semigroup LogStr
 
 instance Monoid LogStr where
     mempty = LogStr 0 (toBuilder BS.empty)

@@ -53,6 +53,23 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# OPTIONS_HADDOCK not-home #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE CPP #-}
@@ -63,10 +80,10 @@
 module Network.Wai.Internal where
 
 import           Blaze.ByteString.Builder     (Builder)
-import qualified Data.ByteString              as B
+import qualified Data.ByteString              as B hiding (pack)
 import           Data.Text                    (Text)
 import           Data.Typeable                (Typeable)
-import Data.Vault.Lazy (Vault)
+import           Data.Vault.Lazy              (Vault)
 import           Data.Word                    (Word64)
 import qualified Network.HTTP.Types           as H
 import           Network.Socket               (SockAddr)
@@ -136,6 +153,14 @@ data Request = Request {
   --
   -- Since 2.0.0
   ,  requestHeaderRange   :: Maybe B.ByteString
+  -- | The value of the Referer header in a HTTP request.
+  --
+  -- Since 3.2.0
+  ,  requestHeaderReferer   :: Maybe B.ByteString
+  -- | The value of the User-Agent header in a HTTP request.
+  --
+  -- Since 3.2.0
+  ,  requestHeaderUserAgent :: Maybe B.ByteString
   }
   deriving (Typeable)
 

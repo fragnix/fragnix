@@ -55,7 +55,28 @@
 
 
 
-{-# LANGUAGE CPP, MagicHash, OverloadedStrings #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP, OverloadedStrings #-}
 
 module Data.ByteString.Builder.Scientific
     ( scientificBuilder
@@ -69,13 +90,14 @@ import qualified Data.Scientific as Scientific
 import Data.Text.Lazy.Builder.RealFloat (FPFormat(..))
 
 import qualified Data.ByteString.Char8 as BC8
-
 import           Data.ByteString.Builder (Builder, string8, char8, intDec)
 import           Data.ByteString.Builder.Extra (byteStringCopy)
 
-import GHC.Base                     (Int(I#), Char(C#), chr#, ord#, (+#))
-import Data.Monoid                  (mempty)
+import Utils (roundTo, i2d)
+
+
 import Data.Monoid                  ((<>))
+
 
 -- | A @ByteString@ @Builder@ which renders a scientific number to full
 -- precision, using standard decimal notation for arguments whose
@@ -151,29 +173,3 @@ formatScientificBuilder fmt decs scntfc
           d:ds' = map i2d (if ei > 0 then is' else 0:is')
          in
          char8 d <> (if null ds' then mempty else char8 '.' <> string8 ds')
-
--- | Unsafe conversion for decimal digits.
-{-# INLINE i2d #-}
-i2d :: Int -> Char
-i2d (I# i#) = C# (chr# (ord# '0'# +# i#))
-
-roundTo :: Int -> [Int] -> (Int,[Int])
-roundTo d is =
-  case f d True is of
-    x@(0,_) -> x
-    (1,xs)  -> (1, 1:xs)
-    _       -> error "roundTo: bad Value"
- where
-  base = 10
-
-  b2 = base `quot` 2
-
-  f n _ []     = (0, replicate n 0)
-  f 0 e (x:xs) | x == b2 && e && all (== 0) xs = (0, [])   -- Round to even when at exactly half the base
-               | otherwise = (if x >= b2 then 1 else 0, [])
-  f n _ (i:xs)
-     | i' == base = (1,0:ds)
-     | otherwise  = (0,i':ds)
-      where
-       (c,ds) = f (n-1) (even i) xs
-       i'     = c + i

@@ -51,6 +51,19 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE BangPatterns, CPP, GeneralizedNewtypeDeriving #-}
 -- |
 -- Module      : Data.Text.Foreign
@@ -151,7 +164,7 @@ takeWord16 (I16 n) t@(Text arr off len)
     | n >= len || m >= len = t
     | otherwise            = Text arr off m
   where
-    m | w < 0xDB00 || w > 0xD8FF = n
+    m | w < 0xD800 || w > 0xDBFF = n
       | otherwise                = n+1
     w = A.unsafeIndex arr (off+n-1)
 

@@ -49,7 +49,20 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE Trustworthy #-}
 
 ------------------------------------------------------------------------
@@ -110,9 +123,16 @@ module Data.Hashable
     , hashPtrWithSalt
     , hashByteArray
     , hashByteArrayWithSalt
+    -- * Caching hashes
+    , Hashed
+    , hashed
+    , unhashed
+    , mapHashed
+    , traverseHashed
     ) where
 
 import Data.Hashable.Class
+
 import Data.Hashable.Generic ()
 
 -- $security

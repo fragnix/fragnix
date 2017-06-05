@@ -1,52 +1,5 @@
-{-# LANGUAGE Haskell2010, CPP, DeriveDataTypeable #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Vector/Generic/Base.hs" #-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 {-# LANGUAGE Rank2Types, MultiParamTypeClasses, FlexibleContexts,
              TypeFamilies, ScopedTypeVariables, BangPatterns #-}
 {-# OPTIONS_HADDOCK hide #-}
@@ -59,7 +12,7 @@
 -- Maintainer  : Roman Leshchinskiy <rl@cse.unsw.edu.au>
 -- Stability   : experimental
 -- Portability : non-portable
--- 
+--
 -- Class of pure vectors
 --
 
@@ -67,8 +20,8 @@ module Data.Vector.Generic.Base (
   Vector(..), Mutable
 ) where
 
-import           Data.Vector.Generic.Mutable ( MVector )
-import qualified Data.Vector.Generic.Mutable as M
+import           Data.Vector.Generic.Mutable.Base ( MVector )
+import qualified Data.Vector.Generic.Mutable.Base as M
 
 import Control.Monad.Primitive
 

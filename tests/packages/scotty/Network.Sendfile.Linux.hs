@@ -1,12 +1,14 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/Network/Sendfile/Linux.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/Network/Sendfile/Linux.hs" #-}
 {-# LINE 1 "Network/Sendfile/Linux.hsc" #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LINE 2 "Network/Sendfile/Linux.hsc" #-}
 
 module Network.Sendfile.Linux (
     sendfile
+  , sendfile'
   , sendfileFd
+  , sendfileFd'
   , sendfileWithHeader
   , sendfileFdWithHeader
   ) where
@@ -22,18 +24,30 @@ import Foreign.C.Types
 import Foreign.Marshal (alloca)
 import Foreign.Ptr (Ptr, plusPtr, castPtr)
 import Foreign.ForeignPtr
-import Foreign.Storable (poke)
+import Foreign.Storable (poke, sizeOf)
 import GHC.Conc (threadWaitWrite)
 import Network.Sendfile.Types
 import Network.Socket
 import System.Posix.Files
 import System.Posix.IO
+import qualified System.Posix.IO.ByteString as B
 import System.Posix.Types
 
 
-{-# LINE 30 "Network/Sendfile/Linux.hsc" #-}
+{-# LINE 33 "Network/Sendfile/Linux.hsc" #-}
 
-{-# LINE 31 "Network/Sendfile/Linux.hsc" #-}
+{-# LINE 34 "Network/Sendfile/Linux.hsc" #-}
+
+isLargeOffset :: Bool
+isLargeOffset = sizeOf (0 :: COff) == 8
+
+isLargeSize :: Bool
+isLargeSize = sizeOf (0 :: CSize) == 8
+
+safeSize :: CSize
+safeSize
+  | isLargeSize = 2^(60 :: Int)
+  | otherwise   = 2^(30 :: Int)
 
 ----------------------------------------------------------------
 
@@ -57,7 +71,14 @@ sendfile :: Socket -> FilePath -> FileRange -> IO () -> IO ()
 sendfile sock path range hook = bracket setup teardown $ \fd ->
     sendfileFd sock fd range hook
   where
-    setup = openFd path ReadOnly Nothing defaultFileFlags
+    setup = openFd path ReadOnly Nothing defaultFileFlags{nonBlock=True}
+    teardown = closeFd
+
+sendfile' :: Fd -> ByteString -> FileRange -> IO () -> IO ()
+sendfile' dst path range hook = bracket setup teardown $ \src ->
+    sendfileFd' dst src range hook
+  where
+    setup = B.openFd path ReadOnly Nothing defaultFileFlags{nonBlock=True}
     teardown = closeFd
 
 -- |
@@ -75,28 +96,33 @@ sendfile sock path range hook = bracket setup teardown $ \fd ->
 -- Chucking is inevitable if the socket is non-blocking (this is the
 -- default) and the file is large. The action is called after a chunk
 -- is sent and bofore waiting the socket to be ready for writing.
-
 sendfileFd :: Socket -> Fd -> FileRange -> IO () -> IO ()
-sendfileFd sock fd range hook =
+sendfileFd sock fd range hook = sendfileFd' dst fd range hook
+  where
+    dst = Fd $ fdSocket sock
+
+sendfileFd' :: Fd -> Fd -> FileRange -> IO () -> IO ()
+sendfileFd' dst src range hook =
     alloca $ \offp -> case range of
         EntireFile -> do
             poke offp 0
             -- System call is very slow. Use PartOfFile instead.
-            len <- fileSize <$> getFdStatus fd
+            len <- fileSize <$> getFdStatus src
             let len' = fromIntegral len
-            sendfileloop dst fd offp len' hook
+            sendfileloop dst src offp len' hook
         PartOfFile off len -> do
             poke offp (fromIntegral off)
             let len' = fromIntegral len
-            sendfileloop dst fd offp len' hook
-  where
-    dst = Fd $ fdSocket sock
+            sendfileloop dst src offp len' hook
 
 sendfileloop :: Fd -> Fd -> Ptr COff -> CSize -> IO () -> IO ()
 sendfileloop dst src offp len hook = do
     -- Multicore IO manager use edge-trigger mode.
     -- So, calling threadWaitWrite only when errnor is eAGAIN.
-    bytes <- c_sendfile dst src offp len
+    let toSend
+          | len > safeSize = safeSize
+          | otherwise      = len
+    bytes <- c_sendfile dst src offp toSend
     case bytes of
         -1 -> do
             errno <- getErrno
@@ -113,8 +139,15 @@ sendfileloop dst src offp len hook = do
 
 -- Dst Src in order. take care
 foreign import ccall unsafe "sendfile"
-    c_sendfile :: Fd -> Fd -> Ptr COff -> CSize -> IO (Int64)
-{-# LINE 111 "Network/Sendfile/Linux.hsc" #-}
+    c_sendfile32 :: Fd -> Fd -> Ptr COff -> CSize -> IO CSsize
+
+foreign import ccall unsafe "sendfile64"
+    c_sendfile64 :: Fd -> Fd -> Ptr COff -> CSize -> IO CSsize
+
+c_sendfile :: Fd -> Fd -> Ptr COff -> CSize -> IO CSsize
+c_sendfile
+  | isLargeOffset = c_sendfile64
+  | otherwise     = c_sendfile32
 
 ----------------------------------------------------------------
 
@@ -176,17 +209,17 @@ sendMsgMore sock bs = withForeignPtr fptr $ \ptr -> do
         siz = fromIntegral len
     sendloop s buf siz
   where
-    MkSocket s _ _ _ _ = sock
+    s = Fd $ fdSocket sock
     PS fptr off len = bs
 
-sendloop :: CInt -> Ptr CChar -> CSize -> IO ()
+sendloop :: Fd -> Ptr CChar -> CSize -> IO ()
 sendloop s buf len = do
     bytes <- c_send s buf len (32768)
-{-# LINE 178 "Network/Sendfile/Linux.hsc" #-}
+{-# LINE 212 "Network/Sendfile/Linux.hsc" #-}
     if bytes == -1 then do
         errno <- getErrno
         if errno == eAGAIN then do
-            threadWaitWrite (Fd s)
+            threadWaitWrite s
             sendloop s buf len
           else
             throwErrno "Network.SendFile.Linux.sendloop"
@@ -198,5 +231,4 @@ sendloop s buf len = do
             sendloop s ptr left
 
 foreign import ccall unsafe "send"
-  c_send :: CInt -> Ptr CChar -> CSize -> CInt -> IO (Int64)
-{-# LINE 194 "Network/Sendfile/Linux.hsc" #-}
+  c_send :: Fd -> Ptr CChar -> CSize -> CInt -> IO CSsize

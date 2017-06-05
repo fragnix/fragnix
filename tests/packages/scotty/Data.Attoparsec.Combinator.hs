@@ -1,9 +1,77 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Attoparsec/Combinator.hs" #-}
-{-# LANGUAGE BangPatterns #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE BangPatterns, CPP #-}
+{-# LANGUAGE Trustworthy #-} -- Imports internal modules
 -- |
 -- Module      :  Data.Attoparsec.Combinator
--- Copyright   :  Daan Leijen 1999-2001, Bryan O'Sullivan 2007-2014
+-- Copyright   :  Daan Leijen 1999-2001, Bryan O'Sullivan 2007-2015
 -- License     :  BSD3
 --
 -- Maintainer  :  bos@serpentine.com
@@ -35,15 +103,14 @@ module Data.Attoparsec.Combinator
     , satisfyElem
     , endOfInput
     , atEnd
+    , lookAhead
     ) where
 
-import Control.Applicative (Alternative(..), Applicative(..), empty, liftA2,
-                            many, (<|>), (*>), (<$>))
+import Control.Applicative (Alternative(..), empty, liftA2, many, (<|>))
 import Control.Monad (MonadPlus(..))
 import Data.Attoparsec.Internal.Types (Parser(..), IResult(..))
 import Data.Attoparsec.Internal (endOfInput, atEnd, satisfyElem)
 import Data.ByteString (ByteString)
-import Data.Monoid (Monoid(mappend))
 import Data.Text (Text)
 import qualified Data.Attoparsec.Zepto as Z
 import Prelude hiding (succ)
@@ -128,7 +195,7 @@ many1' p = liftM2' (:) p (many' p)
 -- | @sepBy p sep@ applies /zero/ or more occurrences of @p@, separated
 -- by @sep@. Returns a list of the values returned by @p@.
 --
--- > commaSep p  = p `sepBy` (symbol ",")
+-- > commaSep p  = p `sepBy` (char ',')
 sepBy :: Alternative f => f a -> f s -> f [a]
 sepBy p s = liftA2 (:) p ((s *> sepBy1 p s) <|> pure []) <|> pure []
 {-# SPECIALIZE sepBy :: Parser ByteString a -> Parser ByteString s
@@ -140,7 +207,7 @@ sepBy p s = liftA2 (:) p ((s *> sepBy1 p s) <|> pure []) <|> pure []
 -- by @sep@. Returns a list of the values returned by @p@. The value
 -- returned by @p@ is forced to WHNF.
 --
--- > commaSep p  = p `sepBy'` (symbol ",")
+-- > commaSep p  = p `sepBy'` (char ',')
 sepBy' :: (MonadPlus m) => m a -> m s -> m [a]
 sepBy' p s = scan `mplus` return []
   where scan = liftM2' (:) p ((s >> sepBy1' p s) `mplus` return [])
@@ -152,7 +219,7 @@ sepBy' p s = scan `mplus` return []
 -- | @sepBy1 p sep@ applies /one/ or more occurrences of @p@, separated
 -- by @sep@. Returns a list of the values returned by @p@.
 --
--- > commaSep p  = p `sepBy1` (symbol ",")
+-- > commaSep p  = p `sepBy1` (char ',')
 sepBy1 :: Alternative f => f a -> f s -> f [a]
 sepBy1 p s = scan
     where scan = liftA2 (:) p ((s *> scan) <|> pure [])
@@ -165,7 +232,7 @@ sepBy1 p s = scan
 -- by @sep@. Returns a list of the values returned by @p@. The value
 -- returned by @p@ is forced to WHNF.
 --
--- > commaSep p  = p `sepBy1'` (symbol ",")
+-- > commaSep p  = p `sepBy1'` (char ',')
 sepBy1' :: (MonadPlus m) => m a -> m s -> m [a]
 sepBy1' p s = scan
     where scan = liftM2' (:) p ((s >> scan) `mplus` return [])
@@ -238,7 +305,14 @@ eitherP a b = (Left <$> a) <|> (Right <$> b)
 -- | If a parser has returned a 'T.Partial' result, supply it with more
 -- input.
 feed :: Monoid i => IResult i r -> i -> IResult i r
-feed f@(Fail _ _ _) _ = f
+feed (Fail t ctxs msg) d = Fail (mappend t d) ctxs msg
 feed (Partial k) d    = k d
 feed (Done t r) d     = Done (mappend t d) r
 {-# INLINE feed #-}
+
+-- | Apply a parser without consuming any input.
+lookAhead :: Parser i a -> Parser i a
+lookAhead p = Parser $ \t pos more lose succ ->
+  let succ' t' _pos' more' = succ t' pos more'
+  in runParser p t pos more lose succ'
+{-# INLINE lookAhead #-}

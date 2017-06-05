@@ -51,6 +51,19 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE BangPatterns, CPP, ForeignFunctionInterface, MagicHash, Rank2Types,
     RecordWildCards, UnboxedTuples, UnliftedFFITypes #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
@@ -73,7 +86,7 @@
 -- > import qualified Data.Text.Array as A
 --
 -- The names in this module resemble those in the 'Data.Array' family
--- of modules, but are shorter due to the assumption of qualifid
+-- of modules, but are shorter due to the assumption of qualified
 -- naming.
 module Data.Text.Array
     (
@@ -429,6 +442,27 @@ module Data.Text.Array
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import Control.Monad.ST.Unsafe (unsafeIOToST)
 import Data.Bits ((.&.), xor)
 import Data.Text.Internal.Unsafe (inlinePerformIO)
@@ -436,7 +470,7 @@ import Data.Text.Internal.Unsafe.Shift (shiftL, shiftR)
 import Foreign.C.Types (CInt(CInt), CSize(CSize))
 import GHC.Base (ByteArray#, MutableByteArray#, Int(..),
                  indexWord16Array#, newByteArray#,
-                 unsafeCoerce#, writeWord16Array#)
+                 unsafeFreezeByteArray#, writeWord16Array#)
 import GHC.ST (ST(..), runST)
 import GHC.Word (Word16(..))
 import Prelude hiding (length, read)
@@ -469,8 +503,9 @@ array_size_error = error "Data.Text.Array.new: size overflow"
 
 -- | Freeze a mutable array. Do not mutate the 'MArray' afterwards!
 unsafeFreeze :: MArray s -> ST s Array
-unsafeFreeze MArray{..} = ST $ \s# ->
-                          (# s#, Array (unsafeCoerce# maBA)
+unsafeFreeze MArray{..} = ST $ \s1# ->
+    case unsafeFreezeByteArray# maBA s1# of
+        (# s2#, ba# #) -> (# s2#, Array ba#
                              #)
 {-# INLINE unsafeFreeze #-}
 

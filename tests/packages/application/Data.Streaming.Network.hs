@@ -65,6 +65,26 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE BangPatterns #-}
@@ -91,6 +111,7 @@ module Data.Streaming.Network
     , HasPort (..)
     , HasAfterBind (..)
     , HasReadWrite (..)
+    , HasReadBufferSize (..)
     , HasPath (..)
       -- ** Setters
     , setPort
@@ -98,6 +119,7 @@ module Data.Streaming.Network
     , setAddrFamily
     , setAfterBind
     , setNeedLocalAddr
+    , setReadBufferSize
     , setPath
       -- ** Getters
     , getPort
@@ -105,15 +127,18 @@ module Data.Streaming.Network
     , getAddrFamily
     , getAfterBind
     , getNeedLocalAddr
+    , getReadBufferSize
     , getPath
     , appRead
     , appWrite
     , appSockAddr
     , appLocalAddr
     , appCloseConnection
+    , appRawSocket
       -- * Functions
       -- ** General
     , bindPortGen
+    , bindPortGenEx
     , bindRandomPortGen
     , getSocketGen
     , getSocketFamilyGen
@@ -160,18 +185,24 @@ import Data.IORef (IORef, newIORef, atomicModifyIORef)
 import Data.Array.Unboxed ((!), UArray, listArray)
 import System.IO.Unsafe (unsafePerformIO)
 import System.Random (randomRIO)
+import System.IO.Error (isFullErrorType, ioeGetErrorType)
+
+getPossibleAddrs :: SocketType -> String -> Int -> NS.Family -> IO [AddrInfo]
+getPossibleAddrs sockettype host' port' af =
+    NS.getAddrInfo (Just hints) (Just host') (Just $ show port')
+  where
+    hints = NS.defaultHints {
+                NS.addrFlags = [NS.AI_ADDRCONFIG]
+              , NS.addrSocketType = sockettype
+              , NS.addrFamily = af
+              }
 
 -- | Attempt to connect to the given host/port/address family using given @SocketType@.
 --
 -- Since 0.1.3
 getSocketFamilyGen :: SocketType -> String -> Int -> NS.Family -> IO (Socket, AddrInfo)
 getSocketFamilyGen sockettype host' port' af = do
-    let hints = NS.defaultHints {
-                          NS.addrFlags = [NS.AI_ADDRCONFIG]
-                        , NS.addrSocketType = sockettype
-                        , NS.addrFamily = af
-                        }
-    (addr:_) <- NS.getAddrInfo (Just hints) (Just host') (Just $ show port')
+    (addr:_) <- getPossibleAddrs sockettype host' port' af
     sock <- NS.socket (NS.addrFamily addr) (NS.addrSocketType addr)
                       (NS.addrProtocol addr)
     return (sock, addr)
@@ -180,10 +211,23 @@ getSocketFamilyGen sockettype host' port' af = do
 getSocketGen :: SocketType -> String -> Int -> IO (Socket, AddrInfo)
 getSocketGen sockettype host port = getSocketFamilyGen sockettype host port NS.AF_UNSPEC
 
+defaultSocketOptions :: SocketType -> [(NS.SocketOption, Int)]
+defaultSocketOptions sockettype =
+    case sockettype of
+        NS.Datagram -> [(NS.ReuseAddr,1)]
+        _           -> [(NS.NoDelay,1), (NS.ReuseAddr,1)]
+
 -- | Attempt to bind a listening @Socket@ on the given host/port using given
 -- @SocketType@. If no host is given, will use the first address available.
 bindPortGen :: SocketType -> Int -> HostPreference -> IO Socket
-bindPortGen sockettype p s = do
+bindPortGen sockettype = bindPortGenEx (defaultSocketOptions sockettype) sockettype
+
+-- | Attempt to bind a listening @Socket@ on the given host/port using given
+-- socket options and @SocketType@. If no host is given, will use the first address available.
+--
+-- Since 0.1.17
+bindPortGenEx :: [(NS.SocketOption, Int)] -> SocketType -> Int -> HostPreference -> IO Socket
+bindPortGenEx sockOpts sockettype p s = do
     let hints = NS.defaultHints
             { NS.addrFlags = [ NS.AI_PASSIVE
                              , NS.AI_NUMERICSERV
@@ -216,18 +260,13 @@ bindPortGen sockettype p s = do
         tryAddrs (addr1:[])         = theBody addr1
         tryAddrs _                  = error "bindPort: addrs is empty"
 
-        sockOpts =
-            case sockettype of
-                NS.Datagram -> [(NS.ReuseAddr,1)]
-                _           -> [(NS.NoDelay,1), (NS.ReuseAddr,1)]
-
         theBody addr =
           bracketOnError
           (NS.socket (NS.addrFamily addr) (NS.addrSocketType addr) (NS.addrProtocol addr))
-          NS.sClose
+          NS.close
           (\sock -> do
               mapM_ (\(opt,v) -> NS.setSocketOption sock opt v) sockOpts
-              NS.bindSocket sock (NS.addrAddress addr)
+              NS.bind sock (NS.addrAddress addr)
               return sock
           )
     tryAddrs addrs'
@@ -322,13 +361,16 @@ bindPortUDP = bindPortGen NS.Datagram
 bindRandomPortUDP :: HostPreference -> IO (Int, Socket)
 bindRandomPortUDP = bindRandomPortGen NS.Datagram
 
+defaultReadBufferSize :: Int
+defaultReadBufferSize = 32768
+
 -- | Attempt to connect to the given Unix domain socket path.
 getSocketUnix :: FilePath -> IO Socket
 getSocketUnix path = do
     sock <- NS.socket NS.AF_UNIX NS.Stream 0
     ee <- try' $ NS.connect sock (NS.SockAddrUnix path)
     case ee of
-        Left e -> NS.sClose sock >> throwIO e
+        Left e -> NS.close sock >> throwIO e
         Right () -> return sock
   where
     try' :: IO a -> IO (Either SomeException a)
@@ -339,10 +381,10 @@ bindPath :: FilePath -> IO Socket
 bindPath path = do
   sock <- bracketOnError
             (NS.socket NS.AF_UNIX NS.Stream 0)
-            NS.sClose
+            NS.close
             (\sock -> do
                 removeFileSafe path  -- Cannot bind if the socket file exists.
-                NS.bindSocket sock (NS.SockAddrUnix path)
+                NS.bind sock (NS.SockAddrUnix path)
                 return sock)
   NS.listen sock (max 2048 NS.maxListenQueue)
   return sock
@@ -362,6 +404,7 @@ serverSettingsUnix
 serverSettingsUnix path = ServerSettingsUnix
     { serverPath = path
     , serverAfterBindUnix = const $ return ()
+    , serverReadBufferSizeUnix = defaultReadBufferSize
     }
 
 -- | Smart constructor.
@@ -370,6 +413,7 @@ clientSettingsUnix
     -> ClientSettingsUnix
 clientSettingsUnix path = ClientSettingsUnix
     { clientPath = path
+    , clientReadBufferSizeUnix = defaultReadBufferSize
     }
 
 
@@ -394,6 +438,7 @@ serverSettingsTCP port host = ServerSettings
     , serverSocket = Nothing
     , serverAfterBind = const $ return ()
     , serverNeedLocalAddr = False
+    , serverReadBufferSize = defaultReadBufferSize
     }
 
 -- | Create a server settings that uses an already available listening socket.
@@ -407,6 +452,7 @@ serverSettingsTCPSocket lsocket = ServerSettings
     , serverSocket = Just lsocket
     , serverAfterBind = const $ return ()
     , serverNeedLocalAddr = False
+    , serverReadBufferSize = defaultReadBufferSize
     }
 
 -- | Smart constructor.
@@ -425,6 +471,7 @@ clientSettingsTCP port host = ClientSettings
     { clientPort = port
     , clientHost = host
     , clientAddrFamily = NS.AF_UNSPEC
+    , clientReadBufferSize = defaultReadBufferSize
     }
 
 -- | Attempt to connect to the given host/port/address family.
@@ -432,14 +479,22 @@ clientSettingsTCP port host = ClientSettings
 -- Since 0.1.3
 getSocketFamilyTCP :: ByteString -> Int -> NS.Family -> IO (NS.Socket, NS.SockAddr)
 getSocketFamilyTCP host' port' addrFamily = do
-    (sock, addr) <- getSocketFamilyGen NS.Stream (S8.unpack host') port' addrFamily
-    ee <- try' $ NS.connect sock (NS.addrAddress addr)
-    case ee of
-        Left e -> NS.sClose sock >> throwIO e
-        Right () -> return (sock, NS.addrAddress addr)
+    addrsInfo <- getPossibleAddrs NS.Stream (S8.unpack host') port' addrFamily
+    firstSuccess addrsInfo
   where
-    try' :: IO a -> IO (Either SomeException a)
-    try' = try
+    firstSuccess [ai]     = connect ai
+    firstSuccess (ai:ais) = connect ai `E.catch` \(_ :: IOException) -> firstSuccess ais
+    firstSuccess _        = error "getSocketFamilyTCP: can't happen"
+
+    createSocket addrInfo = do
+        sock <- NS.socket (NS.addrFamily addrInfo) (NS.addrSocketType addrInfo)
+                          (NS.addrProtocol addrInfo)
+        NS.setSocketOption sock NS.NoDelay 1
+        return sock
+
+    connect addrInfo = E.bracketOnError (createSocket addrInfo) NS.close $ \sock -> do
+        NS.connect sock (NS.addrAddress addrInfo)
+        return (sock, NS.addrAddress addrInfo)
 
 -- | Attempt to connect to the given host/port.
 getSocketTCP :: ByteString -> Int -> IO (NS.Socket, NS.SockAddr)
@@ -477,9 +532,12 @@ acceptSafe socket =
     loop
   where
     loop =
-        NS.accept socket `E.catch` \(_ :: IOException) -> do
-            threadDelay 1000000
-            loop
+        NS.accept socket `E.catch` \e ->
+            if isFullErrorType (ioeGetErrorType e)
+                then do
+                    threadDelay 1000000
+                    loop
+                else E.throwIO e
 
 message :: ByteString -> NS.SockAddr -> Message
 message = Message
@@ -547,25 +605,53 @@ getAfterBind = getConstant . afterBindLens Constant
 setAfterBind :: HasAfterBind a => (Socket -> IO ()) -> a -> a
 setAfterBind p = runIdentity . afterBindLens (const (Identity p))
 
+-- | Since 0.1.13
+class HasReadBufferSize a where
+    readBufferSizeLens :: Functor f => (Int -> f Int) -> a -> f a
+-- | Since 0.1.13
+instance HasReadBufferSize ServerSettings where
+    readBufferSizeLens f ss = fmap (\p -> ss { serverReadBufferSize = p }) (f (serverReadBufferSize ss))
+-- | Since 0.1.13
+instance HasReadBufferSize ClientSettings where
+    readBufferSizeLens f cs = fmap (\p -> cs { clientReadBufferSize = p }) (f (clientReadBufferSize cs))
+-- | Since 0.1.13
+instance HasReadBufferSize ServerSettingsUnix where
+    readBufferSizeLens f ss = fmap (\p -> ss { serverReadBufferSizeUnix = p }) (f (serverReadBufferSizeUnix ss))
+-- | Since 0.1.14
+instance HasReadBufferSize ClientSettingsUnix where
+    readBufferSizeLens f ss = fmap (\p -> ss { clientReadBufferSizeUnix = p }) (f (clientReadBufferSizeUnix ss))
+
+-- | Get buffer size used when reading from socket.
+--
+-- Since 0.1.13
+getReadBufferSize :: HasReadBufferSize a => a -> Int
+getReadBufferSize = getConstant . readBufferSizeLens Constant
+
+-- | Set buffer size used when reading from socket.
+--
+-- Since 0.1.13
+setReadBufferSize :: HasReadBufferSize a => Int -> a -> a
+setReadBufferSize p = runIdentity . readBufferSizeLens (const (Identity p))
+
 type ConnectionHandle = Socket -> NS.SockAddr -> Maybe NS.SockAddr -> IO ()
 
 runTCPServerWithHandle :: ServerSettings -> ConnectionHandle -> IO a
-runTCPServerWithHandle (ServerSettings port host msocket afterBind needLocalAddr) handle =
+runTCPServerWithHandle (ServerSettings port host msocket afterBind needLocalAddr _) handle =
     case msocket of
-        Nothing -> E.bracket (bindPortTCP port host) NS.sClose inner
+        Nothing -> E.bracket (bindPortTCP port host) NS.close inner
         Just lsocket -> inner lsocket
   where
     inner lsocket = afterBind lsocket >> forever (serve lsocket)
     serve lsocket = E.bracketOnError
         (acceptSafe lsocket)
-        (\(socket, _) -> NS.sClose socket)
+        (\(socket, _) -> NS.close socket)
         $ \(socket, addr) -> do
             mlocal <- if needLocalAddr
                         then fmap Just $ NS.getSocketName socket
                         else return Nothing
             _ <- E.mask $ \restore -> forkIO
                $ restore (handle socket addr mlocal)
-                    `E.finally` NS.sClose socket
+                    `E.finally` NS.close socket
             return ()
 
 
@@ -577,26 +663,28 @@ runTCPServer :: ServerSettings -> (AppData -> IO ()) -> IO a
 runTCPServer settings app = runTCPServerWithHandle settings app'
   where app' socket addr mlocal =
           let ad = AppData
-                { appRead' = safeRecv socket 4096
+                { appRead' = safeRecv socket $ getReadBufferSize settings
                 , appWrite' = sendAll socket
                 , appSockAddr' = addr
                 , appLocalAddr' = mlocal
-                , appCloseConnection' = NS.sClose socket
+                , appCloseConnection' = NS.close socket
+                , appRawSocket' = Just socket
                 }
           in
             app ad
 
 -- | Run an @Application@ by connecting to the specified server.
 runTCPClient :: ClientSettings -> (AppData -> IO a) -> IO a
-runTCPClient (ClientSettings port host addrFamily) app = E.bracket
+runTCPClient (ClientSettings port host addrFamily readBufferSize) app = E.bracket
     (getSocketFamilyTCP host port addrFamily)
-    (NS.sClose . fst)
+    (NS.close . fst)
     (\(s, address) -> app AppData
-        { appRead' = safeRecv s 4096
+        { appRead' = safeRecv s readBufferSize
         , appWrite' = sendAll s
         , appSockAddr' = address
         , appLocalAddr' = Nothing
-        , appCloseConnection' = NS.sClose s
+        , appCloseConnection' = NS.close s
+        , appRawSocket' = Just s
         })
 
 appLocalAddr :: AppData -> Maybe NS.SockAddr
@@ -611,6 +699,12 @@ appSockAddr = appSockAddr'
 -- Since 0.1.6
 appCloseConnection :: AppData -> IO ()
 appCloseConnection = appCloseConnection'
+
+-- | Get the raw socket for this @AppData@, if available.
+--
+-- Since 0.1.12
+appRawSocket :: AppData -> Maybe NS.Socket
+appRawSocket = appRawSocket'
 
 class HasReadWrite a where
     readLens :: Functor f => (IO ByteString -> f (IO ByteString)) -> a -> f a
@@ -632,32 +726,32 @@ appWrite = getConstant . writeLens Constant
 -- new listening socket, accept connections on it, and spawn a new thread for
 -- each connection.
 runUnixServer :: ServerSettingsUnix -> (AppDataUnix -> IO ()) -> IO a
-runUnixServer (ServerSettingsUnix path afterBind) app = E.bracket
+runUnixServer (ServerSettingsUnix path afterBind readBufferSize) app = E.bracket
     (bindPath path)
-    NS.sClose
+    NS.close
     (\socket -> do
         afterBind socket
         forever $ serve socket)
   where
     serve lsocket = E.bracketOnError
         (acceptSafe lsocket)
-        (\(socket, _) -> NS.sClose socket)
+        (\(socket, _) -> NS.close socket)
         $ \(socket, _) -> do
             let ad = AppDataUnix
-                    { appReadUnix = safeRecv socket 4096
+                    { appReadUnix = safeRecv socket readBufferSize
                     , appWriteUnix = sendAll socket
                     }
             _ <- E.mask $ \restore -> forkIO
                 $ restore (app ad)
-                    `E.finally` NS.sClose socket
+                    `E.finally` NS.close socket
             return ()
 
 -- | Run an @Application@ by connecting to the specified server.
 runUnixClient :: ClientSettingsUnix -> (AppDataUnix -> IO a) -> IO a
-runUnixClient (ClientSettingsUnix path) app = E.bracket
+runUnixClient (ClientSettingsUnix path readBufferSize) app = E.bracket
     (getSocketUnix path)
-    NS.sClose
+    NS.close
     (\sock -> app AppDataUnix
-        { appReadUnix = safeRecv sock 4096
+        { appReadUnix = safeRecv sock readBufferSize
         , appWriteUnix = sendAll sock
         })

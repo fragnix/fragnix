@@ -6,6 +6,8 @@ module Network.Wai.Handler.Warp.Header where
 
 import Data.Array
 import Data.Array.ST
+import qualified Data.ByteString as BS
+import Data.CaseInsensitive (foldedCase)
 import Network.HTTP.Types
 import Network.Wai.Handler.Warp.Types
 
@@ -19,29 +21,43 @@ type IndexedHeader = Array Int (Maybe HeaderValue)
 indexRequestHeader :: RequestHeaders -> IndexedHeader
 indexRequestHeader hdr = traverseHeader hdr requestMaxIndex requestKeyIndex
 
-idxContentLength,idxTransferEncoding,idxExpect :: Int
-idxConnection,idxRange,idxHost :: Int
-idxContentLength    = 0
-idxTransferEncoding = 1
-idxExpect           = 2
-idxConnection       = 3
-idxRange            = 4
-idxHost             = 5
+data RequestHeaderIndex = ReqContentLength
+                        | ReqTransferEncoding
+                        | ReqExpect
+                        | ReqConnection
+                        | ReqRange
+                        | ReqHost
+                        | ReqIfModifiedSince
+                        | ReqIfUnmodifiedSince
+                        | ReqIfRange
+                        | ReqReferer
+                        | ReqUserAgent
+                        deriving (Enum,Bounded)
 
 -- | The size for 'IndexedHeader' for HTTP Request.
 --   From 0 to this corresponds to \"Content-Length\", \"Transfer-Encoding\",
---   \"Expect\", \"Connection\", \"Range\", and \"Host\".
+--   \"Expect\", \"Connection\", \"Range\", \"Host\",
+--   \"If-Modified-Since\", \"If-Unmodified-Since\" and \"If-Range\".
 requestMaxIndex :: Int
-requestMaxIndex     = 5
+requestMaxIndex = fromEnum (maxBound :: RequestHeaderIndex)
 
 requestKeyIndex :: HeaderName -> Int
-requestKeyIndex "content-length"    = idxContentLength
-requestKeyIndex "transfer-encoding" = idxTransferEncoding
-requestKeyIndex "expect"            = idxExpect
-requestKeyIndex "connection"        = idxConnection
-requestKeyIndex "range"             = idxRange
-requestKeyIndex "host"              = idxHost
-requestKeyIndex _                   = -1
+requestKeyIndex hn = case BS.length bs of
+   4  -> if bs == "host" then fromEnum ReqHost else -1
+   5  -> if bs == "range" then fromEnum ReqRange else -1
+   6  -> if bs == "expect" then fromEnum ReqExpect else -1
+   7  -> if bs == "referer" then fromEnum ReqReferer else -1
+   8  -> if bs == "if-range" then fromEnum ReqIfRange else -1
+   10 -> if bs == "user-agent" then fromEnum ReqUserAgent else
+         if bs == "connection" then fromEnum ReqConnection else -1
+   14 -> if bs == "content-length" then fromEnum ReqContentLength else -1
+   17 -> if bs == "transfer-encoding" then fromEnum ReqTransferEncoding else
+         if bs == "if-modified-since" then fromEnum ReqIfModifiedSince
+         else -1
+   19 -> if bs == "if-unmodified-since" then fromEnum ReqIfUnmodifiedSince else -1
+   _  -> -1
+  where
+    bs = foldedCase hn
 
 defaultIndexRequestHeader :: IndexedHeader
 defaultIndexRequestHeader = array (0,requestMaxIndex) [(i,Nothing)|i<-[0..requestMaxIndex]]
@@ -51,20 +67,23 @@ defaultIndexRequestHeader = array (0,requestMaxIndex) [(i,Nothing)|i<-[0..reques
 indexResponseHeader :: ResponseHeaders -> IndexedHeader
 indexResponseHeader hdr = traverseHeader hdr responseMaxIndex responseKeyIndex
 
-idxServer, idxDate :: Int
---idxContentLength = 0
-idxServer        = 1
-idxDate          = 2
+data ResponseHeaderIndex = ResContentLength
+                         | ResServer
+                         | ResDate
+                         deriving (Enum,Bounded)
 
 -- | The size for 'IndexedHeader' for HTTP Response.
 responseMaxIndex :: Int
-responseMaxIndex = 2
+responseMaxIndex = fromEnum (maxBound :: ResponseHeaderIndex)
 
 responseKeyIndex :: HeaderName -> Int
-responseKeyIndex "content-length" = idxContentLength
-responseKeyIndex "server"         = idxServer
-responseKeyIndex "date"           = idxDate
-responseKeyIndex _                = -1
+responseKeyIndex hn = case BS.length bs of
+    4  -> if bs == "date" then fromEnum ResDate else -1
+    6  -> if bs == "server" then fromEnum ResServer else -1
+    14 -> if bs == "content-length" then fromEnum ResContentLength else -1
+    _  -> -1
+  where
+    bs = foldedCase hn
 
 ----------------------------------------------------------------
 

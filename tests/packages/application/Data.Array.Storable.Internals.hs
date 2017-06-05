@@ -1,6 +1,53 @@
 {-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Array/Storable/Internals.hs" #-}
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, CPP #-}
+{-# LANGUAGE RoleAnnotations #-}
 {-# OPTIONS_HADDOCK hide #-}
 -----------------------------------------------------------------------------
 -- |
@@ -14,7 +61,7 @@
 --
 -- Actual implementation of "Data.Array.Storable".
 --
--- /Since: 0.4.0.0/
+-- @since 0.4.0.0
 -----------------------------------------------------------------------------
 
 module Data.Array.Storable.Internals (
@@ -30,6 +77,8 @@ import Foreign hiding (newArray)
 
 -- |The array type
 data StorableArray i e = StorableArray !i !i Int !(ForeignPtr e)
+-- Both parameters have class-based invariants. See also #9220.
+type role StorableArray nominal nominal
 
 instance Storable e => MArray StorableArray e IO where
     getBounds (StorableArray l u _ _) = return (l,u)

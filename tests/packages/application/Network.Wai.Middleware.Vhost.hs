@@ -1,7 +1,146 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010, OverloadedStrings #-}
 {-# LINE 1 "Network/Wai/Middleware/Vhost.hs" #-}
-{-# LANGUAGE OverloadedStrings #-}
-module Network.Wai.Middleware.Vhost (vhost, redirectWWW, redirectTo, redirectToLogged) where
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
+ module Network.Wai.Middleware.Vhost (vhost, redirectWWW, redirectTo, redirectToLogged) where
 
 import Network.Wai
 
@@ -9,7 +148,6 @@ import Network.HTTP.Types as H
 import qualified Data.Text.Encoding as TE
 import Data.Text (Text)
 import qualified Data.ByteString as BS
-import Data.Monoid (mappend)
 
 vhost :: [(Request -> Bool, Application)] -> Application -> Application
 vhost vhosts def req =
@@ -29,7 +167,7 @@ redirectIf home cond app req sendResponse =
 
 redirectTo :: BS.ByteString -> Response
 redirectTo location = responseLBS H.status301
-    [ ("Content-Type", "text/plain") , ("Location", location) ] "Redirect"
+    [ (H.hContentType, "text/plain") , (H.hLocation, location) ] "Redirect"
 
 redirectToLogged :: (Text -> IO ()) -> BS.ByteString -> IO Response
 redirectToLogged logger loc = do

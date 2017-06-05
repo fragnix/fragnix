@@ -101,10 +101,29 @@
 #define CONST_SIG_UNBLOCK 1
 
 /* Define to 1 if you have the <bsd/libutil.h> header file. */
-/* #define HAVE_BSD_LIBUTIL_H 1 */
+/* #undef HAVE_BSD_LIBUTIL_H */
 
 /* Define to 1 if you have the `clearenv' function. */
 #define HAVE_CLEARENV 1
+
+/* Define to 1 if you have the `ctermid' function. */
+#define HAVE_CTERMID 1
+
+/* Define to 1 if you have the declaration of `ctermid', and to 0 if you
+   don't. */
+#define HAVE_DECL_CTERMID 1
+
+/* Define to 1 if you have the declaration of `execvpe', and to 0 if you
+   don't. */
+#define HAVE_DECL_EXECVPE 1
+
+/* Define to 1 if you have the declaration of `fdatasync', and to 0 if you
+   don't. */
+#define HAVE_DECL_FDATASYNC 1
+
+/* Define to 1 if you have the declaration of `tcdrain', and to 0 if you
+   don't. */
+#define HAVE_DECL_TCDRAIN 1
 
 /* Define if we have /dev/ptc. */
 /* #undef HAVE_DEV_PTC */
@@ -212,10 +231,10 @@
 #define HAVE_READDIR_R 1
 
 /* Define to 1 if RTLD_DEFAULT is available. */
-/* #undef HAVE_RTLDDEFAULT */
+#define HAVE_RTLDDEFAULT 1
 
 /* Define to 1 if we can see RTLD_NEXT in dlfcn.h. */
-/* #undef HAVE_RTLDNEXT */
+#define HAVE_RTLDNEXT 1
 
 /* Define to 1 if <unistd.h> defines _SC_GETGR_R_SIZE_MAX. */
 #define HAVE_SC_GETGR_R_SIZE_MAX 1
@@ -322,6 +341,9 @@
 /* Define to 1 if you have the <sys/wait.h> header file. */
 #define HAVE_SYS_WAIT_H 1
 
+/* Define to 1 if you have the `tcdrain' function. */
+#define HAVE_TCDRAIN 1
+
 /* Define to 1 if you have the `telldir' function. */
 #define HAVE_TELLDIR 1
 
@@ -345,6 +367,9 @@
 
 /* Define to 1 if you have the <utmp.h> header file. */
 #define HAVE_UTMP_H 1
+
+/* Define to 1 if you have the `_NSGetEnviron' function. */
+/* #undef HAVE__NSGETENVIRON */
 
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT "libraries@haskell.org"
@@ -370,6 +395,28 @@
 /* Define if stdlib.h declares unsetenv to return void. */
 /* #undef UNSETENV_RETURNS_VOID */
 
+/* Enable extensions on AIX 3, Interix.  */
+#ifndef _ALL_SOURCE
+# define _ALL_SOURCE 1
+#endif
+/* Enable GNU extensions on systems that have them.  */
+#ifndef _GNU_SOURCE
+# define _GNU_SOURCE 1
+#endif
+/* Enable threading extensions on Solaris.  */
+#ifndef _POSIX_PTHREAD_SEMANTICS
+# define _POSIX_PTHREAD_SEMANTICS 1
+#endif
+/* Enable extensions on HP NonStop.  */
+#ifndef _TANDEM_SOURCE
+# define _TANDEM_SOURCE 1
+#endif
+/* Enable general extensions on Solaris.  */
+#ifndef __EXTENSIONS__
+# define __EXTENSIONS__ 1
+#endif
+
+
 /* Define if the system headers declare usleep to return void. */
 /* #undef USLEEP_RETURNS_VOID */
 
@@ -383,6 +430,16 @@
 
 /* Define for large files, on AIX-style hosts. */
 /* #undef _LARGE_FILES */
+
+/* Define to 1 if on MINIX. */
+/* #undef _MINIX */
+
+/* Define to 2 if the system does not provide POSIX.1 features except with
+   this defined. */
+/* #undef _POSIX_1_SOURCE */
+
+/* Define to 1 if you need to in order for `stat' and other things to work. */
+/* #undef _POSIX_SOURCE */
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */

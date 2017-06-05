@@ -47,7 +47,16 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP, BangPatterns #-}
+{-# LANGUAGE Trustworthy #-}
 -- | Copyright   : (c) 2010-2011 Simon Meier
 -- License       : BSD3-style (see LICENSE)
 --
@@ -105,6 +114,27 @@ import Data.ByteString.Builder.Prim.Internal.UncheckedShifts
 import Data.ByteString.Builder.Prim.Internal.Floating
 
 import Foreign
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

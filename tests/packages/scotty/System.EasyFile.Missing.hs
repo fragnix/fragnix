@@ -49,6 +49,15 @@
 
 
 
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 
 module System.EasyFile.Missing where
@@ -96,7 +105,7 @@ getCreationTime :: FilePath -> IO (Maybe UTCTime)
 getCreationTime _ = return Nothing
 
 {-|
-The 'getCreationTime' operation returns the
+The 'getChangeTime' operation returns the
 UTC time at which the file or directory was changed.
 The time is only available on Unix and Mac.
 Note that Unix's rename() does not change ctime but

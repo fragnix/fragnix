@@ -45,11 +45,18 @@
 
 
 
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE Safe #-}
 
 {- |
 Module      :  Data.IORef
@@ -101,37 +108,37 @@ import Control.Monad.Trans.Control ( MonadBaseControl, liftBaseDiscard )
 -- | Generalized version of 'R.newIORef'.
 newIORef :: MonadBase IO m => a -> m (IORef a)
 newIORef = liftBase . R.newIORef
-{-# INLINE newIORef #-}
+{-# INLINABLE newIORef #-}
 
 -- | Generalized version of 'R.readIORef'.
 readIORef :: MonadBase IO m => IORef a -> m a
 readIORef = liftBase . R.readIORef
-{-# INLINE readIORef #-}
+{-# INLINABLE readIORef #-}
 
 -- | Generalized version of 'R.writeIORef'.
 writeIORef :: MonadBase IO m => IORef a -> a -> m ()
 writeIORef r = liftBase . R.writeIORef r
-{-# INLINE writeIORef #-}
+{-# INLINABLE writeIORef #-}
 
 -- | Generalized version of 'R.modifyIORef'.
 modifyIORef :: MonadBase IO m => IORef a -> (a -> a) -> m ()
 modifyIORef r = liftBase . R.modifyIORef r
-{-# INLINE modifyIORef #-}
+{-# INLINABLE modifyIORef #-}
 
 -- | Generalized version of 'R.atomicModifyIORef'.
 atomicModifyIORef :: MonadBase IO m => IORef a -> (a -> (a, b)) -> m b
 atomicModifyIORef r = liftBase . R.atomicModifyIORef r
-{-# INLINE atomicModifyIORef #-}
+{-# INLINABLE atomicModifyIORef #-}
 
 -- | Generalized version of 'R.modifyIORef''.
 modifyIORef' :: MonadBase IO m => IORef a -> (a -> a) -> m ()
 modifyIORef' r = liftBase . R.modifyIORef' r
-{-# INLINE modifyIORef' #-}
+{-# INLINABLE modifyIORef' #-}
 
 -- | Generalized version of 'R.atomicModifyIORef''.
 atomicModifyIORef' :: MonadBase IO m => IORef a -> (a -> (a, b)) -> m b
 atomicModifyIORef' r = liftBase . R.atomicModifyIORef' r
-{-# INLINE atomicModifyIORef' #-}
+{-# INLINABLE atomicModifyIORef' #-}
 
 -- | Generalized version of 'R.atomicWriteIORef'.
 atomicWriteIORef :: MonadBase IO m => IORef a -> a -> m ()
@@ -143,4 +150,4 @@ atomicWriteIORef r = liftBase . R.atomicWriteIORef r
 -- are discarded.
 mkWeakIORef :: MonadBaseControl IO m => IORef a -> m () -> m (Weak (IORef a))
 mkWeakIORef = liftBaseDiscard . R.mkWeakIORef
-{-# INLINE mkWeakIORef #-}
+{-# INLINABLE mkWeakIORef #-}

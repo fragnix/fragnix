@@ -14,7 +14,6 @@ __hsunix_execvpe(const char *name, char *const argv[], char *const envp[]);
 #ifndef HSUNIX_EXECVPE_H_NO_COMPAT
 #include "HsUnixConfig.h"
 #if HAVE_EXECVPE
-# define _GNU_SOURCE
 # include <unistd.h>
 extern int
 execvpe(const char *name, char *const argv[], char *const envp[]);
@@ -22,8 +21,5 @@ execvpe(const char *name, char *const argv[], char *const envp[]);
 # define execvpe(name,argv,envp) __hsunix_execvpe(name,argv,envp)
 #endif
 #endif
-
-// implemented in cbits/ghcrts.c
-extern void pPrPr_disableITimers (void);
 
 #endif

@@ -51,6 +51,19 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE BangPatterns, CPP, Rank2Types #-}
 {-# OPTIONS_HADDOCK not-home #-}
 
@@ -59,7 +72,7 @@
 -- Module      : Data.Text.Internal.Builder
 -- Copyright   : (c) 2013 Bryan O'Sullivan
 --               (c) 2010 Johan Tibell
--- License     : BSD3-style (see LICENSE)
+-- License     : BSD-style (see LICENSE)
 --
 -- Maintainer  : Johan Tibell <johan.tibell@gmail.com>
 -- Stability   : experimental
@@ -112,6 +125,7 @@ module Data.Text.Internal.Builder
 
 import Control.Monad.ST (ST, runST)
 import Data.Monoid (Monoid(..))
+import Data.Semigroup (Semigroup(..))
 import Data.Text.Internal (Text(..))
 import Data.Text.Internal.Lazy (smallChunkSize)
 import Data.Text.Unsafe (inlineInterleaveST)
@@ -142,12 +156,16 @@ newtype Builder = Builder {
                 -> ST s [S.Text]
    }
 
+instance Semigroup Builder where
+   (<>) = append
+   {-# INLINE (<>) #-}
+
 instance Monoid Builder where
    mempty  = empty
    {-# INLINE mempty #-}
-   mappend = append
+   mappend = (<>) -- future-proof definition
    {-# INLINE mappend #-}
-   mconcat = foldr mappend mempty
+   mconcat = foldr mappend Data.Monoid.mempty
    {-# INLINE mconcat #-}
 
 instance String.IsString Builder where
@@ -282,6 +300,8 @@ flush = Builder $ \ k buf@(Buffer p o u l) ->
                 !t = Text arr o u
             ts <- inlineInterleaveST (k b)
             return $! t : ts
+{-# INLINE [1] flush #-}
+-- defer inlining so that flush/flush rule may fire.
 
 ------------------------------------------------------------------------
 

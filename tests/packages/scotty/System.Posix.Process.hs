@@ -1,9 +1,9 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Process.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Process.hs" #-}
 {-# LINE 1 "System/Posix/Process.hsc" #-}
 
-{-# LINE 4 "System/Posix/Process.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LINE 2 "System/Posix/Process.hsc" #-}
+{-# LANGUAGE Safe #-}
 
 {-# LINE 6 "System/Posix/Process.hsc" #-}
 -----------------------------------------------------------------------------
@@ -25,12 +25,8 @@ module System.Posix.Process (
     -- * Processes
 
     -- ** Forking and executing
-
-{-# LINE 26 "System/Posix/Process.hsc" #-}
     forkProcess,
     forkProcessWithUnmask,
-
-{-# LINE 29 "System/Posix/Process.hsc" #-}
     executeFile,
 
     -- ** Exiting
@@ -76,16 +72,13 @@ module System.Posix.Process (
  ) where
 
 
-{-# LINE 74 "System/Posix/Process.hsc" #-}
+{-# LINE 72 "System/Posix/Process.hsc" #-}
 
 import Foreign
 import Foreign.C
 import System.Posix.Process.Internals
 import System.Posix.Process.Common
 import System.Posix.Internals ( withFilePath )
-
-
-{-# LINE 84 "System/Posix/Process.hsc" #-}
 
 -- | @'executeFile' cmd args env@ calls one of the
 --   @execv*@ family, depending on whether or not the current

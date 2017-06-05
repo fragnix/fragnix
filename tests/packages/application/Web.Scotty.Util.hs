@@ -1,5 +1,109 @@
 {-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Web/Scotty/Util.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
 module Web.Scotty.Util
     ( lazyTextToStrictByteString
     , strictByteStringToLazyText
@@ -10,8 +114,10 @@ module Web.Scotty.Util
     , replace
     , add
     , addIfNotPresent
+    , socketDescription
     ) where
 
+import Network (Socket, PortID(..), socketPort)
 import Network.Wai
 
 import Network.HTTP.Types
@@ -19,6 +125,7 @@ import Network.HTTP.Types
 import qualified Data.ByteString as B
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Encoding as ES
+import qualified Data.Text.Encoding.Error as ES
 
 import Web.Scotty.Internal.Types
 
@@ -26,7 +133,7 @@ lazyTextToStrictByteString :: T.Text -> B.ByteString
 lazyTextToStrictByteString = ES.encodeUtf8 . T.toStrict
 
 strictByteStringToLazyText :: B.ByteString -> T.Text
-strictByteStringToLazyText = T.fromStrict . ES.decodeUtf8
+strictByteStringToLazyText = T.fromStrict . ES.decodeUtf8With ES.lenientDecode
 
 setContent :: Content -> ScottyResponse -> ScottyResponse
 setContent c sr = sr { srContent = c }
@@ -52,7 +159,7 @@ mkResponse sr = case srContent sr of
 replace :: Eq a => a -> b -> [(a,b)] -> [(a,b)]
 replace k v = add k v . filter ((/= k) . fst)
 
-add :: Eq a => a -> b -> [(a,b)] -> [(a,b)]
+add :: a -> b -> [(a,b)] -> [(a,b)]
 add k v m = (k,v):m
 
 addIfNotPresent :: Eq a => a -> b -> [(a,b)] -> [(a,b)]
@@ -61,3 +168,11 @@ addIfNotPresent k v = go
           go l@((x,y):r)
             | x == k    = l
             | otherwise = (x,y) : go r
+
+-- Assemble a description from the Socket's PortID.
+socketDescription :: Socket -> IO String
+socketDescription = fmap d . socketPort
+    where d p = case p of
+                    Service s -> "service " ++ s
+                    PortNumber n -> "port " ++ show n
+                    UnixSocket u -> "unix socket " ++ u

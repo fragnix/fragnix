@@ -1,52 +1,5 @@
-{-# LANGUAGE Haskell2010, CPP, DeriveDataTypeable #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Vector/Storable/Internal.hs" #-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 -- |
 -- Module      : Data.Vector.Storable.Internal
 -- Copyright   : (c) Roman Leshchinskiy 2009-2010
@@ -55,7 +8,7 @@
 -- Maintainer  : Roman Leshchinskiy <rl@cse.unsw.edu.au>
 -- Stability   : experimental
 -- Portability : non-portable
--- 
+--
 -- Ugly internal utility functions for implementing 'Storable'-based vectors.
 --
 
@@ -63,12 +16,8 @@ module Data.Vector.Storable.Internal (
   getPtr, setPtr, updPtr
 ) where
 
-import Control.Monad.Primitive ( unsafeInlineIO )
-import Foreign.Storable
 import Foreign.ForeignPtr
 import Foreign.Ptr
-import Foreign.Marshal.Array ( advancePtr )
-import GHC.Base         ( quotInt )
 import GHC.ForeignPtr   ( ForeignPtr(..) )
 import GHC.Ptr          ( Ptr(..) )
 

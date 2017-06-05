@@ -57,6 +57,9 @@
 /* Define to 1 if you have getpeereid. */
 /* #undef HAVE_GETPEEREID */
 
+/* Define to 1 if you have the `if_nametoindex' function. */
+#define HAVE_IF_NAMETOINDEX 1
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
 
@@ -69,8 +72,14 @@
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
 
+/* Define to 1 if you have the <linux/can.h> header file. */
+#define HAVE_LINUX_CAN_H 1
+
 /* Define to 1 if you have a Linux sendfile(2) implementation. */
 #define HAVE_LINUX_SENDFILE 1
+
+/* Define to 1 if you have the <linux/tcp.h> header file. */
+#define HAVE_LINUX_TCP_H 1
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
@@ -83,6 +92,9 @@
 
 /* Define to 1 if you have the <netinet/tcp.h> header file. */
 #define HAVE_NETINET_TCP_H 1
+
+/* Define to 1 if you have the <net/if.h> header file. */
+#define HAVE_NET_IF_H 1
 
 /* Define to 1 if you have the `readlink' function. */
 #define HAVE_READLINK 1
@@ -148,7 +160,7 @@
 #define PACKAGE_NAME "Haskell network package"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Haskell network package 2.3.0.14"
+#define PACKAGE_STRING "Haskell network package 2.6.3.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "network"
@@ -157,7 +169,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.3.0.14"
+#define PACKAGE_VERSION "2.6.3.1"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1

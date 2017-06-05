@@ -45,8 +45,15 @@
 
 
 
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE Safe #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  System.Posix.Error

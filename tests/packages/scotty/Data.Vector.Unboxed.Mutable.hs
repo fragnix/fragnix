@@ -1,4 +1,4 @@
-{-# LANGUAGE Haskell2010, CPP, DeriveDataTypeable #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Vector/Unboxed/Mutable.hs" #-}
 
 
@@ -47,6 +47,16 @@
 
 
 
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
+
 -- |
 -- Module      : Data.Vector.Unboxed.Mutable
 -- Copyright   : (c) Roman Leshchinskiy 2009-2010
@@ -91,10 +101,11 @@ module Data.Vector.Unboxed.Mutable (
   unzip, unzip3, unzip4, unzip5, unzip6,
 
   -- * Accessing individual elements
-  read, write, swap,
-  unsafeRead, unsafeWrite, unsafeSwap,
+  read, write, modify, swap,
+  unsafeRead, unsafeWrite, unsafeModify, unsafeSwap,
 
   -- * Modifying vectors
+  nextPermutation,
 
   -- ** Filling and copying
   set, copy, move, unsafeCopy, unsafeMove
@@ -109,9 +120,8 @@ import Prelude hiding ( length, null, replicate, reverse, map, read,
                         take, drop, splitAt, init, tail,
                         zip, zip3, unzip, unzip3 )
 
+-- don't import an unused Data.Vector.Internal.Check
 
-
-import qualified Data.Vector.Internal.Check as Ck
 
 
 
@@ -187,7 +197,7 @@ unsafeTail = G.unsafeTail
 -- Overlapping
 -- -----------
 
--- Check whether two vectors overlap.
+-- | Check whether two vectors overlap.
 overlaps :: Unbox a => MVector s a -> MVector s a -> Bool
 {-# INLINE overlaps #-}
 overlaps = G.overlaps
@@ -200,7 +210,7 @@ new :: (PrimMonad m, Unbox a) => Int -> m (MVector (PrimState m) a)
 {-# INLINE new #-}
 new = G.new
 
--- | Create a mutable vector of the given length. The length is not checked.
+-- | Create a mutable vector of the given length. The memory is not initialized.
 unsafeNew :: (PrimMonad m, Unbox a) => Int -> m (MVector (PrimState m) a)
 {-# INLINE unsafeNew #-}
 unsafeNew = G.unsafeNew
@@ -228,7 +238,7 @@ clone = G.clone
 
 -- | Grow a vector by the given number of elements. The number must be
 -- positive.
-grow :: (PrimMonad m, Unbox a)  
+grow :: (PrimMonad m, Unbox a)
               => MVector (PrimState m) a -> Int -> m (MVector (PrimState m) a)
 {-# INLINE grow #-}
 grow = G.grow
@@ -244,7 +254,7 @@ unsafeGrow = G.unsafeGrow
 -- ------------------------
 
 -- | Reset all elements of the vector to some undefined value, clearing all
--- references to external objects. This is usually a noop for unboxed vectors. 
+-- references to external objects. This is usually a noop for unboxed vectors.
 clear :: (PrimMonad m, Unbox a) => MVector (PrimState m) a -> m ()
 {-# INLINE clear #-}
 clear = G.clear
@@ -261,6 +271,11 @@ read = G.read
 write :: (PrimMonad m, Unbox a) => MVector (PrimState m) a -> Int -> a -> m ()
 {-# INLINE write #-}
 write = G.write
+
+-- | Modify the element at the given position.
+modify :: (PrimMonad m, Unbox a) => MVector (PrimState m) a -> (a -> a) -> Int -> m ()
+{-# INLINE modify #-}
+modify = G.modify
 
 -- | Swap the elements at the given positions.
 swap :: (PrimMonad m, Unbox a) => MVector (PrimState m) a -> Int -> Int -> m ()
@@ -279,6 +294,11 @@ unsafeWrite
 {-# INLINE unsafeWrite #-}
 unsafeWrite = G.unsafeWrite
 
+-- | Modify the element at the given position. No bounds checks are performed.
+unsafeModify :: (PrimMonad m, Unbox a) => MVector (PrimState m) a -> (a -> a) -> Int -> m ()
+{-# INLINE unsafeModify #-}
+unsafeModify = G.unsafeModify
+
 -- | Swap the elements at the given positions. No bounds checks are performed.
 unsafeSwap
     :: (PrimMonad m, Unbox a) => MVector (PrimState m) a -> Int -> Int -> m ()
@@ -295,8 +315,10 @@ set = G.set
 
 -- | Copy a vector. The two vectors must have the same length and may not
 -- overlap.
-copy :: (PrimMonad m, Unbox a) 
-                 => MVector (PrimState m) a -> MVector (PrimState m) a -> m ()
+copy :: (PrimMonad m, Unbox a)
+     => MVector (PrimState m) a   -- ^ target
+     -> MVector (PrimState m) a   -- ^ source
+     -> m ()
 {-# INLINE copy #-}
 copy = G.copy
 
@@ -311,7 +333,7 @@ unsafeCopy = G.unsafeCopy
 
 -- | Move the contents of a vector. The two vectors must have the same
 -- length.
--- 
+--
 -- If the vectors do not overlap, then this is equivalent to 'copy'.
 -- Otherwise, the copying is performed as if the source vector were
 -- copied to a temporary vector and then the temporary vector was copied
@@ -323,7 +345,7 @@ move = G.move
 
 -- | Move the contents of a vector. The two vectors must have the same
 -- length, but this is not checked.
--- 
+--
 -- If the vectors do not overlap, then this is equivalent to 'unsafeCopy'.
 -- Otherwise, the copying is performed as if the source vector were
 -- copied to a temporary vector and then the temporary vector was copied
@@ -335,6 +357,12 @@ unsafeMove :: (PrimMonad m, Unbox a)
 {-# INLINE unsafeMove #-}
 unsafeMove = G.unsafeMove
 
+-- | Compute the next (lexicographically) permutation of given vector in-place.
+--   Returns False when input is the last permtuation
+nextPermutation :: (PrimMonad m,Ord e,Unbox e) => MVector (PrimState m) e -> m Bool
+{-# INLINE nextPermutation #-}
+nextPermutation = G.nextPermutation
+
 -- | /O(1)/ Zip 2 vectors
 zip :: (Unbox a, Unbox b) => MVector s a ->
                              MVector s b -> MVector s (a, b)
@@ -345,7 +373,7 @@ zip as bs = MV_2 len (unsafeSlice 0 len as) (unsafeSlice 0 len bs)
 unzip :: (Unbox a, Unbox b) => MVector s (a, b) -> (MVector s a,
                                                     MVector s b)
 {-# INLINE unzip #-}
-unzip (MV_2 n_ as bs) = (as, bs)
+unzip (MV_2 _ as bs) = (as, bs)
 -- | /O(1)/ Zip 3 vectors
 zip3 :: (Unbox a, Unbox b, Unbox c) => MVector s a ->
                                        MVector s b ->
@@ -363,7 +391,7 @@ unzip3 :: (Unbox a,
                                                MVector s b,
                                                MVector s c)
 {-# INLINE unzip3 #-}
-unzip3 (MV_3 n_ as bs cs) = (as, bs, cs)
+unzip3 (MV_3 _ as bs cs) = (as, bs, cs)
 -- | /O(1)/ Zip 4 vectors
 zip4 :: (Unbox a, Unbox b, Unbox c, Unbox d) => MVector s a ->
                                                 MVector s b ->
@@ -388,7 +416,7 @@ unzip4 :: (Unbox a,
                                                   MVector s c,
                                                   MVector s d)
 {-# INLINE unzip4 #-}
-unzip4 (MV_4 n_ as bs cs ds) = (as, bs, cs, ds)
+unzip4 (MV_4 _ as bs cs ds) = (as, bs, cs, ds)
 -- | /O(1)/ Zip 5 vectors
 zip5 :: (Unbox a,
          Unbox b,
@@ -422,7 +450,7 @@ unzip5 :: (Unbox a,
                                                      MVector s d,
                                                      MVector s e)
 {-# INLINE unzip5 #-}
-unzip5 (MV_5 n_ as bs cs ds es) = (as, bs, cs, ds, es)
+unzip5 (MV_5 _ as bs cs ds es) = (as, bs, cs, ds, es)
 -- | /O(1)/ Zip 6 vectors
 zip6 :: (Unbox a,
          Unbox b,
@@ -462,5 +490,4 @@ unzip6 :: (Unbox a,
                                                         MVector s e,
                                                         MVector s f)
 {-# INLINE unzip6 #-}
-unzip6 (MV_6 n_ as bs cs ds es fs) = (as, bs, cs, ds, es, fs)
-
+unzip6 (MV_6 _ as bs cs ds es fs) = (as, bs, cs, ds, es, fs)

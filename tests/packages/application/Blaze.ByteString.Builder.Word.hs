@@ -1,65 +1,12 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Blaze/ByteString/Builder/Word.hs" #-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{-# LANGUAGE CPP #-}
-
-
+------------------------------------------------------------------------------
 -- |
--- Module      : Blaze.ByteString.Builder.Word
--- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
---
---               Original serialization code from 'Data.Binary.Builder':
---               (c) Lennart Kolmodin, Ross Patterson
---
--- License     : BSD3-style (see LICENSE)
---
--- Maintainer  : Simon Meier <iridcode@gmail.com>
--- Stability   : experimental
--- Portability : tested on GHC only
+-- Module:      Blaze.ByteString.Builder.Word
+-- Copyright:   (c) 2013 Leon P Smith
+-- License:     BSD3
+-- Maintainer:  Leon P Smith <leon@melding-monads.com>
+-- Stability:   experimental
 --
 -- 'Write's and 'Builder's for serializing words.
 --
@@ -77,337 +24,7 @@
 -- left in the output buffer. Coalescing these checks can improve performance
 -- quite a bit, as long as you use it sensibly.
 --
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+------------------------------------------------------------------------------
 
 module Blaze.ByteString.Builder.Word
     (
@@ -469,101 +86,48 @@ module Blaze.ByteString.Builder.Word
 
     ) where
 
-import Blaze.ByteString.Builder.Internal
-import Blaze.ByteString.Builder.Internal.UncheckedShifts
-
-import Foreign
-
-------------------------------------------------------------------------------
--- Word writes
---------------
---
--- Based upon the 'putWordX' functions from "Data.Binary.Builder" from the
--- 'binary' package.
---
-------------------------------------------------------------------------------
-
+import Data.Word
+import Blaze.ByteString.Builder.Compat.Write ( Write, writePrimFixed )
+import           Data.ByteString.Builder ( Builder )
+import qualified Data.ByteString.Builder       as B
+import qualified Data.ByteString.Builder.Extra as B
+import qualified Data.ByteString.Builder.Prim  as P
 
 -- | Write a single byte.
 --
 writeWord8 :: Word8 -> Write
-writeWord8 x = exactWrite 1 (\pf -> poke pf x)
+writeWord8 = writePrimFixed P.word8
 {-# INLINE writeWord8 #-}
-
---
--- We rely on the fromIntegral to do the right masking for us.
--- The inlining here is critical, and can be worth 4x performance
---
 
 -- | Write a 'Word16' in big endian format.
 writeWord16be :: Word16 -> Write
-writeWord16be w = exactWrite 2 $ \p -> do
-    poke p               (fromIntegral (shiftr_w16 w 8) :: Word8)
-    poke (p `plusPtr` 1) (fromIntegral (w)              :: Word8)
+writeWord16be = writePrimFixed P.word16BE
 {-# INLINE writeWord16be #-}
-
--- | Write a 'Word16' in little endian format.
-writeWord16le :: Word16 -> Write
-writeWord16le w = exactWrite 2 $ \p -> do
-    poke p               (fromIntegral (w)              :: Word8)
-    poke (p `plusPtr` 1) (fromIntegral (shiftr_w16 w 8) :: Word8)
-{-# INLINE writeWord16le #-}
-
--- writeWord16le w16 = exactWrite 2 (\p -> poke (castPtr p) w16)
 
 -- | Write a 'Word32' in big endian format.
 writeWord32be :: Word32 -> Write
-writeWord32be w = exactWrite 4 $ \p -> do
-    poke p               (fromIntegral (shiftr_w32 w 24) :: Word8)
-    poke (p `plusPtr` 1) (fromIntegral (shiftr_w32 w 16) :: Word8)
-    poke (p `plusPtr` 2) (fromIntegral (shiftr_w32 w  8) :: Word8)
-    poke (p `plusPtr` 3) (fromIntegral (w)               :: Word8)
+writeWord32be = writePrimFixed P.word32BE
 {-# INLINE writeWord32be #-}
-
--- | Write a 'Word32' in little endian format.
-writeWord32le :: Word32 -> Write
-writeWord32le w = exactWrite 4 $ \p -> do
-    poke p               (fromIntegral (w)               :: Word8)
-    poke (p `plusPtr` 1) (fromIntegral (shiftr_w32 w  8) :: Word8)
-    poke (p `plusPtr` 2) (fromIntegral (shiftr_w32 w 16) :: Word8)
-    poke (p `plusPtr` 3) (fromIntegral (shiftr_w32 w 24) :: Word8)
-{-# INLINE writeWord32le #-}
-
--- on a little endian machine:
--- writeWord32le w32 = exactWrite 4 (\p -> poke (castPtr p) w32)
 
 -- | Write a 'Word64' in big endian format.
 writeWord64be :: Word64 -> Write
-writeWord64be w = exactWrite 8 $ \p -> do
-    poke p               (fromIntegral (shiftr_w64 w 56) :: Word8)
-    poke (p `plusPtr` 1) (fromIntegral (shiftr_w64 w 48) :: Word8)
-    poke (p `plusPtr` 2) (fromIntegral (shiftr_w64 w 40) :: Word8)
-    poke (p `plusPtr` 3) (fromIntegral (shiftr_w64 w 32) :: Word8)
-    poke (p `plusPtr` 4) (fromIntegral (shiftr_w64 w 24) :: Word8)
-    poke (p `plusPtr` 5) (fromIntegral (shiftr_w64 w 16) :: Word8)
-    poke (p `plusPtr` 6) (fromIntegral (shiftr_w64 w  8) :: Word8)
-    poke (p `plusPtr` 7) (fromIntegral (w)               :: Word8)
+writeWord64be = writePrimFixed P.word64BE
 {-# INLINE writeWord64be #-}
+
+-- | Write a 'Word16' in little endian format.
+writeWord16le :: Word16 -> Write
+writeWord16le = writePrimFixed P.word16LE
+{-# INLINE writeWord16le #-}
+
+-- | Write a 'Word32' in big endian format.
+writeWord32le :: Word32 -> Write
+writeWord32le = writePrimFixed P.word32LE
+{-# INLINE writeWord32le #-}
 
 -- | Write a 'Word64' in little endian format.
 writeWord64le :: Word64 -> Write
-
-writeWord64le w = exactWrite 8 $ \p -> do
-    poke p               (fromIntegral (w)               :: Word8)
-    poke (p `plusPtr` 1) (fromIntegral (shiftr_w64 w  8) :: Word8)
-    poke (p `plusPtr` 2) (fromIntegral (shiftr_w64 w 16) :: Word8)
-    poke (p `plusPtr` 3) (fromIntegral (shiftr_w64 w 24) :: Word8)
-    poke (p `plusPtr` 4) (fromIntegral (shiftr_w64 w 32) :: Word8)
-    poke (p `plusPtr` 5) (fromIntegral (shiftr_w64 w 40) :: Word8)
-    poke (p `plusPtr` 6) (fromIntegral (shiftr_w64 w 48) :: Word8)
-    poke (p `plusPtr` 7) (fromIntegral (shiftr_w64 w 56) :: Word8)
+writeWord64le = writePrimFixed P.word64LE
 {-# INLINE writeWord64le #-}
-
--- on a little endian machine:
--- writeWord64le w64 = exactWrite 8 (\p -> poke (castPtr p) w64)
-
-------------------------------------------------------------------------
--- Unaligned, word size ops
 
 -- | Write a single native machine 'Word'. The 'Word' is written in host order,
 -- host endian form, for the machine you're on. On a 64 bit machine the 'Word'
@@ -572,160 +136,135 @@ writeWord64le w = exactWrite 8 $ \p -> do
 -- conversion.
 --
 writeWordhost :: Word -> Write
-writeWordhost w =
-    exactWrite (sizeOf (undefined :: Word)) (\p -> poke (castPtr p) w)
+writeWordhost = writePrimFixed P.wordHost
 {-# INLINE writeWordhost #-}
 
 -- | Write a 'Word16' in native host order and host endianness.
 writeWord16host :: Word16 -> Write
-writeWord16host w16 =
-    exactWrite (sizeOf (undefined :: Word16)) (\p -> poke (castPtr p) w16)
+writeWord16host = writePrimFixed P.word16Host
 {-# INLINE writeWord16host #-}
 
 -- | Write a 'Word32' in native host order and host endianness.
 writeWord32host :: Word32 -> Write
-writeWord32host w32 =
-    exactWrite (sizeOf (undefined :: Word32)) (\p -> poke (castPtr p) w32)
+writeWord32host = writePrimFixed P.word32Host
 {-# INLINE writeWord32host #-}
 
 -- | Write a 'Word64' in native host order and host endianness.
 writeWord64host :: Word64 -> Write
-writeWord64host w =
-    exactWrite (sizeOf (undefined :: Word64)) (\p -> poke (castPtr p) w)
+writeWord64host = writePrimFixed P.word64Host
 {-# INLINE writeWord64host #-}
 
-
-------------------------------------------------------------------------------
--- Builders corresponding to the word writes
-------------------------------------------------------------------------------
-
--- Single bytes
-------------------------------------------------------------------------------
-
 -- | Serialize a single byte.
---
 fromWord8 :: Word8 -> Builder
-fromWord8 = fromWriteSingleton writeWord8
+fromWord8 = B.word8
+{-# INLINE fromWord8 #-}
 
 -- | Serialize a list of bytes.
---
 fromWord8s :: [Word8] -> Builder
-fromWord8s = fromWriteList writeWord8
-
-
--- Word16
-------------------------------------------------------------------------------
+fromWord8s = P.primMapListFixed P.word8
+{-# INLINE fromWord8s #-}
 
 -- | Serialize a 'Word16' in big endian format.
-fromWord16be :: Word16 -> Builder
-fromWord16be = fromWriteSingleton writeWord16be
+fromWord16be :: Word16   -> Builder
+fromWord16be = B.word16BE
 {-# INLINE fromWord16be #-}
 
--- | Serialize a list of 'Word16's in big endian format.
-fromWord16sbe :: [Word16] -> Builder
-fromWord16sbe = fromWriteList writeWord16be
-{-# INLINE fromWord16sbe #-}
-
--- | Serialize a 'Word16' in little endian format.
-fromWord16le :: Word16 -> Builder
-fromWord16le = fromWriteSingleton writeWord16le
-{-# INLINE fromWord16le #-}
-
--- | Serialize a list of 'Word16's in little endian format.
-fromWord16sle :: [Word16] -> Builder
-fromWord16sle = fromWriteList writeWord16le
-{-# INLINE fromWord16sle #-}
-
-
--- Word32
------------------------------------------------------------------------------
-
 -- | Serialize a 'Word32' in big endian format.
-fromWord32be :: Word32 -> Builder
-fromWord32be = fromWriteSingleton writeWord32be
+fromWord32be :: Word32   -> Builder
+fromWord32be = B.word32BE
 {-# INLINE fromWord32be #-}
+
+-- | Serialize a 'Word64' in big endian format.
+fromWord64be :: Word64   -> Builder
+fromWord64be = B.word64BE
+{-# INLINE fromWord64be #-}
 
 -- | Serialize a list of 'Word32's in big endian format.
 fromWord32sbe :: [Word32] -> Builder
-fromWord32sbe = fromWriteList writeWord32be
+fromWord32sbe = P.primMapListFixed P.word32BE
 {-# INLINE fromWord32sbe #-}
 
--- | Serialize a 'Word32' in little endian format.
-fromWord32le :: Word32 -> Builder
-fromWord32le = fromWriteSingleton writeWord32le
-{-# INLINE fromWord32le #-}
-
--- | Serialize a list of 'Word32's in little endian format.
-fromWord32sle :: [Word32] -> Builder
-fromWord32sle = fromWriteList writeWord32le
-{-# INLINE fromWord32sle #-}
-
--- | Serialize a 'Word64' in big endian format.
-fromWord64be :: Word64 -> Builder
-fromWord64be = fromWriteSingleton writeWord64be
-{-# INLINE fromWord64be #-}
+-- | Serialize a list of 'Word16's in big endian format.
+fromWord16sbe :: [Word16] -> Builder
+fromWord16sbe = P.primMapListFixed P.word16BE
+{-# INLINE fromWord16sbe #-}
 
 -- | Serialize a list of 'Word64's in big endian format.
 fromWord64sbe :: [Word64] -> Builder
-fromWord64sbe = fromWriteList writeWord64be
+fromWord64sbe = P.primMapListFixed P.word64BE
 {-# INLINE fromWord64sbe #-}
 
+-- | Serialize a 'Word16' in little endian format.
+fromWord16le :: Word16   -> Builder
+fromWord16le = B.word16LE
+{-# INLINE fromWord16le #-}
+
+-- | Serialize a list of 'Word32's in little endian format.
+fromWord32le :: Word32   -> Builder
+fromWord32le = B.word32LE
+{-# INLINE fromWord32le #-}
+
 -- | Serialize a 'Word64' in little endian format.
-fromWord64le :: Word64 -> Builder
-fromWord64le = fromWriteSingleton writeWord64le
+fromWord64le :: Word64   -> Builder
+fromWord64le = B.word64LE
 {-# INLINE fromWord64le #-}
+
+-- | Serialize a list of 'Word16's in little endian format.
+fromWord16sle :: [Word16] -> Builder
+fromWord16sle = P.primMapListFixed P.word16LE
+{-# INLINE fromWord16sle #-}
+
+-- | Serialize a list of 'Word32's in little endian format.
+fromWord32sle :: [Word32] -> Builder
+fromWord32sle = P.primMapListFixed P.word32LE
+{-# INLINE fromWord32sle #-}
 
 -- | Serialize a list of 'Word64's in little endian format.
 fromWord64sle :: [Word64] -> Builder
-fromWord64sle = fromWriteList writeWord64le
+fromWord64sle = P.primMapListFixed P.word64LE
 {-# INLINE fromWord64sle #-}
-
-
-------------------------------------------------------------------------
--- Unaligned, word size ops
 
 -- | Serialize a single native machine 'Word'. The 'Word' is serialized in host
 -- order, host endian form, for the machine you're on. On a 64 bit machine the
 -- 'Word' is an 8 byte value, on a 32 bit machine, 4 bytes. Values written this
 -- way are not portable to different endian or word sized machines, without
 -- conversion.
---
-fromWordhost :: Word -> Builder
-fromWordhost = fromWriteSingleton writeWordhost
+fromWordhost :: Word     -> Builder
+fromWordhost = B.wordHost
 {-# INLINE fromWordhost #-}
+
+-- | Write a 'Word16' in native host order and host endianness.
+fromWord16host :: Word16   -> Builder
+fromWord16host = B.word16Host
+{-# INLINE fromWord16host #-}
+
+-- | Write a 'Word32' in native host order and host endianness.
+fromWord32host :: Word32   -> Builder
+fromWord32host = B.word32Host
+{-# INLINE fromWord32host #-}
+
+-- | Write a 'Word64' in native host order and host endianness.
+fromWord64host :: Word64   -> Builder
+fromWord64host = B.word64Host
+{-# INLINE fromWord64host #-}
 
 -- | Serialize a list of 'Word's.
 -- See 'fromWordhost' for usage considerations.
-fromWordshost :: [Word] -> Builder
-fromWordshost = fromWriteList writeWordhost
+fromWordshost :: [Word]   -> Builder
+fromWordshost = P.primMapListFixed P.wordHost
 {-# INLINE fromWordshost #-}
-
--- | Write a 'Word16' in native host order and host endianness.
-fromWord16host :: Word16 -> Builder
-fromWord16host = fromWriteSingleton writeWord16host
-{-# INLINE fromWord16host #-}
 
 -- | Write a list of 'Word16's in native host order and host endianness.
 fromWord16shost :: [Word16] -> Builder
-fromWord16shost = fromWriteList writeWord16host
+fromWord16shost = P.primMapListFixed P.word16Host
 {-# INLINE fromWord16shost #-}
-
--- | Write a 'Word32' in native host order and host endianness.
-fromWord32host :: Word32 -> Builder
-fromWord32host = fromWriteSingleton writeWord32host
-{-# INLINE fromWord32host #-}
 
 -- | Write a list of 'Word32's in native host order and host endianness.
 fromWord32shost :: [Word32] -> Builder
-fromWord32shost = fromWriteList writeWord32host
+fromWord32shost = P.primMapListFixed P.word32Host
 {-# INLINE fromWord32shost #-}
 
 -- | Write a 'Word64' in native host order and host endianness.
-fromWord64host :: Word64 -> Builder
-fromWord64host = fromWriteSingleton writeWord64host
-{-# INLINE fromWord64host #-}
-
--- | Write a list of 'Word64's in native host order and host endianness.
 fromWord64shost :: [Word64] -> Builder
-fromWord64shost = fromWriteList writeWord64host
+fromWord64shost = P.primMapListFixed P.word64Host
 {-# INLINE fromWord64shost #-}

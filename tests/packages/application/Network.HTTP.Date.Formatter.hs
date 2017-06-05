@@ -22,12 +22,12 @@ import Network.HTTP.Date.Types
 formatHTTPDate :: HTTPDate -> ByteString
 formatHTTPDate hd =
     unsafeCreate 29 $ \ptr -> do
-        cpy3 ptr weekDays (3 * (w - 1))
+        cpy3 ptr weekDays (3 * w)
         poke (ptr `plusPtr`  3) comma
         poke (ptr `plusPtr`  4) spc
         int2 (ptr `plusPtr`  5) d
         poke (ptr `plusPtr`  7) spc
-        cpy3 (ptr `plusPtr`  8) months (3 * (m - 1))
+        cpy3 (ptr `plusPtr`  8) months (3 * m)
         poke (ptr `plusPtr` 11) spc
         int4 (ptr `plusPtr` 12) y
         poke (ptr `plusPtr` 16) spc
@@ -79,10 +79,10 @@ i2w8 n = fromIntegral n + zero
 ----------------------------------------------------------------
 
 months :: ForeignPtr Word8
-months = let (PS p _ _) = "JanFebMarAprMayJunJulAugSepOctNovDec" in p
+months = let (PS p _ _) = "___JanFebMarAprMayJunJulAugSepOctNovDec" in p
 
 weekDays :: ForeignPtr Word8
-weekDays = let (PS p _ _) = "MonTueWedThuFriSatSun" in p
+weekDays = let (PS p _ _) = "___MonTueWedThuFriSatSun" in p
 
 ----------------------------------------------------------------
 

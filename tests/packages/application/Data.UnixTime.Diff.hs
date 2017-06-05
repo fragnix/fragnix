@@ -25,18 +25,25 @@ calcU :: CTime -> Int32 -> UnixTime
 calcU sec usec = uncurry UnixTime . adjust sec $ usec
 
 -- | Arithmetic operations where (1::UnixDiffTime) means 1 second.
+--
+-- >>> (3 :: UnixDiffTime) + 2
+-- UnixDiffTime {udtSeconds = 5, udtMicroSeconds = 0}
+-- >>> (2 :: UnixDiffTime) - 5
+-- UnixDiffTime {udtSeconds = -3, udtMicroSeconds = 0}
+-- >>> (3 :: UnixDiffTime) * 2
+-- UnixDiffTime {udtSeconds = 6, udtMicroSeconds = 0}
 
 instance Num UnixDiffTime where
-	UnixDiffTime s1 u1 + UnixDiffTime s2 u2 = calc (s1+s2) (u1+u2)
-	UnixDiffTime s1 u1 - UnixDiffTime s2 u2 = calc (s1-s2) (u1-u2)
-	UnixDiffTime s1 u1 * UnixDiffTime s2 u2 = calc' (s1*s2) (u1*u2)
-	negate (UnixDiffTime s u) = UnixDiffTime (-s) (-u)
-	abs (UnixDiffTime s u) = UnixDiffTime (abs s) (abs u)
-	signum (UnixDiffTime s u)
+    UnixDiffTime s1 u1 + UnixDiffTime s2 u2 = calc (s1+s2) (u1+u2)
+    UnixDiffTime s1 u1 - UnixDiffTime s2 u2 = calc (s1-s2) (u1-u2)
+    UnixDiffTime s1 u1 * UnixDiffTime s2 u2 = calc' (s1*s2) (u1*u2)
+    negate (UnixDiffTime s u) = UnixDiffTime (-s) (-u)
+    abs (UnixDiffTime s u) = UnixDiffTime (abs s) (abs u)
+    signum (UnixDiffTime s u)
          | s == 0 && u == 0 = 0
          | s > 0            = 1
          | otherwise        = -1
-	fromInteger i = UnixDiffTime (fromInteger i) 0
+    fromInteger i = UnixDiffTime (fromInteger i) 0
 
 {-# RULES "Integral->UnixDiffTime" fromIntegral = secondsToUnixDiffTime #-}
 

@@ -1,7 +1,5 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010, OverloadedStrings #-}
 {-# LINE 1 "Network/Wai/Middleware/AcceptOverride.hs" #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 module Network.Wai.Middleware.AcceptOverride
     ( acceptOverride
     ) where

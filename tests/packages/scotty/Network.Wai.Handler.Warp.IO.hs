@@ -1,37 +1,149 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/Handler/Warp/IO.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP #-}
 
 module Network.Wai.Handler.Warp.IO where
 
-import Blaze.ByteString.Builder.Internal.Types (Builder(..), BuildSignal(..), BufRange(..), runBuildStep, buildStep)
-import Data.ByteString.Internal (ByteString(..))
-import Foreign.ForeignPtr (newForeignPtr_)
-import Foreign.Ptr (plusPtr, minusPtr)
+import Data.ByteString (ByteString)
+import Data.ByteString.Builder (Builder)
+import Data.ByteString.Builder.Extra (runBuilder, Next(Done, More, Chunk))
 import Network.Wai.Handler.Warp.Buffer
+import Network.Wai.Handler.Warp.Types
 
 toBufIOWith :: Buffer -> BufSize -> (ByteString -> IO ()) -> Builder -> IO ()
-toBufIOWith buf !size io (Builder build) = loop firstStep
+toBufIOWith buf !size io builder = loop firstWriter
   where
-    firstStep = build (buildStep finalStep)
-    finalStep (BufRange p _) = return $ Done p ()
-    bufRange = BufRange buf (buf `plusPtr` size)
-    runIO ptr = toBS buf (ptr `minusPtr` buf) >>= io
-    loop step = do
-        signal <- runBuildStep step bufRange
+    firstWriter = runBuilder builder
+    runIO len = bufferIO buf len io
+    loop writer = do
+        (len, signal) <- writer buf size
         case signal of
-             Done ptr _ -> runIO ptr
-             BufferFull minSize ptr next
+             Done -> runIO len
+             More minSize next
                | size < minSize -> error "toBufIOWith: BufferFull: minSize"
                | otherwise      -> do
-                   runIO ptr
+                   runIO len
                    loop next
-             InsertByteString ptr bs next -> do
-                 runIO ptr
+             Chunk bs next -> do
+                 runIO len
                  io bs
                  loop next
-
-toBS :: Buffer -> Int -> IO ByteString
-toBS ptr siz = do
-    fptr <- newForeignPtr_ ptr
-    return $ PS fptr 0 siz

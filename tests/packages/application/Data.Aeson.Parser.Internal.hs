@@ -1,4 +1,4 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Aeson/Parser/Internal.hs" #-}
 
 
@@ -71,13 +71,42 @@
 
 
 
-{-# LANGUAGE BangPatterns, CPP, OverloadedStrings #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MagicHash #-}
 
 -- |
 -- Module:      Data.Aeson.Parser.Internal
--- Copyright:   (c) 2011, 2012 Bryan O'Sullivan
+-- Copyright:   (c) 2011-2016 Bryan O'Sullivan
 --              (c) 2011 MailRank, Inc.
--- License:     Apache
+-- License:     BSD3
 -- Maintainer:  Bryan O'Sullivan <bos@serpentine.com>
 -- Stability:   experimental
 -- Portability: portable
@@ -101,56 +130,53 @@ module Data.Aeson.Parser.Internal
     , eitherDecodeStrictWith
     ) where
 
-import Data.ByteString.Builder
-  (Builder, byteString, toLazyByteString, charUtf8, word8)
+import Prelude ()
+import Prelude.Compat
 
-import Control.Applicative ((*>), (<$>), (<*), liftA2, pure)
-import Data.Aeson.Types (Result(..), Value(..))
-import Data.Attoparsec.ByteString.Char8 (Parser, char, endOfInput, scientific,
-                                         skipSpace, string)
-import Data.Bits ((.|.), shiftL)
-import Data.ByteString (ByteString)
-import Data.Char (chr)
-import Data.Monoid (mappend, mempty)
+import Control.Applicative ((<|>))
+import Control.Monad (void, when)
+import Data.Aeson.Types.Internal (IResult(..), JSONPath, Result(..), Value(..))
+import Data.Attoparsec.ByteString.Char8 (Parser, char, decimal, endOfInput, isDigit_w8, signed, string)
+import Data.Scientific (Scientific)
 import Data.Text (Text)
-import Data.Text.Encoding (decodeUtf8')
-import Data.Vector as Vector (Vector, fromList)
-import Data.Word (Word8)
+import Data.Vector as Vector (Vector, empty, fromListN, reverse)
 import qualified Data.Attoparsec.ByteString as A
 import qualified Data.Attoparsec.Lazy as L
-import qualified Data.Attoparsec.Zepto as Z
 import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Unsafe as B
+import qualified Data.ByteString.Lazy as L
 import qualified Data.HashMap.Strict as H
+import qualified Data.Scientific as Sci
+import Data.Aeson.Parser.Unescape (unescapeText)
+
+import GHC.Base (Int#, (==#), isTrue#, word2Int#)
+import GHC.Word (Word8(W8#))
 
 
--- | Parse a top-level JSON value.  This must be either an object or
--- an array, per RFC 4627.
+-- | Parse a top-level JSON value.
 --
 -- The conversion of a parsed value to a Haskell value is deferred
 -- until the Haskell value is needed.  This may improve performance if
 -- only a subset of the results of conversions are needed, but at a
 -- cost in thunk allocation.
+--
+-- This function is an alias for 'value'. In aeson 0.8 and earlier, it
+-- parsed only object or array types, in conformance with the
+-- now-obsolete RFC 4627.
 json :: Parser Value
-json = json_ object_ array_
+json = value
 
--- | Parse a top-level JSON value.  This must be either an object or
--- an array, per RFC 4627.
+-- | Parse a top-level JSON value.
 --
 -- This is a strict version of 'json' which avoids building up thunks
 -- during parsing; it performs all conversions immediately.  Prefer
 -- this version if most of the JSON data needs to be accessed.
+--
+-- This function is an alias for 'value''. In aeson 0.8 and earlier, it
+-- parsed only object or array types, in conformance with the
+-- now-obsolete RFC 4627.
 json' :: Parser Value
-json' = json_ object_' array_'
-
-json_ :: Parser Value -> Parser Value -> Parser Value
-json_ obj ary = do
-  w <- skipSpace *> A.satisfy (\w -> w == 123 || w == 91)
-  if w == 123
-    then obj
-    else ary
-{-# INLINE json_ #-}
+json' = value'
 
 object_ :: Parser Value
 object_ = {-# SCC "object_" #-} Object <$> objectValues jstring value
@@ -167,8 +193,21 @@ object_' = {-# SCC "object_'" #-} do
 objectValues :: Parser Text -> Parser Value -> Parser (H.HashMap Text Value)
 objectValues str val = do
   skipSpace
-  let pair = liftA2 (,) (str <* skipSpace) (char ':' *> skipSpace *> val)
-  H.fromList <$> commaSeparated pair 125
+  w <- A.peekWord8'
+  if w == 125
+    then A.anyWord8 >> return H.empty
+    else loop []
+ where
+  -- Why use acc pattern here, you may ask? because 'H.fromList' use 'unsafeInsert'
+  -- and it's much faster because it's doing in place update to the 'HashMap'!
+  loop acc = do
+    k <- str <* skipSpace <* char ':'
+    v <- val <* skipSpace
+    ch <- A.satisfy $ \w -> w == 44 || w == 125
+    let acc' = (k, v) : acc
+    if ch == 44
+      then skipSpace >> loop acc'
+      else return (H.fromList acc')
 {-# INLINE objectValues #-}
 
 array_ :: Parser Value
@@ -179,25 +218,20 @@ array_' = {-# SCC "array_'" #-} do
   !vals <- arrayValues value'
   return (Array vals)
 
-commaSeparated :: Parser a -> Word8 -> Parser [a]
-commaSeparated item endByte = do
-  w <- A.peekWord8'
-  if w == endByte
-    then A.anyWord8 >> return []
-    else loop
-  where
-    loop = do
-      v <- item <* skipSpace
-      ch <- A.satisfy $ \w -> w == 44 || w == endByte
-      if ch == 44
-        then skipSpace >> (v:) <$> loop
-        else return [v]
-{-# INLINE commaSeparated #-}
-
 arrayValues :: Parser Value -> Parser (Vector Value)
 arrayValues val = do
   skipSpace
-  Vector.fromList <$> commaSeparated val 93
+  w <- A.peekWord8'
+  if w == 93
+    then A.anyWord8 >> return Vector.empty
+    else loop [] 1
+  where
+    loop acc !len = do
+      v <- val <* skipSpace
+      ch <- A.satisfy $ \w -> w == 44 || w == 93
+      if ch == 44
+        then skipSpace >> loop (v:acc) (len+1)
+        else return (Vector.reverse (Vector.fromListN len (v:acc)))
 {-# INLINE arrayValues #-}
 
 -- | Parse any JSON value.  You should usually 'json' in preference to
@@ -212,6 +246,7 @@ arrayValues val = do
 -- to preserve interoperability and security.
 value :: Parser Value
 value = do
+  skipSpace
   w <- A.peekWord8'
   case w of
     34  -> A.anyWord8 *> (String <$> jstring_)
@@ -227,6 +262,7 @@ value = do
 -- | Strict version of 'value'. See also 'json''.
 value' :: Parser Value
 value' = do
+  skipSpace
   w <- A.peekWord8'
   case w of
     34  -> do
@@ -249,71 +285,23 @@ jstring = A.word8 34 *> jstring_
 
 -- | Parse a string without a leading quote.
 jstring_ :: Parser Text
-jstring_ = {-# SCC "jstring_" #-} do
-  s <- A.scan False $ \s c -> if s then Just False
-                                   else if c == 34
-                                        then Nothing
-                                        else Just (c == 92)
-  _ <- A.word8 34
-  s1 <- if 92 `B.elem` s
-        then case Z.parse unescape s of
-            Right r  -> return r
-            Left err -> fail err
-         else return s
-
-  case decodeUtf8' s1 of
-      Right r  -> return r
-      Left err -> fail $ show err
-
 {-# INLINE jstring_ #-}
+jstring_ = {-# SCC "jstring_" #-} do
+  s <- A.scan startState go <* A.anyWord8
+  case unescapeText s of
+    Right r  -> return r
+    Left err -> fail $ show err
+ where
+    startState              = S 0#
+    go (S a) (W8# c)
+      | isTrue# a                     = Just (S 0#)
+      | isTrue# (word2Int# c ==# 34#) = Nothing   -- double quote
+      | otherwise = let a' = word2Int# c ==# 92#  -- backslash
+                    in Just (S a')
 
-unescape :: Z.Parser ByteString
-unescape = toByteString <$> go mempty where
-  go acc = do
-    h <- Z.takeWhile (/=92)
-    let rest = do
-          start <- Z.take 2
-          let !slash = B.unsafeHead start
-              !t = B.unsafeIndex start 1
-              escape = case B.findIndex (==t) "\"\\/ntbrfu" of
-                         Just i -> i
-                         _      -> 255
-          if slash /= 92 || escape == 255
-            then fail "invalid JSON escape sequence"
-            else do
-            let cont m = go (acc `mappend` byteString h `mappend` m)
-                {-# INLINE cont #-}
-            if t /= 117 -- 'u'
-              then cont (word8 (B.unsafeIndex mapping escape))
-              else do
-                   a <- hexQuad
-                   if a < 0xd800 || a > 0xdfff
-                     then cont (charUtf8 (chr a))
-                     else do
-                       b <- Z.string "\\u" *> hexQuad
-                       if a <= 0xdbff && b >= 0xdc00 && b <= 0xdfff
-                         then let !c = ((a - 0xd800) `shiftL` 10) +
-                                       (b - 0xdc00) + 0x10000
-                              in cont (charUtf8 (chr c))
-                         else fail "invalid UTF-16 surrogates"
-    done <- Z.atEnd
-    if done
-      then return (acc `mappend` byteString h)
-      else rest
-  mapping = "\"\\/\n\t\b\r\f"
-
-hexQuad :: Z.Parser Int
-hexQuad = do
-  s <- Z.take 4
-  let hex n | w >= 48 && w <= 57 = w - 48
-            | w >= 97 && w <= 102 = w - 87
-            | w >= 65 && w <= 70 = w - 55
-            | otherwise          = 255
-        where w = fromIntegral $ B.unsafeIndex s n
-      a = hex 0; b = hex 1; c = hex 2; d = hex 3
-  if (a .|. b .|. c .|. d) /= 255
-    then return $! d .|. (c `shiftL` 4) .|. (b `shiftL` 8) .|. (a `shiftL` 12)
-    else fail "invalid hex escape"
+data S = S Int#
+-- This hint will no longer trigger once hlint > 1.9.41 is released.
+{-# ANN S ("HLint: ignore Use newtype instead of data" :: String) #-}
 
 decodeWith :: Parser Value -> (Value -> Result a) -> L.ByteString -> Maybe a
 decodeWith p to s =
@@ -329,25 +317,25 @@ decodeStrictWith :: Parser Value -> (Value -> Result a) -> B.ByteString
 decodeStrictWith p to s =
     case either Error to (A.parseOnly p s) of
       Success a -> Just a
-      Error _ -> Nothing
+      _         -> Nothing
 {-# INLINE decodeStrictWith #-}
 
-eitherDecodeWith :: Parser Value -> (Value -> Result a) -> L.ByteString
-                 -> Either String a
+eitherDecodeWith :: Parser Value -> (Value -> IResult a) -> L.ByteString
+                 -> Either (JSONPath, String) a
 eitherDecodeWith p to s =
     case L.parse p s of
-      L.Done _ v -> case to v of
-                      Success a -> Right a
-                      Error msg -> Left msg
-      L.Fail _ _ msg -> Left msg
+      L.Done _ v     -> case to v of
+                          ISuccess a      -> Right a
+                          IError path msg -> Left (path, msg)
+      L.Fail _ _ msg -> Left ([], msg)
 {-# INLINE eitherDecodeWith #-}
 
-eitherDecodeStrictWith :: Parser Value -> (Value -> Result a) -> B.ByteString
-                       -> Either String a
+eitherDecodeStrictWith :: Parser Value -> (Value -> IResult a) -> B.ByteString
+                       -> Either (JSONPath, String) a
 eitherDecodeStrictWith p to s =
-    case either Error to (A.parseOnly p s) of
-      Success a -> Right a
-      Error msg -> Left msg
+    case either (IError []) to (A.parseOnly p s) of
+      ISuccess a      -> Right a
+      IError path msg -> Left (path, msg)
 {-# INLINE eitherDecodeStrictWith #-}
 
 -- $lazy
@@ -379,6 +367,53 @@ jsonEOF = json <* skipSpace <* endOfInput
 jsonEOF' :: Parser Value
 jsonEOF' = json' <* skipSpace <* endOfInput
 
-toByteString :: Builder -> ByteString
-toByteString = L.toStrict . toLazyByteString
-{-# INLINE toByteString #-}
+-- | The only valid whitespace in a JSON document is space, newline,
+-- carriage return, and tab.
+skipSpace :: Parser ()
+skipSpace = A.skipWhile $ \w -> w == 0x20 || w == 0x0a || w == 0x0d || w == 0x09
+{-# INLINE skipSpace #-}
+
+------------------ Copy-pasted and adapted from attoparsec ------------------
+
+-- A strict pair
+data SP = SP !Integer {-# UNPACK #-}!Int
+
+decimal0 :: Parser Integer
+decimal0 = do
+  let step a w = a * 10 + fromIntegral (w - zero)
+      zero = 48
+  digits <- A.takeWhile1 isDigit_w8
+  if B.length digits > 1 && B.unsafeHead digits == zero
+    then fail "leading zero"
+    else return (B.foldl' step 0 digits)
+
+{-# INLINE scientific #-}
+scientific :: Parser Scientific
+scientific = do
+  let minus = 45
+      plus  = 43
+  sign <- A.peekWord8'
+  let !positive = sign == plus || sign /= minus
+  when (sign == plus || sign == minus) $
+    void A.anyWord8
+
+  n <- decimal0
+
+  let f fracDigits = SP (B.foldl' step n fracDigits)
+                        (negate $ B.length fracDigits)
+      step a w = a * 10 + fromIntegral (w - 48)
+
+  dotty <- A.peekWord8
+  -- '.' -> ascii 46
+  SP c e <- case dotty of
+              Just 46 -> A.anyWord8 *> (f <$> A.takeWhile1 isDigit_w8)
+              _       -> pure (SP n 0)
+
+  let !signedCoeff | positive  =  c
+                   | otherwise = -c
+
+  let littleE = 101
+      bigE    = 69
+  (A.satisfy (\ex -> ex == littleE || ex == bigE) *>
+      fmap (Sci.scientific signedCoeff . (e +)) (signed decimal)) <|>
+    return (Sci.scientific signedCoeff    e)

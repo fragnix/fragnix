@@ -22,13 +22,11 @@
 module Data.Text.Internal.Fusion.Types
     (
       CC(..)
-    , M(..)
-    , M8
     , PairS(..)
+    , Scan(..)
     , RS(..)
     , Step(..)
     , Stream(..)
-    , Switch(..)
     , empty
     ) where
 
@@ -38,26 +36,23 @@ import Data.Word (Word8)
 -- | Specialised tuple for case conversion.
 data CC s = CC !s {-# UNPACK #-} !Char {-# UNPACK #-} !Char
 
--- | Specialised, strict Maybe-like type.
-data M a = N
-         | J !a
-
-type M8 = M Word8
-
--- Restreaming state.
+-- | Restreaming state.
 data RS s
     = RS0 !s
     | RS1 !s {-# UNPACK #-} !Word8
     | RS2 !s {-# UNPACK #-} !Word8 {-# UNPACK #-} !Word8
     | RS3 !s {-# UNPACK #-} !Word8 {-# UNPACK #-} !Word8 {-# UNPACK #-} !Word8
 
-infixl 2 :*:
+-- | Strict pair.
 data PairS a b = !a :*: !b
                  -- deriving (Eq, Ord, Show)
+infixl 2 :*:
 
--- | Allow a function over a stream to switch between two states.
-data Switch = S1 | S2
+-- | An intermediate result in a scan.
+data Scan s = Scan1 {-# UNPACK #-} !Char !s
+            | Scan2 {-# UNPACK #-} !Char !s
 
+-- | Intermediate result in a processing pipeline.
 data Step s a = Done
               | Skip !s
               | Yield !a !s

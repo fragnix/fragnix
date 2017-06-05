@@ -1,11 +1,79 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Attoparsec/Text.hs" #-}
-{-# LANGUAGE BangPatterns, FlexibleInstances, TypeSynonymInstances #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE BangPatterns, CPP, FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE Trustworthy #-} -- Imports internal modules
 {-# OPTIONS_GHC -fno-warn-warnings-deprecations #-}
 
 -- |
 -- Module      :  Data.Attoparsec.Text
--- Copyright   :  Bryan O'Sullivan 2007-2014
+-- Copyright   :  Bryan O'Sullivan 2007-2015
 -- License     :  BSD3
 --
 -- Maintainer  :  bos@serpentine.com
@@ -71,6 +139,7 @@ module Data.Attoparsec.Text
     , skipSpace
     , I.skipWhile
     , I.scan
+    , I.runScanner
     , I.take
     , I.takeWhile
     , I.takeWhile1
@@ -124,7 +193,7 @@ module Data.Attoparsec.Text
     , I.atEnd
     ) where
 
-import Control.Applicative (pure, (<$>), (*>), (<*), (<|>))
+import Control.Applicative ((<|>))
 import Data.Attoparsec.Combinator
 import Data.Attoparsec.Number (Number(..))
 import Data.Scientific (Scientific)
@@ -133,8 +202,9 @@ import Data.Attoparsec.Text.Internal (Parser, Result, parse, takeWhile1)
 import Data.Bits (Bits, (.|.), shiftL)
 import Data.Char (isAlpha, isDigit, isSpace, ord)
 import Data.Int (Int8, Int16, Int32, Int64)
+import Data.List (intercalate)
 import Data.Text (Text)
-import Data.Word (Word8, Word16, Word32, Word64, Word)
+import Data.Word (Word8, Word16, Word32, Word64)
 import qualified Data.Attoparsec.Internal as I
 import qualified Data.Attoparsec.Internal.Types as T
 import qualified Data.Attoparsec.Text.Internal as I
@@ -259,9 +329,10 @@ maybeResult _            = Nothing
 -- | Convert a 'Result' value to an 'Either' value. A 'Partial' result
 -- is treated as failure.
 eitherResult :: Result r -> Either String r
-eitherResult (T.Done _ r)     = Right r
-eitherResult (T.Fail _ _ msg) = Left msg
-eitherResult _                = Left "Result: incomplete input"
+eitherResult (T.Done _ r)        = Right r
+eitherResult (T.Fail _ [] msg)   = Left msg
+eitherResult (T.Fail _ ctxs msg) = Left (intercalate " > " ctxs ++ ": " ++ msg)
+eitherResult _                   = Left "Result: incomplete input"
 
 -- | A predicate that matches either a carriage return @\'\\r\'@ or
 -- newline @\'\\n\'@ character.

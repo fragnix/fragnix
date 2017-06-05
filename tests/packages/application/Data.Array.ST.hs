@@ -1,5 +1,52 @@
 {-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Array/ST.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE RankNTypes #-}
 -----------------------------------------------------------------------------
 -- |
@@ -39,9 +86,7 @@ import GHC.Arr          ( STArray, Array, unsafeFreezeSTArray )
 -- the array before returning it - it uses 'unsafeFreeze' internally, but
 -- this wrapper is a safe interface to that function.
 --
-runSTArray :: (Ix i)
-           => (forall s . ST s (STArray s i e))
-           -> Array i e
+runSTArray :: (forall s . ST s (STArray s i e)) -> Array i e
 runSTArray st = runST (st >>= unsafeFreezeSTArray)
 
 -- | A safe way to create and work with an unboxed mutable array before
@@ -50,9 +95,7 @@ runSTArray st = runST (st >>= unsafeFreezeSTArray)
 -- 'unsafeFreeze' internally, but this wrapper is a safe interface to
 -- that function.
 --
-runSTUArray :: (Ix i)
-           => (forall s . ST s (STUArray s i e))
-           -> UArray i e
+runSTUArray :: (forall s . ST s (STUArray s i e)) -> UArray i e
 runSTUArray st = runST (st >>= unsafeFreezeSTUArray)
 
 

@@ -51,6 +51,19 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE BangPatterns, CPP, ForeignFunctionInterface, GeneralizedNewtypeDeriving, MagicHash,
     UnliftedFFITypes #-}
 {-# LANGUAGE Trustworthy #-}
@@ -107,32 +120,23 @@ module Data.Text.Encoding
     , encodeUtf32BE
 
     -- * Encoding Text using ByteString Builders
-    -- | /Note/ that these functions are only available if built against
-    -- @bytestring >= 0.10.4.0@.
     , encodeUtf8Builder
     , encodeUtf8BuilderEscaped
     ) where
 
 import Control.Monad.ST.Unsafe (unsafeIOToST, unsafeSTToIO)
 
-import Data.Bits ((.&.))
-import Data.Text.Internal.Unsafe.Char (ord)
-import qualified Data.ByteString.Builder as B
-import qualified Data.ByteString.Builder.Internal as B hiding (empty, append)
-import qualified Data.ByteString.Builder.Prim as BP
-import qualified Data.ByteString.Builder.Prim.Internal as BP
-import qualified Data.Text.Internal.Encoding.Utf16 as U16
-
 import Control.Exception (evaluate, try)
 import Control.Monad.ST (runST)
+import Data.Bits ((.&.))
 import Data.ByteString as B
 import Data.ByteString.Internal as B hiding (c2w)
-import Data.Text ()
 import Data.Text.Encoding.Error (OnDecodeError, UnicodeException, strictDecode)
 import Data.Text.Internal (Text(..), safe, text)
 import Data.Text.Internal.Private (runText)
-import Data.Text.Internal.Unsafe.Char (unsafeWrite)
+import Data.Text.Internal.Unsafe.Char (ord, unsafeWrite)
 import Data.Text.Internal.Unsafe.Shift (shiftR)
+import Data.Text.Show ()
 import Data.Text.Unsafe (unsafeDupablePerformIO)
 import Data.Word (Word8, Word32)
 import Foreign.C.Types (CSize(..))
@@ -141,8 +145,13 @@ import Foreign.Marshal.Utils (with)
 import Foreign.Ptr (Ptr, minusPtr, nullPtr, plusPtr)
 import Foreign.Storable (Storable, peek, poke)
 import GHC.Base (ByteArray#, MutableByteArray#)
+import qualified Data.ByteString.Builder as B
+import qualified Data.ByteString.Builder.Internal as B hiding (empty, append)
+import qualified Data.ByteString.Builder.Prim as BP
+import qualified Data.ByteString.Builder.Prim.Internal as BP
 import qualified Data.Text.Array as A
 import qualified Data.Text.Internal.Encoding.Fusion as E
+import qualified Data.Text.Internal.Encoding.Utf16 as U16
 import qualified Data.Text.Internal.Fusion as F
 
 
@@ -332,7 +341,7 @@ streamDecodeUtf8With onErr = decodeChunk B.empty 0 0
                       return $! text arr 0 (fromIntegral n)
                   lastPtr <- peek curPtrPtr
                   let left = lastPtr `minusPtr` curPtr
-                      undecoded = case state of
+                      !undecoded = case state of
                         0 -> B.empty
                         _           -> B.append undecoded0 (B.drop left bs)
                   return $ Some chunkText undecoded
@@ -360,7 +369,6 @@ decodeUtf8 = decodeUtf8With strictDecode
 decodeUtf8' :: ByteString -> Either UnicodeException Text
 decodeUtf8' = unsafeDupablePerformIO . try . evaluate . decodeUtf8With strictDecode
 {-# INLINE decodeUtf8' #-}
-
 
 -- | Encode text to a ByteString 'B.Builder' using UTF-8 encoding.
 encodeUtf8Builder :: Text -> B.Builder

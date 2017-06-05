@@ -1,9 +1,9 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/DynamicLinker/Module.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/DynamicLinker/Module.hs" #-}
 {-# LINE 1 "System/Posix/DynamicLinker/Module.hsc" #-}
 
-{-# LINE 4 "System/Posix/DynamicLinker/Module.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LINE 2 "System/Posix/DynamicLinker/Module.hsc" #-}
+{-# LANGUAGE Safe #-}
 
 {-# LINE 6 "System/Posix/DynamicLinker/Module.hsc" #-}
 -----------------------------------------------------------------------------

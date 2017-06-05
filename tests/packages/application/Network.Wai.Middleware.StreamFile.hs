@@ -1,7 +1,5 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010, OverloadedStrings #-}
 {-# LINE 1 "Network/Wai/Middleware/StreamFile.hs" #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 --
 -- Since 3.0.4
@@ -13,6 +11,7 @@ import Network.Wai.Internal
 import Network.Wai (Middleware, responseToStream)
 import qualified Data.ByteString.Char8 as S8
 import System.PosixCompat (getFileStatus, fileSize, FileOffset)
+import Network.HTTP.Types (hContentLength)
 
 -- |Convert ResponseFile type responses into ResponseStream type
 --
@@ -36,7 +35,7 @@ streamFile app env sendResponse = app env $ \res ->
             sendBody :: StreamingBody -> IO ResponseReceived
             sendBody body = do
                len <- getFileSize fp
-               let hs' = ("Content-Length", (S8.pack (show len))) : hs
+               let hs' = (hContentLength, (S8.pack (show len))) : hs
                sendResponse $ responseStream s hs' body
       _ -> sendResponse res
 

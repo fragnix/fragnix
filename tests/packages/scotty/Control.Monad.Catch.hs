@@ -45,6 +45,22 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -57,9 +73,11 @@
 {-# LANGUAGE Trustworthy #-}
 
 
+
+{-# OPTIONS_GHC -fno-warn-deprecations #-}
 --------------------------------------------------------------------
 -- |
--- Copyright   :  (C) Edward Kmett 2013-2014, (c) Google Inc. 2012
+-- Copyright   :  (C) Edward Kmett 2013-2015, (c) Google Inc. 2012
 -- License     :  BSD-style (see the file LICENSE)
 -- Maintainer  :  Edward Kmett <ekmett@gmail.com>
 -- Stability   :  experimental
@@ -76,7 +94,7 @@
 -- This is very similar to 'ErrorT' and 'MonadError', but based on features of
 -- "Control.Exception". In particular, it handles the complex case of
 -- asynchronous exceptions by including 'mask' in the typeclass. Note that the
--- extensible extensions feature relies the RankNTypes language extension.
+-- extensible exceptions feature relies on the RankNTypes language extension.
 --------------------------------------------------------------------
 
 module Control.Monad.Catch (
@@ -112,16 +130,16 @@ module Control.Monad.Catch (
   , SomeException(..)
   ) where
 
-import Prelude hiding (foldr)
-
 import Control.Exception (Exception(..), SomeException(..))
 import qualified Control.Exception as ControlException
+import qualified Control.Monad.STM as STM
 import qualified Control.Monad.Trans.RWS.Lazy as LazyRWS
 import qualified Control.Monad.Trans.RWS.Strict as StrictRWS
 import qualified Control.Monad.Trans.State.Lazy as LazyS
 import qualified Control.Monad.Trans.State.Strict as StrictS
 import qualified Control.Monad.Trans.Writer.Lazy as LazyW
 import qualified Control.Monad.Trans.Writer.Strict as StrictW
+import Control.Monad.STM (STM)
 import Control.Monad.Trans.List (ListT(..), runListT)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import Control.Monad.Trans.Error (ErrorT(..), Error, runErrorT)
@@ -129,9 +147,9 @@ import Control.Monad.Trans.Except (ExceptT(..), runExceptT)
 import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Identity
 import Control.Monad.Reader as Reader
-import Control.Monad.Trans.Reader (runReaderT)
-import Control.Monad.RWS
-import Data.Foldable
+
+import Language.Haskell.TH.Syntax (Q)
+
 
 ------------------------------------------------------------------------------
 -- $mtl
@@ -211,8 +229,8 @@ instance MonadThrow [] where
   throwM _ = []
 instance MonadThrow Maybe where
   throwM _ = Nothing
-instance e ~ SomeException => MonadThrow (Either e) where
-  throwM = Left . toException
+instance MonadThrow Q where
+  throwM = fail . show
 
 instance MonadThrow IO where
   throwM = ControlException.throwIO
@@ -222,16 +240,37 @@ instance MonadMask IO where
   mask = ControlException.mask
   uninterruptibleMask = ControlException.uninterruptibleMask
 
+instance MonadThrow STM where
+  throwM = STM.throwSTM
+instance MonadCatch STM where
+  catch = STM.catchSTM
+
+instance e ~ SomeException => MonadThrow (Either e) where
+  throwM = Left . toException
+-- | @since 0.8.3
+instance e ~ SomeException => MonadCatch (Either e) where
+  catch (Left e) f =
+    case fromException e of
+      Nothing -> Left e
+      Just e' -> f e'
+  catch x@(Right _) _ = x
+-- | @since 0.8.3
+instance e ~ SomeException => MonadMask (Either e) where
+  mask f = f id
+  uninterruptibleMask f = f id
+
 instance MonadThrow m => MonadThrow (IdentityT m) where
   throwM e = lift $ throwM e
 instance MonadCatch m => MonadCatch (IdentityT m) where
   catch (IdentityT m) f = IdentityT (catch m (runIdentityT . f))
 instance MonadMask m => MonadMask (IdentityT m) where
   mask a = IdentityT $ mask $ \u -> runIdentityT (a $ q u)
-    where q u = IdentityT . u . runIdentityT
+    where q :: (m a -> m a) -> IdentityT m a -> IdentityT m a
+          q u = IdentityT . u . runIdentityT
   uninterruptibleMask a =
     IdentityT $ uninterruptibleMask $ \u -> runIdentityT (a $ q u)
-      where q u = IdentityT . u . runIdentityT
+      where q :: (m a -> m a) -> IdentityT m a -> IdentityT m a
+            q u = IdentityT . u . runIdentityT
 
 instance MonadThrow m => MonadThrow (LazyS.StateT s m) where
   throwM e = lift $ throwM e
@@ -239,10 +278,12 @@ instance MonadCatch m => MonadCatch (LazyS.StateT s m) where
   catch = LazyS.liftCatch catch
 instance MonadMask m => MonadMask (LazyS.StateT s m) where
   mask a = LazyS.StateT $ \s -> mask $ \u -> LazyS.runStateT (a $ q u) s
-    where q u (LazyS.StateT b) = LazyS.StateT (u . b)
+    where q :: (m (a, s) -> m (a, s)) -> LazyS.StateT s m a -> LazyS.StateT s m a
+          q u (LazyS.StateT b) = LazyS.StateT (u . b)
   uninterruptibleMask a =
     LazyS.StateT $ \s -> uninterruptibleMask $ \u -> LazyS.runStateT (a $ q u) s
-      where q u (LazyS.StateT b) = LazyS.StateT (u . b)
+      where q :: (m (a, s) -> m (a, s)) -> LazyS.StateT s m a -> LazyS.StateT s m a
+            q u (LazyS.StateT b) = LazyS.StateT (u . b)
 
 instance MonadThrow m => MonadThrow (StrictS.StateT s m) where
   throwM e = lift $ throwM e
@@ -250,10 +291,12 @@ instance MonadCatch m => MonadCatch (StrictS.StateT s m) where
   catch = StrictS.liftCatch catch
 instance MonadMask m => MonadMask (StrictS.StateT s m) where
   mask a = StrictS.StateT $ \s -> mask $ \u -> StrictS.runStateT (a $ q u) s
-    where q u (StrictS.StateT b) = StrictS.StateT (u . b)
+    where q :: (m (a, s) -> m (a, s)) -> StrictS.StateT s m a -> StrictS.StateT s m a
+          q u (StrictS.StateT b) = StrictS.StateT (u . b)
   uninterruptibleMask a =
     StrictS.StateT $ \s -> uninterruptibleMask $ \u -> StrictS.runStateT (a $ q u) s
-      where q u (StrictS.StateT b) = StrictS.StateT (u . b)
+      where q :: (m (a, s) -> m (a, s)) -> StrictS.StateT s m a -> StrictS.StateT s m a
+            q u (StrictS.StateT b) = StrictS.StateT (u . b)
 
 instance MonadThrow m => MonadThrow (ReaderT r m) where
   throwM e = lift $ throwM e
@@ -261,10 +304,12 @@ instance MonadCatch m => MonadCatch (ReaderT r m) where
   catch (ReaderT m) c = ReaderT $ \r -> m r `catch` \e -> runReaderT (c e) r
 instance MonadMask m => MonadMask (ReaderT r m) where
   mask a = ReaderT $ \e -> mask $ \u -> runReaderT (a $ q u) e
-    where q u (ReaderT b) = ReaderT (u . b)
+    where q :: (m a -> m a) -> ReaderT e m a -> ReaderT e m a
+          q u (ReaderT b) = ReaderT (u . b)
   uninterruptibleMask a =
     ReaderT $ \e -> uninterruptibleMask $ \u -> runReaderT (a $ q u) e
-      where q u (ReaderT b) = ReaderT (u . b)
+      where q :: (m a -> m a) -> ReaderT e m a -> ReaderT e m a
+            q u (ReaderT b) = ReaderT (u . b)
 
 instance (MonadThrow m, Monoid w) => MonadThrow (StrictW.WriterT w m) where
   throwM e = lift $ throwM e
@@ -272,10 +317,12 @@ instance (MonadCatch m, Monoid w) => MonadCatch (StrictW.WriterT w m) where
   catch (StrictW.WriterT m) h = StrictW.WriterT $ m `catch ` \e -> StrictW.runWriterT (h e)
 instance (MonadMask m, Monoid w) => MonadMask (StrictW.WriterT w m) where
   mask a = StrictW.WriterT $ mask $ \u -> StrictW.runWriterT (a $ q u)
-    where q u b = StrictW.WriterT $ u (StrictW.runWriterT b)
+    where q :: (m (a, w) -> m (a, w)) -> StrictW.WriterT w m a -> StrictW.WriterT w m a
+          q u b = StrictW.WriterT $ u (StrictW.runWriterT b)
   uninterruptibleMask a =
     StrictW.WriterT $ uninterruptibleMask $ \u -> StrictW.runWriterT (a $ q u)
-      where q u b = StrictW.WriterT $ u (StrictW.runWriterT b)
+      where q :: (m (a, w) -> m (a, w)) -> StrictW.WriterT w m a -> StrictW.WriterT w m a
+            q u b = StrictW.WriterT $ u (StrictW.runWriterT b)
 
 instance (MonadThrow m, Monoid w) => MonadThrow (LazyW.WriterT w m) where
   throwM e = lift $ throwM e
@@ -283,10 +330,12 @@ instance (MonadCatch m, Monoid w) => MonadCatch (LazyW.WriterT w m) where
   catch (LazyW.WriterT m) h = LazyW.WriterT $ m `catch ` \e -> LazyW.runWriterT (h e)
 instance (MonadMask m, Monoid w) => MonadMask (LazyW.WriterT w m) where
   mask a = LazyW.WriterT $ mask $ \u -> LazyW.runWriterT (a $ q u)
-    where q u b = LazyW.WriterT $ u (LazyW.runWriterT b)
+    where q :: (m (a, w) -> m (a, w)) -> LazyW.WriterT w m a -> LazyW.WriterT w m a
+          q u b = LazyW.WriterT $ u (LazyW.runWriterT b)
   uninterruptibleMask a =
     LazyW.WriterT $ uninterruptibleMask $ \u -> LazyW.runWriterT (a $ q u)
-      where q u b = LazyW.WriterT $ u (LazyW.runWriterT b)
+      where q :: (m (a, w) -> m (a, w)) -> LazyW.WriterT w m a -> LazyW.WriterT w m a
+            q u b = LazyW.WriterT $ u (LazyW.runWriterT b)
 
 instance (MonadThrow m, Monoid w) => MonadThrow (LazyRWS.RWST r w s m) where
   throwM e = lift $ throwM e
@@ -294,10 +343,12 @@ instance (MonadCatch m, Monoid w) => MonadCatch (LazyRWS.RWST r w s m) where
   catch (LazyRWS.RWST m) h = LazyRWS.RWST $ \r s -> m r s `catch` \e -> LazyRWS.runRWST (h e) r s
 instance (MonadMask m, Monoid w) => MonadMask (LazyRWS.RWST r w s m) where
   mask a = LazyRWS.RWST $ \r s -> mask $ \u -> LazyRWS.runRWST (a $ q u) r s
-    where q u (LazyRWS.RWST b) = LazyRWS.RWST $ \ r s -> u (b r s)
+    where q :: (m (a, s, w) -> m (a, s, w)) -> LazyRWS.RWST r w s m a -> LazyRWS.RWST r w s m a
+          q u (LazyRWS.RWST b) = LazyRWS.RWST $ \ r s -> u (b r s)
   uninterruptibleMask a =
     LazyRWS.RWST $ \r s -> uninterruptibleMask $ \u -> LazyRWS.runRWST (a $ q u) r s
-      where q u (LazyRWS.RWST b) = LazyRWS.RWST $ \ r s -> u (b r s)
+      where q :: (m (a, s, w) -> m (a, s, w)) -> LazyRWS.RWST r w s m a -> LazyRWS.RWST r w s m a
+            q u (LazyRWS.RWST b) = LazyRWS.RWST $ \ r s -> u (b r s)
 
 instance (MonadThrow m, Monoid w) => MonadThrow (StrictRWS.RWST r w s m) where
   throwM e = lift $ throwM e
@@ -305,10 +356,12 @@ instance (MonadCatch m, Monoid w) => MonadCatch (StrictRWS.RWST r w s m) where
   catch (StrictRWS.RWST m) h = StrictRWS.RWST $ \r s -> m r s `catch` \e -> StrictRWS.runRWST (h e) r s
 instance (MonadMask m, Monoid w) => MonadMask (StrictRWS.RWST r w s m) where
   mask a = StrictRWS.RWST $ \r s -> mask $ \u -> StrictRWS.runRWST (a $ q u) r s
-    where q u (StrictRWS.RWST b) = StrictRWS.RWST $ \ r s -> u (b r s)
+    where q :: (m (a, s, w) -> m (a, s, w)) -> StrictRWS.RWST r w s m a -> StrictRWS.RWST r w s m a
+          q u (StrictRWS.RWST b) = StrictRWS.RWST $ \ r s -> u (b r s)
   uninterruptibleMask a =
     StrictRWS.RWST $ \r s -> uninterruptibleMask $ \u -> StrictRWS.runRWST (a $ q u) r s
-      where q u (StrictRWS.RWST b) = StrictRWS.RWST $ \ r s -> u (b r s)
+      where q :: (m (a, s, w) -> m (a, s, w)) -> StrictRWS.RWST r w s m a -> StrictRWS.RWST r w s m a
+            q u (StrictRWS.RWST b) = StrictRWS.RWST $ \ r s -> u (b r s)
 
 -- Transformers which are only instances of MonadThrow and MonadCatch, not MonadMask
 instance MonadThrow m => MonadThrow (ListT m) where

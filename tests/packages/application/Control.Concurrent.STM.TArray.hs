@@ -1,5 +1,11 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Control/Concurrent/STM/TArray.hs" #-}
+
+
+
+
+
+
 
 
 

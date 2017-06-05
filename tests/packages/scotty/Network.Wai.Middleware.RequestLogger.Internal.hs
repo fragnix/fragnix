@@ -1,5 +1,51 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010, OverloadedStrings #-}
 {-# LINE 1 "Network/Wai/Middleware/RequestLogger/Internal.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -103,9 +149,6 @@ module Network.Wai.Middleware.RequestLogger.Internal
 
 import Data.ByteString (ByteString)
 import Network.Wai.Logger (clockDateCacher)
-import Control.Concurrent (forkIO, threadDelay)
-import Control.Monad (forever)
-
 import System.Log.FastLogger (LogStr, fromLogStr)
 
 logToByteString :: LogStr -> ByteString
@@ -113,6 +156,6 @@ logToByteString = fromLogStr
 
 getDateGetter :: IO () -- ^ flusher
               -> IO (IO ByteString)
-getDateGetter flusher = do
-    (getter, updater) <- clockDateCacher
+getDateGetter _ = do
+    (getter, _) <- clockDateCacher
     return getter

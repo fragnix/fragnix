@@ -1,11 +1,78 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Attoparsec/Text/Internal.hs" #-}
-{-# LANGUAGE BangPatterns, FlexibleInstances, GADTs, OverloadedStrings,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE BangPatterns, CPP, FlexibleInstances, GADTs, OverloadedStrings,
     Rank2Types, RecordWildCards, TypeFamilies, TypeSynonymInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -- |
 -- Module      :  Data.Attoparsec.Text.Internal
--- Copyright   :  Bryan O'Sullivan 2007-2014
+-- Copyright   :  Bryan O'Sullivan 2007-2015
 -- License     :  BSD3
 --
 -- Maintainer  :  bos@serpentine.com
@@ -67,7 +134,7 @@ module Data.Attoparsec.Text.Internal
     , atEnd
     ) where
 
-import Control.Applicative ((<|>), (<$>))
+import Control.Applicative ((<|>))
 import Control.Monad (when)
 import Data.Attoparsec.Combinator ((<?>))
 import Data.Attoparsec.Internal
@@ -75,9 +142,10 @@ import Data.Attoparsec.Internal.Types hiding (Parser, Failure, Success)
 import qualified Data.Attoparsec.Text.Buffer as Buf
 import Data.Attoparsec.Text.Buffer (Buffer, buffer)
 import Data.Char (chr, ord)
+import Data.List (intercalate)
 import Data.String (IsString(..))
 import Data.Text.Internal (Text(..))
-import Prelude hiding (getChar, length, succ, take, takeWhile)
+import Prelude hiding (getChar, succ, take, takeWhile)
 import qualified Data.Attoparsec.Internal.Types as T
 import qualified Data.Attoparsec.Text.FastSet as Set
 import qualified Data.Text as T
@@ -161,8 +229,45 @@ take n = takeWith (max n 0) (const True)
 -- before failing.  In attoparsec, the above parser will /succeed/ on
 -- that input, because the failed first branch will consume nothing.
 string :: Text -> Parser Text
-string s = takeWith (T.length s) (==s)
+string s = string_ (stringSuspended id) id s
 {-# INLINE string #-}
+
+string_ :: (forall r. Text -> Text -> Buffer -> Pos -> More
+            -> Failure r -> Success Text r -> Result r)
+        -> (Text -> Text)
+        -> Text -> Parser Text
+string_ suspended f s0 = T.Parser $ \t pos more lose succ ->
+  let s  = f s0
+      ft = f (Buf.unbufferAt (fromPos pos) t)
+  in case T.commonPrefixes s ft of
+       Nothing
+         | T.null s          -> succ t pos more T.empty
+         | T.null ft         -> suspended s s t pos more lose succ
+         | otherwise         -> lose t pos more [] "string"
+       Just (pfx,ssfx,tsfx)
+         | T.null ssfx       -> let l = Pos (T.lengthWord16 pfx)
+                                in succ t (pos + l) more (substring pos l t)
+         | not (T.null tsfx) -> lose t pos more [] "string"
+         | otherwise         -> suspended s ssfx t pos more lose succ
+{-# INLINE string_ #-}
+
+stringSuspended :: (Text -> Text)
+                -> Text -> Text -> Buffer -> Pos -> More
+                -> Failure r
+                -> Success Text r
+                -> Result r
+stringSuspended f s000 s0 t0 pos0 more0 lose0 succ0 =
+    runParser (demandInput_ >>= go) t0 pos0 more0 lose0 succ0
+  where
+    go s' = T.Parser $ \t pos more lose succ ->
+      let s = f s'
+      in case T.commonPrefixes s0 s of
+        Nothing         -> lose t pos more [] "string"
+        Just (_pfx,ssfx,tsfx)
+          | T.null ssfx -> let l = Pos (T.lengthWord16 s000)
+                           in succ t (pos + l) more (substring pos l t)
+          | T.null tsfx -> stringSuspended f s000 ssfx t pos more lose succ
+          | otherwise   -> lose t pos more [] "string"
 
 -- | Satisfy a literal string, ignoring case.
 --
@@ -186,16 +291,8 @@ stringCI s = go 0
 
 -- | Satisfy a literal string, ignoring case for characters in the ASCII range.
 asciiCI :: Text -> Parser Text
-asciiCI input = do
-  (k,t) <- ensure n
-  if asciiToLower t == s
-    then advance k >> return t
-    else fail "asciiCI"
+asciiCI s = string_ (stringSuspended asciiToLower) asciiToLower s
   where
-    n = T.length input
-    s = asciiToLower input
-
-    -- convert letters in the ASCII range to lower-case
     asciiToLower = T.map f
       where
         offset = ord 'a' - ord 'A'
@@ -209,7 +306,7 @@ skipWhile p = go
  where
   go = do
     t <- T.takeWhile p <$> get
-    continue <- inputSpansChunks (length t)
+    continue <- inputSpansChunks (size t)
     when continue go
 {-# INLINE skipWhile #-}
 
@@ -238,14 +335,25 @@ takeTill p = takeWhile (not . p)
 -- parsers loop until a failure occurs.  Careless use will thus result
 -- in an infinite loop.
 takeWhile :: (Char -> Bool) -> Parser Text
-takeWhile p = (T.concat . reverse) `fmap` go []
+takeWhile p = do
+    h <- T.takeWhile p <$> get
+    continue <- inputSpansChunks (size h)
+    -- only use slow concat path if necessary
+    if continue
+      then takeWhileAcc p [h]
+      else return h
+{-# INLINE takeWhile #-}
+
+takeWhileAcc :: (Char -> Bool) -> [Text] -> Parser Text
+takeWhileAcc p = go
  where
   go acc = do
     h <- T.takeWhile p <$> get
-    continue <- inputSpansChunks (length h)
+    continue <- inputSpansChunks (size h)
     if continue
       then go (h:acc)
-      else return (h:acc)
+      else return $ concatReverse (h:acc)
+{-# INLINE takeWhileAcc #-}
 
 takeRest :: Parser [Text]
 takeRest = go []
@@ -255,7 +363,7 @@ takeRest = go []
     if input
       then do
         s <- get
-        advance (length s)
+        advance (size s)
         go (s:acc)
       else return (reverse acc)
 
@@ -268,7 +376,7 @@ takeLazyText :: Parser L.Text
 takeLazyText = L.fromChunks `fmap` takeRest
 
 data Scan s = Continue s
-            | Finished {-# UNPACK #-} !Int Text
+            | Finished s {-# UNPACK #-} !Int Text
 
 scan_ :: (s -> [Text] -> Parser r) -> s -> (s -> Char -> Maybe s) -> Parser r
 scan_ f s0 p = go [] s0
@@ -277,17 +385,17 @@ scan_ f s0 p = go [] s0
     case T.uncons t of
       Just (c,t') -> case p s c of
                        Just s' -> scanner s' (n+1) t'
-                       Nothing -> Finished n t
+                       Nothing -> Finished s n t
       Nothing     -> Continue s
   go acc s = do
     input <- get
     case scanner s 0 input of
-      Continue s'  -> do continue <- inputSpansChunks (length input)
+      Continue s'  -> do continue <- inputSpansChunks (size input)
                          if continue
                            then go (input : acc) s'
                            else f s' (input : acc)
-      Finished n t -> do advance (length input - length t)
-                         f s (T.take n input : acc)
+      Finished s' n t -> do advance (size input - size t)
+                            f s' (T.take n input : acc)
 {-# INLINE scan_ #-}
 
 -- | A stateful scanner.  The predicate consumes and transforms a
@@ -303,16 +411,13 @@ scan_ f s0 p = go [] s0
 -- parsers loop until a failure occurs.  Careless use will thus result
 -- in an infinite loop.
 scan :: s -> (s -> Char -> Maybe s) -> Parser Text
-scan = scan_ $ \_ chunks ->
-  case chunks of
-    [x] -> return x
-    xs  -> return . T.concat . reverse $ xs
+scan = scan_ $ \_ chunks -> return $! concatReverse chunks
 {-# INLINE scan #-}
 
 -- | Like 'scan', but generalized to return the final state of the
 -- scanner.
 runScanner :: s -> (s -> Char -> Maybe s) -> Parser (Text, s)
-runScanner = scan_ $ \s xs -> return (T.concat (reverse xs), s)
+runScanner = scan_ $ \s xs -> let !sx = concatReverse xs in return (sx, s)
 {-# INLINE runScanner #-}
 
 -- | Consume input as long as the predicate returns 'True', and return
@@ -325,13 +430,14 @@ takeWhile1 :: (Char -> Bool) -> Parser Text
 takeWhile1 p = do
   (`when` demandInput) =<< endOfChunk
   h <- T.takeWhile p <$> get
-  let len = length h
-  when (len == 0) $ fail "takeWhile1"
-  advance len
+  let size' = size h
+  when (size' == 0) $ fail "takeWhile1"
+  advance size'
   eoc <- endOfChunk
   if eoc
-    then (h<>) `fmap` takeWhile p
+    then takeWhileAcc p [h]
     else return h
+{-# INLINE takeWhile1 #-}
 
 -- | Match any character in a set.
 --
@@ -431,9 +537,10 @@ parse m s = runParser m (buffer s) 0 Incomplete failK successK
 -- @
 parseOnly :: Parser a -> Text -> Either String a
 parseOnly m s = case runParser m (buffer s) 0 Complete failK successK of
-                  Fail _ _ err -> Left err
-                  Done _ a     -> Right a
-                  _            -> error "parseOnly: impossible error!"
+                  Fail _ [] err   -> Left err
+                  Fail _ ctxs err -> Left (intercalate " > " ctxs ++ ": " ++ err)
+                  Done _ a        -> Right a
+                  _               -> error "parseOnly: impossible error!"
 {-# INLINE parseOnly #-}
 
 get :: Parser Text
@@ -478,7 +585,6 @@ ensure n = T.Parser $ \t pos more lose succ ->
       Just n' -> succ t pos more (n', substring pos n' t)
       -- The uncommon case is kept out-of-line to reduce code size:
       Nothing -> ensureSuspended n t pos more lose succ
--- Non-recursive so the bounds check can be inlined:
 {-# INLINE ensure #-}
 
 -- | Return both the result of a parse and the portion of the input
@@ -489,6 +595,8 @@ match p = T.Parser $ \t pos more lose succ ->
                               (substring pos (pos'-pos) t', a)
   in runParser p t pos more lose succ'
 
+-- | Ensure that at least @n@ code points of input are available.
+-- Returns the number of words consumed while traversing.
 lengthAtLeast :: Pos -> Int -> Buffer -> Maybe Pos
 lengthAtLeast pos n t = go 0 (fromPos pos)
   where go i !p
@@ -505,5 +613,5 @@ substring (Pos pos) (Pos n) = Buf.substring pos n
 lengthOf :: Buffer -> Pos
 lengthOf = Pos . Buf.length
 
-length :: Text -> Pos
-length = Pos . T.length
+size :: Text -> Pos
+size (Text _ _ l) = Pos l

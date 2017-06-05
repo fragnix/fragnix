@@ -45,8 +45,17 @@
 
 
 
+
+
+
+
+
+
+
 {-# LANGUAGE CPP, DeriveDataTypeable #-}
+{-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE Trustworthy #-}
 
 ------------------------------------------------------------------------
 -- |
@@ -102,16 +111,22 @@ module Data.HashSet
     -- * Filter
     , filter
 
+    -- * Conversions
+
     -- ** Lists
     , toList
     , fromList
+
+    -- * HashMaps
+    , toMap
+    , fromMap
     ) where
 
 import Control.DeepSeq (NFData(..))
 import Data.Data hiding (Typeable)
-import Data.HashMap.Base (HashMap, foldrWithKey)
-import Data.Hashable (Hashable)
-import Data.Monoid (Monoid(..))
+import Data.HashMap.Base (HashMap, foldrWithKey, equalKeys)
+import Data.Hashable (Hashable(hashWithSalt))
+import Data.Semigroup (Semigroup(..), Monoid(..))
 import GHC.Exts (build)
 import Prelude hiding (filter, foldr, map, null)
 import qualified Data.Foldable as Foldable
@@ -122,29 +137,40 @@ import Text.Read
 
 import qualified GHC.Exts as Exts
 
+import Data.Functor.Classes
+
+import qualified Data.Hashable.Lifted as H
+
 -- | A set of values.  A set cannot contain duplicate values.
 newtype HashSet a = HashSet {
       asMap :: HashMap a ()
     } deriving (Typeable)
 
+type role HashSet nominal
+
 instance (NFData a) => NFData (HashSet a) where
     rnf = rnf . asMap
     {-# INLINE rnf #-}
 
-instance (Hashable a, Eq a) => Eq (HashSet a) where
-    -- This performs two passes over the tree.
-    a == b = foldr f True b && size a == size b
-        where f i = (&& i `member` a)
+instance (Eq a) => Eq (HashSet a) where
+    HashSet a == HashSet b = equalKeys (==) a b
     {-# INLINE (==) #-}
+
+instance Eq1 HashSet where
+    liftEq eq (HashSet a) (HashSet b) = equalKeys eq a b
 
 instance Foldable.Foldable HashSet where
     foldr = Data.HashSet.foldr
     {-# INLINE foldr #-}
 
+instance (Hashable a, Eq a) => Semigroup (HashSet a) where
+    (<>) = union
+    {-# INLINE (<>) #-}
+
 instance (Hashable a, Eq a) => Monoid (HashSet a) where
     mempty = empty
     {-# INLINE mempty #-}
-    mappend = union
+    mappend = (<>)
     {-# INLINE mappend #-}
 
 instance (Eq a, Hashable a, Read a) => Read (HashSet a) where
@@ -154,6 +180,10 @@ instance (Eq a, Hashable a, Read a) => Read (HashSet a) where
       return (fromList xs)
 
     readListPrec = readListPrecDefault
+
+instance Show1 HashSet where
+    liftShowsPrec sp sl d m =
+        showsUnaryWith (liftShowsPrec sp sl) "fromList" d (toList m)
 
 instance (Show a) => Show (HashSet a) where
     showsPrec d m = showParen (d > 10) $
@@ -167,6 +197,12 @@ instance (Data a, Eq a, Hashable a) => Data (HashSet a) where
         _ -> error "gunfold"
     dataTypeOf _   = hashSetDataType
     dataCast1 f    = gcast1 f
+
+instance H.Hashable1 HashSet where
+    liftHashWithSalt h s = H.liftHashWithSalt2 h hashWithSalt s . asMap
+
+instance (Hashable a) => Hashable (HashSet a) where
+    hashWithSalt salt = hashWithSalt salt . asMap
 
 fromListConstr :: Constr
 fromListConstr = mkConstr hashSetDataType "fromList" [] Prefix
@@ -182,6 +218,14 @@ empty = HashSet H.empty
 singleton :: Hashable a => a -> HashSet a
 singleton a = HashSet (H.singleton a ())
 {-# INLINABLE singleton #-}
+
+-- | /O(1)/ Convert to the equivalent 'HashMap'.
+toMap :: HashSet a -> HashMap a ()
+toMap = asMap
+
+-- | /O(1)/ Convert from the equivalent 'HashMap'.
+fromMap :: HashMap a () -> HashSet a
+fromMap = HashSet
 
 -- | /O(n+m)/ Construct a set containing all elements from both sets.
 --
@@ -208,7 +252,7 @@ size :: HashSet a -> Int
 size = H.size . asMap
 {-# INLINE size #-}
 
--- | /O(min(n,W))/ Return 'True' if the given value is present in this
+-- | /O(log n)/ Return 'True' if the given value is present in this
 -- set, 'False' otherwise.
 member :: (Eq a, Hashable a) => a -> HashSet a -> Bool
 member a s = case H.lookup a (asMap s) of
@@ -216,12 +260,12 @@ member a s = case H.lookup a (asMap s) of
                _      -> False
 {-# INLINABLE member #-}
 
--- | /O(min(n,W))/ Add the specified value to this set.
+-- | /O(log n)/ Add the specified value to this set.
 insert :: (Eq a, Hashable a) => a -> HashSet a -> HashSet a
 insert a = HashSet . H.insert a () . asMap
 {-# INLINABLE insert #-}
 
--- | /O(min(n,W))/ Remove the specified value from this set if
+-- | /O(log n)/ Remove the specified value from this set if
 -- present.
 delete :: (Eq a, Hashable a) => a -> HashSet a -> HashSet a
 delete a = HashSet . H.delete a . asMap

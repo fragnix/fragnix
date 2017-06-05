@@ -45,11 +45,18 @@
 
 
 
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE Safe #-}
 
 {- |
 Module      :  Control.Concurrent.Chan.Lifted
@@ -97,29 +104,29 @@ import Control.Monad.Base ( MonadBase, liftBase )
 -- | Generalized version of 'Chan.newChan'.
 newChan :: MonadBase IO m => m (Chan a)
 newChan = liftBase Chan.newChan
-{-# INLINE newChan #-}
+{-# INLINABLE newChan #-}
 
 -- | Generalized version of 'Chan.writeChan'.
 writeChan :: MonadBase IO m => Chan a -> a -> m ()
 writeChan chan = liftBase . Chan.writeChan chan
-{-# INLINE writeChan #-}
+{-# INLINABLE writeChan #-}
 
 -- | Generalized version of 'Chan.readChan'.
 readChan :: MonadBase IO m => Chan a -> m a
 readChan = liftBase . Chan.readChan
-{-# INLINE readChan #-}
+{-# INLINABLE readChan #-}
 
 -- | Generalized version of 'Chan.dupChan'.
 dupChan :: MonadBase IO m => Chan a -> m (Chan a)
 dupChan = liftBase . Chan.dupChan
-{-# INLINE dupChan #-}
+{-# INLINABLE dupChan #-}
 
 -- | Generalized version of 'Chan.getChanContents'.
 getChanContents :: MonadBase IO m => Chan a -> m [a]
 getChanContents = liftBase . Chan.getChanContents
-{-# INLINE getChanContents #-}
+{-# INLINABLE getChanContents #-}
 
 -- | Generalized version of 'Chan.writeList2Chan'.
 writeList2Chan :: MonadBase IO m => Chan a -> [a] -> m ()
 writeList2Chan chan = liftBase . Chan.writeList2Chan chan
-{-# INLINE writeList2Chan #-}
+{-# INLINABLE writeList2Chan #-}

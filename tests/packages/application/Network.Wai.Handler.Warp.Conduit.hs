@@ -1,15 +1,133 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/Handler/Warp/Conduit.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
+
 module Network.Wai.Handler.Warp.Conduit where
 
 import Control.Exception
 import Control.Monad (when, unless)
 import Data.ByteString (ByteString)
-import Data.ByteString.Lazy.Char8 (pack)
 import qualified Data.ByteString as S
-import qualified Data.ByteString.Lazy as L
 import qualified Data.IORef as I
-import Data.Word (Word, Word8)
+import Data.Word (Word8)
 import Network.Wai.Handler.Warp.Types
 
 ----------------------------------------------------------------
@@ -63,11 +181,6 @@ readISource (ISource src ref) = do
                     assert (count' == 0) $ I.writeIORef ref count'
                     return x
 
--- | Extract the underlying @Source@ from an @IsolatedBSSource@, which will not
--- perform any more isolation.
-isourceDone :: ISource -> Source
-isourceDone (ISource src _) = src
-
 ----------------------------------------------------------------
 
 data CSource = CSource !Source !(I.IORef ChunkState)
@@ -77,9 +190,6 @@ data ChunkState = NeedLen
                 | HaveLen Word
                 | DoneChunking
     deriving Show
-
-bsCRLF :: L.ByteString
-bsCRLF = pack "\r\n"
 
 mkCSource :: Source -> IO CSource
 mkCSource src = do
@@ -150,13 +260,13 @@ readCSource (CSource src ref) = do
                 return S.empty
             else do
                 (x, y) <-
-                    case S.breakByte 10 bs of
+                    case S.break (== 10) bs of
                         (x, y)
                             | S.null y -> do
                                 bs2 <- readSource' src
                                 return $ if S.null bs2
                                     then (x, y)
-                                    else S.breakByte 10 $ bs `S.append` bs2
+                                    else S.break (== 10) $ bs `S.append` bs2
                             | otherwise -> return (x, y)
                 let w =
                         S.foldl' (\i c -> i * 16 + fromIntegral (hexToWord c)) 0

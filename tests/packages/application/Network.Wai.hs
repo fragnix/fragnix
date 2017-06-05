@@ -53,6 +53,23 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE CPP #-}
 {-|
@@ -114,6 +131,8 @@ module Network.Wai
     , requestBodyLength
     , requestHeaderHost
     , requestHeaderRange
+    , requestHeaderReferer
+    , requestHeaderUserAgent
     , strictRequestBody
     , lazyRequestBody
       -- * Response
@@ -126,10 +145,16 @@ module Network.Wai
     , responseLBS
     , responseStream
     , responseRaw
-      -- * Response accessors
+      -- ** Response accessors
     , responseStatus
     , responseHeaders
+      -- ** Response modifiers
     , responseToStream
+    , mapResponseHeaders
+    , mapResponseStatus
+      -- * Middleware composition
+    , ifRequest
+    , modifyResponse
     ) where
 
 import           Blaze.ByteString.Builder     (Builder, fromLazyByteString)
@@ -280,6 +305,20 @@ responseToStream (ResponseBuilder s h b) =
     (s, h, \withBody -> withBody $ \sendChunk _flush -> sendChunk b)
 responseToStream (ResponseRaw _ res) = responseToStream res
 
+-- | Apply the provided function to the response header list of the Response.
+mapResponseHeaders :: (H.ResponseHeaders -> H.ResponseHeaders) -> Response -> Response
+mapResponseHeaders f (ResponseFile s h b1 b2) = ResponseFile s (f h) b1 b2
+mapResponseHeaders f (ResponseBuilder s h b) = ResponseBuilder s (f h) b
+mapResponseHeaders f (ResponseStream s h b) = ResponseStream s (f h) b
+mapResponseHeaders _ r@(ResponseRaw _ _) = r
+
+-- | Apply the provided function to the response status of the Response.
+mapResponseStatus :: (H.Status -> H.Status) -> Response -> Response
+mapResponseStatus f (ResponseFile s h b1 b2) = ResponseFile (f s) h b1 b2
+mapResponseStatus f (ResponseBuilder s h b) = ResponseBuilder (f s) h b
+mapResponseStatus f (ResponseStream s h b) = ResponseStream (f s) h b
+mapResponseStatus _ r@(ResponseRaw _ _) = r
+
 ----------------------------------------------------------------
 
 -- | The WAI application.
@@ -297,21 +336,6 @@ responseToStream (ResponseRaw _ res) = responseToStream res
 -- @
 type Application = Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
 
--- | Middleware is a component that sits between the server and application. It
--- can do such tasks as GZIP encoding or response caching. What follows is the
--- general definition of middleware, though a middleware author should feel
--- free to modify this.
---
--- As an example of an alternate type for middleware, suppose you write a
--- function to load up session information. The session information is simply a
--- string map \[(String, String)\]. A logical type signature for this middleware
--- might be:
---
--- @ loadSession :: ([(String, String)] -> Application) -> Application @
---
--- Here, instead of taking a standard 'Application' as its first argument, the
--- middleware takes a function which consumes the session information as well.
-type Middleware = Application -> Application
 
 -- | A default, blank request.
 --
@@ -332,7 +356,39 @@ defaultRequest = Request
     , requestBodyLength = KnownLength 0
     , requestHeaderHost = Nothing
     , requestHeaderRange = Nothing
+    , requestHeaderReferer = Nothing
+    , requestHeaderUserAgent = Nothing
     }
+
+
+-- | Middleware is a component that sits between the server and application. It
+-- can do such tasks as GZIP encoding or response caching. What follows is the
+-- general definition of middleware, though a middleware author should feel
+-- free to modify this.
+--
+-- As an example of an alternate type for middleware, suppose you write a
+-- function to load up session information. The session information is simply a
+-- string map \[(String, String)\]. A logical type signature for this middleware
+-- might be:
+--
+-- @ loadSession :: ([(String, String)] -> Application) -> Application @
+--
+-- Here, instead of taking a standard 'Application' as its first argument, the
+-- middleware takes a function which consumes the session information as well.
+type Middleware = Application -> Application
+
+
+-- | apply a function that modifies a response as a 'Middleware'
+modifyResponse :: (Response -> Response) -> Middleware
+modifyResponse f app req respond = app req $ respond . f
+
+
+-- | conditionally apply a 'Middleware'
+ifRequest :: (Request -> Bool) -> Middleware -> Middleware
+ifRequest rpred middle app req | rpred req = middle app req
+                               | otherwise =        app req
+
+
 
 -- | Get the request body as a lazy ByteString. However, do /not/ use any lazy
 -- I\/O, instead reading the entire body into memory strictly.

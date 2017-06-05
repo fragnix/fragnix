@@ -5,13 +5,12 @@
 
 module Network.Wai.Handler.Warp.RequestHeader (
       parseHeaderLines
-    , parseByteRanges
     ) where
 
 import Control.Exception (throwIO)
 import Control.Monad (when)
 import qualified Data.ByteString as S
-import qualified Data.ByteString.Char8 as B (unpack, readInteger)
+import qualified Data.ByteString.Char8 as B (unpack)
 import Data.ByteString.Internal (ByteString(..), memchr)
 import qualified Data.CaseInsensitive as CI
 import Data.Word (Word8)
@@ -20,7 +19,7 @@ import Foreign.Ptr (Ptr, plusPtr, minusPtr, nullPtr)
 import Foreign.Storable (peek)
 import qualified Network.HTTP.Types as H
 import Network.Wai.Handler.Warp.Types
-import qualified Network.HTTP.Types.Header as HH
+
 -- $setup
 -- >>> :set -XOverloadedStrings
 
@@ -53,6 +52,8 @@ parseHeaderLines (firstLine:otherLines) = do
 -- *** Exception: Warp: Invalid first line of request: "GET "
 -- >>> parseRequestLine "GET /NotHTTP UNKNOWN/1.1"
 -- *** Exception: Warp: Request line specified a non-HTTP request
+-- >>> parseRequestLine "PRI * HTTP/2.0"
+-- ("PRI","*","",HTTP/2.0)
 parseRequestLine :: ByteString
                  -> IO (H.Method
                        ,ByteString -- Path
@@ -103,12 +104,13 @@ parseRequestLine requestLine@(PS fptr off len) = withForeignPtr fptr $ \ptr -> d
         check httpptr 4 47 -- '/'
         check httpptr 6 46 -- '.'
     httpVersion httpptr = do
-        major <- peek $ httpptr `plusPtr` 5
-        minor <- peek $ httpptr `plusPtr` 7
-        return $ if major == (49 :: Word8) && minor == (49 :: Word8) then
-            H.http11
-          else
-            H.http10
+        major <- peek (httpptr `plusPtr` 5) :: IO Word8
+        minor <- peek (httpptr `plusPtr` 7) :: IO Word8
+        let version
+              | major == 49 = if minor == 49 then H.http11 else H.http10
+              | major == 50 && minor == 48 = H.HttpVersion 2 0
+              | otherwise   = H.http10
+        return version
     bs ptr p0 p1 = PS fptr o l
       where
         o = p0 `minusPtr` ptr
@@ -129,34 +131,6 @@ parseRequestLine requestLine@(PS fptr off len) = withForeignPtr fptr $ \ptr -> d
 
 parseHeader :: ByteString -> H.Header
 parseHeader s =
-    let (k, rest) = S.breakByte 58 s -- ':'
+    let (k, rest) = S.break (== 58) s -- ':'
         rest' = S.dropWhile (\c -> c == 32 || c == 9) $ S.drop 1 rest
      in (CI.mk k, rest')
-
-parseByteRanges :: S.ByteString -> Maybe HH.ByteRanges
-parseByteRanges bs1 = do
-    bs2 <- stripPrefix "bytes=" bs1
-    (r, bs3) <- range bs2
-    ranges (r:) bs3
-  where
-    range bs2 =
-        case stripPrefix "-" bs2 of
-            Just bs3 -> do
-                (i, bs4) <- B.readInteger bs3
-                Just (HH.ByteRangeSuffix i, bs4)
-            Nothing -> do
-                (i, bs3) <- B.readInteger bs2
-                bs4 <- stripPrefix "-" bs3
-                case B.readInteger bs4 of
-                    Nothing -> Just (HH.ByteRangeFrom i, bs4)
-                    Just (j, bs5) -> Just (HH.ByteRangeFromTo i j, bs5)
-    ranges front bs3 =
-        case stripPrefix "," bs3 of
-            Nothing -> Just (front [])
-            Just bs4 -> do
-                (r, bs5) <- range bs4
-                ranges (front . (r:)) bs5
-
-    stripPrefix x y
-        | x `S.isPrefixOf` y = Just (S.drop (S.length x) y)
-        | otherwise = Nothing

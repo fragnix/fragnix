@@ -1,4 +1,4 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010, OverloadedStrings #-}
 {-# LINE 1 "Network/Wai/Middleware/Local.hs" #-}
 
 
@@ -93,7 +93,53 @@
 
 
 
-{-# LANGUAGE OverloadedStrings, CPP #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
 -- | Only allow local connections.
 --
 module Network.Wai.Middleware.Local

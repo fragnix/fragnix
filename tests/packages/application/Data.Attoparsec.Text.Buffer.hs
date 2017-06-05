@@ -1,11 +1,78 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Attoparsec/Text/Buffer.hs" #-}
-{-# LANGUAGE BangPatterns, MagicHash, RankNTypes, RecordWildCards,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE BangPatterns, CPP, MagicHash, RankNTypes, RecordWildCards,
     UnboxedTuples #-}
 
 -- |
 -- Module      :  Data.Attoparsec.Text.Buffer
--- Copyright   :  Bryan O'Sullivan 2007-2014
+-- Copyright   :  Bryan O'Sullivan 2007-2015
 -- License     :  BSD3
 --
 -- Maintainer  :  bos@serpentine.com
@@ -30,6 +97,7 @@ module Data.Attoparsec.Text.Buffer
       Buffer
     , buffer
     , unbuffer
+    , unbufferAt
     , length
     , pappend
     , iter
@@ -41,7 +109,8 @@ module Data.Attoparsec.Text.Buffer
 import Control.Exception (assert)
 import Data.Bits (shiftR)
 import Data.List (foldl1')
-import Data.Monoid (Monoid(..))
+import Data.Monoid as Mon (Monoid(..))
+import Data.Semigroup (Semigroup(..))
 import Data.Text ()
 import Data.Text.Internal (Text(..))
 import Data.Text.Internal.Encoding.Utf16 (chr2)
@@ -74,15 +143,25 @@ buffer (Text arr off len) = Buf arr off len len 0
 unbuffer :: Buffer -> Text
 unbuffer (Buf arr off len _ _) = Text arr off len
 
+unbufferAt :: Int -> Buffer -> Text
+unbufferAt s (Buf arr off len _ _) =
+  assert (s >= 0 && s <= len) $
+  Text arr (off+s) (len-s)
+
+instance Semigroup Buffer where
+    (Buf _ _ _ 0 _) <> b                     = b
+    a               <> (Buf _ _ _ 0 _)       = a
+    buf             <> (Buf arr off len _ _) = append buf arr off len
+    {-# INLINE (<>) #-}
+
 instance Monoid Buffer where
     mempty = Buf A.empty 0 0 0 0
+    {-# INLINE mempty #-}
 
-    mappend (Buf _ _ _ 0 _) b = b
-    mappend a (Buf _ _ _ 0 _) = a
-    mappend buf (Buf arr off len _ _) = append buf arr off len
+    mappend = (<>)
 
-    mconcat [] = mempty
-    mconcat xs = foldl1' mappend xs
+    mconcat [] = Mon.mempty
+    mconcat xs = foldl1' (<>) xs
 
 pappend :: Buffer -> Text -> Buffer
 pappend (Buf _ _ _ 0 _) t      = buffer t
@@ -151,7 +230,7 @@ iter_ (Buf arr off _ _ _) i | m < 0xD800 || m > 0xDBFF = 1
 
 unsafeThaw :: A.Array -> ST s (A.MArray s)
 unsafeThaw A.Array{..} = ST $ \s# ->
-                          (# s#, A.MArray (unsafeCoerce# A.aBA) #)
+                          (# s#, A.MArray (unsafeCoerce# aBA) #)
 
 readGen :: A.Array -> Int
 readGen a = case indexIntArray# (A.aBA a) 0# of r# -> I# r#

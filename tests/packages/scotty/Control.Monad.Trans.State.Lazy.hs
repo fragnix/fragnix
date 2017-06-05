@@ -41,7 +41,14 @@
 
 
 
+
+
+
+
+
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE Safe #-}
+{-# LANGUAGE AutoDeriveTypeable #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Control.Monad.Trans.State.Lazy
@@ -49,7 +56,7 @@
 --                (c) Oregon Graduate Institute of Science and Technology, 2001
 -- License     :  BSD-style (see the file LICENSE)
 --
--- Maintainer  :  ross@soi.city.ac.uk
+-- Maintainer  :  R.Paterson@city.ac.uk
 -- Stability   :  experimental
 -- Portability :  portable
 --
@@ -117,6 +124,7 @@ import Data.Functor.Identity
 
 import Control.Applicative
 import Control.Monad
+import qualified Control.Monad.Fail as Fail
 import Control.Monad.Fix
 
 -- ---------------------------------------------------------------------------
@@ -133,6 +141,7 @@ state :: (Monad m)
       => (s -> (a, s))  -- ^pure state transformer
       -> StateT s m a   -- ^equivalent state-passing computation
 state f = StateT (return . f)
+{-# INLINE state #-}
 
 -- | Unwrap a state monad computation as a function.
 -- (The inverse of 'state'.)
@@ -140,6 +149,7 @@ runState :: State s a   -- ^state-passing computation to execute
          -> s           -- ^initial state
          -> (a, s)      -- ^return value and final state
 runState m = runIdentity . runStateT m
+{-# INLINE runState #-}
 
 -- | Evaluate a state computation with the given initial state
 -- and return the final value, discarding the final state.
@@ -149,6 +159,7 @@ evalState :: State s a  -- ^state-passing computation to execute
           -> s          -- ^initial value
           -> a          -- ^return value of the state computation
 evalState m s = fst (runState m s)
+{-# INLINE evalState #-}
 
 -- | Evaluate a state computation with the given initial state
 -- and return the final state, discarding the final value.
@@ -158,6 +169,7 @@ execState :: State s a  -- ^state-passing computation to execute
           -> s          -- ^initial value
           -> s          -- ^final state
 execState m s = snd (runState m s)
+{-# INLINE execState #-}
 
 -- | Map both the return value and final state of a computation using
 -- the given function.
@@ -165,6 +177,7 @@ execState m s = snd (runState m s)
 -- * @'runState' ('mapState' f m) = f . 'runState' m@
 mapState :: ((a, s) -> (b, s)) -> State s a -> State s b
 mapState f = mapStateT (Identity . f . runIdentity)
+{-# INLINE mapState #-}
 
 -- | @'withState' f m@ executes action @m@ on a state modified by
 -- applying @f@.
@@ -172,6 +185,7 @@ mapState f = mapStateT (Identity . f . runIdentity)
 -- * @'withState' f m = 'modify' f >> m@
 withState :: (s -> s) -> State s a -> State s a
 withState = withStateT
+{-# INLINE withState #-}
 
 -- ---------------------------------------------------------------------------
 -- | A state transformer monad parameterized by:
@@ -193,6 +207,7 @@ evalStateT :: (Monad m) => StateT s m a -> s -> m a
 evalStateT m s = do
     ~(a, _) <- runStateT m s
     return a
+{-# INLINE evalStateT #-}
 
 -- | Evaluate a state computation with the given initial state
 -- and return the final state, discarding the final value.
@@ -202,6 +217,7 @@ execStateT :: (Monad m) => StateT s m a -> s -> m s
 execStateT m s = do
     ~(_, s') <- runStateT m s
     return s'
+{-# INLINE execStateT #-}
 
 -- | Map both the return value and final state of a computation using
 -- the given function.
@@ -209,6 +225,7 @@ execStateT m s = do
 -- * @'runStateT' ('mapStateT' f m) = f . 'runStateT' m@
 mapStateT :: (m (a, s) -> n (b, s)) -> StateT s m a -> StateT s n b
 mapStateT f m = StateT $ f . runStateT m
+{-# INLINE mapStateT #-}
 
 -- | @'withStateT' f m@ executes action @m@ on a state modified by
 -- applying @f@.
@@ -216,48 +233,70 @@ mapStateT f m = StateT $ f . runStateT m
 -- * @'withStateT' f m = 'modify' f >> m@
 withStateT :: (s -> s) -> StateT s m a -> StateT s m a
 withStateT f m = StateT $ runStateT m . f
+{-# INLINE withStateT #-}
 
 instance (Functor m) => Functor (StateT s m) where
     fmap f m = StateT $ \ s ->
         fmap (\ ~(a, s') -> (f a, s')) $ runStateT m s
+    {-# INLINE fmap #-}
 
 instance (Functor m, Monad m) => Applicative (StateT s m) where
-    pure = return
-    (<*>) = ap
+    pure a = StateT $ \ s -> return (a, s)
+    {-# INLINE pure #-}
+    StateT mf <*> StateT mx = StateT $ \ s -> do
+        ~(f, s') <- mf s
+        ~(x, s'') <- mx s'
+        return (f x, s'')
+    {-# INLINE (<*>) #-}
+    (*>) = (>>)
 
 instance (Functor m, MonadPlus m) => Alternative (StateT s m) where
-    empty = mzero
-    (<|>) = mplus
+    empty = StateT $ \ _ -> mzero
+    {-# INLINE empty #-}
+    StateT m <|> StateT n = StateT $ \ s -> m s `mplus` n s
+    {-# INLINE (<|>) #-}
 
 instance (Monad m) => Monad (StateT s m) where
-    return a = state $ \ s -> (a, s)
     m >>= k  = StateT $ \ s -> do
         ~(a, s') <- runStateT m s
         runStateT (k a) s'
+    {-# INLINE (>>=) #-}
     fail str = StateT $ \ _ -> fail str
+    {-# INLINE fail #-}
+
+instance (Fail.MonadFail m) => Fail.MonadFail (StateT s m) where
+    fail str = StateT $ \ _ -> Fail.fail str
+    {-# INLINE fail #-}
 
 instance (MonadPlus m) => MonadPlus (StateT s m) where
     mzero       = StateT $ \ _ -> mzero
-    m `mplus` n = StateT $ \ s -> runStateT m s `mplus` runStateT n s
+    {-# INLINE mzero #-}
+    StateT m `mplus` StateT n = StateT $ \ s -> m s `mplus` n s
+    {-# INLINE mplus #-}
 
 instance (MonadFix m) => MonadFix (StateT s m) where
     mfix f = StateT $ \ s -> mfix $ \ ~(a, _) -> runStateT (f a) s
+    {-# INLINE mfix #-}
 
 instance MonadTrans (StateT s) where
     lift m = StateT $ \ s -> do
         a <- m
         return (a, s)
+    {-# INLINE lift #-}
 
 instance (MonadIO m) => MonadIO (StateT s m) where
     liftIO = lift . liftIO
+    {-# INLINE liftIO #-}
 
 -- | Fetch the current value of the state within the monad.
 get :: (Monad m) => StateT s m s
 get = state $ \ s -> (s, s)
+{-# INLINE get #-}
 
 -- | @'put' s@ sets the state within the monad to @s@.
 put :: (Monad m) => s -> StateT s m ()
 put s = state $ \ _ -> ((), s)
+{-# INLINE put #-}
 
 -- | @'modify' f@ is an action that updates the state to the result of
 -- applying @f@ to the current state.
@@ -265,6 +304,7 @@ put s = state $ \ _ -> ((), s)
 -- * @'modify' f = 'get' >>= ('put' . f)@
 modify :: (Monad m) => (s -> s) -> StateT s m ()
 modify f = state $ \ s -> ((), f s)
+{-# INLINE modify #-}
 
 -- | A variant of 'modify' in which the computation is strict in the
 -- new state.
@@ -274,6 +314,7 @@ modify' :: (Monad m) => (s -> s) -> StateT s m ()
 modify' f = do
     s <- get
     put $! f s
+{-# INLINE modify' #-}
 
 -- | Get a specific component of the state, using a projection function
 -- supplied.
@@ -281,6 +322,7 @@ modify' f = do
 -- * @'gets' f = 'liftM' f 'get'@
 gets :: (Monad m) => (s -> a) -> StateT s m a
 gets f = state $ \ s -> (f s, s)
+{-# INLINE gets #-}
 
 -- | Uniform lifting of a @callCC@ operation to the new monad.
 -- This version rolls back to the original state on entering the
@@ -289,31 +331,36 @@ liftCallCC :: CallCC m (a,s) (b,s) -> CallCC (StateT s m) a b
 liftCallCC callCC f = StateT $ \ s ->
     callCC $ \ c ->
     runStateT (f (\ a -> StateT $ \ _ -> c (a, s))) s
+{-# INLINE liftCallCC #-}
 
 -- | In-situ lifting of a @callCC@ operation to the new monad.
 -- This version uses the current state on entering the continuation.
--- It does not satisfy the laws of a monad transformer.
+-- It does not satisfy the uniformity property (see "Control.Monad.Signatures").
 liftCallCC' :: CallCC m (a,s) (b,s) -> CallCC (StateT s m) a b
 liftCallCC' callCC f = StateT $ \ s ->
     callCC $ \ c ->
     runStateT (f (\ a -> StateT $ \ s' -> c (a, s'))) s
+{-# INLINE liftCallCC' #-}
 
 -- | Lift a @catchE@ operation to the new monad.
 liftCatch :: Catch e m (a,s) -> Catch e (StateT s m) a
 liftCatch catchE m h =
     StateT $ \ s -> runStateT m s `catchE` \ e -> runStateT (h e) s
+{-# INLINE liftCatch #-}
 
 -- | Lift a @listen@ operation to the new monad.
 liftListen :: (Monad m) => Listen w m (a,s) -> Listen w (StateT s m) a
 liftListen listen m = StateT $ \ s -> do
     ~((a, s'), w) <- listen (runStateT m s)
     return ((a, w), s')
+{-# INLINE liftListen #-}
 
 -- | Lift a @pass@ operation to the new monad.
 liftPass :: (Monad m) => Pass w m (a,s) -> Pass w (StateT s m) a
 liftPass pass m = StateT $ \ s -> pass $ do
     ~((a, f), s') <- runStateT m s
     return ((a, s'), f)
+{-# INLINE liftPass #-}
 
 {- $examples
 

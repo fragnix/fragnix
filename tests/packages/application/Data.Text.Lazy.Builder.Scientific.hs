@@ -55,7 +55,28 @@
 
 
 
-{-# LANGUAGE CPP, MagicHash, OverloadedStrings #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP, OverloadedStrings #-}
 
 module Data.Text.Lazy.Builder.Scientific
     ( scientificBuilder
@@ -71,7 +92,8 @@ import Data.Text.Lazy.Builder.RealFloat (FPFormat(..))
 import Data.Text.Lazy.Builder       (Builder, fromString, singleton, fromText)
 import Data.Text.Lazy.Builder.Int   (decimal)
 import qualified Data.Text as T     (replicate)
-import GHC.Base                     (Int(I#), Char(C#), chr#, ord#, (+#))
+import Utils (roundTo, i2d)
+
 import Data.Monoid                  ((<>))
 
 -- | A @Text@ @Builder@ which renders a scientific number to full
@@ -144,29 +166,3 @@ formatScientificBuilder fmt decs scntfc
           d:ds' = map i2d (if ei > 0 then is' else 0:is')
          in
          singleton d <> (if null ds' then "" else singleton '.' <> fromString ds')
-
--- | Unsafe conversion for decimal digits.
-{-# INLINE i2d #-}
-i2d :: Int -> Char
-i2d (I# i#) = C# (chr# (ord# '0'# +# i#))
-
-roundTo :: Int -> [Int] -> (Int,[Int])
-roundTo d is =
-  case f d True is of
-    x@(0,_) -> x
-    (1,xs)  -> (1, 1:xs)
-    _       -> error "roundTo: bad Value"
- where
-  base = 10
-
-  b2 = base `quot` 2
-
-  f n _ []     = (0, replicate n 0)
-  f 0 e (x:xs) | x == b2 && e && all (== 0) xs = (0, [])   -- Round to even when at exactly half the base
-               | otherwise = (if x >= b2 then 1 else 0, [])
-  f n _ (i:xs)
-     | i' == base = (1,0:ds)
-     | otherwise  = (0,i':ds)
-      where
-       (c,ds) = f (n-1) (even i) xs
-       i'     = c + i

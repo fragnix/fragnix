@@ -45,6 +45,13 @@
 
 
 
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 
 {-# LANGUAGE Trustworthy #-}
@@ -92,11 +99,14 @@ module Data.HashMap.Lazy
     , insertWith
     , delete
     , adjust
+    , update
+    , alter
 
       -- * Combine
       -- ** Union
     , union
     , unionWith
+    , unionWithKey
     , unions
 
       -- * Transformations
@@ -106,8 +116,10 @@ module Data.HashMap.Lazy
 
       -- * Difference and intersection
     , difference
+    , differenceWith
     , intersection
     , intersectionWith
+    , intersectionWithKey
 
       -- * Folds
     , foldl'
@@ -118,6 +130,8 @@ module Data.HashMap.Lazy
       -- * Filter
     , HM.filter
     , filterWithKey
+    , mapMaybe
+    , mapMaybeWithKey
 
       -- * Conversions
     , keys

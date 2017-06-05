@@ -43,7 +43,18 @@
 
 
 
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP, MagicHash, UnboxedTuples, DeriveDataTypeable, BangPatterns #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Module      : Data.Primitive.Array
@@ -53,35 +64,62 @@
 -- Maintainer  : Roman Leshchinskiy <rl@cse.unsw.edu.au>
 -- Portability : non-portable
 --
--- Primitive boxed arrays
+-- Primitive arrays of boxed values.
 --
 
 module Data.Primitive.Array (
   Array(..), MutableArray(..),
 
   newArray, readArray, writeArray, indexArray, indexArrayM,
+  freezeArray, thawArray,
   unsafeFreezeArray, unsafeThawArray, sameMutableArray,
   copyArray, copyMutableArray,
-  cloneArray, cloneMutableArray
+  cloneArray, cloneMutableArray,
+  sizeofArray, sizeofMutableArray,
+  fromListN, fromList
 ) where
 
 import Control.Monad.Primitive
 
 import GHC.Base  ( Int(..) )
 import GHC.Prim
+import qualified GHC.Exts as Exts
+import GHC.Exts (fromListN, fromList)
 
 import Data.Typeable ( Typeable )
-import Data.Data ( Data(..) )
+import Data.Data
+  (Data(..), DataType, mkDataType, Constr, mkConstr, Fixity(..), constrIndex)
 import Data.Primitive.Internal.Compat ( isTrue#, mkNoRepType )
 
-import Control.Monad.ST(runST)
+import Control.Monad.ST(ST,runST)
+
+import Control.Applicative
+import Control.Monad (MonadPlus(..))
+import Control.Monad.Fix
+import Control.Monad.Zip
+import Data.Foldable (Foldable(..), toList)
+
+import Text.ParserCombinators.ReadP
 
 -- | Boxed arrays
-data Array a = Array (Array# a) deriving ( Typeable )
+data Array a = Array
+             { array# :: Array# a
+             }
+  deriving ( Typeable )
 
 -- | Mutable boxed arrays associated with a primitive state token.
-data MutableArray s a = MutableArray (MutableArray# s a)
-                                deriving ( Typeable )
+data MutableArray s a = MutableArray
+                      { marray# :: MutableArray# s a
+                      }
+  deriving ( Typeable )
+
+sizeofArray :: Array a -> Int
+sizeofArray a = I# (sizeofArray# (array# a))
+{-# INLINE sizeofArray #-}
+
+sizeofMutableArray :: MutableArray s a -> Int
+sizeofMutableArray a = I# (sizeofMutableArray# (marray# a))
+{-# INLINE sizeofMutableArray #-}
 
 -- | Create a new mutable array of the specified size and initialise all
 -- elements with the given value.
@@ -89,22 +127,24 @@ newArray :: PrimMonad m => Int -> a -> m (MutableArray (PrimState m) a)
 {-# INLINE newArray #-}
 newArray (I# n#) x = primitive
    (\s# -> case newArray# n# x s# of
-             (# s'#, arr# #) -> (# s'#, MutableArray arr# #))
+             (# s'#, arr# #) ->
+               let ma = MutableArray arr#
+               in (# s'# , ma #))
 
 -- | Read a value from the array at the given index.
 readArray :: PrimMonad m => MutableArray (PrimState m) a -> Int -> m a
 {-# INLINE readArray #-}
-readArray (MutableArray arr#) (I# i#) = primitive (readArray# arr# i#)
+readArray arr (I# i#) = primitive (readArray# (marray# arr) i#)
 
 -- | Write a value to the array at the given index.
 writeArray :: PrimMonad m => MutableArray (PrimState m) a -> Int -> a -> m ()
 {-# INLINE writeArray #-}
-writeArray (MutableArray arr#) (I# i#) x = primitive_ (writeArray# arr# i# x)
+writeArray arr (I# i#) x = primitive_ (writeArray# (marray# arr) i# x)
 
 -- | Read a value from the immutable array at the given index.
 indexArray :: Array a -> Int -> a
 {-# INLINE indexArray #-}
-indexArray (Array arr#) (I# i#) = case indexArray# arr# i# of (# x #) -> x
+indexArray arr (I# i#) = case indexArray# (array# arr) i# of (# x #) -> x
 
 -- | Monadically read a value from the immutable array at the given index.
 -- This allows us to be strict in the array while remaining lazy in the read
@@ -131,30 +171,64 @@ indexArray (Array arr#) (I# i#) = case indexArray# arr# i# of (# x #) -> x
 --
 indexArrayM :: Monad m => Array a -> Int -> m a
 {-# INLINE indexArrayM #-}
-indexArrayM (Array arr#) (I# i#)
-  = case indexArray# arr# i# of (# x #) -> return x
+indexArrayM arr (I# i#)
+  = case indexArray# (array# arr) i# of (# x #) -> return x
+
+-- | Create an immutable copy of a slice of an array.
+--
+-- This operation makes a copy of the specified section, so it is safe to
+-- continue using the mutable array afterward.
+freezeArray
+  :: PrimMonad m
+  => MutableArray (PrimState m) a -- ^ source
+  -> Int                          -- ^ offset
+  -> Int                          -- ^ length
+  -> m (Array a)
+{-# INLINE freezeArray #-}
+freezeArray (MutableArray ma#) (I# off#) (I# len#) =
+  primitive $ \s -> case freezeArray# ma# off# len# s of
+    (# s', a# #) -> (# s', Array a# #)
 
 -- | Convert a mutable array to an immutable one without copying. The
 -- array should not be modified after the conversion.
 unsafeFreezeArray :: PrimMonad m => MutableArray (PrimState m) a -> m (Array a)
 {-# INLINE unsafeFreezeArray #-}
-unsafeFreezeArray (MutableArray arr#)
-  = primitive (\s# -> case unsafeFreezeArray# arr# s# of
-                        (# s'#, arr'# #) -> (# s'#, Array arr'# #))
+unsafeFreezeArray arr
+  = primitive (\s# -> case unsafeFreezeArray# (marray# arr) s# of
+                        (# s'#, arr'# #) ->
+                          let a = Array arr'#
+                          in (# s'#, a #))
+
+-- | Create a mutable array from a slice of an immutable array.
+--
+-- This operation makes a copy of the specified slice, so it is safe to use the
+-- immutable array afterward.
+thawArray
+  :: PrimMonad m
+  => Array a -- ^ source
+  -> Int     -- ^ offset
+  -> Int     -- ^ length
+  -> m (MutableArray (PrimState m) a)
+{-# INLINE thawArray #-}
+thawArray (Array a#) (I# off#) (I# len#) =
+  primitive $ \s -> case thawArray# a# off# len# s of
+    (# s', ma# #) -> (# s', MutableArray ma# #)
 
 -- | Convert an immutable array to an mutable one without copying. The
 -- immutable array should not be used after the conversion.
 unsafeThawArray :: PrimMonad m => Array a -> m (MutableArray (PrimState m) a)
 {-# INLINE unsafeThawArray #-}
-unsafeThawArray (Array arr#)
-  = primitive (\s# -> case unsafeThawArray# arr# s# of
-                        (# s'#, arr'# #) -> (# s'#, MutableArray arr'# #))
+unsafeThawArray a
+  = primitive (\s# -> case unsafeThawArray# (array# a) s# of
+                        (# s'#, arr'# #) ->
+                          let ma = MutableArray arr'#
+                          in (# s'#, ma #))
 
 -- | Check whether the two arrays refer to the same memory block.
 sameMutableArray :: MutableArray s a -> MutableArray s a -> Bool
 {-# INLINE sameMutableArray #-}
-sameMutableArray (MutableArray arr#) (MutableArray brr#)
-  = isTrue# (sameMutableArray# arr# brr#)
+sameMutableArray arr brr
+  = isTrue# (sameMutableArray# (marray# arr) (marray# brr))
 
 -- | Copy a slice of an immutable array to a mutable array.
 copyArray :: PrimMonad m
@@ -208,10 +282,245 @@ cloneMutableArray (MutableArray arr#) (I# off#) (I# len#) = primitive
    (\s# -> case cloneMutableArray# arr# off# len# s# of
              (# s'#, arr'# #) -> (# s'#, MutableArray arr'# #))
 
-instance Typeable a => Data (Array a) where
-  toConstr _ = error "toConstr"
-  gunfold _ _ = error "gunfold"
-  dataTypeOf _ = mkNoRepType "Data.Primitive.Array.Array"
+emptyArray :: Array a
+emptyArray =
+  runST $ newArray 0 (die "emptyArray" "impossible") >>= unsafeFreezeArray
+{-# NOINLINE emptyArray #-}
+
+createArray
+  :: Int
+  -> a
+  -> (forall s. MutableArray s a -> ST s ())
+  -> Array a
+createArray 0 _ _ = emptyArray
+createArray n x f = runST $ do
+  ma <- newArray n x
+  f ma
+  unsafeFreezeArray ma
+
+die :: String -> String -> a
+die fun problem = error $ "Data.Primitive.Array." ++ fun ++ ": " ++ problem
+
+instance Eq a => Eq (Array a) where
+  a1 == a2 = sizeofArray a1 == sizeofArray a2 && loop (sizeofArray a1 - 1)
+   where loop i | i < 0     = True
+                | otherwise = indexArray a1 i == indexArray a2 i && loop (i-1)
+
+instance Eq (MutableArray s a) where
+  ma1 == ma2 = isTrue# (sameMutableArray# (marray# ma1) (marray# ma2))
+
+instance Ord a => Ord (Array a) where
+  compare a1 a2 = loop 0
+   where
+   mn = sizeofArray a1 `min` sizeofArray a2
+   loop i
+     | i < mn    = compare (indexArray a1 i) (indexArray a2 i) `mappend` loop (i+1)
+     | otherwise = compare (sizeofArray a1) (sizeofArray a2)
+
+instance Foldable Array where
+  foldr f z a = go 0
+   where go i | i < sizeofArray a = f (indexArray a i) (go $ i+1)
+              | otherwise         = z
+  {-# INLINE foldr #-}
+  foldl f z a = go (sizeofArray a - 1)
+   where go i | i < 0     = z
+              | otherwise = f (go $ i-1) (indexArray a i)
+  {-# INLINE foldl #-}
+  foldr1 f a | sz < 0    = die "foldr1" "empty array"
+             | otherwise = go 0
+   where sz = sizeofArray a - 1
+         z = indexArray a sz
+         go i | i < sz    = f (indexArray a i) (go $ i+1)
+              | otherwise = z
+  {-# INLINE foldr1 #-}
+  foldl1 f a | sz == 0   = die "foldl1" "empty array"
+             | otherwise = go $ sz-1
+   where sz = sizeofArray a
+         z = indexArray a 0
+         go i | i < 1     = f (go $ i-1) (indexArray a i)
+              | otherwise = z
+  {-# INLINE foldl1 #-}
+  foldr' f z a = go (sizeofArray a - 1) z
+   where go i !acc | i < 0     = acc
+                   | otherwise = go (i-1) (f (indexArray a i) acc)
+  {-# INLINE foldr' #-}
+  foldl' f z a = go 0 z
+   where go i !acc | i < sizeofArray a = go (i+1) (f acc $ indexArray a i)
+                   | otherwise         = acc
+  {-# INLINE foldl' #-}
+  toList a = Exts.build $ \c z -> let
+      sz = sizeofArray a
+      go i | i < sz    = c (indexArray a i) (go $ i+1)
+           | otherwise = z
+    in go 0
+  {-# INLINE toList #-}
+  null a = sizeofArray a == 0
+  {-# INLINE null #-}
+  length = sizeofArray
+  {-# INLINE length #-}
+  maximum a | sz == 0   = die "maximum" "empty array"
+            | otherwise = go 1 (indexArray a 0)
+   where sz = sizeofArray a
+         go i !e | i < sz    = go (i+1) (max e $ indexArray a i)
+                 | otherwise = e
+  {-# INLINE maximum #-}
+  minimum a | sz == 0   = die "minimum" "empty array"
+            | otherwise = go 1 (indexArray a 0)
+   where sz = sizeofArray a
+         go i !e | i < sz    = go (i+1) (min e $ indexArray a i)
+                 | otherwise = e
+  {-# INLINE minimum #-}
+  sum = foldl' (+) 0
+  {-# INLINE sum #-}
+  product = foldl' (*) 1
+  {-# INLINE product #-}
+
+instance Traversable Array where
+  traverse f a =
+    fromListN (sizeofArray a)
+      <$> traverse (f . indexArray a) [0 .. sizeofArray a - 1]
+
+instance Exts.IsList (Array a) where
+  type Item (Array a) = a
+  fromListN n l =
+    createArray n (die "fromListN" "mismatched size and list") $ \mi ->
+      let go i (x:xs) = writeArray mi i x >> go (i+1) xs
+          go _ [    ] = return ()
+       in go 0 l
+  fromList l = Exts.fromListN (length l) l
+  toList = toList
+
+instance Functor Array where
+  fmap f a =
+    createArray (sizeofArray a) (die "fmap" "impossible") $ \mb ->
+      let go i | i < sizeofArray a = return ()
+               | otherwise         = writeArray mb i (f $ indexArray a i)
+                                  >> go (i+1)
+       in go 0
+  e <$ a = runST $ newArray (sizeofArray a) e >>= unsafeFreezeArray
+
+instance Applicative Array where
+  pure x = runST $ newArray 1 x >>= unsafeFreezeArray
+  ab <*> a = runST $ do
+    mb <- newArray (szab*sza) $ die "<*>" "impossible"
+    let go1 i
+          | i < szab  = go2 (i*sza) (indexArray ab i) 0 >> go1 (i+1)
+          | otherwise = return ()
+        go2 off f j
+          | j < sza   = writeArray mb (off + j) (f $ indexArray a j)
+          | otherwise = return ()
+    go1 0
+    unsafeFreezeArray mb
+   where szab = sizeofArray ab ; sza = sizeofArray a
+  a *> b = createArray (sza*szb) (die "*>" "impossible") $ \mb ->
+    let go i | i < sza   = copyArray mb (i * szb) b 0 szb
+             | otherwise = return ()
+     in go 0
+   where sza = sizeofArray a ; szb = sizeofArray b
+  a <* b = createArray (sza*szb) (die "<*" "impossible") $ \ma ->
+    let fill off i e | i < szb   = writeArray ma (off+i) e >> fill off (i+1) e
+                     | otherwise = return ()
+        go i | i < sza   = fill (i*szb) 0 (indexArray a i) >> go (i+1)
+             | otherwise = return ()
+     in go 0
+   where sza = sizeofArray a ; szb = sizeofArray b
+
+instance Alternative Array where
+  empty = emptyArray
+  a1 <|> a2 = createArray (sza1 + sza2) (die "<|>" "impossible") $ \ma ->
+    copyArray ma 0 a1 0 sza1 >> copyArray ma sza1 a2 0 sza2
+   where sza1 = sizeofArray a1 ; sza2 = sizeofArray a2
+  some a | sizeofArray a == 0 = emptyArray
+         | otherwise = die "some" "infinite arrays are not well defined"
+  many a | sizeofArray a == 0 = pure []
+         | otherwise = die "many" "infinite arrays are not well defined"
+
+instance Monad Array where
+  return = pure
+  (>>) = (*>)
+  a >>= f = push 0 [] (sizeofArray a - 1)
+   where
+   push !sz bs i
+     | i < 0 = build sz bs
+     | otherwise = let b = f $ indexArray a i
+                    in push (sz + sizeofArray b) (b:bs) (i+1)
+
+   build sz stk = createArray sz (die ">>=" "impossible") $ \mb ->
+     let go off (b:bs) = copyArray mb off b 0 (sizeofArray b) >> go (off + sizeofArray b) bs
+         go _   [    ] = return ()
+      in go 0 stk
+  fail _ = empty
+
+instance MonadPlus Array where
+  mzero = empty
+  mplus = (<|>)
+
+zipW :: String -> (a -> b -> c) -> Array a -> Array b -> Array c
+zipW s f aa ab = createArray mn (die s "impossible") $ \mc ->
+  let go i
+        | i < mn    = writeArray mc i (f (indexArray aa i) (indexArray ab i))
+                   >> go (i+1)
+        | otherwise = return ()
+   in go 0
+ where mn = sizeofArray aa `min` sizeofArray ab
+{-# INLINE zipW #-}
+
+instance MonadZip Array where
+  mzip aa ab = zipW "mzip" (,) aa ab
+  mzipWith f aa ab = zipW "mzipWith" f aa ab
+  munzip aab = runST $ do
+    let sz = sizeofArray aab
+    ma <- newArray sz (die "munzip" "impossible")
+    mb <- newArray sz (die "munzip" "impossible")
+    let go i | i < sz = do
+          let (a, b) = indexArray aab i
+          writeArray ma i a
+          writeArray mb i b
+          go (i+1)
+        go _ = return ()
+    go 0
+    (,) <$> unsafeFreezeArray ma <*> unsafeFreezeArray mb
+
+instance MonadFix Array where
+  mfix f = let l = mfix (toList . f) in fromListN (length l) l
+
+instance Monoid (Array a) where
+  mempty = empty
+  mappend = (<|>)
+  mconcat l = createArray sz (die "mconcat" "impossible") $ \ma ->
+    let go !_  [    ] = return ()
+        go off (a:as) =
+          copyArray ma off a 0 (sizeofArray a) >> go (off + sizeofArray a) as
+     in go 0 l
+   where sz = sum . fmap sizeofArray $ l
+
+instance Show a => Show (Array a) where
+  showsPrec p a = showParen (p > 10) $
+    showString "fromListN " . shows (sizeofArray a) . showString " "
+      . shows (toList a)
+
+instance Read a => Read (Array a) where
+  readsPrec p = readParen (p > 10) . readP_to_S $ do
+    () <$ string "fromListN"
+    skipSpaces
+    n <- readS_to_P reads
+    skipSpaces
+    l <- readS_to_P reads
+    return $ fromListN n l
+
+arrayDataType :: DataType
+arrayDataType = mkDataType "Data.Primitive.Array.Array" [fromListConstr]
+
+fromListConstr :: Constr
+fromListConstr = mkConstr arrayDataType "fromList" [] Prefix
+
+instance Data a => Data (Array a) where
+  toConstr _ = fromListConstr
+  dataTypeOf _ = arrayDataType
+  gunfold k z c = case constrIndex c of
+    1 -> k (z fromList)
+    _ -> error "gunfold"
+  gfoldl f z m = z fromList `f` toList m
 
 instance (Typeable s, Typeable a) => Data (MutableArray s a) where
   toConstr _ = error "toConstr"

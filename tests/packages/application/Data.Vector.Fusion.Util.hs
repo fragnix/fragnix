@@ -1,4 +1,4 @@
-{-# LANGUAGE Haskell2010, CPP, DeriveDataTypeable #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Vector/Fusion/Util.hs" #-}
 
 
@@ -47,6 +47,15 @@
 
 
 
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
 -- |
 -- Module      : Data.Vector.Fusion.Util
 -- Copyright   : (c) Roman Leshchinskiy 2009
@@ -55,7 +64,7 @@
 -- Maintainer  : Roman Leshchinskiy <rl@cse.unsw.edu.au>
 -- Stability   : experimental
 -- Portability : portable
--- 
+--
 -- Fusion-related utility types
 --
 
@@ -65,7 +74,6 @@ module Data.Vector.Fusion.Util (
   delay_inline, delayed_min
 ) where
 
-import Control.Applicative
 
 -- | Identity monad
 newtype Id a = Id { unId :: a }
@@ -78,7 +86,7 @@ instance Applicative Id where
   Id f <*> Id x = Id (f x)
 
 instance Monad Id where
-  return     = Id
+  return = pure
   Id x >>= f = f x
 
 -- | Box monad
@@ -92,7 +100,7 @@ instance Applicative Box where
   Box f <*> Box x = Box (f x)
 
 instance Monad Box where
-  return      = Box
+  return = pure
   Box x >>= f = f x
 
 -- | Delay inlining a function until late in the game (simplifier phase 0).
@@ -104,4 +112,3 @@ delay_inline f = f
 delayed_min :: Int -> Int -> Int
 {-# INLINE [0] delayed_min #-}
 delayed_min m n = min m n
-

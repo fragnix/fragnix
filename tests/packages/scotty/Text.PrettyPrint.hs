@@ -45,6 +45,13 @@
 
 
 
+
+
+
+
+
+
+
 {-# LANGUAGE Safe #-}
 -----------------------------------------------------------------------------
 -- |
@@ -60,7 +67,7 @@
 -- that provides a way to easily print out text in a consistent format
 -- of your choosing.
 --
--- This module should be used as opposed to the "Text.PrettyPrint.HughesPJ"
+-- This module should be used as opposed to the 'Text.PrettyPrint.HughesPJ'
 -- module. Both are equivalent though as this module simply re-exports the
 -- other.
 --

@@ -1,13 +1,14 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Env/ByteString.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Env/ByteString.hs" #-}
 {-# LINE 1 "System/Posix/Env/ByteString.hsc" #-}
-
+{-# LANGUAGE CApiFFI #-}
 {-# LINE 2 "System/Posix/Env/ByteString.hsc" #-}
 {-# LANGUAGE Trustworthy #-}
 
-{-# LINE 6 "System/Posix/Env/ByteString.hsc" #-}
+{-# LINE 4 "System/Posix/Env/ByteString.hsc" #-}
+{-# OPTIONS_GHC -fno-warn-trustworthy-safe #-}
 
-{-# LINE 7 "System/Posix/Env/ByteString.hsc" #-}
+{-# LINE 6 "System/Posix/Env/ByteString.hsc" #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -38,7 +39,7 @@ module System.Posix.Env.ByteString (
 ) where
 
 
-{-# LINE 37 "System/Posix/Env/ByteString.hsc" #-}
+{-# LINE 36 "System/Posix/Env/ByteString.hsc" #-}
 
 import Foreign
 import Foreign.C
@@ -51,7 +52,9 @@ import Data.ByteString (ByteString)
 
 -- |'getEnv' looks up a variable in the environment.
 
-getEnv :: ByteString -> IO (Maybe ByteString)
+getEnv ::
+  ByteString            {- ^ variable name  -} ->
+  IO (Maybe ByteString) {- ^ variable value -}
 getEnv name = do
   litstring <- B.useAsCString name c_getenv
   if litstring /= nullPtr
@@ -62,7 +65,10 @@ getEnv name = do
 -- programmer can specify a fallback if the variable is not found
 -- in the environment.
 
-getEnvDefault :: ByteString -> ByteString -> IO ByteString
+getEnvDefault ::
+  ByteString    {- ^ variable name                    -} ->
+  ByteString    {- ^ fallback value                   -} ->
+  IO ByteString {- ^ variable value or fallback value -}
 getEnvDefault name fallback = liftM (fromMaybe fallback) (getEnv name)
 
 foreign import ccall unsafe "getenv"
@@ -76,18 +82,18 @@ getEnvironmentPrim = do
 
 getCEnviron :: IO (Ptr CString)
 
-{-# LINE 81 "System/Posix/Env/ByteString.hsc" #-}
+{-# LINE 85 "System/Posix/Env/ByteString.hsc" #-}
 getCEnviron = peek c_environ_p
 
 foreign import ccall unsafe "&environ"
    c_environ_p :: Ptr (Ptr CString)
 
-{-# LINE 86 "System/Posix/Env/ByteString.hsc" #-}
+{-# LINE 90 "System/Posix/Env/ByteString.hsc" #-}
 
 -- |'getEnvironment' retrieves the entire environment as a
 -- list of @(key,value)@ pairs.
 
-getEnvironment :: IO [(ByteString,ByteString)]
+getEnvironment :: IO [(ByteString,ByteString)] {- ^ @[(key,value)]@ -}
 getEnvironment = do
   env <- getEnvironmentPrim
   return $ map (dropEq.(BC.break ((==) '='))) env
@@ -99,22 +105,26 @@ getEnvironment = do
 -- |The 'unsetEnv' function deletes all instances of the variable name
 -- from the environment.
 
-unsetEnv :: ByteString -> IO ()
+unsetEnv :: ByteString {- ^ variable name -} -> IO ()
 
-{-# LINE 104 "System/Posix/Env/ByteString.hsc" #-}
+{-# LINE 108 "System/Posix/Env/ByteString.hsc" #-}
 
+{-# LINE 109 "System/Posix/Env/ByteString.hsc" #-}
 unsetEnv name = B.useAsCString name $ \ s ->
   throwErrnoIfMinus1_ "unsetenv" (c_unsetenv s)
 
-foreign import ccall unsafe "__hsunix_unsetenv"
+-- POSIX.1-2001 compliant unsetenv(3)
+foreign import capi unsafe "HsUnix.h unsetenv"
    c_unsetenv :: CString -> IO CInt
 
-{-# LINE 113 "System/Posix/Env/ByteString.hsc" #-}
+{-# LINE 122 "System/Posix/Env/ByteString.hsc" #-}
+
+{-# LINE 125 "System/Posix/Env/ByteString.hsc" #-}
 
 -- |'putEnv' function takes an argument of the form @name=value@
 -- and is equivalent to @setEnv(key,value,True{-overwrite-})@.
 
-putEnv :: ByteString -> IO ()
+putEnv :: ByteString {- ^ "key=value" -} -> IO ()
 putEnv keyvalue = B.useAsCString keyvalue $ \s ->
   throwErrnoIfMinus1_ "putenv" (c_putenv s)
 
@@ -128,9 +138,13 @@ foreign import ccall unsafe "putenv"
      not reset, otherwise it is reset to the given value.
 -}
 
-setEnv :: ByteString -> ByteString -> Bool {-overwrite-} -> IO ()
+setEnv ::
+  ByteString {- ^ variable name  -} ->
+  ByteString {- ^ variable value -} ->
+  Bool       {- ^ overwrite      -} ->
+  IO ()
 
-{-# LINE 133 "System/Posix/Env/ByteString.hsc" #-}
+{-# LINE 149 "System/Posix/Env/ByteString.hsc" #-}
 setEnv key value ovrwrt = do
   B.useAsCString key $ \ keyP ->
     B.useAsCString value $ \ valueP ->
@@ -140,7 +154,7 @@ setEnv key value ovrwrt = do
 foreign import ccall unsafe "setenv"
    c_setenv :: CString -> CString -> CInt -> IO CInt
 
-{-# LINE 149 "System/Posix/Env/ByteString.hsc" #-}
+{-# LINE 165 "System/Posix/Env/ByteString.hsc" #-}
 
 -- | Computation 'getArgs' returns a list of the program's command
 -- line arguments (not including the program name), as 'ByteString's.

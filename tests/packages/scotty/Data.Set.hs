@@ -47,8 +47,35 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE Safe #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -401,7 +428,6 @@
 -- Copyright   :  (c) Daan Leijen 2002
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
--- Stability   :  provisional
 -- Portability :  portable
 --
 -- An efficient implementation of sets.
@@ -418,10 +444,16 @@
 --    * Stephen Adams, \"/Efficient sets: a balancing act/\",
 --      Journal of Functional Programming 3(4):553-562, October 1993,
 --      <http://www.swiss.ai.mit.edu/~adams/BB/>.
---
 --    * J. Nievergelt and E.M. Reingold,
 --      \"/Binary search trees of bounded balance/\",
 --      SIAM journal of computing 2(1), March 1973.
+--
+--  Bounds for 'union', 'intersection', and 'difference' are as given
+--  by
+--
+--    * Guy Blelloch, Daniel Ferizovic, and Yihan Sun,
+--      \"/Just Join for Parallel Ordered Sets/\",
+--      <https://arxiv.org/abs/1602.02120v3>.
 --
 -- Note that the implementation is /left-biased/ -- the elements of a
 -- first argument are always preferred to the second, for example in
@@ -470,6 +502,9 @@ module Data.Set (
 
             -- * Filter
             , S.filter
+            , takeWhileAntitone
+            , dropWhileAntitone
+            , spanAntitone
             , partition
             , split
             , splitMember
@@ -480,6 +515,9 @@ module Data.Set (
             , findIndex
             , elemAt
             , deleteAt
+            , S.take
+            , S.drop
+            , S.splitAt
 
             -- * Map
             , S.map
@@ -495,6 +533,8 @@ module Data.Set (
             , fold
 
             -- * Min\/Max
+            , lookupMin
+            , lookupMax
             , findMin
             , findMax
             , deleteMin
@@ -515,7 +555,9 @@ module Data.Set (
             , toAscList
             , toDescList
             , fromAscList
+            , fromDescList
             , fromDistinctAscList
+            , fromDistinctDescList
 
             -- * Debugging
             , showTree
@@ -524,7 +566,7 @@ module Data.Set (
 
             ) where
 
-import Data.Set.Base as S
+import Data.Set.Internal as S
 
 -- $strictness
 --

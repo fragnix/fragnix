@@ -47,6 +47,14 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE ScopedTypeVariables, CPP, ForeignFunctionInterface,
              MagicHash, UnboxedTuples #-}
 {-# OPTIONS_HADDOCK hide #-}
@@ -132,14 +140,13 @@ import qualified Data.ByteString.Builder.Prim                   as P
 import           Foreign
 
 
-import           Data.Monoid (mappend)
+
 import           Foreign.C.Types
 
 import qualified Data.ByteString.Builder.Prim.Internal          as P
 import           Data.ByteString.Builder.Prim.Internal.UncheckedShifts
                    ( caseWordSize_32_64 )
 
-import           GHC.Num     (quotRemInteger)
 import           GHC.Types   (Int(..))
 
 

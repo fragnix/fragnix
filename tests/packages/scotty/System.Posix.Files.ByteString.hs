@@ -1,9 +1,9 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Files/ByteString.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Files/ByteString.hs" #-}
 {-# LINE 1 "System/Posix/Files/ByteString.hsc" #-}
 
-{-# LINE 4 "System/Posix/Files/ByteString.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LINE 2 "System/Posix/Files/ByteString.hsc" #-}
+{-# LANGUAGE Safe #-}
 
 {-# LINE 6 "System/Posix/Files/ByteString.hsc" #-}
 {-# LANGUAGE CApiFFI #-}
@@ -205,7 +205,7 @@ getSymbolicLinkStatus path = do
       throwErrnoPathIfMinus1_ "getSymbolicLinkStatus" path (c_lstat s p)
   return (FileStatus fp)
 
-foreign import ccall unsafe "__hsunix_lstat"
+foreign import capi unsafe "HsUnix.h lstat"
   c_lstat :: CString -> Ptr CStat -> IO CInt
 
 -- | @createNamedPipe fifo mode@
@@ -233,7 +233,7 @@ createDevice path mode dev =
   withFilePath path $ \s ->
     throwErrnoPathIfMinus1_ "createDevice" path (c_mknod s mode dev)
 
-foreign import ccall unsafe "__hsunix_mknod"
+foreign import capi unsafe "HsUnix.h mknod"
   c_mknod :: CString -> CMode -> CDev -> IO CInt
 
 -- -----------------------------------------------------------------------------

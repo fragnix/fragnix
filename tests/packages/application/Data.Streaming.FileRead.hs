@@ -65,6 +65,26 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 -- | The standard @openFile@ call on Windows causing problematic file locking
 -- in some cases. This module provides a cross-platform file reading API

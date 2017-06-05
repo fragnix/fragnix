@@ -47,8 +47,16 @@
 
 
 
-{-# LANGUAGE CPP, NondecreasingIndentation #-}
-{-# LANGUAGE Trustworthy #-}
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
+
 
 -----------------------------------------------------------------------------
 -- |
@@ -64,6 +72,56 @@
 --
 -----------------------------------------------------------------------------
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 module System.Directory
    (
     -- $intro
@@ -73,14 +131,19 @@ module System.Directory
     , createDirectoryIfMissing
     , removeDirectory
     , removeDirectoryRecursive
+    , removePathForcibly
     , renameDirectory
-
+    , listDirectory
     , getDirectoryContents
+    -- ** Current working directory
     , getCurrentDirectory
     , setCurrentDirectory
+    , withCurrentDirectory
 
     -- * Pre-defined directories
     , getHomeDirectory
+    , XdgDirectory(..)
+    , getXdgDirectory
     , getAppUserDataDirectory
     , getUserDocumentsDirectory
     , getTemporaryDirectory
@@ -88,18 +151,35 @@ module System.Directory
     -- * Actions on files
     , removeFile
     , renameFile
+    , renamePath
     , copyFile
+    , copyFileWithMetadata
+    , getFileSize
 
     , canonicalizePath
+    , makeAbsolute
     , makeRelativeToCurrentDirectory
-    , findExecutable
-    , findFile
-    , findFiles
-    , findFilesWith
 
     -- * Existence tests
+    , doesPathExist
     , doesFileExist
     , doesDirectoryExist
+
+    , findExecutable
+    , findExecutables
+    , findExecutablesInDirectories
+    , findFile
+    , findFiles
+    , findFileWith
+    , findFilesWith
+    , exeExtension
+
+    -- * Symbolic links
+    , createFileLink
+    , createDirectoryLink
+    , removeDirectoryLink
+    , pathIsSymbolicLink
+    , getSymbolicLinkTarget
 
     -- * Permissions
 
@@ -122,41 +202,31 @@ module System.Directory
 
     -- * Timestamps
 
+    , getAccessTime
     , getModificationTime
+    , setAccessTime
+    , setModificationTime
+
+    -- * Deprecated
+    , isSymbolicLink
+
    ) where
-
+import Prelude ()
+import System.Directory.Internal
+import System.Directory.Internal.Prelude
 import System.FilePath
-import System.IO
-import System.IO.Error
-import Control.Monad           ( when, unless )
-import Control.Exception.Base as E
-
-
-import Foreign
-import Foreign.C
-
-{-# CFILES cbits/directory.c #-}
-
-import Data.Maybe
-
-import Data.Time
-import Data.Time.Clock.POSIX
-
-
-import GHC.IO.Exception ( IOErrorType(InappropriateType) )
-
-import GHC.IO.Encoding
-import GHC.Foreign as GHC
-import System.Environment ( getEnv )
+import Data.Time (UTCTime)
+import Data.Time.Clock.POSIX (POSIXTime, utcTimeToPOSIXSeconds)
+import qualified System.Directory.Internal.Config as Cfg
+import qualified GHC.Foreign as GHC
 import qualified System.Posix as Posix
-
 
 {- $intro
 A directory contains a series of entries, each of which is a named
 reference to a file system object (file, directory etc.).  Some
 entries may be hidden, inaccessible, or have some administrative
-function (e.g. `.' or `..' under POSIX
-<http://www.opengroup.org/onlinepubs/009695399/>), but in
+function (e.g. @.@ or @..@ under
+<http://www.opengroup.org/onlinepubs/009695399 POSIX>), but in
 this standard all such entries are considered to form part of the
 directory contents. Entries in sub-directories are not, however,
 considered to form part of the directory contents.
@@ -166,6 +236,28 @@ normally at least one absolute path to each file system object.  In
 some operating systems, it may also be possible to have paths which
 are relative to the current directory.
 -}
+
+-- | A generator with side-effects.
+newtype ListT m a = ListT (m (Maybe (a, ListT m a)))
+
+listTHead :: Functor m => ListT m a -> m (Maybe a)
+listTHead (ListT m) = (fst <$>) <$> m
+
+listTToList :: Monad m => ListT m a -> m [a]
+listTToList (ListT m) = do
+  mx <- m
+  case mx of
+    Nothing -> return []
+    Just (x, m') -> do
+      xs <- listTToList m'
+      return (x : xs)
+
+andM :: Monad m => m Bool -> m Bool -> m Bool
+andM mx my = do
+  x <- mx
+  if x
+    then my
+    else return x
 
 -----------------------------------------------------------------------------
 -- Permissions
@@ -189,12 +281,6 @@ Note that to change some, but not all permissions, a construct on the following 
 
 -}
 
-data Permissions
- = Permissions {
-    readable,   writable,
-    executable, searchable :: Bool
-   } deriving (Eq, Ord, Read, Show)
-
 emptyPermissions :: Permissions
 emptyPermissions = Permissions {
                        readable   = False,
@@ -215,66 +301,62 @@ setOwnerExecutable b p = p { executable = b }
 setOwnerSearchable :: Bool -> Permissions -> Permissions
 setOwnerSearchable b p = p { searchable = b }
 
-{- |The 'getPermissions' operation returns the
-permissions for the file or directory.
-
-The operation may fail with:
-
-* 'isPermissionError' if the user is not permitted to access
-  the permissions; or
-
-* 'isDoesNotExistError' if the file or directory does not exist.
-
--}
-
-
+-- | Get the permissions of a file or directory.
+--
+-- On Windows, the 'writable' permission corresponds to the "read-only"
+-- attribute.  The 'executable' permission is set if the file extension is of
+-- an executable file type.  The 'readable' permission is always set.
+--
+-- On POSIX systems, this returns the result of @access@.
+--
+-- The operation may fail with:
+--
+-- * 'isPermissionError' if the user is not permitted to access the
+--   permissions, or
+--
+-- * 'isDoesNotExistError' if the file or directory does not exist.
 getPermissions :: FilePath -> IO Permissions
-getPermissions name = do
-  read_ok  <- Posix.fileAccess name True  False False
-  write_ok <- Posix.fileAccess name False True  False
-  exec_ok  <- Posix.fileAccess name False False True
-  stat <- Posix.getFileStatus name
-  let is_dir = Posix.isDirectory stat
-  return (
-    Permissions {
-      readable   = read_ok,
-      writable   = write_ok,
-      executable = not is_dir && exec_ok,
-      searchable = is_dir && exec_ok
-    }
-   )
+getPermissions path =
+  (`ioeAddLocation` "getPermissions") `modifyIOError` do
+    getAccessPermissions path
 
-{- |The 'setPermissions' operation sets the
-permissions for the file or directory.
-
-The operation may fail with:
-
-* 'isPermissionError' if the user is not permitted to set
-  the permissions; or
-
-* 'isDoesNotExistError' if the file or directory does not exist.
-
--}
-
+-- | Set the permissions of a file or directory.
+--
+-- On Windows, this is only capable of changing the 'writable' permission,
+-- which corresponds to the "read-only" attribute.  Changing the other
+-- permissions has no effect.
+--
+-- On POSIX systems, this sets the /owner/ permissions.
+--
+-- The operation may fail with:
+--
+-- * 'isPermissionError' if the user is not permitted to set the permissions,
+--   or
+--
+-- * 'isDoesNotExistError' if the file or directory does not exist.
 setPermissions :: FilePath -> Permissions -> IO ()
-setPermissions name (Permissions r w e s) = do
-      stat <- Posix.getFileStatus name
-      let mode = Posix.fileMode stat
-      let mode1 = modifyBit r mode  Posix.ownerReadMode
-      let mode2 = modifyBit w mode1 Posix.ownerWriteMode
-      let mode3 = modifyBit (e || s) mode2 Posix.ownerExecuteMode
-      Posix.setFileMode name mode3
- where
-   modifyBit :: Bool -> Posix.FileMode -> Posix.FileMode -> Posix.FileMode
-   modifyBit False m b = m .&. (complement b)
-   modifyBit True  m b = m .|. b
+setPermissions path p =
+  (`ioeAddLocation` "setPermissions") `modifyIOError` do
+    setAccessPermissions path p
 
-
+-- | Copy the permissions of one file to another.  This reproduces the
+-- permissions more accurately than using 'getPermissions' followed by
+-- 'setPermissions'.
+--
+-- On Windows, this copies only the read-only attribute.
+--
+-- On POSIX systems, this is equivalent to @stat@ followed by @chmod@.
 copyPermissions :: FilePath -> FilePath -> IO ()
-copyPermissions source dest = do
-  stat <- Posix.getFileStatus source
-  let mode = Posix.fileMode stat
-  Posix.setFileMode dest mode
+copyPermissions src dst =
+  (`ioeAddLocation` "copyPermissions") `modifyIOError` do
+    m <- getFileMetadata src
+    copyPermissionsFromMetadata m dst
+
+copyPermissionsFromMetadata :: Metadata -> FilePath -> IO ()
+copyPermissionsFromMetadata m dst = do
+  -- instead of setFileMode, setFilePermissions is used here
+  -- this is to retain backward compatibility in copyPermissions
+  setFilePermissions dst (modeFromMetadata m)
 
 -----------------------------------------------------------------------------
 -- Implementation
@@ -320,7 +402,6 @@ createDirectory :: FilePath -> IO ()
 createDirectory path = do
   Posix.createDirectory path 0o777
 
-
 -- | @'createDirectoryIfMissing' parents dir@ creates a new directory
 -- @dir@ if it doesn\'t exist. If the first argument is 'True'
 -- the function will also create all parent directories if they are missing.
@@ -334,16 +415,15 @@ createDirectoryIfMissing create_parents path0
     parents = reverse . scanl1 (</>) . splitDirectories . normalise
 
     createDirs []         = return ()
-    createDirs (dir:[])   = createDir dir throw
+    createDirs (dir:[])   = createDir dir ioError
     createDirs (dir:dirs) =
       createDir dir $ \_ -> do
         createDirs dirs
-        createDir dir throw
+        createDir dir ioError
 
-    createDir :: FilePath -> (IOException -> IO ()) -> IO ()
     createDir dir notExistHandler = do
-      r <- E.try $ createDirectory dir
-      case (r :: Either IOException ()) of
+      r <- tryIOError (createDirectory dir)
+      case r of
         Right ()                   -> return ()
         Left  e
           | isDoesNotExistError  e -> notExistHandler e
@@ -361,13 +441,13 @@ createDirectoryIfMissing create_parents path0
           -- This caused GHCi to crash when loading a module in the root
           -- directory.
           | isAlreadyExistsError e
-         || isPermissionError e -> (do
-              stat <- Posix.getFileStatus dir
-              if Posix.isDirectory stat
-                 then return ()
-                 else throw e
-              ) `E.catch` ((\_ -> return ()) :: IOException -> IO ())
-          | otherwise              -> throw e
+         || isPermissionError    e -> do
+              canIgnore <- pathIsDirectory dir
+                             `catchIOError` \ _ ->
+                               return (isAlreadyExistsError e)
+              unless canIgnore (ioError e)
+          | otherwise              -> ioError e
+
 
 {- | @'removeDirectory' dir@ removes an existing directory /dir/.  The
 implementation may specify additional constraints which must be
@@ -414,24 +494,108 @@ removeDirectory :: FilePath -> IO ()
 removeDirectory path =
   Posix.removeDirectory path
 
-
--- | @'removeDirectoryRecursive' dir@  removes an existing directory /dir/
--- together with its content and all subdirectories. Be careful,
--- if the directory contains symlinks, the function will follow them.
+-- | @'removeDirectoryRecursive' dir@ removes an existing directory /dir/
+-- together with its contents and subdirectories. Within this directory,
+-- symbolic links are removed without affecting their targets.
+--
+-- On Windows, the operation fails if /dir/ is a directory symbolic link.
 removeDirectoryRecursive :: FilePath -> IO ()
-removeDirectoryRecursive startLoc = do
-  cont <- getDirectoryContents startLoc
-  sequence_ [rm (startLoc </> x) | x <- cont, x /= "." && x /= ".."]
-  removeDirectory startLoc
+removeDirectoryRecursive path =
+  (`ioeAddLocation` "removeDirectoryRecursive") `modifyIOError` do
+    m <- getSymbolicLinkMetadata path
+    case fileTypeFromMetadata m of
+      Directory ->
+        removeContentsRecursive path
+      DirectoryLink ->
+        ioError (err `ioeSetErrorString` "is a directory symbolic link")
+      _ ->
+        ioError (err `ioeSetErrorString` "not a directory")
+  where err = mkIOError InappropriateType "" Nothing (Just path)
+
+-- | @'removePathRecursive' path@ removes an existing file or directory at
+-- /path/ together with its contents and subdirectories. Symbolic links are
+-- removed without affecting their the targets.
+removePathRecursive :: FilePath -> IO ()
+removePathRecursive path =
+  (`ioeAddLocation` "removePathRecursive") `modifyIOError` do
+    m <- getSymbolicLinkMetadata path
+    case fileTypeFromMetadata m of
+      Directory     -> removeContentsRecursive path
+      DirectoryLink -> removeDirectory path
+      _             -> removeFile path
+
+-- | @'removeContentsRecursive' dir@ removes the contents of the directory
+-- /dir/ recursively. Symbolic links are removed without affecting their the
+-- targets.
+removeContentsRecursive :: FilePath -> IO ()
+removeContentsRecursive path =
+  (`ioeAddLocation` "removeContentsRecursive") `modifyIOError` do
+    cont <- listDirectory path
+    mapM_ removePathRecursive [path </> x | x <- cont]
+    removeDirectory path
+
+-- | Removes a file or directory at /path/ together with its contents and
+-- subdirectories. Symbolic links are removed without affecting their
+-- targets. If the path does not exist, nothing happens.
+--
+-- Unlike other removal functions, this function will also attempt to delete
+-- files marked as read-only or otherwise made unremovable due to permissions.
+-- As a result, if the removal is incomplete, the permissions or attributes on
+-- the remaining files may be altered.  If there are hard links in the
+-- directory, then permissions on all related hard links may be altered.
+--
+-- If an entry within the directory vanishes while @removePathForcibly@ is
+-- running, it is silently ignored.
+--
+-- If an exception occurs while removing an entry, @removePathForcibly@ will
+-- still try to remove as many entries as it can before failing with an
+-- exception.  The first exception that it encountered is re-thrown.
+--
+-- @since 1.2.7.0
+removePathForcibly :: FilePath -> IO ()
+removePathForcibly path =
+  (`ioeAddLocation` "removePathForcibly") `modifyIOError` do
+    makeRemovable path `catchIOError` \ _ -> return ()
+    ignoreDoesNotExistError $ do
+      m <- getSymbolicLinkMetadata path
+      case fileTypeFromMetadata m of
+        DirectoryLink -> removeDirectory path
+        Directory     -> do
+          names <- listDirectory path
+          sequenceWithIOErrors_ $
+            [ removePathForcibly (path </> name) | name <- names ] ++
+            [ removeDirectory path ]
+        _             -> removeFile path
   where
-    rm :: FilePath -> IO ()
-    rm f = do temp <- E.try (removeFile f)
-              case temp of
-                Left e  -> do isDir <- doesDirectoryExist f
-                              -- If f is not a directory, re-throw the error
-                              unless isDir $ throw (e :: SomeException)
-                              removeDirectoryRecursive f
-                Right _ -> return ()
+
+    ignoreDoesNotExistError :: IO () -> IO ()
+    ignoreDoesNotExistError action = do
+      _ <- tryIOErrorType isDoesNotExistError action
+      return ()
+
+    makeRemovable :: FilePath -> IO ()
+    makeRemovable p = do
+      perms <- getPermissions p
+      setPermissions path perms{ readable = True
+                               , searchable = True
+                               , writable = True }
+
+sequenceWithIOErrors_ :: [IO ()] -> IO ()
+sequenceWithIOErrors_ actions = go (Right ()) actions
+  where
+
+    go :: Either IOError () -> [IO ()] -> IO ()
+    go (Left e)   []       = ioError e
+    go (Right ()) []       = return ()
+    go s          (m : ms) = s `seq` do
+      r <- tryIOError m
+      go (thenEither s r) ms
+
+    -- equivalent to (*>) for Either, defined here to retain compatibility
+    -- with base prior to 4.3
+    thenEither :: Either b a -> Either b a -> Either b a
+    thenEither x@(Left _) _ = x
+    thenEither _          y = y
 
 {- |'removeFile' /file/ removes the directory entry for an existing file
 /file/, where /file/ is not itself a directory. The
@@ -521,16 +685,14 @@ Either path refers to an existing non-directory object.
 -}
 
 renameDirectory :: FilePath -> FilePath -> IO ()
-renameDirectory opath npath = do
-   -- XXX this test isn't performed atomically with the following rename
-   stat <- Posix.getFileStatus opath
-   let is_dir = Posix.fileMode stat .&. Posix.directoryMode /= 0
-   if (not is_dir)
-        then ioError (ioeSetErrorString
-                          (mkIOError InappropriateType "renameDirectory" Nothing (Just opath))
-                          "not a directory")
-        else do
-   Posix.rename opath npath
+renameDirectory opath npath =
+   (`ioeAddLocation` "renameDirectory") `modifyIOError` do
+     -- XXX this test isn't performed atomically with the following rename
+     isDir <- pathIsDirectory opath
+     when (not isDir) $ do
+       ioError . (`ioeSetErrorString` "not a directory") $
+         (mkIOError InappropriateType "renameDirectory" Nothing (Just opath))
+     renamePath opath npath
 
 {- |@'renameFile' old new@ changes the name of an existing file system
 object from /old/ to /new/.  If the /new/ object already
@@ -577,272 +739,670 @@ Either path refers to an existing directory.
 -}
 
 renameFile :: FilePath -> FilePath -> IO ()
-renameFile opath npath = do
-   -- XXX this test isn't performed atomically with the following rename
-   stat <- Posix.getSymbolicLinkStatus opath
-   let is_dir = Posix.isDirectory stat
-   if is_dir
-        then ioError (ioeSetErrorString
-                          (mkIOError InappropriateType "renameFile" Nothing (Just opath))
-                          "is a directory")
-        else do
+renameFile opath npath = (`ioeAddLocation` "renameFile") `modifyIOError` do
+   -- XXX the tests are not performed atomically with the rename
+   checkNotDir opath
+   renamePath opath npath
+     -- The underlying rename implementation can throw odd exceptions when the
+     -- destination is a directory.  For example, Windows typically throws a
+     -- permission error, while POSIX systems may throw a resource busy error
+     -- if one of the paths refers to the current directory.  In these cases,
+     -- we check if the destination is a directory and, if so, throw an
+     -- InappropriateType error.
+     `catchIOError` \ err -> do
+       checkNotDir npath
+       ioError err
+   where checkNotDir path = do
+           m <- tryIOError (getSymbolicLinkMetadata path)
+           case fileTypeFromMetadata <$> m of
+             Right Directory     -> errIsDir path
+             Right DirectoryLink -> errIsDir path
+             _                   -> return ()
+         errIsDir path = ioError . (`ioeSetErrorString` "is a directory") $
+                         mkIOError InappropriateType "" Nothing (Just path)
+
+-- | Rename a file or directory.  If the destination path already exists, it
+-- is replaced atomically.  The destination path must not point to an existing
+-- directory.  A conformant implementation need not support renaming files in
+-- all situations (e.g. renaming across different physical devices), but the
+-- constraints must be documented.
+--
+-- The operation may fail with:
+--
+-- * 'HardwareFault'
+-- A physical I\/O error has occurred.
+-- @[EIO]@
+--
+-- * 'InvalidArgument'
+-- Either operand is not a valid file name.
+-- @[ENAMETOOLONG, ELOOP]@
+--
+-- * 'isDoesNotExistError' \/ 'NoSuchThing'
+-- The original file does not exist, or there is no path to the target.
+-- @[ENOENT, ENOTDIR]@
+--
+-- * 'isPermissionError' \/ 'PermissionDenied'
+-- The process has insufficient privileges to perform the operation.
+-- @[EROFS, EACCES, EPERM]@
+--
+-- * 'ResourceExhausted'
+-- Insufficient resources are available to perform the operation.
+-- @[EDQUOT, ENOSPC, ENOMEM, EMLINK]@
+--
+-- * 'UnsatisfiedConstraints'
+-- Implementation-dependent constraints are not satisfied.
+-- @[EBUSY]@
+--
+-- * 'UnsupportedOperation'
+-- The implementation does not support renaming in this situation.
+-- @[EXDEV]@
+--
+-- * 'InappropriateType'
+-- Either the destination path refers to an existing directory, or one of the
+-- parent segments in the destination path is not a directory.
+-- @[ENOTDIR, EISDIR, EINVAL, EEXIST, ENOTEMPTY]@
+--
+-- @since 1.2.7.0
+renamePath :: FilePath                  -- ^ Old path
+           -> FilePath                  -- ^ New path
+           -> IO ()
+renamePath opath npath = (`ioeAddLocation` "renamePath") `modifyIOError` do
    Posix.rename opath npath
 
-
-{- |@'copyFile' old new@ copies the existing file from /old/ to /new/.
-If the /new/ file already exists, it is atomically replaced by the /old/ file.
-Neither path may refer to an existing directory.  The permissions of /old/ are
-copied to /new/, if possible.
--}
-
-copyFile :: FilePath -> FilePath -> IO ()
+-- | Copy a file with its permissions.  If the destination file already exists,
+-- it is replaced atomically.  Neither path may refer to an existing
+-- directory.  No exceptions are thrown if the permissions could not be
+-- copied.
+copyFile :: FilePath                    -- ^ Source filename
+         -> FilePath                    -- ^ Destination filename
+         -> IO ()
 copyFile fromFPath toFPath =
-    copy `catchIOError` (\exc -> throw $ ioeSetLocation exc "copyFile")
-    where copy = bracket (openBinaryFile fromFPath ReadMode) hClose $ \hFrom ->
-                 bracketOnError openTmp cleanTmp $ \(tmpFPath, hTmp) ->
-                 do allocaBytes bufferSize $ copyContents hFrom hTmp
-                    hClose hTmp
-                    ignoreIOExceptions $ copyPermissions fromFPath tmpFPath
-                    renameFile tmpFPath toFPath
-          openTmp = openBinaryTempFile (takeDirectory toFPath) ".copyFile.tmp"
-          cleanTmp (tmpFPath, hTmp)
-              = do ignoreIOExceptions $ hClose hTmp
-                   ignoreIOExceptions $ removeFile tmpFPath
-          bufferSize = 1024
+  (`ioeAddLocation` "copyFile") `modifyIOError` do
+    atomicCopyFileContents fromFPath toFPath
+      (ignoreIOExceptions . copyPermissions fromFPath)
 
-          copyContents hFrom hTo buffer = do
-                  count <- hGetBuf hFrom buffer bufferSize
-                  when (count > 0) $ do
-                          hPutBuf hTo buffer count
-                          copyContents hFrom hTo buffer
+-- | Truncate the destination file and then copy the contents of the source
+-- file to the destination file.  If the destination file already exists, its
+-- attributes shall remain unchanged.  Otherwise, its attributes are reset to
+-- the defaults.
+copyFileContents :: FilePath            -- ^ Source filename
+                 -> FilePath            -- ^ Destination filename
+                 -> IO ()
+copyFileContents fromFPath toFPath =
+  (`ioeAddLocation` "copyFileContents") `modifyIOError` do
+    withBinaryFile toFPath WriteMode $ \ hTo ->
+      copyFileToHandle fromFPath hTo
 
-          ignoreIOExceptions io = io `catchIOError` (\_ -> return ())
+-- | Copy the contents of a source file to a destination file, replacing the
+-- destination file atomically via 'withReplacementFile', resetting the
+-- attributes of the destination file to the defaults.
+atomicCopyFileContents :: FilePath            -- ^ Source filename
+                       -> FilePath            -- ^ Destination filename
+                       -> (FilePath -> IO ()) -- ^ Post-action
+                       -> IO ()
+atomicCopyFileContents fromFPath toFPath postAction =
+  (`ioeAddLocation` "atomicCopyFileContents") `modifyIOError` do
+    withReplacementFile toFPath postAction $ \ hTo -> do
+      copyFileToHandle fromFPath hTo
 
--- | Given a path referring to a file or directory, returns a
--- canonicalized path. The intent is that two paths referring
--- to the same file\/directory will map to the same canonicalized
--- path.
+-- | A helper function useful for replacing files in an atomic manner.  The
+-- function creates a temporary file in the directory of the destination file,
+-- opens it, performs the main action with its handle, closes it, performs the
+-- post-action with its path, and finally replaces the destination file with
+-- the temporary file.  If an error occurs during any step of this process,
+-- the temporary file is removed and the destination file remains untouched.
+withReplacementFile :: FilePath            -- ^ Destination file
+                    -> (FilePath -> IO ()) -- ^ Post-action
+                    -> (Handle -> IO a)    -- ^ Main action
+                    -> IO a
+withReplacementFile path postAction action =
+  (`ioeAddLocation` "withReplacementFile") `modifyIOError` do
+    mask $ \ restore -> do
+      (tmpFPath, hTmp) <- openBinaryTempFile (takeDirectory path)
+                                             ".copyFile.tmp"
+      (`onException` ignoreIOExceptions (removeFile tmpFPath)) $ do
+        r <- (`onException` ignoreIOExceptions (hClose hTmp)) $ do
+          restore (action hTmp)
+        hClose hTmp
+        restore (postAction tmpFPath)
+        renameFile tmpFPath path
+        return r
+
+-- | Attempt to perform the given action, silencing any IO exception thrown by
+-- it.
+ignoreIOExceptions :: IO () -> IO ()
+ignoreIOExceptions io = io `catchIOError` (\_ -> return ())
+
+-- | Copy all data from a file to a handle.
+copyFileToHandle :: FilePath            -- ^ Source file
+                 -> Handle              -- ^ Destination handle
+                 -> IO ()
+copyFileToHandle fromFPath hTo =
+  (`ioeAddLocation` "copyFileToHandle") `modifyIOError` do
+    withBinaryFile fromFPath ReadMode $ \ hFrom ->
+      copyHandleData hFrom hTo
+
+-- | Copy data from one handle to another until end of file.
+copyHandleData :: Handle                -- ^ Source handle
+               -> Handle                -- ^ Destination handle
+               -> IO ()
+copyHandleData hFrom hTo =
+  (`ioeAddLocation` "copyData") `modifyIOError` do
+    allocaBytes bufferSize go
+  where
+    bufferSize = 131072 -- 128 KiB, as coreutils `cp` uses as of May 2014 (see ioblksize.h)
+    go buffer = do
+      count <- hGetBuf hFrom buffer bufferSize
+      when (count > 0) $ do
+        hPutBuf hTo buffer count
+        go buffer
+
+-- | Copy a file with its associated metadata.  If the destination file
+-- already exists, it is overwritten.  There is no guarantee of atomicity in
+-- the replacement of the destination file.  Neither path may refer to an
+-- existing directory.  If the source and/or destination are symbolic links,
+-- the copy is performed on the targets of the links.
 --
--- Note that it is impossible to guarantee that the
--- implication (same file\/dir \<=\> same canonicalizedPath) holds
--- in either direction: this function can make only a best-effort
--- attempt.
+-- On Windows, it behaves like the Win32 function
+-- <https://msdn.microsoft.com/en-us/library/windows/desktop/aa363851.aspx CopyFile>,
+-- which copies various kinds of metadata including file attributes and
+-- security resource properties.
 --
--- The precise behaviour is that of the C realpath function
--- GetFullPathNameW on Windows). In particular, the behaviour
--- on paths that do not exist is known to vary from platform
--- to platform. Some platforms do not alter the input, some
--- do, and on some an exception will be thrown.
+-- On Unix-like systems, permissions, access time, and modification time are
+-- preserved.  If possible, the owner and group are also preserved.  Note that
+-- the very act of copying can change the access time of the source file,
+-- hence the access times of the two files may differ after the operation
+-- completes.
+--
+-- @since 1.2.6.0
+copyFileWithMetadata :: FilePath        -- ^ Source file
+                     -> FilePath        -- ^ Destination file
+                     -> IO ()
+copyFileWithMetadata src dst =
+  (`ioeAddLocation` "copyFileWithMetadata") `modifyIOError` doCopy
+  where
+    doCopy = do
+      st <- Posix.getFileStatus src
+      copyFileContents src dst
+      copyMetadataFromStatus st dst
+
+copyMetadataFromStatus :: Posix.FileStatus -> FilePath -> IO ()
+copyMetadataFromStatus st dst = do
+  tryCopyOwnerAndGroupFromStatus st dst
+  copyPermissionsFromMetadata st dst
+  copyFileTimesFromStatus st dst
+
+tryCopyOwnerAndGroupFromStatus :: Posix.FileStatus -> FilePath -> IO ()
+tryCopyOwnerAndGroupFromStatus st dst = do
+  ignoreIOExceptions (copyOwnerFromStatus st dst)
+  ignoreIOExceptions (copyGroupFromStatus st dst)
+
+copyOwnerFromStatus :: Posix.FileStatus -> FilePath -> IO ()
+copyOwnerFromStatus st dst = do
+  Posix.setOwnerAndGroup dst (Posix.fileOwner st) (-1)
+
+copyGroupFromStatus :: Posix.FileStatus -> FilePath -> IO ()
+copyGroupFromStatus st dst = do
+  Posix.setOwnerAndGroup dst (-1) (Posix.fileGroup st)
+
+copyFileTimesFromStatus :: Posix.FileStatus -> FilePath -> IO ()
+copyFileTimesFromStatus st dst = do
+  let atime = accessTimeFromMetadata st
+  let mtime = modificationTimeFromMetadata st
+  setFileTimes dst (Just atime, Just mtime)
+
+-- | Make a path absolute, 'normalise' the path, and remove as many
+-- indirections from it as possible.  Any trailing path separators are
+-- discarded via 'dropTrailingPathSeparator'.  Additionally, on Windows the
+-- letter case of the path is canonicalized.
+--
+-- __Note__: This function is a very big hammer.  If you only need an absolute
+-- path, 'makeAbsolute' is sufficient for removing dependence on the current
+-- working directory.
+--
+-- Indirections include the two special directories @.@ and @..@, as well as
+-- any symbolic links (and junction points on Windows).  The input path need
+-- not point to an existing file or directory.  Canonicalization is performed
+-- on the longest prefix of the path that points to an existing file or
+-- directory.  The remaining portion of the path that does not point to an
+-- existing file or directory will still undergo 'normalise', but case
+-- canonicalization and indirection removal are skipped as they are impossible
+-- to do on a nonexistent path.
+--
+-- Most programs should not worry about the canonicity of a path.  In
+-- particular, despite the name, the function does not truly guarantee
+-- canonicity of the returned path due to the presence of hard links, mount
+-- points, etc.
+--
+-- If the path points to an existing file or directory, then the output path
+-- shall also point to the same file or directory, subject to the condition
+-- that the relevant parts of the file system do not change while the function
+-- is still running.  In other words, the function is definitively not atomic.
+-- The results can be utterly wrong if the portions of the path change while
+-- this function is running.
+--
+-- Since some indirections (symbolic links on all systems, @..@ on non-Windows
+-- systems, and junction points on Windows) are dependent on the state of the
+-- existing filesystem, the function can only make a conservative attempt by
+-- removing such indirections from the longest prefix of the path that still
+-- points to an existing file or directory.
+--
+-- Note that on Windows parent directories @..@ are always fully expanded
+-- before the symbolic links, as consistent with the rest of the Windows API
+-- (such as @GetFullPathName@).  In contrast, on POSIX systems parent
+-- directories @..@ are expanded alongside symbolic links from left to right.
+-- To put this more concretely: if @L@ is a symbolic link for @R/P@, then on
+-- Windows @L\\..@ refers to @.@, whereas on other operating systems @L/..@
+-- refers to @R@.
+--
+-- Similar to 'normalise', passing an empty path is equivalent to passing the
+-- current directory.
+--
+-- @canonicalizePath@ can resolve at least 64 indirections in a single path,
+-- more than what is supported by most operating systems.  Therefore, it may
+-- return the fully resolved path even though the operating system itself
+-- would have long given up.
+--
+-- On Windows XP or earlier systems, junction expansion is not performed due
+-- to their lack of @GetFinalPathNameByHandle@.
+--
+-- /Changes since 1.2.3.0:/ The function has been altered to be more robust
+-- and has the same exception behavior as 'makeAbsolute'.
+--
+-- /Changes since 1.3.0.0:/ The function no longer preserves the trailing path
+-- separator.  File symbolic links that appear in the middle of a path are
+-- properly dereferenced.  Case canonicalization and symbolic link expansion
+-- are now performed on Windows.
+--
 canonicalizePath :: FilePath -> IO FilePath
-canonicalizePath fpath =
-  do enc <- getFileSystemEncoding
-     GHC.withCString enc fpath $ \pInPath ->
-       allocaBytes long_path_size $ \pOutPath ->
-         do _ <- throwErrnoPathIfNull "canonicalizePath" fpath $ c_realpath pInPath pOutPath
-            -- NB: pOutPath will be passed thru as result pointer by c_realpath
-            path <- GHC.peekCString enc pOutPath
-            return (normalise path)
-        -- normalise does more stuff, like upper-casing the drive letter
+canonicalizePath = \ path ->
+  modifyIOError ((`ioeAddLocation` "canonicalizePath") .
+                 (`ioeSetFileName` path)) $
+  -- normalise does more stuff, like upper-casing the drive letter
+  dropTrailingPathSeparator . normalise <$>
+    (transform =<< prependCurrentDirectory path)
+  where
 
-foreign import ccall unsafe "realpath"
-                   c_realpath :: CString
-                              -> CString
-                              -> IO CString
+    transform path = do
+      encoding <- getFileSystemEncoding
+      let realpath path' =
+            GHC.withCString encoding path'
+              (`withRealpath` GHC.peekCString encoding)
+      attemptRealpath realpath path
 
--- | 'makeRelative' the current directory.
+    simplify = return
+
+    -- allow up to 64 cycles before giving up
+    attemptRealpath realpath =
+      attemptRealpathWith (64 :: Int) Nothing realpath <=< simplify
+
+    -- n is a counter to make sure we don't run into an infinite loop; we
+    -- don't try to do any cycle detection here because an adversary could DoS
+    -- any arbitrarily clever algorithm
+    attemptRealpathWith n mFallback realpath path =
+      case mFallback of
+        -- too many indirections ... giving up.
+        Just fallback | n <= 0 -> return fallback
+        -- either mFallback == Nothing (first attempt)
+        --     or n > 0 (still have some attempts left)
+        _ -> realpathPrefix (reverse (zip prefixes suffixes))
+
+      where
+
+        segments = splitDirectories path
+        prefixes = scanl1 (</>) segments
+        suffixes = tail (scanr (</>) "" segments)
+
+        -- try to call realpath on the largest possible prefix
+        realpathPrefix candidates =
+          case candidates of
+            [] -> return path
+            (prefix, suffix) : rest -> do
+              exist <- doesPathExist prefix
+              if not exist
+                -- never call realpath on an inaccessible path
+                -- (to avoid bugs in system realpath implementations)
+                -- try a smaller prefix instead
+                then realpathPrefix rest
+                else do
+                  mp <- tryIOError (realpath prefix)
+                  case mp of
+                    -- realpath failed: try a smaller prefix instead
+                    Left _ -> realpathPrefix rest
+                    -- realpath succeeded: fine-tune the result
+                    Right p -> realpathFurther (p </> suffix) p suffix
+
+        -- by now we have a reasonable fallback value that we can use if we
+        -- run into too many indirections; the fallback value is the same
+        -- result that we have been returning in versions prior to 1.3.1.0
+        -- (this is essentially the fix to #64)
+        realpathFurther fallback p suffix =
+          case splitDirectories suffix of
+            [] -> return fallback
+            next : restSuffix -> do
+              -- see if the 'next' segment is a symlink
+              mTarget <- tryIOError (getSymbolicLinkTarget (p </> next))
+              case mTarget of
+                Left _ -> return fallback
+                Right target -> do
+                  -- if so, dereference it and restart the whole cycle
+                  let mFallback' = Just (fromMaybe fallback mFallback)
+                  path' <- simplify (p </> target </> joinPath restSuffix)
+                  attemptRealpathWith (n - 1) mFallback' realpath path'
+
+-- | Convert a path into an absolute path.  If the given path is relative, the
+-- current directory is prepended and then the combined result is
+-- 'normalise'd.  If the path is already absolute, the path is simply
+-- 'normalise'd.  The function preserves the presence or absence of the
+-- trailing path separator unless the path refers to the root directory @/@.
+--
+-- If the path is already absolute, the operation never fails.  Otherwise, the
+-- operation may fail with the same exceptions as 'getCurrentDirectory'.
+--
+-- @since 1.2.2.0
+--
+makeAbsolute :: FilePath -> IO FilePath
+makeAbsolute path =
+  modifyIOError ((`ioeAddLocation` "makeAbsolute") .
+                 (`ioeSetFileName` path)) $
+  matchTrailingSeparator path . normalise <$> prependCurrentDirectory path
+
+-- | Add or remove the trailing path separator in the second path so as to
+-- match its presence in the first path.
+--
+-- (internal API)
+matchTrailingSeparator :: FilePath -> FilePath -> FilePath
+matchTrailingSeparator path
+  | hasTrailingPathSeparator path = addTrailingPathSeparator
+  | otherwise                     = dropTrailingPathSeparator
+
+-- | Construct a path relative to the current directory, similar to
+-- 'makeRelative'.
+--
+-- The operation may fail with the same exceptions as 'getCurrentDirectory'.
 makeRelativeToCurrentDirectory :: FilePath -> IO FilePath
 makeRelativeToCurrentDirectory x = do
     cur <- getCurrentDirectory
     return $ makeRelative cur x
 
--- | Given an executable file name, searches for such file in the
--- directories listed in system PATH. The returned value is the path
--- to the found executable or Nothing if an executable with the given
--- name was not found. For example (findExecutable \"ghc\") gives you
--- the path to GHC.
+-- | Given the name or path of an executable file, 'findExecutable' searches
+-- for such a file in a list of system-defined locations, which generally
+-- includes @PATH@ and possibly more.  The full path to the executable is
+-- returned if found.  For example, @(findExecutable \"ghc\")@ would normally
+-- give you the path to GHC.
 --
--- The path returned by 'findExecutable' corresponds to the
--- program that would be executed by 'System.Process.createProcess'
--- when passed the same string (as a RawCommand, not a ShellCommand).
+-- The path returned by @'findExecutable' name@ corresponds to the program
+-- that would be executed by 'System.Process.createProcess' when passed the
+-- same string (as a @RawCommand@, not a @ShellCommand@), provided that @name@
+-- is not a relative path with more than one segment.
 --
--- On Windows, 'findExecutable' calls the Win32 function 'SearchPath',
--- which may search other places before checking the directories in
--- @PATH@.  Where it actually searches depends on registry settings,
--- but notably includes the directory containing the current
--- executable. See
--- <http://msdn.microsoft.com/en-us/library/aa365527.aspx> for more
--- details.
+-- On Windows, 'findExecutable' calls the Win32 function
+-- @<https://msdn.microsoft.com/en-us/library/aa365527.aspx SearchPath>@,
+-- which may search other places before checking the directories in the @PATH@
+-- environment variable.  Where it actually searches depends on registry
+-- settings, but notably includes the directory containing the current
+-- executable.
 --
+-- On non-Windows platforms, the behavior is equivalent to 'findFileWith'
+-- using the search directories from the @PATH@ environment variable and
+-- testing each file for executable permissions.  Details can be found in the
+-- documentation of 'findFileWith'.
 findExecutable :: String -> IO (Maybe FilePath)
-findExecutable fileName = do
-   files <- findExecutables fileName
-   return $ listToMaybe files
+findExecutable binary = do
+    path <- getPath
+    findFileWith isExecutable path (binary <.> exeExtension)
 
--- | Given a file name, searches for the file and returns a list of all
--- occurences that are executable.
+-- | Search for executable files in a list of system-defined locations, which
+-- generally includes @PATH@ and possibly more.
 --
--- /Since: 1.2.1.0/
+-- On Windows, this /only returns the first ocurrence/, if any.  Its behavior
+-- is therefore equivalent to 'findExecutable'.
+--
+-- On non-Windows platforms, the behavior is equivalent to
+-- 'findExecutablesInDirectories' using the search directories from the @PATH@
+-- environment variable.  Details can be found in the documentation of
+-- 'findExecutablesInDirectories'.
+--
+-- @since 1.2.2.0
 findExecutables :: String -> IO [FilePath]
 findExecutables binary = do
+    path <- getPath
+    findExecutablesInDirectories path binary
+
+-- | Get the contents of the @PATH@ environment variable.
+getPath :: IO [FilePath]
+getPath = do
     path <- getEnv "PATH"
-    findFilesWith isExecutable (splitSearchPath path) (binary <.> exeExtension)
-  where isExecutable file = do
-            perms <- getPermissions file
-            return $ executable perms
+    return (splitSearchPath path)
 
--- | Search through the given set of directories for the given file.
--- Used by 'findExecutable' on non-windows platforms.
-findFile :: [FilePath] -> String -> IO (Maybe FilePath)
-findFile path fileName = do
-    files <- findFiles path fileName
-    return $ listToMaybe files
-
--- | Search through the given set of directories for the given file and
--- returns a list of paths where the given file exists.
+-- | Given a name or path, 'findExecutable' appends the 'exeExtension' to the
+-- query and searches for executable files in the list of given search
+-- directories and returns all occurrences.
 --
--- /Since: 1.2.1.0/
+-- The behavior is equivalent to 'findFileWith' using the given search
+-- directories and testing each file for executable permissions.  Details can
+-- be found in the documentation of 'findFileWith'.
+--
+-- Unlike other similarly named functions, 'findExecutablesInDirectories' does
+-- not use @SearchPath@ from the Win32 API.  The behavior of this function on
+-- Windows is therefore equivalent to those on non-Windows platforms.
+--
+-- @since 1.2.4.0
+findExecutablesInDirectories :: [FilePath] -> String -> IO [FilePath]
+findExecutablesInDirectories path binary =
+    findFilesWith isExecutable path (binary <.> exeExtension)
+
+-- | Test whether a file has executable permissions.
+isExecutable :: FilePath -> IO Bool
+isExecutable file = do
+    perms <- getPermissions file
+    return (executable perms)
+
+-- | Search through the given list of directories for the given file.
+--
+-- The behavior is equivalent to 'findFileWith', returning only the first
+-- occurrence.  Details can be found in the documentation of 'findFileWith'.
+findFile :: [FilePath] -> String -> IO (Maybe FilePath)
+findFile = findFileWith (\_ -> return True)
+
+-- | Search through the given list of directories for the given file and
+-- returns all paths where the given file exists.
+--
+-- The behavior is equivalent to 'findFilesWith'.  Details can be found in the
+-- documentation of 'findFilesWith'.
+--
+-- @since 1.2.1.0
 findFiles :: [FilePath] -> String -> IO [FilePath]
 findFiles = findFilesWith (\_ -> return True)
 
--- | Search through the given set of directories for the given file and
--- with the given property (usually permissions) and returns a list of
--- paths where the given file exists and has the property.
+-- | Search through a given list of directories for a file that has the given
+-- name and satisfies the given predicate and return the path of the first
+-- occurrence.  The directories are checked in a left-to-right order.
 --
--- /Since: 1.2.1.0/
+-- This is essentially a more performant version of 'findFilesWith' that
+-- always returns the first result, if any.  Details can be found in the
+-- documentation of 'findFilesWith'.
+--
+-- @since 1.2.6.0
+findFileWith :: (FilePath -> IO Bool) -> [FilePath] -> String -> IO (Maybe FilePath)
+findFileWith f ds name = listTHead (findFilesWithLazy f ds name)
+
+-- | @findFilesWith predicate dirs name@ searches through the list of
+-- directories (@dirs@) for files that have the given @name@ and satisfy the
+-- given @predicate@ ands return the paths of those files.  The directories
+-- are checked in a left-to-right order and the paths are returned in the same
+-- order.
+--
+-- If the @name@ is a relative path, then for every search directory @dir@,
+-- the function checks whether @dir '</>' name@ exists and satisfies the
+-- predicate.  If so, @dir '</>' name@ is returned as one of the results.  In
+-- other words, the returned paths can be either relative or absolute
+-- depending on the search directories were used.  If there are no search
+-- directories, no results are ever returned.
+--
+-- If the @name@ is an absolute path, then the function will return a single
+-- result if the file exists and satisfies the predicate and no results
+-- otherwise.  This is irrespective of what search directories were given.
+--
+-- @since 1.2.1.0
 findFilesWith :: (FilePath -> IO Bool) -> [FilePath] -> String -> IO [FilePath]
-findFilesWith _ [] _ = return []
-findFilesWith f (d:ds) fileName = do
-    let file = d </> fileName
-    exist <- doesFileExist file
-    b <- if exist then f file else return False
-    if b then do
-               files <- findFilesWith f ds fileName
-               return $ file : files
-        else findFilesWith f ds fileName
+findFilesWith f ds name = listTToList (findFilesWithLazy f ds name)
 
-{- |@'getDirectoryContents' dir@ returns a list of /all/ entries
-in /dir/.
+findFilesWithLazy
+  :: (FilePath -> IO Bool) -> [FilePath] -> String -> ListT IO FilePath
+findFilesWithLazy f dirs path
+  -- make sure absolute paths are handled properly irrespective of 'dirs'
+  -- https://github.com/haskell/directory/issues/72
+  | isAbsolute path = ListT (find [""])
+  | otherwise       = ListT (find dirs)
 
-The operation may fail with:
+  where
 
-* 'HardwareFault'
-A physical I\/O error has occurred.
-@[EIO]@
+    find []       = return Nothing
+    find (d : ds) = do
+      let p = d </> path
+      found <- doesFileExist p `andM` f p
+      if found
+        then return (Just (p, ListT (find ds)))
+        else find ds
 
-* 'InvalidArgument'
-The operand is not a valid directory name.
-@[ENAMETOOLONG, ELOOP]@
+-- | Filename extension for executable files (including the dot if any)
+--   (usually @\"\"@ on POSIX systems and @\".exe\"@ on Windows or OS\/2).
+--
+-- @since 1.2.4.0
+exeExtension :: String
+exeExtension = Cfg.exeExtension
 
-* 'isDoesNotExistError' \/ 'NoSuchThing'
-The directory does not exist.
-@[ENOENT, ENOTDIR]@
-
-* 'isPermissionError' \/ 'PermissionDenied'
-The process has insufficient privileges to perform the operation.
-@[EACCES]@
-
-* 'ResourceExhausted'
-Insufficient resources are available to perform the operation.
-@[EMFILE, ENFILE]@
-
-* 'InappropriateType'
-The path refers to an existing non-directory object.
-@[ENOTDIR]@
-
--}
-
+-- | Similar to 'listDirectory', but always includes the special entries (@.@
+-- and @..@).  (This applies to Windows as well.)
+--
+-- The operation may fail with the same exceptions as 'listDirectory'.
 getDirectoryContents :: FilePath -> IO [FilePath]
 getDirectoryContents path =
   modifyIOError ((`ioeSetFileName` path) .
-                 (`ioeSetLocation` "getDirectoryContents")) $ do
+                 (`ioeAddLocation` "getDirectoryContents")) $ do
     bracket
       (Posix.openDirStream path)
       Posix.closeDirStream
-      loop
+      start
  where
-  loop dirp = do
-     e <- Posix.readDirStream dirp
-     if null e then return [] else do
-       es <- loop dirp
-       return (e:es)
+  start dirp =
+      loop id
+    where
+      loop acc = do
+        e <- Posix.readDirStream dirp
+        if null e
+          then return (acc [])
+          else loop (acc . (e:))
 
+-- | @'listDirectory' dir@ returns a list of /all/ entries in /dir/ without
+-- the special entries (@.@ and @..@).
+--
+-- The operation may fail with:
+--
+-- * 'HardwareFault'
+--   A physical I\/O error has occurred.
+--   @[EIO]@
+--
+-- * 'InvalidArgument'
+--   The operand is not a valid directory name.
+--   @[ENAMETOOLONG, ELOOP]@
+--
+-- * 'isDoesNotExistError' \/ 'NoSuchThing'
+--   The directory does not exist.
+--   @[ENOENT, ENOTDIR]@
+--
+-- * 'isPermissionError' \/ 'PermissionDenied'
+--   The process has insufficient privileges to perform the operation.
+--   @[EACCES]@
+--
+-- * 'ResourceExhausted'
+--   Insufficient resources are available to perform the operation.
+--   @[EMFILE, ENFILE]@
+--
+-- * 'InappropriateType'
+--   The path refers to an existing non-directory object.
+--   @[ENOTDIR]@
+--
+-- @since 1.2.5.0
+--
+listDirectory :: FilePath -> IO [FilePath]
+listDirectory path =
+  (filter f) <$> (getDirectoryContents path)
+  where f filename = filename /= "." && filename /= ".."
 
-
-{- |If the operating system has a notion of current directories,
-'getCurrentDirectory' returns an absolute path to the
-current directory of the calling process.
-
-The operation may fail with:
-
-* 'HardwareFault'
-A physical I\/O error has occurred.
-@[EIO]@
-
-* 'isDoesNotExistError' \/ 'NoSuchThing'
-There is no path referring to the current directory.
-@[EPERM, ENOENT, ESTALE...]@
-
-* 'isPermissionError' \/ 'PermissionDenied'
-The process has insufficient privileges to perform the operation.
-@[EACCES]@
-
-* 'ResourceExhausted'
-Insufficient resources are available to perform the operation.
-
-* 'UnsupportedOperation'
-The operating system has no notion of current directory.
-
-Note that in a concurrent program, the current directory is global
-state shared between all threads of the process.  When using
-filesystem operations from multiple threads, it is therefore highly
-recommended to use absolute rather than relative `FilePath`s.
-
--}
-getCurrentDirectory :: IO FilePath
-getCurrentDirectory = do
-  Posix.getWorkingDirectory
-
-{- |If the operating system has a notion of current directories,
-@'setCurrentDirectory' dir@ changes the current
-directory of the calling process to /dir/.
-
-The operation may fail with:
-
-* 'HardwareFault'
-A physical I\/O error has occurred.
-@[EIO]@
-
-* 'InvalidArgument'
-The operand is not a valid directory name.
-@[ENAMETOOLONG, ELOOP]@
-
-* 'isDoesNotExistError' \/ 'NoSuchThing'
-The directory does not exist.
-@[ENOENT, ENOTDIR]@
-
-* 'isPermissionError' \/ 'PermissionDenied'
-The process has insufficient privileges to perform the operation.
-@[EACCES]@
-
-* 'UnsupportedOperation'
-The operating system has no notion of current directory, or the
-current directory cannot be dynamically changed.
-
-* 'InappropriateType'
-The path refers to an existing non-directory object.
-@[ENOTDIR]@
-
-Note that in a concurrent program, the current directory is global
-state shared between all threads of the process.  When using
-filesystem operations from multiple threads, it is therefore highly
-recommended to use absolute rather than relative `FilePath`s.
-
--}
-
+-- | Change the working directory to the given path.
+--
+-- In a multithreaded program, the current working directory is a global state
+-- shared among all threads of the process.  Therefore, when performing
+-- filesystem operations from multiple threads, it is highly recommended to
+-- use absolute rather than relative paths (see: 'makeAbsolute').
+--
+-- The operation may fail with:
+--
+-- * 'HardwareFault'
+-- A physical I\/O error has occurred.
+-- @[EIO]@
+--
+-- * 'InvalidArgument'
+-- The operand is not a valid directory name.
+-- @[ENAMETOOLONG, ELOOP]@
+--
+-- * 'isDoesNotExistError' or 'NoSuchThing'
+-- The directory does not exist.
+-- @[ENOENT, ENOTDIR]@
+--
+-- * 'isPermissionError' or 'PermissionDenied'
+-- The process has insufficient privileges to perform the operation.
+-- @[EACCES]@
+--
+-- * 'UnsupportedOperation'
+-- The operating system has no notion of current working directory, or the
+-- working directory cannot be dynamically changed.
+--
+-- * 'InappropriateType'
+-- The path refers to an existing non-directory object.
+-- @[ENOTDIR]@
+--
 setCurrentDirectory :: FilePath -> IO ()
-setCurrentDirectory path =
+setCurrentDirectory path = do
   Posix.changeWorkingDirectory path
 
+-- | Run an 'IO' action with the given working directory and restore the
+-- original working directory afterwards, even if the given action fails due
+-- to an exception.
+--
+-- The operation may fail with the same exceptions as 'getCurrentDirectory'
+-- and 'setCurrentDirectory'.
+--
+-- @since 1.2.3.0
+--
+withCurrentDirectory :: FilePath  -- ^ Directory to execute in
+                     -> IO a      -- ^ Action to be executed
+                     -> IO a
+withCurrentDirectory dir action =
+  bracket getCurrentDirectory setCurrentDirectory $ \ _ -> do
+    setCurrentDirectory dir
+    action
+
+-- | Obtain the size of a file in bytes.
+--
+-- @since 1.2.7.0
+getFileSize :: FilePath -> IO Integer
+getFileSize path =
+  (`ioeAddLocation` "getFileSize") `modifyIOError` do
+    fileSizeFromMetadata <$> getFileMetadata path
+
+-- | Test whether the given path points to an existing filesystem object.  If
+-- the user lacks necessary permissions to search the parent directories, this
+-- function may return false even if the file does actually exist.
+--
+-- @since 1.2.7.0
+doesPathExist :: FilePath -> IO Bool
+doesPathExist path = do
+  (True <$ getFileMetadata path)
+    `catchIOError` \ _ ->
+      return False
 
 {- |The operation 'doesDirectoryExist' returns 'True' if the argument file
 exists and is either a directory or a symbolic link to a directory,
@@ -850,60 +1410,271 @@ and 'False' otherwise.
 -}
 
 doesDirectoryExist :: FilePath -> IO Bool
-doesDirectoryExist name =
-   (do stat <- Posix.getFileStatus name
-       return (Posix.isDirectory stat))
-   `E.catch` ((\ _ -> return False) :: IOException -> IO Bool)
+doesDirectoryExist path = do
+  pathIsDirectory path
+    `catchIOError` \ _ ->
+      return False
 
 {- |The operation 'doesFileExist' returns 'True'
 if the argument file exists and is not a directory, and 'False' otherwise.
 -}
 
 doesFileExist :: FilePath -> IO Bool
-doesFileExist name =
-   (do stat <- Posix.getFileStatus name
-       return (not (Posix.isDirectory stat)))
-   `E.catch` ((\ _ -> return False) :: IOException -> IO Bool)
+doesFileExist path = do
+  (not <$> pathIsDirectory path)
+    `catchIOError` \ _ ->
+      return False
 
-{- |The 'getModificationTime' operation returns the
-clock time at which the file or directory was last modified.
+pathIsDirectory :: FilePath -> IO Bool
+pathIsDirectory path = (`ioeAddLocation` "pathIsDirectory") `modifyIOError` do
+  m <- getFileMetadata path
+  case fileTypeFromMetadata m of
+    Directory     -> return True
+    DirectoryLink -> return True
+    _             -> return False
 
-The operation may fail with:
+-- | Create a /file/ symbolic link.  The target path can be either absolute or
+-- relative and need not refer to an existing file.  The order of arguments
+-- follows the POSIX convention.
+--
+-- To remove an existing file symbolic link, use 'removeFile'.
+--
+-- Although the distinction between /file/ symbolic links and /directory/
+-- symbolic links does not exist on POSIX systems, on Windows this is an
+-- intrinsic property of every symbolic link and cannot be changed without
+-- recreating the link.  A file symbolic link that actually points to a
+-- directory will fail to dereference and vice versa.  Moreover, creating
+-- symbolic links on Windows requires privileges normally unavailable to users
+-- outside the Administrators group.  Portable programs that use symbolic
+-- links should take both into consideration.
+--
+-- On Windows, the function is implemented using @CreateSymbolicLink@ with
+-- @dwFlags@ set to zero.  On POSIX, the function uses @symlink@ and
+-- is therefore atomic.
+--
+-- Windows-specific errors: This operation may fail with 'permissionErrorType'
+-- if the user lacks the privileges to create symbolic links.  It may also
+-- fail with 'illegalOperationErrorType' if the file system does not support
+-- symbolic links.
+--
+-- @since 1.3.1.0
+createFileLink
+  :: FilePath                           -- ^ path to the target file
+  -> FilePath                           -- ^ path of the link to be created
+  -> IO ()
+createFileLink target link =
+  (`ioeAddLocation` "createFileLink") `modifyIOError` do
+    Posix.createSymbolicLink target link
 
-* 'isPermissionError' if the user is not permitted to access
-  the modification time; or
+-- | Create a /directory/ symbolic link.  The target path can be either
+-- absolute or relative and need not refer to an existing directory.  The
+-- order of arguments follows the POSIX convention.
+--
+-- To remove an existing directory symbolic link, use 'removeDirectoryLink'.
+--
+-- Although the distinction between /file/ symbolic links and /directory/
+-- symbolic links does not exist on POSIX systems, on Windows this is an
+-- intrinsic property of every symbolic link and cannot be changed without
+-- recreating the link.  A file symbolic link that actually points to a
+-- directory will fail to dereference and vice versa.  Moreover, creating
+-- symbolic links on Windows requires privileges normally unavailable to users
+-- outside the Administrators group.  Portable programs that use symbolic
+-- links should take both into consideration.
+--
+-- On Windows, the function is implemented using @CreateSymbolicLink@ with
+-- @dwFlags@ set to @SYMBOLIC_LINK_FLAG_DIRECTORY@.  On POSIX, this is an
+-- alias for 'createFileLink' and is therefore atomic.
+--
+-- Windows-specific errors: This operation may fail with 'permissionErrorType'
+-- if the user lacks the privileges to create symbolic links.  It may also
+-- fail with 'illegalOperationErrorType' if the file system does not support
+-- symbolic links.
+--
+-- @since 1.3.1.0
+createDirectoryLink
+  :: FilePath                           -- ^ path to the target directory
+  -> FilePath                           -- ^ path of the link to be created
+  -> IO ()
+createDirectoryLink target link =
+  (`ioeAddLocation` "createDirectoryLink") `modifyIOError` do
+    createFileLink target link
 
-* 'isDoesNotExistError' if the file or directory does not exist.
+-- | Remove an existing /directory/ symbolic link.
+--
+-- On Windows, this is an alias for 'removeDirectory'.  On POSIX systems, this
+-- is an alias for 'removeFile'.
+--
+-- See also: 'removeFile', which can remove an existing /file/ symbolic link.
+--
+-- @since 1.3.1.0
+removeDirectoryLink :: FilePath -> IO ()
+removeDirectoryLink path =
+  (`ioeAddLocation` "removeDirectoryLink") `modifyIOError` do
+    removeFile path
 
-Note: When linked against @unix-2.6.0.0@ or later the reported time
-supports sub-second precision if provided by the underlying system
-call.
+-- | Check whether the path refers to a symbolic link.  An exception is thrown
+-- if the path does not exist or is inaccessible.
+--
+-- On Windows, this checks for @FILE_ATTRIBUTE_REPARSE_POINT@.  In addition to
+-- symbolic links, the function also returns true on junction points.  On
+-- POSIX systems, this checks for @S_IFLNK@.
+--
+-- @since 1.3.0.0
+pathIsSymbolicLink :: FilePath -> IO Bool
+pathIsSymbolicLink path =
+  ((`ioeAddLocation` "pathIsSymbolicLink") .
+   (`ioeSetFileName` path)) `modifyIOError` do
+    m <- getSymbolicLinkMetadata path
+    return $
+      case fileTypeFromMetadata m of
+        DirectoryLink -> True
+        SymbolicLink  -> True
+        _             -> False
 
--}
+{-# DEPRECATED isSymbolicLink "Use 'pathIsSymbolicLink' instead" #-}
+isSymbolicLink :: FilePath -> IO Bool
+isSymbolicLink = pathIsSymbolicLink
 
+-- | Retrieve the target path of either a file or directory symbolic link.
+-- The returned path may not be absolute, may not exist, and may not even be a
+-- valid path.
+--
+-- On Windows systems, this calls @DeviceIoControl@ with
+-- @FSCTL_GET_REPARSE_POINT@.  In addition to symbolic links, the function
+-- also works on junction points.  On POSIX systems, this calls `readlink`.
+--
+-- Windows-specific errors: This operation may fail with
+-- 'illegalOperationErrorType' if the file system does not support symbolic
+-- links.
+--
+-- @since 1.3.1.0
+getSymbolicLinkTarget :: FilePath -> IO FilePath
+getSymbolicLinkTarget path =
+  (`ioeAddLocation` "getSymbolicLinkTarget") `modifyIOError` do
+    Posix.readSymbolicLink path
+
+
+-- | Obtain the time at which the file or directory was last accessed.
+--
+-- The operation may fail with:
+--
+-- * 'isPermissionError' if the user is not permitted to read
+--   the access time; or
+--
+-- * 'isDoesNotExistError' if the file or directory does not exist.
+--
+-- Caveat for POSIX systems: This function returns a timestamp with sub-second
+-- resolution only if this package is compiled against @unix-2.6.0.0@ or later
+-- and the underlying filesystem supports them.
+--
+-- @since 1.2.3.0
+--
+getAccessTime :: FilePath -> IO UTCTime
+getAccessTime path =
+  modifyIOError (`ioeAddLocation` "getAccessTime") $ do
+    accessTimeFromMetadata <$> getFileMetadata path
+
+-- | Obtain the time at which the file or directory was last modified.
+--
+-- The operation may fail with:
+--
+-- * 'isPermissionError' if the user is not permitted to read
+--   the modification time; or
+--
+-- * 'isDoesNotExistError' if the file or directory does not exist.
+--
+-- Caveat for POSIX systems: This function returns a timestamp with sub-second
+-- resolution only if this package is compiled against @unix-2.6.0.0@ or later
+-- and the underlying filesystem supports them.
+--
 getModificationTime :: FilePath -> IO UTCTime
-getModificationTime name = do
-  stat <- Posix.getFileStatus name
-  let mod_time :: POSIXTime
-      mod_time = Posix.modificationTimeHiRes stat
-  return $ posixSecondsToUTCTime mod_time
+getModificationTime path =
+  modifyIOError (`ioeAddLocation` "getModificationTime") $ do
+    modificationTimeFromMetadata <$> getFileMetadata path
 
+-- | Change the time at which the file or directory was last accessed.
+--
+-- The operation may fail with:
+--
+-- * 'isPermissionError' if the user is not permitted to alter the
+--   access time; or
+--
+-- * 'isDoesNotExistError' if the file or directory does not exist.
+--
+-- Some caveats for POSIX systems:
+--
+-- * Not all systems support @utimensat@, in which case the function can only
+--   emulate the behavior by reading the modification time and then setting
+--   both the access and modification times together.  On systems where
+--   @utimensat@ is supported, the access time is set atomically with
+--   nanosecond precision.
+--
+-- * If compiled against a version of @unix@ prior to @2.7.0.0@, the function
+--   would not be able to set timestamps with sub-second resolution.  In this
+--   case, there would also be loss of precision in the modification time.
+--
+-- @since 1.2.3.0
+--
+setAccessTime :: FilePath -> UTCTime -> IO ()
+setAccessTime path atime =
+  modifyIOError (`ioeAddLocation` "setAccessTime") $
+    setFileTimes path (Just atime, Nothing)
 
+-- | Change the time at which the file or directory was last modified.
+--
+-- The operation may fail with:
+--
+-- * 'isPermissionError' if the user is not permitted to alter the
+--   modification time; or
+--
+-- * 'isDoesNotExistError' if the file or directory does not exist.
+--
+-- Some caveats for POSIX systems:
+--
+-- * Not all systems support @utimensat@, in which case the function can only
+--   emulate the behavior by reading the access time and then setting both the
+--   access and modification times together.  On systems where @utimensat@ is
+--   supported, the modification time is set atomically with nanosecond
+--   precision.
+--
+-- * If compiled against a version of @unix@ prior to @2.7.0.0@, the function
+--   would not be able to set timestamps with sub-second resolution.  In this
+--   case, there would also be loss of precision in the access time.
+--
+-- @since 1.2.3.0
+--
+setModificationTime :: FilePath -> UTCTime -> IO ()
+setModificationTime path mtime =
+  modifyIOError (`ioeAddLocation` "setModificationTime") $
+    setFileTimes path (Nothing, Just mtime)
 
-foreign import ccall unsafe "__hscore_long_path_size"
-  long_path_size :: Int
+setFileTimes :: FilePath -> (Maybe UTCTime, Maybe UTCTime) -> IO ()
+setFileTimes _ (Nothing, Nothing) = return ()
+setFileTimes path (atime, mtime) =
+  modifyIOError (`ioeAddLocation` "setFileTimes") .
+  modifyIOError (`ioeSetFileName` path) $
+    setTimes (utcTimeToPOSIXSeconds <$> atime, utcTimeToPOSIXSeconds <$> mtime)
+  where
+    path' = normalise path              -- handle empty paths
+
+    setTimes :: (Maybe POSIXTime, Maybe POSIXTime) -> IO ()
+    setTimes (atime', mtime') =
+      withFilePath path' $ \ path'' ->
+      withArray [ maybe utimeOmit toCTimeSpec atime'
+                , maybe utimeOmit toCTimeSpec mtime' ] $ \ times ->
+      throwErrnoPathIfMinus1_ "" path' $
+        c_utimensat c_AT_FDCWD path'' times 0
 
 {- | Returns the current user's home directory.
 
 The directory returned is expected to be writable by the current user,
 but note that it isn't generally considered good practice to store
-application-specific data here; use 'getAppUserDataDirectory'
-instead.
+application-specific data here; use 'getXdgDirectory' or
+'getAppUserDataDirectory' instead.
 
 On Unix, 'getHomeDirectory' returns the value of the @HOME@
 environment variable.  On Windows, the system is queried for a
-suitable path; a typical path might be
-@C:\/Documents And Settings\/user@.
+suitable path; a typical path might be @C:\/Users\//\<user\>/@.
 
 The operation may fail with:
 
@@ -915,40 +1686,119 @@ The home directory for the current user does not exist, or
 cannot be found.
 -}
 getHomeDirectory :: IO FilePath
-getHomeDirectory =
-  modifyIOError ((`ioeSetLocation` "getHomeDirectory")) $ do
-    getEnv "HOME"
+getHomeDirectory = modifyIOError (`ioeAddLocation` "getHomeDirectory") get
+  where
+    get = getEnv "HOME"
 
-{- | Returns the pathname of a directory in which application-specific
-data for the current user can be stored.  The result of
-'getAppUserDataDirectory' for a given application is specific to
-the current user.
+-- | Special directories for storing user-specific application data,
+--   configuration, and cache files, as specified by the
+--   <http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html XDG Base Directory Specification>.
+--
+--   Note: On Windows, 'XdgData' and 'XdgConfig' map to the same directory.
+--
+--   @since 1.2.3.0
+data XdgDirectory
+  = XdgData
+    -- ^ For data files (e.g. images).
+    --   Defaults to @~\/.local\/share@ and can be
+    --   overridden by the @XDG_DATA_HOME@ environment variable.
+    --   On Windows, it is @%APPDATA%@
+    --   (e.g. @C:\/Users\//\<user\>/\/AppData\/Roaming@).
+    --   Can be considered as the user-specific equivalent of @\/usr\/share@.
+  | XdgConfig
+    -- ^ For configuration files.
+    --   Defaults to @~\/.config@ and can be
+    --   overridden by the @XDG_CONFIG_HOME@ environment variable.
+    --   On Windows, it is @%APPDATA%@
+    --   (e.g. @C:\/Users\//\<user\>/\/AppData\/Roaming@).
+    --   Can be considered as the user-specific equivalent of @\/etc@.
+  | XdgCache
+    -- ^ For non-essential files (e.g. cache).
+    --   Defaults to @~\/.cache@ and can be
+    --   overridden by the @XDG_CACHE_HOME@ environment variable.
+    --   On Windows, it is @%LOCALAPPDATA%@
+    --   (e.g. @C:\/Users\//\<user\>/\/AppData\/Local@).
+    --   Can be considered as the user-specific equivalent of @\/var\/cache@.
+  deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
-The argument should be the name of the application, which will be used
-to construct the pathname (so avoid using unusual characters that
-might result in an invalid pathname).
+-- | Obtain the paths to special directories for storing user-specific
+--   application data, configuration, and cache files, conforming to the
+--   <http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html XDG Base Directory Specification>.
+--   Compared with 'getAppUserDataDirectory', this function provides a more
+--   fine-grained hierarchy as well as greater flexibility for the user.
+--
+--   It also works on Windows, although in that case 'XdgData' and 'XdgConfig'
+--   will map to the same directory.
+--
+--   The second argument is usually the name of the application.  Since it
+--   will be integrated into the path, it must consist of valid path
+--   characters.
+--
+--   Note: The directory may not actually exist, in which case you would need
+--   to create it with file mode @700@ (i.e. only accessible by the owner).
+--
+--   @since 1.2.3.0
+getXdgDirectory :: XdgDirectory         -- ^ which special directory
+                -> FilePath             -- ^ a relative path that is appended
+                                        --   to the path; if empty, the base
+                                        --   path is returned
+                -> IO FilePath
+getXdgDirectory xdgDir suffix =
+  modifyIOError (`ioeAddLocation` "getXdgDirectory") $
+  normalise . (</> suffix) <$>
+  case xdgDir of
+    XdgData   -> get False "XDG_DATA_HOME"   ".local/share"
+    XdgConfig -> get False "XDG_CONFIG_HOME" ".config"
+    XdgCache  -> get True  "XDG_CACHE_HOME"  ".cache"
+  where
+    get _ name fallback = do
+      env <- lookupEnv name
+      case env of
+        Nothing                     -> fallback'
+        Just path | isRelative path -> fallback'
+                  | otherwise       -> return path
+      where fallback' = (</> fallback) <$> getHomeDirectory
 
-Note: the directory may not actually exist, and may need to be created
-first.  It is expected that the parent directory exists and is
-writable.
+-- | Return the value of an environment variable, or 'Nothing' if there is no
+--   such value.  (Equivalent to "lookupEnv" from base-4.6.)
+lookupEnv :: String -> IO (Maybe String)
+lookupEnv name = do
+  env <- tryIOErrorType isDoesNotExistError (getEnv name)
+  case env of
+    Left  _     -> return Nothing
+    Right value -> return (Just value)
 
-On Unix, this function returns @$HOME\/.appName@.  On Windows, a
-typical path might be
-
-> C:/Documents And Settings/user/Application Data/appName
-
-The operation may fail with:
-
-* 'UnsupportedOperation'
-The operating system has no notion of application-specific data directory.
-
-* 'isDoesNotExistError'
-The home directory for the current user does not exist, or
-cannot be found.
--}
-getAppUserDataDirectory :: String -> IO FilePath
+-- | Obtain the path to a special directory for storing user-specific
+--   application data (traditional Unix location).  Newer applications may
+--   prefer the the XDG-conformant location provided by 'getXdgDirectory'
+--   (<https://github.com/haskell/directory/issues/6#issuecomment-96521020 migration guide>).
+--
+--   The argument is usually the name of the application.  Since it will be
+--   integrated into the path, it must consist of valid path characters.
+--
+--   * On Unix-like systems, the path is @~\/./\<app\>/@.
+--   * On Windows, the path is @%APPDATA%\//\<app\>/@
+--     (e.g. @C:\/Users\//\<user\>/\/AppData\/Roaming\//\<app\>/@)
+--
+--   Note: the directory may not actually exist, in which case you would need
+--   to create it.  It is expected that the parent directory exists and is
+--   writable.
+--
+--   The operation may fail with:
+--
+--   * 'UnsupportedOperation'
+--     The operating system has no notion of application-specific data
+--     directory.
+--
+--   * 'isDoesNotExistError'
+--     The home directory for the current user does not exist, or cannot be
+--     found.
+--
+getAppUserDataDirectory :: FilePath     -- ^ a relative path that is appended
+                                        --   to the path
+                        -> IO FilePath
 getAppUserDataDirectory appName = do
-  modifyIOError ((`ioeSetLocation` "getAppUserDataDirectory")) $ do
+  modifyIOError (`ioeAddLocation` "getAppUserDataDirectory") $ do
     path <- getEnv "HOME"
     return (path++'/':'.':appName)
 
@@ -956,13 +1806,12 @@ getAppUserDataDirectory appName = do
 
 The directory returned is expected to be writable by the current user,
 but note that it isn't generally considered good practice to store
-application-specific data here; use 'getAppUserDataDirectory'
-instead.
+application-specific data here; use 'getXdgDirectory' or
+'getAppUserDataDirectory' instead.
 
 On Unix, 'getUserDocumentsDirectory' returns the value of the @HOME@
 environment variable.  On Windows, the system is queried for a
-suitable path; a typical path might be
-@C:\/Documents And Settings\/user\/My Documents@.
+suitable path; a typical path might be @C:\/Users\//\<user\>/\/Documents@.
 
 The operation may fail with:
 
@@ -975,7 +1824,7 @@ cannot be found.
 -}
 getUserDocumentsDirectory :: IO FilePath
 getUserDocumentsDirectory = do
-  modifyIOError ((`ioeSetLocation` "getUserDocumentsDirectory")) $ do
+  modifyIOError (`ioeAddLocation` "getUserDocumentsDirectory") $ do
     getEnv "HOME"
 
 {- | Returns the current directory for temporary files.
@@ -1005,13 +1854,6 @@ The operating system has no notion of temporary directory.
 The function doesn\'t verify whether the path exists.
 -}
 getTemporaryDirectory :: IO FilePath
-getTemporaryDirectory = do
-  getEnv "TMPDIR"
-    `catchIOError` \e -> if isDoesNotExistError e then return "/tmp"
-                          else throw e
-
--- ToDo: This should be determined via autoconf (AC_EXEEXT)
--- | Extension for executable files
--- (typically @\"\"@ on Unix and @\"exe\"@ on Windows or OS\/2)
-exeExtension :: String
-exeExtension = ""
+getTemporaryDirectory =
+  getEnv "TMPDIR" `catchIOError` \ err ->
+  if isDoesNotExistError err then return "/tmp" else ioError err

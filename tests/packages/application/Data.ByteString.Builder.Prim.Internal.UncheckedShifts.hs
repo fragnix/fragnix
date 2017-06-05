@@ -47,7 +47,16 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP, MagicHash #-}
+{-# LANGUAGE Unsafe #-}
 -- |
 -- Copyright   : (c) 2010 Simon Meier
 --
@@ -64,6 +73,27 @@
 -- These functions are undefined when the amount being shifted by is
 -- greater than the size in bits of a machine Int#.-
 --
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

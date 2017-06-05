@@ -47,6 +47,14 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP, ForeignFunctionInterface, BangPatterns #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE Unsafe #-}
@@ -98,14 +106,13 @@ import qualified Data.ByteString          as S (length, take, drop)
 import Data.Word        (Word8)
 import Foreign.Storable (Storable(sizeOf))
 
-import Data.Monoid      (Monoid(..))
+import Data.Semigroup   (Semigroup((<>)))
 import Control.DeepSeq  (NFData, rnf)
 
 import Data.String      (IsString(..))
 
 import Data.Typeable            (Typeable)
-import Data.Data                (Data(..))
-import Data.Data                (mkNoRepType)
+import Data.Data                (Data(..), mkNoRepType)
 
 -- | A space-efficient representation of a 'Word8' vector, supporting many
 -- efficient operations.
@@ -115,7 +122,6 @@ import Data.Data                (mkNoRepType)
 -- 8-bit characters.
 --
 data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
-
     deriving (Typeable)
 
 instance Eq  ByteString where
@@ -124,9 +130,12 @@ instance Eq  ByteString where
 instance Ord ByteString where
     compare = cmp
 
+instance Semigroup ByteString where
+    (<>)    = append
+
 instance Monoid ByteString where
     mempty  = Empty
-    mappend = append
+    mappend = (<>)
     mconcat = concat
 
 instance NFData ByteString where

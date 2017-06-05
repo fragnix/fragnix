@@ -1,31 +1,148 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Network/Wai/Handler/Warp/Settings.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables, ViewPatterns #-}
 {-# LANGUAGE PatternGuards, RankNTypes #-}
-{-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE ImpredicativeTypes, CPP #-}
 
 module Network.Wai.Handler.Warp.Settings where
 
+import Control.Concurrent (forkIOWithUnmask)
 import Control.Exception
 import Control.Monad (when, void)
-import Control.Concurrent (forkIOWithUnmask)
+import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as S8
+import Data.ByteString.Builder (byteString)
+import Data.Streaming.Network (HostPreference)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import Data.Streaming.Network (HostPreference)
+import Data.Version (showVersion)
 import GHC.IO.Exception (IOErrorType(..))
 import qualified Network.HTTP.Types as H
 import Network.Socket (SockAddr)
 import Network.Wai
 import Network.Wai.Handler.Warp.Timeout
 import Network.Wai.Handler.Warp.Types
+import qualified Paths_warp
 import System.IO (stderr)
 import System.IO.Error (ioeGetErrorType)
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.Encoding as TLE
-import Data.ByteString (ByteString)
-import qualified Data.ByteString.Char8 as S8
-import Data.Version (showVersion)
-import qualified Paths_warp
 
 -- | Various Warp server settings. This is purposely kept as an abstract data
 -- type so that new settings can be added without breaking backwards
@@ -34,7 +151,7 @@ import qualified Paths_warp
 --
 -- > setTimeout 20 defaultSettings
 data Settings = Settings
-    { settingsPort :: Int -- ^ Port to listen on. Default value: 3000
+    { settingsPort :: Port -- ^ Port to listen on. Default value: 3000
     , settingsHost :: HostPreference -- ^ Default value: HostIPv4
     , settingsOnException :: Maybe Request -> SomeException -> IO () -- ^ What to do with exceptions thrown by either the application or server. Default: ignore server-generated exceptions (see 'InvalidRequest') and print application-generated applications to stderr.
     , settingsOnExceptionResponse :: SomeException -> Response
@@ -47,7 +164,8 @@ data Settings = Settings
     , settingsOnClose :: SockAddr -> IO ()  -- ^ What to do when a connection is close. Default: do nothing.
     , settingsTimeout :: Int -- ^ Timeout value in seconds. Default value: 30
     , settingsManager :: Maybe Manager -- ^ Use an existing timeout manager instead of spawning a new one. If used, 'settingsTimeout' is ignored. Default is 'Nothing'
-    , settingsFdCacheDuration :: Int -- ^ Cache duratoin time of file descriptors in seconds. 0 means that the cache mechanism is not used. Default value: 10
+    , settingsFdCacheDuration :: Int -- ^ Cache duration time of file descriptors in seconds. 0 means that the cache mechanism is not used. Default value: 0
+    , settingsFileInfoCacheDuration :: Int -- ^ Cache duration time of file information in seconds. 0 means that the cache mechanism is not used. Default value: 0
     , settingsBeforeMainLoop :: IO ()
       -- ^ Code to run after the listening socket is ready but before entering
       -- the main event loop. Useful for signaling to tests that they can start
@@ -88,6 +206,27 @@ data Settings = Settings
       -- ^ Specify usage of the PROXY protocol.
       --
       -- Since 3.0.5.
+    , settingsSlowlorisSize :: Int
+      -- ^ Size of bytes read to prevent Slowloris protection. Default value: 2048
+      --
+      -- Since 3.1.2.
+    , settingsHTTP2Enabled :: Bool
+      -- ^ Whether to enable HTTP2 ALPN/upgrades. Default: True
+      --
+      -- Since 3.1.7.
+    , settingsLogger :: Request -> H.Status -> Maybe Integer -> IO ()
+      -- ^ A log function. Default: no action.
+      --
+      -- Since 3.X.X.
+    , settingsServerPushLogger :: Request -> ByteString -> Integer -> IO ()
+      -- ^ A HTTP/2 server push log function. Default: no action.
+      --
+      -- Since 3.X.X.
+    , settingsGracefulShutdownTimeout :: Maybe Int
+      -- ^ An optional timeout to limit the time (in seconds) waiting for
+      -- a graceful shutdown of the web server.
+      --
+      -- Since 3.2.8
     }
 
 -- | Specify usage of the PROXY protocol.
@@ -104,13 +243,14 @@ defaultSettings :: Settings
 defaultSettings = Settings
     { settingsPort = 3000
     , settingsHost = "*4"
-    , settingsOnException = defaultExceptionHandler
-    , settingsOnExceptionResponse = defaultExceptionResponse
+    , settingsOnException = defaultOnException
+    , settingsOnExceptionResponse = defaultOnExceptionResponse
     , settingsOnOpen = const $ return True
     , settingsOnClose = const $ return ()
     , settingsTimeout = 30
     , settingsManager = Nothing
-    , settingsFdCacheDuration = 10
+    , settingsFdCacheDuration = 0
+    , settingsFileInfoCacheDuration = 0
     , settingsBeforeMainLoop = return ()
     , settingsFork = void . forkIOWithUnmask
     , settingsNoParsePath = False
@@ -118,9 +258,14 @@ defaultSettings = Settings
     , settingsServerName = S8.pack $ "Warp/" ++ showVersion Paths_warp.version
     , settingsMaximumBodyFlush = Just 8192
     , settingsProxyProtocol = ProxyProtocolNone
+    , settingsSlowlorisSize = 2048
+    , settingsHTTP2Enabled = True
+    , settingsLogger = \_ _ _ -> return ()
+    , settingsServerPushLogger = \_ _ _ -> return ()
+    , settingsGracefulShutdownTimeout = Nothing
     }
 
--- | Apply the logic provided by 'defaultExceptionHandler' to determine if an
+-- | Apply the logic provided by 'defaultOnException' to determine if an
 -- exception should be shown or not. The goal is to hide exceptions which occur
 -- under the normal course of the web server running.
 --
@@ -134,26 +279,29 @@ defaultShouldDisplayException se
     | Just TimeoutThread <- fromException se = False
     | otherwise = True
 
-defaultExceptionHandler :: Maybe Request -> SomeException -> IO ()
-defaultExceptionHandler _ e =
+-- | Printing an exception to standard error
+--   if `defaultShouldDisplayException` returns `True`.
+--
+-- Since: 3.1.0
+defaultOnException :: Maybe Request -> SomeException -> IO ()
+defaultOnException _ e =
     when (defaultShouldDisplayException e)
         $ TIO.hPutStrLn stderr $ T.pack $ show e
 
-defaultExceptionResponse :: SomeException -> Response
-defaultExceptionResponse _ = responseLBS H.internalServerError500 [(H.hContentType, "text/plain; charset=utf-8")] "Something went wrong"
+-- | Sending 400 for bad requests. Sending 500 for internal server errors.
+--
+-- Since: 3.1.0
+defaultOnExceptionResponse :: SomeException -> Response
+defaultOnExceptionResponse e
+  | Just (_ :: InvalidRequest) <- fromException e = responseLBS H.badRequest400  [(H.hContentType, "text/plain; charset=utf-8")] "Bad Request"
+  | otherwise                                     = responseLBS H.internalServerError500 [(H.hContentType, "text/plain; charset=utf-8")] "Something went wrong"
 
--- | Default implementation of 'settingsOnExceptionResponse' for the debugging purpose. 500, text/plain, a showed exception.
+-- | Exception handler for the debugging purpose.
+--   500, text/plain, a showed exception.
+--
+-- Since: 2.0.3.2
 exceptionResponseForDebug :: SomeException -> Response
-exceptionResponseForDebug e = responseLBS H.internalServerError500 [(H.hContentType, "text/plain; charset=utf-8")] (TLE.encodeUtf8 $ TL.pack $ "Exception: " ++ show e)
-
-{-# DEPRECATED settingsPort "Use setPort instead" #-}
-{-# DEPRECATED settingsHost "Use setHost instead" #-}
-{-# DEPRECATED settingsOnException "Use setOnException instead" #-}
-{-# DEPRECATED settingsOnExceptionResponse "Use setOnExceptionResponse instead" #-}
-{-# DEPRECATED settingsOnOpen "Use setOnOpen instead" #-}
-{-# DEPRECATED settingsOnClose "Use setOnClose instead" #-}
-{-# DEPRECATED settingsTimeout "Use setTimeout instead" #-}
-{-# DEPRECATED settingsManager "Use setManager instead" #-}
-{-# DEPRECATED settingsFdCacheDuration "Use setFdCacheDuration instead" #-}
-{-# DEPRECATED settingsBeforeMainLoop "Use setBeforeMainLoop instead" #-}
-{-# DEPRECATED settingsNoParsePath "Use setNoParsePath instead" #-}
+exceptionResponseForDebug e =
+    responseBuilder H.internalServerError500
+                    [(H.hContentType, "text/plain; charset=utf-8")]
+                    $ byteString . S8.pack $ "Exception: " ++ show e

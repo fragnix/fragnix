@@ -1,5 +1,7 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "System/Log/FastLogger/File.hs" #-}
+{-# LANGUAGE Safe #-}
+
 module System.Log.FastLogger.File where
 
 import Control.Monad (unless, when)
@@ -9,13 +11,13 @@ import System.FilePath (takeDirectory)
 -- | The spec for logging files
 data FileLogSpec = FileLogSpec {
     log_file :: FilePath
-  , log_file_size :: Integer
-  , log_backup_number :: Int
+  , log_file_size :: Integer -- ^ Max log file size (in bytes) before requiring rotation.
+  , log_backup_number :: Int -- ^ Max number of rotated log files to keep around before overwriting the oldest one.
   }
 
 -- | Checking if a log file can be written.
-check :: FileLogSpec -> IO ()
-check spec = do
+check :: FilePath -> IO ()
+check file = do
     dirExist <- doesDirectoryExist dir
     unless dirExist $ fail $ dir ++ " does not exist or is not a directory."
     dirPerm <- getPermissions dir
@@ -25,7 +27,6 @@ check spec = do
         perm <- getPermissions file
         unless (writable perm) $ fail $ file ++ " is not writable."
   where
-    file = log_file spec
     dir = takeDirectory file
 
 -- | Rotating log files.
@@ -41,4 +42,3 @@ rotate spec = mapM_ move srcdsts
     move (src,dst) = do
         exist <- doesFileExist src
         when exist $ renameFile src dst
-

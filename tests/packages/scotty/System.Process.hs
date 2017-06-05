@@ -1,5 +1,5 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Process.hs" #-}
+{-# LINE 1 "System/Process.hs" #-}
 
 
 
@@ -49,19 +49,18 @@
 
 
 
-{-# LINE 1 "System/Process.hsc" #-}
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP, ForeignFunctionInterface #-}
-{-# LINE 2 "System/Process.hsc" #-}
-
-{-# LINE 3 "System/Process.hsc" #-}
-
-{-# LINE 6 "System/Process.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
-
-{-# LINE 8 "System/Process.hsc" #-}
+{-# LANGUAGE Safe #-}
 {-# LANGUAGE InterruptibleFFI #-}
-
-{-# LINE 10 "System/Process.hsc" #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -95,8 +94,11 @@ module System.Process (
     callCommand,
     spawnProcess,
     spawnCommand,
+    readCreateProcess,
     readProcess,
+    readCreateProcessWithExitCode,
     readProcessWithExitCode,
+    withCreateProcess,
 
     -- ** Related utilities
     showCommandForUser,
@@ -112,6 +114,7 @@ module System.Process (
 
     -- Interprocess communication
     createPipe,
+    createPipeFd,
 
     -- * Old deprecated functions
     -- | These functions pre-date 'createProcess' which is much more
@@ -130,7 +133,7 @@ import System.Process.Internals
 
 import Control.Concurrent
 import Control.DeepSeq (rnf)
-import Control.Exception (SomeException, mask, try, throwIO)
+import Control.Exception (SomeException, mask, bracket, try, throwIO)
 import qualified Control.Exception as C
 import Control.Monad
 import Data.Maybe
@@ -140,24 +143,10 @@ import System.Exit      ( ExitCode(..) )
 import System.IO
 import System.IO.Error (mkIOError, ioeSetErrorString)
 
+-- Provide the data constructors for CPid on GHC 7.4 and later
+import System.Posix.Types (CPid (..))
 
-{-# LINE 94 "System/Process.hsc" #-}
-import System.Posix.Process (getProcessGroupIDOf)
-import qualified System.Posix.IO as Posix
-import System.Posix.Types
-
-{-# LINE 98 "System/Process.hsc" #-}
-
-
-{-# LINE 100 "System/Process.hsc" #-}
 import GHC.IO.Exception ( ioException, IOErrorType(..), IOException(..) )
-
-{-# LINE 105 "System/Process.hsc" #-}
-import System.Posix.Signals
-
-{-# LINE 107 "System/Process.hsc" #-}
-
-{-# LINE 108 "System/Process.hsc" #-}
 
 -- ----------------------------------------------------------------------------
 -- createProcess
@@ -175,7 +164,13 @@ proc cmd args = CreateProcess { cmdspec = RawCommand cmd args,
                                 std_err = Inherit,
                                 close_fds = False,
                                 create_group = False,
-                                delegate_ctlc = False}
+                                delegate_ctlc = False,
+                                detach_console = False,
+                                create_new_console = False,
+                                new_session = False,
+                                child_group = Nothing,
+                                child_user = Nothing,
+                                use_process_jobs = False }
 
 -- | Construct a 'CreateProcess' record for passing to 'createProcess',
 -- representing a command to be passed to the shell.
@@ -188,7 +183,13 @@ shell str = CreateProcess { cmdspec = ShellCommand str,
                             std_err = Inherit,
                             close_fds = False,
                             create_group = False,
-                            delegate_ctlc = False}
+                            delegate_ctlc = False,
+                            detach_console = False,
+                            create_new_console = False,
+                            new_session = False,
+                            child_group = Nothing,
+                            child_user = Nothing,
+                            use_process_jobs = False }
 
 {- |
 This is the most general way to spawn an external process.  The
@@ -233,7 +234,8 @@ Note that @Handle@s provided for @std_in@, @std_out@, or @std_err@ via the
 @UseHandle@ constructor will be closed by calling this function. This is not
 always the desired behavior. In cases where you would like to leave the
 @Handle@ open after spawning the child process, please use 'createProcess_'
-instead.
+instead. All created @Handle@s are initially in text mode; if you need them
+to be in binary mode then use 'hSetBinaryMode'.
 
 -}
 createProcess
@@ -252,29 +254,28 @@ createProcess cp = do
   maybeCloseStd _ = return ()
 
 {-
--- TODO: decide if we want to expose this to users
--- | A 'C.bracketOnError'-style resource handler for 'createProcess'.
+-- | A 'C.bracket'-style resource handler for 'createProcess'.
 --
--- In normal operation it adds nothing, you are still responsible for waiting
--- for (or forcing) process termination and closing any 'Handle's. It only does
--- automatic cleanup if there is an exception. If there is an exception in the
--- body then it ensures that the process gets terminated and any 'CreatePipe'
--- 'Handle's are closed. In particular this means that if the Haskell thread
--- is killed (e.g. 'killThread'), that the external process is also terminated.
+-- Does automatic cleanup when the action finishes. If there is an exception
+-- in the body then it ensures that the process gets terminated and any
+-- 'CreatePipe' 'Handle's are closed. In particular this means that if the
+-- Haskell thread is killed (e.g. 'killThread'), that the external process is
+-- also terminated.
 --
 -- e.g.
 --
 -- > withCreateProcess (proc cmd args) { ... }  $ \_ _ _ ph -> do
 -- >   ...
 --
+-- @since 1.4.3.0
+-}
 withCreateProcess
   :: CreateProcess
   -> (Maybe Handle -> Maybe Handle -> Maybe Handle -> ProcessHandle -> IO a)
   -> IO a
 withCreateProcess c action =
-    C.bracketOnError (createProcess c) cleanupProcess
-                     (\(m_in, m_out, m_err, ph) -> action m_in m_out m_err ph)
--}
+    C.bracket (createProcess c) cleanupProcess
+              (\(m_in, m_out, m_err, ph) -> action m_in m_out m_err ph)
 
 -- wrapper so we can get exceptions with the appropriate function name.
 withCreateProcess_
@@ -289,7 +290,8 @@ withCreateProcess_ fun c action =
 
 cleanupProcess :: (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
                -> IO ()
-cleanupProcess (mb_stdin, mb_stdout, mb_stderr, ph) = do
+cleanupProcess (mb_stdin, mb_stdout, mb_stderr,
+                ph@(ProcessHandle _ delegating_ctlc _)) = do
     terminateProcess ph
     -- Note, it's important that other threads that might be reading/writing
     -- these handles also get killed off, since otherwise they might be holding
@@ -301,9 +303,16 @@ cleanupProcess (mb_stdin, mb_stdout, mb_stderr, ph) = do
     -- Indeed on Unix it's SIGTERM, which asks nicely but does not guarantee
     -- that it stops. If it doesn't stop, we don't want to hang, so we wait
     -- asynchronously using forkIO.
-    _ <- forkIO (waitForProcess ph >> return ())
-    return ()
 
+    -- However we want to end the Ctl-C handling synchronously, so we'll do
+    -- that synchronously, and set delegating_ctlc as False for the
+    -- waitForProcess (which would otherwise end the Ctl-C delegation itself).
+    when delegating_ctlc
+      stopDelegateControlC
+    _ <- forkIO (waitForProcess (resetCtlcDelegation ph) >> return ())
+    return ()
+  where
+    resetCtlcDelegation (ProcessHandle m _ l) = ProcessHandle m False l
 
 -- ----------------------------------------------------------------------------
 -- spawnProcess/spawnCommand
@@ -312,7 +321,7 @@ cleanupProcess (mb_stdin, mb_stdout, mb_stderr, ph) = do
 -- arguments. It does not wait for the program to finish, but returns the
 -- 'ProcessHandle'.
 --
--- /Since: 1.2.0.0/
+-- @since 1.2.0.0
 spawnProcess :: FilePath -> [String] -> IO ProcessHandle
 spawnProcess cmd args = do
     (_,_,_,p) <- createProcess_ "spawnProcess" (proc cmd args)
@@ -321,7 +330,7 @@ spawnProcess cmd args = do
 -- | Creates a new process to run the specified shell command.
 -- It does not wait for the program to finish, but returns the 'ProcessHandle'.
 --
--- /Since: 1.2.0.0/
+-- @since 1.2.0.0
 spawnCommand :: String -> IO ProcessHandle
 spawnCommand cmd = do
     (_,_,_,p) <- createProcess_ "spawnCommand" (shell cmd)
@@ -336,14 +345,14 @@ spawnCommand cmd = do
 -- exit code, an exception is raised.
 --
 -- If an asynchronous exception is thrown to the thread executing
--- @callProcess@. The forked process will be terminated and
+-- @callProcess@, the forked process will be terminated and
 -- @callProcess@ will wait (block) until the process has been
 -- terminated.
 --
--- /Since: 1.2.0.0/
+-- @since 1.2.0.0
 callProcess :: FilePath -> [String] -> IO ()
 callProcess cmd args = do
-    exit_code <- withCreateProcess_ "callCommand"
+    exit_code <- withCreateProcess_ "callProcess"
                    (proc cmd args) { delegate_ctlc = True } $ \_ _ _ p ->
                    waitForProcess p
     case exit_code of
@@ -354,11 +363,11 @@ callProcess cmd args = do
 -- command returns a non-zero exit code, an exception is raised.
 --
 -- If an asynchronous exception is thrown to the thread executing
--- @callCommand@. The forked process will be terminated and
+-- @callCommand@, the forked process will be terminated and
 -- @callCommand@ will wait (block) until the process has been
 -- terminated.
 --
--- /Since: 1.2.0.0/
+-- @since 1.2.0.0
 callCommand :: String -> IO ()
 callCommand cmd = do
     exit_code <- withCreateProcess_ "callCommand"
@@ -425,17 +434,18 @@ processFailedException fun cmd args exit_code =
 
 -- | @readProcess@ forks an external process, reads its standard output
 -- strictly, blocking until the process terminates, and returns the output
--- string.
+-- string. The external process inherits the standard error.
 --
 -- If an asynchronous exception is thrown to the thread executing
--- @readProcess@. The forked process will be terminated and @readProcess@ will
+-- @readProcess@, the forked process will be terminated and @readProcess@ will
 -- wait (block) until the process has been terminated.
 --
 -- Output is returned strictly, so this is not suitable for
 -- interactive applications.
 --
 -- This function throws an 'IOError' if the process 'ExitCode' is
--- anything other than 'ExitSuccess'.
+-- anything other than 'ExitSuccess'. If instead you want to get the
+-- 'ExitCode' then use 'readProcessWithExitCode'.
 --
 -- Users of this function should compile with @-threaded@ if they
 -- want other Haskell threads to keep running while waiting on
@@ -457,13 +467,29 @@ readProcess
     -> [String]                 -- ^ any arguments
     -> String                   -- ^ standard input
     -> IO String                -- ^ stdout
-readProcess cmd args input = do
-    let cp_opts = (proc cmd args) {
+readProcess cmd args = readCreateProcess $ proc cmd args
+
+-- | @readCreateProcess@ works exactly like 'readProcess' except that it
+-- lets you pass 'CreateProcess' giving better flexibility.
+--
+-- >  > readCreateProcess (shell "pwd" { cwd = "/etc/" }) ""
+-- >  "/etc\n"
+--
+-- Note that @Handle@s provided for @std_in@ or @std_out@ via the CreateProcess
+-- record will be ignored.
+--
+-- @since 1.2.3.0
+
+readCreateProcess
+    :: CreateProcess
+    -> String                   -- ^ standard input
+    -> IO String                -- ^ stdout
+readCreateProcess cp input = do
+    let cp_opts = cp {
                     std_in  = CreatePipe,
-                    std_out = CreatePipe,
-                    std_err = Inherit
+                    std_out = CreatePipe
                   }
-    (ex, output) <- withCreateProcess_ "readProcess" cp_opts $
+    (ex, output) <- withCreateProcess_ "readCreateProcess" cp_opts $
       \(Just inh) (Just outh) _ ph -> do
 
         -- fork off a thread to start consuming the output
@@ -486,40 +512,53 @@ readProcess cmd args input = do
 
     case ex of
      ExitSuccess   -> return output
-     ExitFailure r -> processFailedException "readProcess" cmd args r
+     ExitFailure r -> processFailedException "readCreateProcess" cmd args r
+  where
+    cmd = case cp of
+            CreateProcess { cmdspec = ShellCommand sc } -> sc
+            CreateProcess { cmdspec = RawCommand fp _ } -> fp
+    args = case cp of
+             CreateProcess { cmdspec = ShellCommand _ } -> []
+             CreateProcess { cmdspec = RawCommand _ args' } -> args'
 
-{- |
-@readProcessWithExitCode@ creates an external process, reads its
-standard output and standard error strictly, waits until the process
-terminates, and then returns the 'ExitCode' of the process,
-the standard output, and the standard error.
 
-If an asynchronous exception is thrown to the thread executing
-@readProcessWithExitCode@. The forked process will be terminated and
-@readProcessWithExitCode@ will wait (block) until the process has been
-terminated.
-
-'readProcess' and 'readProcessWithExitCode' are fairly simple wrappers
-around 'createProcess'.  Constructing variants of these functions is
-quite easy: follow the link to the source code to see how
-'readProcess' is implemented.
-
-On Unix systems, see 'waitForProcess' for the meaning of exit codes
-when the process died as the result of a signal.
--}
-
+-- | @readProcessWithExitCode@ is like @readProcess@ but with two differences:
+--
+--  * it returns the 'ExitCode' of the process, and does not throw any
+--    exception if the code is not 'ExitSuccess'.
+--
+--  * it reads and returns the output from process' standard error handle,
+--    rather than the process inheriting the standard error handle.
+--
+-- On Unix systems, see 'waitForProcess' for the meaning of exit codes
+-- when the process died as the result of a signal.
+--
 readProcessWithExitCode
     :: FilePath                 -- ^ Filename of the executable (see 'RawCommand' for details)
     -> [String]                 -- ^ any arguments
     -> String                   -- ^ standard input
     -> IO (ExitCode,String,String) -- ^ exitcode, stdout, stderr
-readProcessWithExitCode cmd args input = do
-    let cp_opts = (proc cmd args) {
+readProcessWithExitCode cmd args =
+    readCreateProcessWithExitCode $ proc cmd args
+
+-- | @readCreateProcessWithExitCode@ works exactly like 'readProcessWithExitCode' except that it
+-- lets you pass 'CreateProcess' giving better flexibility.
+--
+-- Note that @Handle@s provided for @std_in@, @std_out@, or @std_err@ via the CreateProcess
+-- record will be ignored.
+--
+-- @since 1.2.3.0
+readCreateProcessWithExitCode
+    :: CreateProcess
+    -> String                      -- ^ standard input
+    -> IO (ExitCode,String,String) -- ^ exitcode, stdout, stderr
+readCreateProcessWithExitCode cp input = do
+    let cp_opts = cp {
                     std_in  = CreatePipe,
                     std_out = CreatePipe,
                     std_err = CreatePipe
                   }
-    withCreateProcess_ "readProcessWithExitCode" cp_opts $
+    withCreateProcess_ "readCreateProcessWithExitCode" cp_opts $
       \(Just inh) (Just outh) (Just errh) ph -> do
 
         out <- hGetContents outh
@@ -563,15 +602,11 @@ withForkWait async body = do
     restore (body wait) `C.onException` killThread tid
 
 ignoreSigPipe :: IO () -> IO ()
-
-{-# LINE 514 "System/Process.hsc" #-}
 ignoreSigPipe = C.handle $ \e -> case e of
                                    IOError { ioe_type  = ResourceVanished
                                            , ioe_errno = Just ioe }
                                      | Errno ioe == ePIPE -> return ()
                                    _ -> throwIO e
-
-{-# LINE 522 "System/Process.hsc" #-}
 
 -- ----------------------------------------------------------------------------
 -- showCommandForUser
@@ -603,20 +638,19 @@ detail.
 waitForProcess
   :: ProcessHandle
   -> IO ExitCode
-waitForProcess ph@(ProcessHandle _ delegating_ctlc) = do
+waitForProcess ph@(ProcessHandle _ delegating_ctlc _) = lockWaitpid $ do
   p_ <- modifyProcessHandle ph $ \p_ -> return (p_,p_)
   case p_ of
     ClosedHandle e -> return e
     OpenHandle h  -> do
-        -- don't hold the MVar while we call c_waitForProcess...
-        -- (XXX but there's a small race window here during which another
-        -- thread could close the handle or call waitForProcess)
         e <- alloca $ \pret -> do
+          -- don't hold the MVar while we call c_waitForProcess...
           throwErrnoIfMinus1Retry_ "waitForProcess" (c_waitForProcess h pret)
           modifyProcessHandle ph $ \p_' ->
             case p_' of
-              ClosedHandle e -> return (p_',e)
-              OpenHandle ph' -> do
+              ClosedHandle e  -> return (p_', e)
+              OpenExtHandle{} -> return (p_', ExitFailure (-1))
+              OpenHandle ph'  -> do
                 closePHANDLE ph'
                 code <- peek pret
                 let e = if (code == 0)
@@ -626,7 +660,15 @@ waitForProcess ph@(ProcessHandle _ delegating_ctlc) = do
         when delegating_ctlc $
           endDelegateControlC e
         return e
-
+    OpenExtHandle _ _job _iocp ->
+        return $ ExitFailure (-1)
+  where
+    -- If more than one thread calls `waitpid` at a time, `waitpid` will
+    -- return the exit code to one of them and (-1) to the rest of them,
+    -- causing an exception to be thrown.
+    -- Cf. https://github.com/haskell/process/issues/46, and
+    -- https://github.com/haskell/process/pull/58 for further discussion
+    lockWaitpid m = withMVar (waitpidLock ph) $ \() -> m
 
 -- ----------------------------------------------------------------------------
 -- getProcessExitCode
@@ -641,27 +683,51 @@ when the process died as the result of a signal.
 -}
 
 getProcessExitCode :: ProcessHandle -> IO (Maybe ExitCode)
-getProcessExitCode ph@(ProcessHandle _ delegating_ctlc) = do
+getProcessExitCode ph@(ProcessHandle _ delegating_ctlc _) = tryLockWaitpid $ do
   (m_e, was_open) <- modifyProcessHandle ph $ \p_ ->
     case p_ of
       ClosedHandle e -> return (p_, (Just e, False))
-      OpenHandle h ->
+      open -> do
         alloca $ \pExitCode -> do
-            res <- throwErrnoIfMinus1Retry "getProcessExitCode" $
-                        c_getProcessExitCode h pExitCode
-            code <- peek pExitCode
-            if res == 0
-              then return (p_, (Nothing, False))
-              else do
-                   closePHANDLE h
-                   let e  | code == 0 = ExitSuccess
-                          | otherwise = ExitFailure (fromIntegral code)
-                   return (ClosedHandle e, (Just e, True))
+          case getHandle open of
+            Nothing -> return (p_, (Nothing, False))
+            Just h  -> do
+                res <- throwErrnoIfMinus1Retry "getProcessExitCode" $
+                                        c_getProcessExitCode h pExitCode
+                code <- peek pExitCode
+                if res == 0
+                   then return (p_, (Nothing, False))
+                   else do
+                        closePHANDLE h
+                        let e  | code == 0 = ExitSuccess
+                               | otherwise = ExitFailure (fromIntegral code)
+                        return (ClosedHandle e, (Just e, True))
   case m_e of
     Just e | was_open && delegating_ctlc -> endDelegateControlC e
     _                                    -> return ()
   return m_e
+    where getHandle :: ProcessHandle__ -> Maybe PHANDLE
+          getHandle (OpenHandle        h) = Just h
+          getHandle (ClosedHandle      _) = Nothing
+          getHandle (OpenExtHandle h _ _) = Just h
 
+          -- If somebody is currently holding the waitpid lock, we don't want to
+          -- accidentally remove the pid from the process table.
+          -- Try acquiring the waitpid lock. If it is held, we are done
+          -- since that means the process is still running and we can return
+          -- `Nothing`. If it is not held, acquire it so we can run the
+          -- (non-blocking) call to `waitpid` without worrying about any
+          -- other threads calling it at the same time.
+          tryLockWaitpid :: IO (Maybe ExitCode) -> IO (Maybe ExitCode)
+          tryLockWaitpid action = bracket acquire release between
+            where
+              acquire   = tryTakeMVar (waitpidLock ph)
+              release m = case m of
+                Nothing -> return ()
+                Just () -> putMVar (waitpidLock ph) ()
+              between m = case m of
+                Nothing -> return Nothing
+                Just () -> action
 
 -- ----------------------------------------------------------------------------
 -- terminateProcess
@@ -685,39 +751,13 @@ terminateProcess :: ProcessHandle -> IO ()
 terminateProcess ph = do
   withProcessHandle ph $ \p_ ->
     case p_ of
-      ClosedHandle _ -> return ()
-      OpenHandle h -> do
+      ClosedHandle  _ -> return ()
+      OpenExtHandle{} -> error "terminateProcess with OpenExtHandle should not happen on POSIX."
+      OpenHandle    h -> do
         throwErrnoIfMinus1Retry_ "terminateProcess" $ c_terminateProcess h
         return ()
         -- does not close the handle, we might want to try terminating it
         -- again, or get its exit code.
-
-
--- ----------------------------------------------------------------------------
--- interruptProcessGroupOf
-
--- | Sends an interrupt signal to the process group of the given process.
---
--- On Unix systems, it sends the group the SIGINT signal.
---
--- On Windows systems, it generates a CTRL_BREAK_EVENT and will only work for
--- processes created using 'createProcess' and setting the 'create_group' flag
-
-interruptProcessGroupOf
-    :: ProcessHandle    -- ^ A process in the process group
-    -> IO ()
-interruptProcessGroupOf ph = do
-    withProcessHandle ph $ \p_ -> do
-        case p_ of
-            ClosedHandle _ -> return ()
-            OpenHandle h -> do
-
-{-# LINE 668 "System/Process.hsc" #-}
-                pgid <- getProcessGroupIDOf h
-                signalProcessGroup sigINT pgid
-
-{-# LINE 671 "System/Process.hsc" #-}
-                return ()
 
 
 -- ----------------------------------------------------------------------------
@@ -823,8 +863,7 @@ runProcess cmd args mb_cwd mb_env mb_stdin mb_stdout mb_stderr = do
 
 {- | Runs a command using the shell, and returns 'Handle's that may
      be used to communicate with the process via its @stdin@, @stdout@,
-     and @stderr@ respectively. The 'Handle's are initially in binary
-     mode; if you need them to be in text mode then use 'hSetBinaryMode'.
+     and @stderr@ respectively.
 -}
 runInteractiveCommand
   :: String
@@ -846,9 +885,6 @@ runInteractiveCommand string =
 
 >   (inp,out,err,pid) <- runInteractiveProcess "..."
 >   forkIO (hPutStr inp str)
-
-    The 'Handle's are initially in binary mode; if you need them to be
-    in text mode then use 'hSetBinaryMode'.
 -}
 runInteractiveProcess
   :: FilePath                   -- ^ Filename of the executable (see 'RawCommand' for details)
@@ -902,15 +938,11 @@ will not work.
 On Unix systems, see 'waitForProcess' for the meaning of exit codes
 when the process died as the result of a signal.
 -}
-
-{-# LINE 857 "System/Process.hsc" #-}
 system :: String -> IO ExitCode
 system "" = ioException (ioeSetErrorString (mkIOError InvalidArgument "system" Nothing Nothing) "null command")
 system str = do
   (_,_,_,p) <- createProcess_ "system" (shell str) { delegate_ctlc = True }
   waitForProcess p
-
-{-# LINE 863 "System/Process.hsc" #-}
 
 
 --TODO: in a later release {-# DEPRECATED rawSystem "Use 'callProcess' (or 'spawnProcess' and 'waitForProcess') instead" #-}
@@ -924,28 +956,6 @@ It will therefore behave more portably between operating systems than 'system'.
 The return codes and possible failures are the same as for 'system'.
 -}
 rawSystem :: String -> [String] -> IO ExitCode
-
-{-# LINE 877 "System/Process.hsc" #-}
 rawSystem cmd args = do
   (_,_,_,p) <- createProcess_ "rawSystem" (proc cmd args) { delegate_ctlc = True }
   waitForProcess p
-
-{-# LINE 886 "System/Process.hsc" #-}
-
--- ---------------------------------------------------------------------------
--- createPipe
-
--- | Create a pipe for interprocess communication and return a
--- @(readEnd, writeEnd)@ `Handle` pair.
---
--- /Since: 1.2.1.0/
-createPipe :: IO (Handle, Handle)
-
-{-# LINE 896 "System/Process.hsc" #-}
-createPipe = do
-    (readfd, writefd) <- Posix.createPipe
-    readh <- Posix.fdToHandle readfd
-    writeh <- Posix.fdToHandle writefd
-    return (readh, writeh)
-
-{-# LINE 921 "System/Process.hsc" #-}

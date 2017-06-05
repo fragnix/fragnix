@@ -49,6 +49,15 @@
 
 
 
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP, DeriveDataTypeable #-}
 
 {-# LANGUAGE Unsafe #-}
@@ -79,19 +88,20 @@ module Data.CaseInsensitive.Internal ( CI
 --------------------------------------------------------------------------------
 
 -- from base:
-import Data.Bool     ( (||) )
-import Data.Char     ( Char, toLower )
-import Data.Eq       ( Eq, (==) )
-import Data.Function ( on )
-import Data.Monoid   ( Monoid, mempty, mappend )
-import Data.Ord      ( Ord, compare )
-import Data.String   ( IsString, fromString )
-import Data.Data     ( Data )
-import Data.Typeable ( Typeable )
-import Data.Word     ( Word8 )
-import Prelude       ( (.), fmap, (&&), (+), (<=), otherwise )
-import Text.Read     ( Read, readPrec )
-import Text.Show     ( Show, showsPrec )
+import Data.Bool      ( (||) )
+import Data.Char      ( Char, toLower )
+import Data.Eq        ( Eq, (==) )
+import Data.Function  ( on )
+import Data.Monoid    ( Monoid, mempty, mappend )
+import Data.Ord       ( Ord, compare )
+import Data.String    ( IsString, fromString )
+import Data.Data      ( Data )
+import Data.Typeable  ( Typeable )
+import Data.Word      ( Word8 )
+import Prelude        ( (.), fmap, (&&), (+), (<=), otherwise )
+import Text.Read      ( Read, readPrec )
+import Text.Show      ( Show, showsPrec )
+import Data.Semigroup ( Semigroup, (<>) )
 
 import qualified Data.List as L ( map )
 
@@ -153,6 +163,9 @@ map f = mk . f . original
 
 instance (IsString s, FoldCase s) => IsString (CI s) where
     fromString = mk . fromString
+
+instance Semigroup s => Semigroup (CI s) where
+    CI o1 l1 <> CI o2 l2 = CI (o1 <> o2) (l1 <> l2)
 
 instance Monoid s => Monoid (CI s) where
     mempty = CI mempty mempty

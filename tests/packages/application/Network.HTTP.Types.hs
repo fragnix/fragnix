@@ -146,6 +146,7 @@ module Network.HTTP.Types
 , ByteRanges
 , renderByteRangesBuilder
 , renderByteRanges
+, parseByteRanges
   -- * URI
   -- ** Query string
 , QueryItem

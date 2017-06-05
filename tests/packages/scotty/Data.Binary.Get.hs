@@ -47,8 +47,37 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP, RankNTypes, MagicHash, BangPatterns #-}
 {-# LANGUAGE Trustworthy #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -419,7 +448,7 @@
 -- The fields in @Trade@ are marked as strict (using @!@) since we don't need
 -- laziness here. In practise, you would probably consider using the UNPACK
 -- pragma as well.
--- <http://www.haskell.org/ghc/docs/latest/html/users_guide/pragmas.html#unpack-pragma>
+-- <https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/glasgow_exts.html#unpack-pragma>
 --
 -- Now, let's have a look at a decoder for this format.
 --
@@ -438,9 +467,6 @@
 --getTrade' :: 'Get' Trade
 --getTrade' = Trade '<$>' 'getWord32le' '<*>' 'getWord32le' '<*>' 'getWord16le'
 -- @
---
--- The applicative style can sometimes result in faster code, as @binary@
--- will try to optimize the code by grouping the reads together.
 --
 -- There are two kinds of ways to execute this decoder, the lazy input
 -- method and the incremental input method. Here we will use the lazy
@@ -548,7 +574,7 @@ module Data.Binary.Get (
     , getLazyByteStringNul
     , getRemainingLazyByteString
 
-    -- ** Decoding words
+    -- ** Decoding Words
     , getWord8
 
     -- *** Big-endian decoding
@@ -567,6 +593,33 @@ module Data.Binary.Get (
     , getWord32host
     , getWord64host
 
+    -- ** Decoding Ints
+    , getInt8
+
+    -- *** Big-endian decoding
+    , getInt16be
+    , getInt32be
+    , getInt64be
+
+    -- *** Little-endian decoding
+    , getInt16le
+    , getInt32le
+    , getInt64le
+
+    -- *** Host-endian, unaligned decoding
+    , getInthost
+    , getInt16host
+    , getInt32host
+    , getInt64host
+
+    -- ** Decoding Floats/Doubles
+    , getFloatbe
+    , getFloatle
+    , getFloathost
+    , getDoublebe
+    , getDoublele
+    , getDoublehost
+
     -- * Deprecated functions
     , runGetState -- DEPRECATED
     , remaining -- DEPRECATED
@@ -579,14 +632,15 @@ import qualified Data.ByteString.Unsafe as B
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Internal as L
 
-import Control.Applicative
-
 import Data.Binary.Get.Internal hiding ( Decoder(..), runGetIncremental )
 import qualified Data.Binary.Get.Internal as I
 
 -- needed for (# unboxing #) with magic hash
 import GHC.Base
 import GHC.Word
+
+-- needed for casting words to float/double
+import Data.Binary.FloatCast (wordToFloat, wordToDouble)
 
 -- $lazyinterface
 -- The lazy interface consumes a single lazy 'L.ByteString'. It's the easiest
@@ -675,6 +729,8 @@ dropHeadChunk lbs =
 -- success. In both cases any unconsumed input and the number of bytes
 -- consumed is returned. In the case of failure, a human-readable
 -- error message is included as well.
+--
+-- /Since: 0.6.4.0/
 runGetOrFail :: Get a -> L.ByteString
              -> Either (L.ByteString, ByteOffset, String) (L.ByteString, ByteOffset, a)
 runGetOrFail g lbs0 = feedAll (runGetIncremental g) lbs0
@@ -734,59 +790,43 @@ pushEndOfInput r =
     Partial k -> k Nothing
     Fail _ _ _ -> r
 
+-- | Skip ahead @n@ bytes. Fails if fewer than @n@ bytes are available.
+skip :: Int -> Get ()
+skip n = withInputChunks (fromIntegral n) consumeBytes (const ()) failOnEOF
+
 -- | An efficient get method for lazy ByteStrings. Fails if fewer than @n@
 -- bytes are left in the input.
 getLazyByteString :: Int64 -> Get L.ByteString
-getLazyByteString n0 = L.fromChunks <$> go n0
-  where
-  consume n str
-    | fromIntegral (B.length str) >= n = Right (B.splitAt (fromIntegral n) str)
-    | otherwise = Left (fromIntegral (B.length str))
-  go n = do
-    str <- get
-    case consume n str of
-      Left used -> do
-        put B.empty
-        demandInput
-        fmap (str:) (go (n - used))
-      Right (want,rest) -> do
-        put rest
-        return [want]
+getLazyByteString n0 = withInputChunks n0 consumeBytes L.fromChunks failOnEOF
+
+consumeBytes :: Consume Int64
+consumeBytes n str
+  | fromIntegral (B.length str) >= n = Right (B.splitAt (fromIntegral n) str)
+  | otherwise = Left (n - fromIntegral (B.length str))
+
+consumeUntilNul :: Consume ()
+consumeUntilNul _ str =
+  case B.break (==0) str of
+    (want, rest) | B.null rest -> Left ()
+                 | otherwise -> Right (want, B.drop 1 rest)
+
+consumeAll :: Consume ()
+consumeAll _ _ = Left ()
+
+resumeOnEOF :: [B.ByteString] -> Get L.ByteString
+resumeOnEOF = return . L.fromChunks
 
 -- | Get a lazy ByteString that is terminated with a NUL byte.
 -- The returned string does not contain the NUL byte. Fails
 -- if it reaches the end of input without finding a NUL.
 getLazyByteStringNul :: Get L.ByteString
-getLazyByteStringNul = L.fromChunks <$> go
-  where
-  findNull str =
-    case B.break (==0) str of
-      (want,rest) | B.null rest -> Nothing
-                  | otherwise -> Just (want, B.drop 1 rest)
-  go = do
-    str <- get
-    case findNull str of
-      Nothing -> do
-        put B.empty
-        demandInput
-        fmap (str:) go
-      Just (want,rest) -> do
-        put rest
-        return [want]
+getLazyByteStringNul = withInputChunks () consumeUntilNul L.fromChunks failOnEOF
 
 -- | Get the remaining bytes as a lazy ByteString.
 -- Note that this can be an expensive function to use as it forces reading
 -- all input and keeping the string in-memory.
 getRemainingLazyByteString :: Get L.ByteString
-getRemainingLazyByteString = L.fromChunks <$> go
-  where
-  go = do
-    str <- get
-    put B.empty
-    done <- isEmpty
-    if done
-      then return [str]
-      else fmap (str:) go
+getRemainingLazyByteString = withInputChunks () consumeAll L.fromChunks resumeOnEOF
 
 ------------------------------------------------------------------------
 -- Primtives
@@ -801,7 +841,13 @@ getPtr n = readNWith n peek
 -- | Read a Word8 from the monad state
 getWord8 :: Get Word8
 getWord8 = readN 1 B.unsafeHead
-{-# INLINE getWord8 #-}
+{-# INLINE[2] getWord8 #-}
+
+-- | Read an Int8 from the monad state
+getInt8 :: Get Int8
+getInt8 = fromIntegral <$> getWord8
+{-# INLINE getInt8 #-}
+
 
 -- force GHC to inline getWordXX
 {-# RULES
@@ -821,7 +867,7 @@ word16be :: B.ByteString -> Word16
 word16be = \s ->
         (fromIntegral (s `B.unsafeIndex` 0) `shiftl_w16` 8) .|.
         (fromIntegral (s `B.unsafeIndex` 1))
-{-# INLINE getWord16be #-}
+{-# INLINE[2] getWord16be #-}
 {-# INLINE word16be #-}
 
 -- | Read a Word16 in little endian format
@@ -832,7 +878,7 @@ word16le :: B.ByteString -> Word16
 word16le = \s ->
               (fromIntegral (s `B.unsafeIndex` 1) `shiftl_w16` 8) .|.
               (fromIntegral (s `B.unsafeIndex` 0) )
-{-# INLINE getWord16le #-}
+{-# INLINE[2] getWord16le #-}
 {-# INLINE word16le #-}
 
 -- | Read a Word32 in big endian format
@@ -845,7 +891,7 @@ word32be = \s ->
               (fromIntegral (s `B.unsafeIndex` 1) `shiftl_w32` 16) .|.
               (fromIntegral (s `B.unsafeIndex` 2) `shiftl_w32`  8) .|.
               (fromIntegral (s `B.unsafeIndex` 3) )
-{-# INLINE getWord32be #-}
+{-# INLINE[2] getWord32be #-}
 {-# INLINE word32be #-}
 
 -- | Read a Word32 in little endian format
@@ -858,7 +904,7 @@ word32le = \s ->
               (fromIntegral (s `B.unsafeIndex` 2) `shiftl_w32` 16) .|.
               (fromIntegral (s `B.unsafeIndex` 1) `shiftl_w32`  8) .|.
               (fromIntegral (s `B.unsafeIndex` 0) )
-{-# INLINE getWord32le #-}
+{-# INLINE[2] getWord32le #-}
 {-# INLINE word32le #-}
 
 -- | Read a Word64 in big endian format
@@ -875,7 +921,7 @@ word64be = \s ->
               (fromIntegral (s `B.unsafeIndex` 5) `shiftl_w64` 16) .|.
               (fromIntegral (s `B.unsafeIndex` 6) `shiftl_w64`  8) .|.
               (fromIntegral (s `B.unsafeIndex` 7) )
-{-# INLINE getWord64be #-}
+{-# INLINE[2] getWord64be #-}
 {-# INLINE word64be #-}
 
 -- | Read a Word64 in little endian format
@@ -892,8 +938,41 @@ word64le = \s ->
               (fromIntegral (s `B.unsafeIndex` 2) `shiftl_w64` 16) .|.
               (fromIntegral (s `B.unsafeIndex` 1) `shiftl_w64`  8) .|.
               (fromIntegral (s `B.unsafeIndex` 0) )
-{-# INLINE getWord64le #-}
+{-# INLINE[2] getWord64le #-}
 {-# INLINE word64le #-}
+
+
+-- | Read an Int16 in big endian format.
+getInt16be :: Get Int16
+getInt16be = fromIntegral <$> getWord16be
+{-# INLINE getInt16be #-}
+
+-- | Read an Int32 in big endian format.
+getInt32be :: Get Int32
+getInt32be =  fromIntegral <$> getWord32be
+{-# INLINE getInt32be #-}
+
+-- | Read an Int64 in big endian format.
+getInt64be :: Get Int64
+getInt64be = fromIntegral <$> getWord64be
+{-# INLINE getInt64be #-}
+
+
+-- | Read an Int16 in little endian format.
+getInt16le :: Get Int16
+getInt16le = fromIntegral <$> getWord16le
+{-# INLINE getInt16le #-}
+
+-- | Read an Int32 in little endian format.
+getInt32le :: Get Int32
+getInt32le =  fromIntegral <$> getWord32le
+{-# INLINE getInt32le #-}
+
+-- | Read an Int64 in little endian format.
+getInt64le :: Get Int64
+getInt64le = fromIntegral <$> getWord64le
+{-# INLINE getInt64le #-}
+
 
 ------------------------------------------------------------------------
 -- Host-endian reads
@@ -919,6 +998,61 @@ getWord32host = getPtr  (sizeOf (undefined :: Word32))
 getWord64host   :: Get Word64
 getWord64host = getPtr  (sizeOf (undefined :: Word64))
 {-# INLINE getWord64host #-}
+
+-- | /O(1)./ Read a single native machine word in native host
+-- order. It works in the same way as 'getWordhost'.
+getInthost :: Get Int
+getInthost = getPtr (sizeOf (undefined :: Int))
+{-# INLINE getInthost #-}
+
+-- | /O(1)./ Read a 2 byte Int16 in native host order and host endianness.
+getInt16host :: Get Int16
+getInt16host = getPtr (sizeOf (undefined :: Int16))
+{-# INLINE getInt16host #-}
+
+-- | /O(1)./ Read an Int32 in native host order and host endianness.
+getInt32host :: Get Int32
+getInt32host = getPtr  (sizeOf (undefined :: Int32))
+{-# INLINE getInt32host #-}
+
+-- | /O(1)./ Read an Int64 in native host order and host endianess.
+getInt64host   :: Get Int64
+getInt64host = getPtr  (sizeOf (undefined :: Int64))
+{-# INLINE getInt64host #-}
+
+
+------------------------------------------------------------------------
+-- Double/Float reads
+
+-- | Read a 'Float' in big endian IEEE-754 format.
+getFloatbe :: Get Float
+getFloatbe = wordToFloat <$> getWord32be
+{-# INLINE getFloatbe #-}
+
+-- | Read a 'Float' in little endian IEEE-754 format.
+getFloatle :: Get Float
+getFloatle = wordToFloat <$> getWord32le
+{-# INLINE getFloatle #-}
+
+-- | Read a 'Float' in IEEE-754 format and host endian.
+getFloathost :: Get Float
+getFloathost = wordToFloat <$> getWord32host
+{-# INLINE getFloathost #-}
+
+-- | Read a 'Double' in big endian IEEE-754 format.
+getDoublebe :: Get Double
+getDoublebe = wordToDouble <$> getWord64be
+{-# INLINE getDoublebe #-}
+
+-- | Read a 'Double' in little endian IEEE-754 format.
+getDoublele :: Get Double
+getDoublele = wordToDouble <$> getWord64le
+{-# INLINE getDoublele #-}
+
+-- | Read a 'Double' in IEEE-754 format and host endian.
+getDoublehost :: Get Double
+getDoublehost = wordToDouble <$> getWord64host
+{-# INLINE getDoublehost #-}
 
 ------------------------------------------------------------------------
 -- Unchecked shifts

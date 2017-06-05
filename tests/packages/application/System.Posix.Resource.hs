@@ -1,11 +1,13 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Resource.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Resource.hs" #-}
 {-# LINE 1 "System/Posix/Resource.hsc" #-}
+{-# LANGUAGE CApiFFI #-}
+{-# LINE 2 "System/Posix/Resource.hsc" #-}
 
-{-# LINE 4 "System/Posix/Resource.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LINE 3 "System/Posix/Resource.hsc" #-}
+{-# LANGUAGE Safe #-}
 
-{-# LINE 6 "System/Posix/Resource.hsc" #-}
+{-# LINE 7 "System/Posix/Resource.hsc" #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  System.Posix.Resource
@@ -28,7 +30,7 @@ module System.Posix.Resource (
   ) where
 
 
-{-# LINE 28 "System/Posix/Resource.hsc" #-}
+{-# LINE 29 "System/Posix/Resource.hsc" #-}
 
 import System.Posix.Types
 import Foreign
@@ -45,10 +47,10 @@ data Resource
   | ResourceOpenFiles
   | ResourceStackSize
 
-{-# LINE 44 "System/Posix/Resource.hsc" #-}
+{-# LINE 45 "System/Posix/Resource.hsc" #-}
   | ResourceTotalMemory
 
-{-# LINE 46 "System/Posix/Resource.hsc" #-}
+{-# LINE 47 "System/Posix/Resource.hsc" #-}
   deriving Eq
 
 data ResourceLimits
@@ -61,24 +63,24 @@ data ResourceLimit
   | ResourceLimit Integer
   deriving Eq
 
-type RLimit = ()
+data {-# CTYPE "struct rlimit" #-} RLimit
 
-foreign import ccall unsafe "HsUnix.h __hscore_getrlimit"
+foreign import capi unsafe "HsUnix.h getrlimit"
   c_getrlimit :: CInt -> Ptr RLimit -> IO CInt
 
-foreign import ccall unsafe "HsUnix.h __hscore_setrlimit"
+foreign import capi unsafe "HsUnix.h setrlimit"
   c_setrlimit :: CInt -> Ptr RLimit -> IO CInt
 
 getResourceLimit :: Resource -> IO ResourceLimits
 getResourceLimit res = do
   allocaBytes (16) $ \p_rlimit -> do
-{-# LINE 69 "System/Posix/Resource.hsc" #-}
+{-# LINE 70 "System/Posix/Resource.hsc" #-}
     throwErrnoIfMinus1_ "getResourceLimit" $
       c_getrlimit (packResource res) p_rlimit
     soft <- ((\hsc_ptr -> peekByteOff hsc_ptr 0)) p_rlimit
-{-# LINE 72 "System/Posix/Resource.hsc" #-}
-    hard <- ((\hsc_ptr -> peekByteOff hsc_ptr 8)) p_rlimit
 {-# LINE 73 "System/Posix/Resource.hsc" #-}
+    hard <- ((\hsc_ptr -> peekByteOff hsc_ptr 8)) p_rlimit
+{-# LINE 74 "System/Posix/Resource.hsc" #-}
     return (ResourceLimits {
                 softLimit = unpackRLimit soft,
                 hardLimit = unpackRLimit hard
@@ -87,72 +89,72 @@ getResourceLimit res = do
 setResourceLimit :: Resource -> ResourceLimits -> IO ()
 setResourceLimit res ResourceLimits{softLimit=soft,hardLimit=hard} = do
   allocaBytes (16) $ \p_rlimit -> do
-{-# LINE 81 "System/Posix/Resource.hsc" #-}
-    ((\hsc_ptr -> pokeByteOff hsc_ptr 0)) p_rlimit (packRLimit soft True)
 {-# LINE 82 "System/Posix/Resource.hsc" #-}
-    ((\hsc_ptr -> pokeByteOff hsc_ptr 8)) p_rlimit (packRLimit hard False)
+    ((\hsc_ptr -> pokeByteOff hsc_ptr 0)) p_rlimit (packRLimit soft True)
 {-# LINE 83 "System/Posix/Resource.hsc" #-}
+    ((\hsc_ptr -> pokeByteOff hsc_ptr 8)) p_rlimit (packRLimit hard False)
+{-# LINE 84 "System/Posix/Resource.hsc" #-}
     throwErrnoIfMinus1_ "setResourceLimit" $
         c_setrlimit (packResource res) p_rlimit
     return ()
 
 packResource :: Resource -> CInt
 packResource ResourceCoreFileSize  = (4)
-{-# LINE 89 "System/Posix/Resource.hsc" #-}
-packResource ResourceCPUTime       = (0)
 {-# LINE 90 "System/Posix/Resource.hsc" #-}
-packResource ResourceDataSize      = (2)
+packResource ResourceCPUTime       = (0)
 {-# LINE 91 "System/Posix/Resource.hsc" #-}
-packResource ResourceFileSize      = (1)
+packResource ResourceDataSize      = (2)
 {-# LINE 92 "System/Posix/Resource.hsc" #-}
-packResource ResourceOpenFiles     = (7)
+packResource ResourceFileSize      = (1)
 {-# LINE 93 "System/Posix/Resource.hsc" #-}
-packResource ResourceStackSize     = (3)
+packResource ResourceOpenFiles     = (7)
 {-# LINE 94 "System/Posix/Resource.hsc" #-}
-
+packResource ResourceStackSize     = (3)
 {-# LINE 95 "System/Posix/Resource.hsc" #-}
-packResource ResourceTotalMemory   = (9)
-{-# LINE 96 "System/Posix/Resource.hsc" #-}
 
+{-# LINE 96 "System/Posix/Resource.hsc" #-}
+packResource ResourceTotalMemory   = (9)
 {-# LINE 97 "System/Posix/Resource.hsc" #-}
+
+{-# LINE 98 "System/Posix/Resource.hsc" #-}
 
 unpackRLimit :: CRLim -> ResourceLimit
 unpackRLimit (18446744073709551615)  = ResourceLimitInfinity
-{-# LINE 100 "System/Posix/Resource.hsc" #-}
+{-# LINE 101 "System/Posix/Resource.hsc" #-}
 unpackRLimit other
 
-{-# LINE 102 "System/Posix/Resource.hsc" #-}
-    | ((18446744073709551615) :: CRLim) /= (18446744073709551615) &&
 {-# LINE 103 "System/Posix/Resource.hsc" #-}
-      other == (18446744073709551615) = ResourceLimitUnknown
+    | ((18446744073709551615) :: CRLim) /= (18446744073709551615) &&
 {-# LINE 104 "System/Posix/Resource.hsc" #-}
-
+      other == (18446744073709551615) = ResourceLimitUnknown
 {-# LINE 105 "System/Posix/Resource.hsc" #-}
 
 {-# LINE 106 "System/Posix/Resource.hsc" #-}
-    | ((18446744073709551615) :: CRLim) /= (18446744073709551615) &&
-{-# LINE 107 "System/Posix/Resource.hsc" #-}
-      other == (18446744073709551615) = ResourceLimitUnknown
-{-# LINE 108 "System/Posix/Resource.hsc" #-}
 
+{-# LINE 107 "System/Posix/Resource.hsc" #-}
+    | ((18446744073709551615) :: CRLim) /= (18446744073709551615) &&
+{-# LINE 108 "System/Posix/Resource.hsc" #-}
+      other == (18446744073709551615) = ResourceLimitUnknown
 {-# LINE 109 "System/Posix/Resource.hsc" #-}
+
+{-# LINE 110 "System/Posix/Resource.hsc" #-}
     | otherwise = ResourceLimit (fromIntegral other)
 
 packRLimit :: ResourceLimit -> Bool -> CRLim
 packRLimit ResourceLimitInfinity _     = (18446744073709551615)
-{-# LINE 113 "System/Posix/Resource.hsc" #-}
-
 {-# LINE 114 "System/Posix/Resource.hsc" #-}
-packRLimit ResourceLimitUnknown  True  = (18446744073709551615)
-{-# LINE 115 "System/Posix/Resource.hsc" #-}
 
+{-# LINE 115 "System/Posix/Resource.hsc" #-}
+packRLimit ResourceLimitUnknown  True  = (18446744073709551615)
 {-# LINE 116 "System/Posix/Resource.hsc" #-}
 
 {-# LINE 117 "System/Posix/Resource.hsc" #-}
-packRLimit ResourceLimitUnknown  False = (18446744073709551615)
-{-# LINE 118 "System/Posix/Resource.hsc" #-}
 
+{-# LINE 118 "System/Posix/Resource.hsc" #-}
+packRLimit ResourceLimitUnknown  False = (18446744073709551615)
 {-# LINE 119 "System/Posix/Resource.hsc" #-}
+
+{-# LINE 120 "System/Posix/Resource.hsc" #-}
 packRLimit (ResourceLimit other) _     = fromIntegral other
 
 

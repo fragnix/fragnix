@@ -1,6 +1,6 @@
 /* -----------------------------------------------------------------------------
  *
- * Definitions for package `net' which are visible in Haskell land.
+ * Definitions for package `network' which are visible in Haskell land.
  *
  * ---------------------------------------------------------------------------*/
 
@@ -36,7 +36,7 @@
 # undef IPV6_SOCKET_SUPPORT
 #endif
 
-#if defined(HAVE_WINSOCK2_H) && !defined(__CYGWIN__)
+#if defined(HAVE_WINSOCK2_H)
 #include <winsock2.h>
 # ifdef HAVE_WS2TCPIP_H
 #  include <ws2tcpip.h>
@@ -44,7 +44,6 @@
 #  define IPV6_V6ONLY 27
 # endif
 
-extern void  shutdownWinSock();
 extern int   initWinSock ();
 extern const char* getWSErrorDescr(int err);
 extern void* newAcceptParams(int sock,
@@ -76,7 +75,9 @@ extern int   acceptDoProc(void* param);
 #ifdef HAVE_SYS_SOCKET_H
 # include <sys/socket.h>
 #endif
-#ifdef HAVE_NETINET_TCP_H
+#ifdef HAVE_LINUX_TCP_H
+# include <linux/tcp.h>
+#elif HAVE_NETINET_TCP_H
 # include <netinet/tcp.h>
 #endif
 #ifdef HAVE_NETINET_IN_H
@@ -90,6 +91,13 @@ extern int   acceptDoProc(void* param);
 #endif
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
+#endif
+#ifdef HAVE_LINUX_CAN_H
+# include <linux/can.h>
+# define CAN_SOCKET_SUPPORT 1
+#endif
+#ifdef HAVE_NET_IF
+# include <net/if.h>
 #endif
 
 #ifdef HAVE_BSD_SENDFILE
@@ -107,10 +115,10 @@ sendFd(int sock, int outfd);
 extern int
 recvFd(int sock);
 
-#endif /* HAVE_WINSOCK2_H && !__CYGWIN */
+#endif /* HAVE_WINSOCK2_H */
 
 INLINE char *
-my_inet_ntoa(
+hsnet_inet_ntoa(
 #if defined(HAVE_WINSOCK2_H)
              u_long addr
 #elif defined(HAVE_IN_ADDR_T)
@@ -121,7 +129,7 @@ my_inet_ntoa(
              unsigned long addr
 #endif
 	    )
-{ 
+{
     struct in_addr a;
     a.s_addr = addr;
     return inet_ntoa(a);
@@ -130,7 +138,7 @@ my_inet_ntoa(
 #ifdef HAVE_GETADDRINFO
 INLINE int
 hsnet_getnameinfo(const struct sockaddr* a,socklen_t b, char* c,
-# if defined(HAVE_WINSOCK2_H) && !defined(__CYGWIN__)
+# if defined(HAVE_WINSOCK2_H)
                   DWORD d, char* e, DWORD f, int g)
 # else
                   socklen_t d, char* e, socklen_t f, int g)
@@ -153,7 +161,7 @@ hsnet_freeaddrinfo(struct addrinfo *ai)
 }
 #endif
 
-#if defined(HAVE_WINSOCK2_H) && !defined(cygwin32_HOST_OS)
+#if defined(HAVE_WINSOCK2_H)
 # define WITH_WINSOCK  1
 #endif
 

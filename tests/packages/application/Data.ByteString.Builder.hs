@@ -47,6 +47,14 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP, BangPatterns #-}
 {-# OPTIONS_GHC -fno-warn-unused-imports -fno-warn-orphans #-}
 {-# LANGUAGE Trustworthy #-}
@@ -313,7 +321,6 @@ import           Foreign
 
 -- HADDOCK only imports
 import qualified Data.ByteString               as S (concat)
-import           Data.Monoid
 import           Data.Foldable                      (foldMap)
 import           Data.List                          (intersperse)
 

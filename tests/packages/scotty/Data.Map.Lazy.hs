@@ -47,8 +47,35 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE Safe #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -402,7 +429,6 @@
 --                (c) Andriy Palamarchuk 2008
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
--- Stability   :  provisional
 -- Portability :  portable
 --
 -- An efficient implementation of ordered maps from keys to values
@@ -425,10 +451,16 @@
 --    * Stephen Adams, \"/Efficient sets: a balancing act/\",
 --     Journal of Functional Programming 3(4):553-562, October 1993,
 --     <http://www.swiss.ai.mit.edu/~adams/BB/>.
---
 --    * J. Nievergelt and E.M. Reingold,
 --      \"/Binary search trees of bounded balance/\",
 --      SIAM journal of computing 2(1), March 1973.
+--
+--  Bounds for 'union', 'intersection', and 'difference' are as given
+--  by
+--
+--    * Guy Blelloch, Daniel Ferizovic, and Yihan Sun,
+--      \"/Just Join for Parallel Ordered Sets/\",
+--      <https://arxiv.org/abs/1602.02120v3>.
 --
 -- Note that the implementation is /left-biased/ -- the elements of a
 -- first argument are always preferred to the second, for example in
@@ -450,14 +482,14 @@ module Data.Map.Lazy (
     Map              -- instance Eq,Show,Read
 
     -- * Operators
-    , (!), (\\)
+    , (!), (!?), (\\)
 
     -- * Query
-    , M.null
+    , null
     , size
     , member
     , notMember
-    , M.lookup
+    , lookup
     , findWithDefault
     , lookupLT
     , lookupGT
@@ -482,6 +514,7 @@ module Data.Map.Lazy (
     , updateWithKey
     , updateLookupWithKey
     , alter
+    , alterF
 
     -- * Combine
 
@@ -502,14 +535,19 @@ module Data.Map.Lazy (
     , intersectionWith
     , intersectionWithKey
 
-    -- ** Universal combining function
+    -- ** General combining functions
+    -- | See "Data.Map.Merge.Lazy"
+
+    -- ** Unsafe general combining function
+
     , mergeWithKey
 
     -- * Traversal
     -- ** Map
-    , M.map
+    , map
     , mapWithKey
     , traverseWithKey
+    , traverseMaybeWithKey
     , mapAccum
     , mapAccumWithKey
     , mapAccumRWithKey
@@ -518,8 +556,8 @@ module Data.Map.Lazy (
     , mapKeysMonotonic
 
     -- * Folds
-    , M.foldr
-    , M.foldl
+    , foldr
+    , foldl
     , foldrWithKey
     , foldlWithKey
     , foldMapWithKey
@@ -550,12 +588,21 @@ module Data.Map.Lazy (
     , fromAscListWith
     , fromAscListWithKey
     , fromDistinctAscList
+    , fromDescList
+    , fromDescListWith
+    , fromDescListWithKey
+    , fromDistinctDescList
 
     -- * Filter
-    , M.filter
+    , filter
     , filterWithKey
+    , restrictKeys
+    , withoutKeys
     , partition
     , partitionWithKey
+    , takeWhileAntitone
+    , dropWhileAntitone
+    , spanAntitone
 
     , mapMaybe
     , mapMaybeWithKey
@@ -576,8 +623,13 @@ module Data.Map.Lazy (
     , elemAt
     , updateAt
     , deleteAt
+    , take
+    , drop
+    , splitAt
 
     -- * Min\/Max
+    , lookupMin
+    , lookupMax
     , findMin
     , findMax
     , deleteMin
@@ -597,11 +649,12 @@ module Data.Map.Lazy (
     , showTree
     , showTreeWith
     , valid
-
-
     ) where
 
-import Data.Map.Base as M
+import Data.Map.Internal
+import Data.Map.Internal.DeprecatedShowTree (showTree, showTreeWith)
+import Data.Map.Internal.Debug (valid)
+import Prelude ()
 
 -- $strictness
 --

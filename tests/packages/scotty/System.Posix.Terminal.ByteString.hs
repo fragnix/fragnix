@@ -1,11 +1,13 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Terminal/ByteString.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Terminal/ByteString.hs" #-}
 {-# LINE 1 "System/Posix/Terminal/ByteString.hsc" #-}
+{-# LANGUAGE CApiFFI #-}
+{-# LINE 2 "System/Posix/Terminal/ByteString.hsc" #-}
 
-{-# LINE 4 "System/Posix/Terminal/ByteString.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LINE 3 "System/Posix/Terminal/ByteString.hsc" #-}
+{-# LANGUAGE Safe #-}
 
-{-# LINE 6 "System/Posix/Terminal/ByteString.hsc" #-}
+{-# LINE 7 "System/Posix/Terminal/ByteString.hsc" #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  System.Posix.Terminal.ByteString
@@ -75,13 +77,13 @@ module System.Posix.Terminal.ByteString (
   ) where
 
 
-{-# LINE 75 "System/Posix/Terminal/ByteString.hsc" #-}
+{-# LINE 76 "System/Posix/Terminal/ByteString.hsc" #-}
 
 import Foreign
 import System.Posix.Types
 import System.Posix.Terminal.Common
 
-{-# LINE 83 "System/Posix/Terminal/ByteString.hsc" #-}
+{-# LINE 84 "System/Posix/Terminal/ByteString.hsc" #-}
 
 import Foreign.C hiding (
      throwErrnoPath,
@@ -93,6 +95,8 @@ import Foreign.C hiding (
 
 import System.Posix.ByteString.FilePath
 
+
+{-# LINE 99 "System/Posix/Terminal/ByteString.hsc" #-}
 
 -- | @getTerminalName fd@ calls @ttyname@ to obtain a name associated
 --   with the terminal for @Fd@ @fd@. If @fd@ is associated
@@ -111,13 +115,21 @@ foreign import ccall unsafe "ttyname"
 --   controlling terminal exists,
 --   @getControllingTerminalName@ returns the name of the
 --   controlling terminal.
+--
+-- Throws 'IOError' (\"unsupported operation\") if platform does not
+-- provide @ctermid(3)@ (use @#if HAVE_CTERMID@ CPP guard to
+-- detect availability).
 getControllingTerminalName :: IO RawFilePath
+
+{-# LINE 123 "System/Posix/Terminal/ByteString.hsc" #-}
 getControllingTerminalName = do
   s <- throwErrnoIfNull "getControllingTerminalName" (c_ctermid nullPtr)
   peekFilePath s
 
-foreign import ccall unsafe "ctermid"
+foreign import capi unsafe "termios.h ctermid"
   c_ctermid :: CString -> IO CString
+
+{-# LINE 134 "System/Posix/Terminal/ByteString.hsc" #-}
 
 -- | @getSlaveTerminalName@ calls @ptsname@ to obtain the name of the
 -- slave terminal associated with a pseudoterminal pair.  The file
@@ -125,15 +137,19 @@ foreign import ccall unsafe "ctermid"
 getSlaveTerminalName :: Fd -> IO RawFilePath
 
 
-{-# LINE 126 "System/Posix/Terminal/ByteString.hsc" #-}
+{-# LINE 141 "System/Posix/Terminal/ByteString.hsc" #-}
 getSlaveTerminalName (Fd fd) = do
   s <- throwErrnoIfNull "getSlaveTerminalName" (c_ptsname fd)
   peekFilePath s
 
-foreign import ccall unsafe "__hsunix_ptsname"
+
+{-# LINE 150 "System/Posix/Terminal/ByteString.hsc" #-}
+foreign import capi unsafe "HsUnix.h ptsname"
   c_ptsname :: CInt -> IO CString
 
-{-# LINE 136 "System/Posix/Terminal/ByteString.hsc" #-}
+{-# LINE 153 "System/Posix/Terminal/ByteString.hsc" #-}
+
+{-# LINE 157 "System/Posix/Terminal/ByteString.hsc" #-}
 
 -- -----------------------------------------------------------------------------
 -- openPseudoTerminal needs to be here because it depends on
@@ -144,7 +160,7 @@ foreign import ccall unsafe "__hsunix_ptsname"
 openPseudoTerminal :: IO (Fd, Fd)
 
 
-{-# LINE 146 "System/Posix/Terminal/ByteString.hsc" #-}
+{-# LINE 167 "System/Posix/Terminal/ByteString.hsc" #-}
 openPseudoTerminal =
   alloca $ \p_master ->
     alloca $ \p_slave -> do
@@ -158,4 +174,4 @@ foreign import ccall unsafe "openpty"
   c_openpty :: Ptr CInt -> Ptr CInt -> CString -> Ptr CTermios -> Ptr a
             -> IO CInt
 
-{-# LINE 197 "System/Posix/Terminal/ByteString.hsc" #-}
+{-# LINE 227 "System/Posix/Terminal/ByteString.hsc" #-}

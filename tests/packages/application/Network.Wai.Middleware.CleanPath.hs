@@ -1,6 +1,145 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010, OverloadedStrings #-}
 {-# LINE 1 "Network/Wai/Middleware/CleanPath.hs" #-}
-{-# LANGUAGE OverloadedStrings #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
 module Network.Wai.Middleware.CleanPath
     ( cleanPath
     ) where
@@ -8,9 +147,8 @@ module Network.Wai.Middleware.CleanPath
 import Network.Wai
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy as L
-import Network.HTTP.Types (status301)
+import Network.HTTP.Types (status301, hLocation)
 import Data.Text (Text)
-import Data.Monoid (mconcat)
 
 cleanPath :: ([Text] -> Either B.ByteString [Text])
           -> B.ByteString
@@ -21,7 +159,7 @@ cleanPath splitter prefix app env sendResponse =
         Right pieces -> app pieces env sendResponse
         Left p -> sendResponse
                 $ responseLBS status301
-                  [("Location", mconcat [prefix, p, suffix])]
+                  [(hLocation, mconcat [prefix, p, suffix])]
                 $ L.empty
     where
         -- include the query string if present

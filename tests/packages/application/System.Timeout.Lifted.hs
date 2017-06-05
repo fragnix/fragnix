@@ -45,9 +45,16 @@
 
 
 
+
+
+
+
+
+
+
 {-# LANGUAGE CPP, NoImplicitPrelude, FlexibleContexts #-}
 
-{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE Safe #-}
 
 -------------------------------------------------------------------------------
 -- |
@@ -86,4 +93,4 @@ import Control.Monad.Trans.Control ( MonadBaseControl, restoreM, liftBaseWith )
 timeout :: MonadBaseControl IO m => Int -> m a -> m (Maybe a)
 timeout t m = liftBaseWith (\runInIO -> T.timeout t (runInIO m)) >>=
                 maybe (return Nothing) (liftM Just . restoreM)
-{-# INLINE timeout #-}
+{-# INLINABLE timeout #-}

@@ -1,12 +1,12 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Aeson/Parser.hs" #-}
-{-# LANGUAGE BangPatterns, OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- |
 -- Module:      Data.Aeson.Parser
--- Copyright:   (c) 2012 Bryan O'Sullivan
+-- Copyright:   (c) 2012-2016 Bryan O'Sullivan
 --              (c) 2011 MailRank, Inc.
--- License:     Apache
+-- License:     BSD3
 -- Maintainer:  Bryan O'Sullivan <bos@serpentine.com>
 -- Stability:   experimental
 -- Portability: portable
@@ -41,9 +41,16 @@ module Data.Aeson.Parser
     -- $strict
     , json'
     , value'
+    -- * Decoding without FromJSON instances
+    , decodeWith
+    , decodeStrictWith
+    , eitherDecodeWith
+    , eitherDecodeStrictWith
     ) where
 
-import Data.Aeson.Parser.Internal (json, json', jstring, value, value')
+import Prelude ()
+
+import Data.Aeson.Parser.Internal (decodeStrictWith, decodeWith, eitherDecodeStrictWith, eitherDecodeWith, json, json', jstring, value, value')
 
 -- $lazy
 --

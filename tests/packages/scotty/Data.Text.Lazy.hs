@@ -51,6 +51,19 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE BangPatterns, MagicHash, CPP #-}
 {-# LANGUAGE Trustworthy #-}
@@ -174,7 +187,10 @@ module Data.Text.Lazy
     , mapAccumR
 
     -- ** Generation and unfolding
+    , repeat
     , replicate
+    , cycle
+    , iterate
     , unfoldr
     , unfoldrN
 
@@ -186,6 +202,7 @@ module Data.Text.Lazy
     , drop
     , dropEnd
     , takeWhile
+    , takeWhileEnd
     , dropWhile
     , dropWhileEnd
     , dropAround
@@ -254,9 +271,11 @@ import Control.DeepSeq (NFData(..))
 import Data.Int (Int64)
 import qualified Data.List as L
 import Data.Char (isSpace)
-import Data.Data (Data(gfoldl, toConstr, gunfold, dataTypeOf))
-import Data.Data (mkNoRepType)
+import Data.Data (Data(gfoldl, toConstr, gunfold, dataTypeOf), constrIndex,
+                  Constr, mkConstr, DataType, mkDataType, Fixity(Prefix))
+import Data.Binary (Binary(get, put))
 import Data.Monoid (Monoid(..))
+import Data.Semigroup (Semigroup(..))
 import Data.String (IsString(..))
 import qualified Data.Text as T
 import qualified Data.Text.Internal as T
@@ -265,13 +284,16 @@ import qualified Data.Text.Unsafe as T
 import qualified Data.Text.Internal.Lazy.Fusion as S
 import Data.Text.Internal.Fusion.Types (PairS(..))
 import Data.Text.Internal.Lazy.Fusion (stream, unstream)
-import Data.Text.Internal.Lazy (Text(..), chunk, empty, foldlChunks, foldrChunks)
+import Data.Text.Internal.Lazy (Text(..), chunk, empty, foldlChunks,
+                                foldrChunks, smallChunkSize)
 import Data.Text.Internal (firstf, safe, text)
+import Data.Text.Lazy.Encoding (decodeUtf8', encodeUtf8)
 import qualified Data.Text.Internal.Functions as F
 import Data.Text.Internal.Lazy.Search (indices)
 import qualified GHC.CString as GHC
 import qualified GHC.Exts as Exts
 import GHC.Prim (Addr#)
+import Text.Printf (PrintfArg, formatArg, formatString)
 
 -- $fusion
 --
@@ -369,9 +391,15 @@ instance Show Text where
 instance Read Text where
     readsPrec p str = [(pack x,y) | (x,y) <- readsPrec p str]
 
+-- Semigroup orphan instances for older GHCs are provided by
+-- 'semigroups` package
+
+instance Semigroup Text where
+    (<>) = append
+
 instance Monoid Text where
     mempty  = empty
-    mappend = append
+    mappend = (<>) -- future-proof definition
     mconcat = concat
 
 instance IsString Text where
@@ -386,11 +414,36 @@ instance NFData Text where
     rnf Empty        = ()
     rnf (Chunk _ ts) = rnf ts
 
+instance Binary Text where
+    put t = put (encodeUtf8 t)
+    get   = do
+      bs <- get
+      case decodeUtf8' bs of
+        P.Left exn -> P.fail (P.show exn)
+        P.Right a -> P.return a
+
+-- | This instance preserves data abstraction at the cost of inefficiency.
+-- We omit reflection services for the sake of data abstraction.
+--
+-- This instance was created by copying the updated behavior of
+-- @"Data.Text".@'Data.Text.Text'
 instance Data Text where
   gfoldl f z txt = z pack `f` (unpack txt)
-  toConstr _     = error "Data.Text.Lazy.Text.toConstr"
-  gunfold _ _    = error "Data.Text.Lazy.Text.gunfold"
-  dataTypeOf _   = mkNoRepType "Data.Text.Lazy.Text"
+  toConstr _     = packConstr
+  gunfold k z c  = case constrIndex c of
+    1 -> k (z pack)
+    _ -> error "Data.Text.Lazy.Text.gunfold"
+  dataTypeOf _   = textDataType
+
+-- | Only defined for @base-4.7.0.0@ and later
+instance PrintfArg Text where
+  formatArg txt = formatString $ unpack txt
+
+packConstr :: Constr
+packConstr = mkConstr textDataType "pack" [] Prefix
+
+textDataType :: DataType
+textDataType = mkDataType "Data.Text.Lazy.Text" [packConstr]
 
 -- | /O(n)/ Convert a 'String' into a 'Text'.
 --
@@ -530,7 +583,7 @@ tail Empty        = emptyError "tail"
     unstream (S.tail (stream t)) = tail t
  #-}
 
--- | /O(1)/ Returns all but the last character of a 'Text', which must
+-- | /O(n\/c)/ Returns all but the last character of a 'Text', which must
 -- be non-empty.  Subject to fusion.
 init :: Text -> Text
 init (Chunk t0 ts0) = go t0 ts0
@@ -566,7 +619,7 @@ isSingleton :: Text -> Bool
 isSingleton = S.isSingleton . stream
 {-# INLINE isSingleton #-}
 
--- | /O(1)/ Returns the last character of a 'Text', which must be
+-- | /O(n\/c)/ Returns the last character of a 'Text', which must be
 -- non-empty.  Subject to fusion.
 last :: Text -> Char
 last Empty        = emptyError "last"
@@ -866,13 +919,13 @@ concatMap f = concat . foldr ((:) . f) []
 {-# INLINE concatMap #-}
 
 -- | /O(n)/ 'any' @p@ @t@ determines whether any character in the
--- 'Text' @t@ satisifes the predicate @p@. Subject to fusion.
+-- 'Text' @t@ satisfies the predicate @p@. Subject to fusion.
 any :: (Char -> Bool) -> Text -> Bool
 any p t = S.any p (stream t)
 {-# INLINE any #-}
 
 -- | /O(n)/ 'all' @p@ @t@ determines whether all characters in the
--- 'Text' @t@ satisify the predicate @p@. Subject to fusion.
+-- 'Text' @t@ satisfy the predicate @p@. Subject to fusion.
 all :: (Char -> Bool) -> Text -> Bool
 all p t = S.all p (stream t)
 {-# INLINE all #-}
@@ -955,6 +1008,12 @@ mapAccumR f = go
     go z Empty          = (z, Empty)
 {-# INLINE mapAccumR #-}
 
+-- | @'repeat' x@ is an infinite 'Text', with @x@ the value of every
+-- element.
+repeat :: Char -> Text
+repeat c = let t = Chunk (T.replicate smallChunkSize (T.singleton c)) t
+            in t
+
 -- | /O(n*m)/ 'replicate' @n@ @t@ is a 'Text' consisting of the input
 -- @t@ repeated @n@ times.
 replicate :: Int64 -> Text -> Text
@@ -965,6 +1024,21 @@ replicate n t
     where rep !i | i >= n    = []
                  | otherwise = t : rep (i+1)
 {-# INLINE [1] replicate #-}
+
+-- | 'cycle' ties a finite, non-empty 'Text' into a circular one, or
+-- equivalently, the infinite repetition of the original 'Text'.
+cycle :: Text -> Text
+cycle Empty = emptyError "cycle"
+cycle t     = let t' = foldrChunks Chunk t' t
+               in t'
+
+-- | @'iterate' f x@ returns an infinite 'Text' of repeated applications
+-- of @f@ to @x@:
+--
+-- > iterate f x == [x, f x, f (f x), ...]
+iterate :: (Char -> Char) -> Char -> Text
+iterate f c = let t c' = Chunk (T.singleton c') (t (f c'))
+               in t c
 
 -- | /O(n)/ 'replicateChar' @n@ @c@ is a 'Text' of length @n@ with @c@ the
 -- value of every element. Subject to fusion.
@@ -1108,6 +1182,20 @@ takeWhile p t0 = takeWhile' t0
 "LAZY TEXT takeWhile -> unfused" [1] forall p t.
     unstream (S.takeWhile p (stream t)) = takeWhile p t
   #-}
+-- | /O(n)/ 'takeWhileEnd', applied to a predicate @p@ and a 'Text',
+-- returns the longest suffix (possibly empty) of elements that
+-- satisfy @p@.
+-- Examples:
+--
+-- > takeWhileEnd (=='o') "foo" == "oo"
+takeWhileEnd :: (Char -> Bool) -> Text -> Text
+takeWhileEnd p = takeChunk empty . L.reverse . toChunks
+  where takeChunk acc []     = acc
+        takeChunk acc (t:ts) = if T.length t' < T.length t
+                               then (Chunk t' acc)
+                               else takeChunk (Chunk t' acc) ts
+          where t' = T.takeWhileEnd p t
+{-# INLINE takeWhileEnd #-}
 
 -- | /O(n)/ 'dropWhile' @p@ @t@ returns the suffix remaining after
 -- 'takeWhile' @p@ @t@.  Subject to fusion.
@@ -1126,9 +1214,11 @@ dropWhile p t0 = dropWhile' t0
 "LAZY TEXT dropWhile -> unfused" [1] forall p t.
     unstream (S.dropWhile p (stream t)) = dropWhile p t
   #-}
+
 -- | /O(n)/ 'dropWhileEnd' @p@ @t@ returns the prefix remaining after
--- dropping characters that fail the predicate @p@ from the end of
+-- dropping characters that satisfy the predicate @p@ from the end of
 -- @t@.
+--
 -- Examples:
 --
 -- > dropWhileEnd (=='.') "foo..." == "foo"
@@ -1145,7 +1235,7 @@ dropWhileEnd p = go
 {-# INLINE dropWhileEnd #-}
 
 -- | /O(n)/ 'dropAround' @p@ @t@ returns the substring remaining after
--- dropping characters that fail the predicate @p@ from both the
+-- dropping characters that satisfy the predicate @p@ from both the
 -- beginning and end of @t@.  Subject to fusion.
 dropAround :: (Char -> Bool) -> Text -> Text
 dropAround p = dropWhile p . dropWhileEnd p

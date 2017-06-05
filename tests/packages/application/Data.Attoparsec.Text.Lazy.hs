@@ -1,9 +1,79 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/Attoparsec/Text/Lazy.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE Trustworthy #-} -- Imports internal modules
+
 {-# OPTIONS_GHC -fno-warn-warnings-deprecations #-}
 -- |
 -- Module      :  Data.Attoparsec.Text.Lazy
--- Copyright   :  Bryan O'Sullivan 2007-2014
+-- Copyright   :  Bryan O'Sullivan 2007-2015
 -- License     :  BSD3
 --
 -- Maintainer  :  bos@serpentine.com
@@ -38,6 +108,7 @@ module Data.Attoparsec.Text.Lazy
     ) where
 
 import Control.DeepSeq (NFData(rnf))
+import Data.List (intercalate)
 import Data.Text.Lazy.Internal (Text(..), chunk)
 import qualified Data.Attoparsec.Internal.Types as T
 import qualified Data.Attoparsec.Text as A
@@ -47,20 +118,16 @@ import Data.Attoparsec.Text hiding (IResult(..), Result, eitherResult,
 
 -- | The result of a parse.
 data Result r = Fail Text [String] String
-              -- ^ The parse failed.  The 'ByteString' is the input
+              -- ^ The parse failed.  The 'Text' is the input
               -- that had not yet been consumed when the failure
               -- occurred.  The @[@'String'@]@ is a list of contexts
               -- in which the error occurred.  The 'String' is the
               -- message describing the error, if any.
               | Done Text r
-              -- ^ The parse succeeded.  The 'ByteString' is the
+              -- ^ The parse succeeded.  The 'Text' is the
               -- input that had not yet been consumed (if any) when
               -- the parse succeeded.
-
-instance Show r => Show (Result r) where
-    show (Fail bs stk msg) =
-        "Fail " ++ show bs ++ " " ++ show stk ++ " " ++ show msg
-    show (Done bs r)       = "Done " ++ show bs ++ " " ++ show r
+    deriving (Show)
 
 instance NFData r => NFData (Result r) where
     rnf (Fail bs ctxs msg) = rnf bs `seq` rnf ctxs `seq` rnf msg
@@ -96,5 +163,6 @@ maybeResult _          = Nothing
 
 -- | Convert a 'Result' value to an 'Either' value.
 eitherResult :: Result r -> Either String r
-eitherResult (Done _ r)     = Right r
-eitherResult (Fail _ _ msg) = Left msg
+eitherResult (Done _ r)        = Right r
+eitherResult (Fail _ [] msg)   = Left msg
+eitherResult (Fail _ ctxs msg) = Left (intercalate " > " ctxs ++ ": " ++ msg)

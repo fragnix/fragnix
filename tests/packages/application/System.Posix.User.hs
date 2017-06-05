@@ -1,11 +1,8 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/User.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/User.hs" #-}
 {-# LINE 1 "System/Posix/User.hsc" #-}
-
-{-# LINE 2 "System/Posix/User.hsc" #-}
 {-# LANGUAGE Trustworthy, CApiFFI #-}
-
-{-# LINE 4 "System/Posix/User.hsc" #-}
+{-# LINE 2 "System/Posix/User.hsc" #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  System.Posix.User
@@ -53,7 +50,7 @@ module System.Posix.User (
   ) where
 
 
-{-# LINE 51 "System/Posix/User.hsc" #-}
+{-# LINE 49 "System/Posix/User.hsc" #-}
 
 import System.Posix.Types
 import System.IO.Unsafe (unsafePerformIO)
@@ -61,20 +58,23 @@ import Foreign.C
 import Foreign.Ptr
 import Foreign.Marshal
 import Foreign.Storable
-import System.Posix.Internals   ( CGroup, CPasswd )
 
 
-{-# LINE 61 "System/Posix/User.hsc" #-}
+{-# LINE 58 "System/Posix/User.hsc" #-}
 import Control.Concurrent.MVar  ( MVar, newMVar, withMVar )
 
-{-# LINE 63 "System/Posix/User.hsc" #-}
+{-# LINE 60 "System/Posix/User.hsc" #-}
 
-{-# LINE 64 "System/Posix/User.hsc" #-}
+{-# LINE 61 "System/Posix/User.hsc" #-}
 import Control.Exception
 
-{-# LINE 66 "System/Posix/User.hsc" #-}
+{-# LINE 63 "System/Posix/User.hsc" #-}
 import Control.Monad
 import System.IO.Error
+
+-- internal types
+data {-# CTYPE "struct passwd" #-} CPasswd
+data {-# CTYPE "struct group"  #-} CGroup
 
 -- -----------------------------------------------------------------------------
 -- user environemnt
@@ -212,10 +212,10 @@ data GroupEntry =
 --   if no such group exists.
 getGroupEntryForID :: GroupID -> IO GroupEntry
 
-{-# LINE 205 "System/Posix/User.hsc" #-}
+{-# LINE 206 "System/Posix/User.hsc" #-}
 getGroupEntryForID gid =
   allocaBytes (32) $ \pgr ->
-{-# LINE 207 "System/Posix/User.hsc" #-}
+{-# LINE 208 "System/Posix/User.hsc" #-}
    doubleAllocWhileERANGE "getGroupEntryForID" "group" grBufSize unpackGroupEntry $
      c_getgrgid_r gid pgr
 
@@ -223,7 +223,7 @@ foreign import capi unsafe "HsUnix.h getgrgid_r"
   c_getgrgid_r :: CGid -> Ptr CGroup -> CString
                  -> CSize -> Ptr (Ptr CGroup) -> IO CInt
 
-{-# LINE 216 "System/Posix/User.hsc" #-}
+{-# LINE 217 "System/Posix/User.hsc" #-}
 
 -- | @getGroupEntryForName name@ calls @getgrnam_r@ to obtain
 --   the @GroupEntry@ information associated with the group called
@@ -231,10 +231,10 @@ foreign import capi unsafe "HsUnix.h getgrgid_r"
 --   if no such group exists.
 getGroupEntryForName :: String -> IO GroupEntry
 
-{-# LINE 223 "System/Posix/User.hsc" #-}
+{-# LINE 224 "System/Posix/User.hsc" #-}
 getGroupEntryForName name =
   allocaBytes (32) $ \pgr ->
-{-# LINE 225 "System/Posix/User.hsc" #-}
+{-# LINE 226 "System/Posix/User.hsc" #-}
     withCAString name $ \ pstr ->
       doubleAllocWhileERANGE "getGroupEntryForName" "group" grBufSize unpackGroupEntry $
         c_getgrnam_r pstr pgr
@@ -243,7 +243,7 @@ foreign import capi unsafe "HsUnix.h getgrnam_r"
   c_getgrnam_r :: CString -> Ptr CGroup -> CString
                  -> CSize -> Ptr (Ptr CGroup) -> IO CInt
 
-{-# LINE 235 "System/Posix/User.hsc" #-}
+{-# LINE 236 "System/Posix/User.hsc" #-}
 
 -- | @getAllGroupEntries@ returns all group entries on the system by
 --   repeatedly calling @getgrent@
@@ -255,7 +255,7 @@ foreign import capi unsafe "HsUnix.h getgrnam_r"
 --
 getAllGroupEntries :: IO [GroupEntry]
 
-{-# LINE 246 "System/Posix/User.hsc" #-}
+{-# LINE 247 "System/Posix/User.hsc" #-}
 getAllGroupEntries =
     withMVar lock $ \_ -> bracket_ c_setgrent c_endgrent $ worker []
     where worker accum =
@@ -274,30 +274,30 @@ foreign import ccall unsafe "setgrent"
 foreign import ccall unsafe "endgrent"
   c_endgrent :: IO ()
 
-{-# LINE 266 "System/Posix/User.hsc" #-}
+{-# LINE 267 "System/Posix/User.hsc" #-}
 
 
-{-# LINE 268 "System/Posix/User.hsc" #-}
+{-# LINE 269 "System/Posix/User.hsc" #-}
 grBufSize :: Int
 
-{-# LINE 270 "System/Posix/User.hsc" #-}
-grBufSize = sysconfWithDefault 1024 (69)
 {-# LINE 271 "System/Posix/User.hsc" #-}
-
-{-# LINE 274 "System/Posix/User.hsc" #-}
+grBufSize = sysconfWithDefault 1024 (69)
+{-# LINE 272 "System/Posix/User.hsc" #-}
 
 {-# LINE 275 "System/Posix/User.hsc" #-}
+
+{-# LINE 276 "System/Posix/User.hsc" #-}
 
 unpackGroupEntry :: Ptr CGroup -> IO GroupEntry
 unpackGroupEntry ptr = do
    name    <- ((\hsc_ptr -> peekByteOff hsc_ptr 0)) ptr >>= peekCAString
-{-# LINE 279 "System/Posix/User.hsc" #-}
-   passwd  <- ((\hsc_ptr -> peekByteOff hsc_ptr 8)) ptr >>= peekCAString
 {-# LINE 280 "System/Posix/User.hsc" #-}
-   gid     <- ((\hsc_ptr -> peekByteOff hsc_ptr 16)) ptr
+   passwd  <- ((\hsc_ptr -> peekByteOff hsc_ptr 8)) ptr >>= peekCAString
 {-# LINE 281 "System/Posix/User.hsc" #-}
-   mem     <- ((\hsc_ptr -> peekByteOff hsc_ptr 24)) ptr
+   gid     <- ((\hsc_ptr -> peekByteOff hsc_ptr 16)) ptr
 {-# LINE 282 "System/Posix/User.hsc" #-}
+   mem     <- ((\hsc_ptr -> peekByteOff hsc_ptr 24)) ptr
+{-# LINE 283 "System/Posix/User.hsc" #-}
    members <- peekArray0 nullPtr mem >>= mapM peekCAString
    return (GroupEntry name passwd gid members)
 
@@ -323,12 +323,12 @@ data UserEntry =
 -- Also, getpwent/setpwent require a global lock since they maintain
 -- an internal file position pointer.
 
-{-# LINE 307 "System/Posix/User.hsc" #-}
+{-# LINE 308 "System/Posix/User.hsc" #-}
 lock :: MVar ()
 lock = unsafePerformIO $ newMVar ()
 {-# NOINLINE lock #-}
 
-{-# LINE 311 "System/Posix/User.hsc" #-}
+{-# LINE 312 "System/Posix/User.hsc" #-}
 
 -- | @getUserEntryForID gid@ calls @getpwuid_r@ to obtain
 --   the @UserEntry@ information associated with @UserID@
@@ -336,18 +336,18 @@ lock = unsafePerformIO $ newMVar ()
 --   if no such user exists.
 getUserEntryForID :: UserID -> IO UserEntry
 
-{-# LINE 318 "System/Posix/User.hsc" #-}
+{-# LINE 319 "System/Posix/User.hsc" #-}
 getUserEntryForID uid =
   allocaBytes (48) $ \ppw ->
-{-# LINE 320 "System/Posix/User.hsc" #-}
+{-# LINE 321 "System/Posix/User.hsc" #-}
     doubleAllocWhileERANGE "getUserEntryForID" "user" pwBufSize unpackUserEntry $
       c_getpwuid_r uid ppw
 
-foreign import ccall unsafe "__hsunix_getpwuid_r"
+foreign import capi unsafe "HsUnix.h getpwuid_r"
   c_getpwuid_r :: CUid -> Ptr CPasswd ->
                         CString -> CSize -> Ptr (Ptr CPasswd) -> IO CInt
 
-{-# LINE 337 "System/Posix/User.hsc" #-}
+{-# LINE 338 "System/Posix/User.hsc" #-}
 
 -- | @getUserEntryForName name@ calls @getpwnam_r@ to obtain
 --   the @UserEntry@ information associated with the user login
@@ -355,25 +355,25 @@ foreign import ccall unsafe "__hsunix_getpwuid_r"
 --   if no such user exists.
 getUserEntryForName :: String -> IO UserEntry
 
-{-# LINE 344 "System/Posix/User.hsc" #-}
+{-# LINE 345 "System/Posix/User.hsc" #-}
 getUserEntryForName name =
   allocaBytes (48) $ \ppw ->
-{-# LINE 346 "System/Posix/User.hsc" #-}
+{-# LINE 347 "System/Posix/User.hsc" #-}
     withCAString name $ \ pstr ->
       doubleAllocWhileERANGE "getUserEntryForName" "user" pwBufSize unpackUserEntry $
         c_getpwnam_r pstr ppw
 
-foreign import ccall unsafe "__hsunix_getpwnam_r"
+foreign import capi unsafe "HsUnix.h getpwnam_r"
   c_getpwnam_r :: CString -> Ptr CPasswd
                -> CString -> CSize -> Ptr (Ptr CPasswd) -> IO CInt
 
-{-# LINE 365 "System/Posix/User.hsc" #-}
+{-# LINE 366 "System/Posix/User.hsc" #-}
 
 -- | @getAllUserEntries@ returns all user entries on the system by
 --   repeatedly calling @getpwent@
 getAllUserEntries :: IO [UserEntry]
 
-{-# LINE 370 "System/Posix/User.hsc" #-}
+{-# LINE 371 "System/Posix/User.hsc" #-}
 getAllUserEntries =
     withMVar lock $ \_ -> bracket_ c_setpwent c_endpwent $ worker []
     where worker accum =
@@ -385,29 +385,29 @@ getAllUserEntries =
                      else do thisentry <- unpackUserEntry ppw
                              worker (thisentry : accum)
 
-foreign import ccall unsafe "__hsunix_getpwent"
+foreign import capi unsafe "HsUnix.h getpwent"
   c_getpwent :: IO (Ptr CPasswd)
-foreign import ccall unsafe "setpwent"
+foreign import capi unsafe "HsUnix.h setpwent"
   c_setpwent :: IO ()
-foreign import ccall unsafe "endpwent"
+foreign import capi unsafe "HsUnix.h endpwent"
   c_endpwent :: IO ()
 
-{-# LINE 390 "System/Posix/User.hsc" #-}
+{-# LINE 391 "System/Posix/User.hsc" #-}
 
 
-{-# LINE 392 "System/Posix/User.hsc" #-}
+{-# LINE 393 "System/Posix/User.hsc" #-}
 pwBufSize :: Int
 
-{-# LINE 394 "System/Posix/User.hsc" #-}
-pwBufSize = sysconfWithDefault 1024 (70)
 {-# LINE 395 "System/Posix/User.hsc" #-}
-
-{-# LINE 398 "System/Posix/User.hsc" #-}
+pwBufSize = sysconfWithDefault 1024 (70)
+{-# LINE 396 "System/Posix/User.hsc" #-}
 
 {-# LINE 399 "System/Posix/User.hsc" #-}
 
+{-# LINE 400 "System/Posix/User.hsc" #-}
 
-{-# LINE 401 "System/Posix/User.hsc" #-}
+
+{-# LINE 402 "System/Posix/User.hsc" #-}
 foreign import ccall unsafe "sysconf"
   c_sysconf :: CInt -> IO CLong
 
@@ -420,7 +420,7 @@ sysconfWithDefault def sc =
     unsafePerformIO $ do v <- fmap fromIntegral $ c_sysconf sc
                          return $ if v == (-1) then def else v
 
-{-# LINE 413 "System/Posix/User.hsc" #-}
+{-# LINE 414 "System/Posix/User.hsc" #-}
 
 -- The following function is used by the getgr*_r, c_getpw*_r
 -- families of functions. These functions return their result
@@ -461,23 +461,23 @@ doubleAllocWhileERANGE loc enttype initlen unpack action =
 unpackUserEntry :: Ptr CPasswd -> IO UserEntry
 unpackUserEntry ptr = do
    name   <- ((\hsc_ptr -> peekByteOff hsc_ptr 0))   ptr >>= peekCAString
-{-# LINE 453 "System/Posix/User.hsc" #-}
-   passwd <- ((\hsc_ptr -> peekByteOff hsc_ptr 8)) ptr >>= peekCAString
 {-# LINE 454 "System/Posix/User.hsc" #-}
-   uid    <- ((\hsc_ptr -> peekByteOff hsc_ptr 16))    ptr
+   passwd <- ((\hsc_ptr -> peekByteOff hsc_ptr 8)) ptr >>= peekCAString
 {-# LINE 455 "System/Posix/User.hsc" #-}
-   gid    <- ((\hsc_ptr -> peekByteOff hsc_ptr 20))    ptr
+   uid    <- ((\hsc_ptr -> peekByteOff hsc_ptr 16))    ptr
 {-# LINE 456 "System/Posix/User.hsc" #-}
+   gid    <- ((\hsc_ptr -> peekByteOff hsc_ptr 20))    ptr
+{-# LINE 457 "System/Posix/User.hsc" #-}
 
-{-# LINE 459 "System/Posix/User.hsc" #-}
-   gecos  <- ((\hsc_ptr -> peekByteOff hsc_ptr 24))  ptr >>= peekCAString
 {-# LINE 460 "System/Posix/User.hsc" #-}
-
+   gecos  <- ((\hsc_ptr -> peekByteOff hsc_ptr 24))  ptr >>= peekCAString
 {-# LINE 461 "System/Posix/User.hsc" #-}
-   dir    <- ((\hsc_ptr -> peekByteOff hsc_ptr 32))    ptr >>= peekCAString
+
 {-# LINE 462 "System/Posix/User.hsc" #-}
-   shell  <- ((\hsc_ptr -> peekByteOff hsc_ptr 40))  ptr >>= peekCAString
+   dir    <- ((\hsc_ptr -> peekByteOff hsc_ptr 32))    ptr >>= peekCAString
 {-# LINE 463 "System/Posix/User.hsc" #-}
+   shell  <- ((\hsc_ptr -> peekByteOff hsc_ptr 40))  ptr >>= peekCAString
+{-# LINE 464 "System/Posix/User.hsc" #-}
    return (UserEntry name passwd uid gid gecos dir shell)
 
 -- Used when a function returns NULL to indicate either an error or

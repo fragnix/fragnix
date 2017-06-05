@@ -47,9 +47,37 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE Trustworthy #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -403,7 +431,6 @@
 -- License     :  BSD-style (see the file libraries/base/LICENSE)
 --
 -- Maintainer  :  libraries@haskell.org
--- Stability   :  experimental
 -- Portability :  portable
 --
 -- Multi-way trees (/aka/ rose trees) and forests.
@@ -415,17 +442,15 @@ module Data.Tree(
     -- * Two-dimensional drawing
     drawTree, drawForest,
     -- * Extraction
-    flatten, levels,
+    flatten, levels, foldTree,
     -- * Building trees
     unfoldTree, unfoldForest,
     unfoldTreeM, unfoldForestM,
     unfoldTreeM_BF, unfoldForestM_BF,
     ) where
 
-import Control.Applicative (Applicative(..), (<$>))
-import Data.Foldable (Foldable(foldMap), toList)
-import Data.Monoid (Monoid(..))
-import Data.Traversable (Traversable(traverse))
+import Data.Foldable (toList)
+import Control.Applicative (Applicative(..), liftA2)
 
 import Control.Monad (liftM)
 import Data.Sequence (Seq, empty, singleton, (<|), (|>), fromList,
@@ -434,6 +459,14 @@ import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
 
 import Data.Data (Data)
+import GHC.Generics (Generic, Generic1)
+
+import Control.Monad.Zip (MonadZip (..))
+
+import Data.Coerce
+
+import Data.Functor.Classes
+import Data.Semigroup (Semigroup (..))
 
 
 -- | Multi-way trees, also known as /rose trees/.
@@ -441,36 +474,89 @@ data Tree a = Node {
         rootLabel :: a,         -- ^ label value
         subForest :: Forest a   -- ^ zero or more child trees
     }
-  deriving (Eq, Read, Show, Data)
+  deriving (Eq, Read, Show, Data, Generic, Generic1)
 type Forest a = [Tree a]
+
+instance Eq1 Tree where
+  liftEq eq = leq
+    where
+      leq (Node a fr) (Node a' fr') = eq a a' && liftEq leq fr fr'
+
+instance Ord1 Tree where
+  liftCompare cmp = lcomp
+    where
+      lcomp (Node a fr) (Node a' fr') = cmp a a' <> liftCompare lcomp fr fr'
+
+instance Show1 Tree where
+  liftShowsPrec shw shwl p (Node a fr) = showParen (p > 10) $
+        showString "Node {rootLabel = " . shw 0 a . showString ", " .
+          showString "subForest = " . liftShowList shw shwl fr .
+          showString "}"
+
+instance Read1 Tree where
+  liftReadsPrec rd rdl p = readParen (p > 10) $
+    \s -> do
+      ("Node", s1) <- lex s
+      ("{", s2) <- lex s1
+      ("rootLabel", s3) <- lex s2
+      ("=", s4) <- lex s3
+      (a, s5) <- rd 0 s4
+      (",", s6) <- lex s5
+      ("subForest", s7) <- lex s6
+      ("=", s8) <- lex s7
+      (fr, s9) <- liftReadList rd rdl s8
+      ("}", s10) <- lex s9
+      pure (Node a fr, s10)
 
 deriving instance Typeable Tree
 
 instance Functor Tree where
     fmap = fmapTree
+    x <$ Node _ ts = Node x (map (x <$) ts)
 
 fmapTree :: (a -> b) -> Tree a -> Tree b
 fmapTree f (Node x ts) = Node (f x) (map (fmapTree f) ts)
+-- Safe coercions were introduced in 4.7.0, but I am not sure if they played
+-- well enough with RULES to do what we want.
+{-# NOINLINE [1] fmapTree #-}
+{-# RULES
+"fmapTree/coerce" fmapTree coerce = coerce
+ #-}
 
 instance Applicative Tree where
     pure x = Node x []
     Node f tfs <*> tx@(Node x txs) =
         Node (f x) (map (f <$>) txs ++ map (<*> tx) tfs)
+    Node x txs <* ty@(Node _ tys) =
+        Node x (map (x <$) tys ++ map (<* ty) txs)
+    Node _ txs *> ty@(Node y tys) =
+        Node y (tys ++ map (*> ty) txs)
 
 instance Monad Tree where
-    return x = Node x []
+    return = pure
     Node x ts >>= f = Node x' (ts' ++ map (>>= f) ts)
       where Node x' ts' = f x
 
 instance Traversable Tree where
-    traverse f (Node x ts) = Node <$> f x <*> traverse (traverse f) ts
+    traverse f (Node x ts) = liftA2 Node (f x) (traverse (traverse f) ts)
 
 instance Foldable Tree where
     foldMap f (Node x ts) = f x `mappend` foldMap (foldMap f) ts
 
+    null _ = False
+    {-# INLINE null #-}
+    toList = flatten
+    {-# INLINE toList #-}
 
 instance NFData a => NFData (Tree a) where
     rnf (Node x ts) = rnf x `seq` rnf ts
+
+instance MonadZip Tree where
+  mzipWith f (Node a as) (Node b bs)
+    = Node (f a b) (mzipWith (mzipWith f) as bs)
+
+  munzip (Node (a, b) ts) = (Node a as, Node b bs)
+    where (as, bs) = munzip (map munzip ts)
 
 -- | Neat 2-dimensional drawing of a tree.
 drawTree :: Tree String -> String
@@ -481,7 +567,7 @@ drawForest :: Forest String -> String
 drawForest  = unlines . map drawTree
 
 draw :: Tree String -> [String]
-draw (Node x ts0) = x : drawSubTrees ts0
+draw (Node x ts0) = lines x ++ drawSubTrees ts0
   where
     drawSubTrees [] = []
     drawSubTrees [t] =
@@ -502,6 +588,11 @@ levels t =
     map (map rootLabel) $
         takeWhile (not . null) $
         iterate (concatMap subForest) [t]
+
+-- | Catamorphism on trees.
+foldTree :: (a -> [b] -> b) -> Tree a -> b
+foldTree f = go where
+    go (Node x ts) = f x (map go ts)
 
 -- | Build a tree from a seed value
 unfoldTree :: (b -> (a, [b])) -> b -> Tree a

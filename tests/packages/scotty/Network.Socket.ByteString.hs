@@ -1,5 +1,12 @@
 {-# LANGUAGE Haskell98, CPP, DeriveDataTypeable, ForeignFunctionInterface, TypeSynonymInstances #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/Network/Socket/ByteString.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/Network/Socket/ByteString.hs" #-}
+
+
+
+
+
+
+
 
 
 
@@ -93,15 +100,15 @@ module Network.Socket.ByteString
     -- $example
     ) where
 
-import Control.Monad (liftM, when)
+import Control.Exception (catch, throwIO)
+import Control.Monad (when)
 import Data.ByteString (ByteString)
 import Data.ByteString.Internal (createAndTrim)
 import Data.ByteString.Unsafe (unsafeUseAsCStringLen)
-import Data.Word (Word8)
-import Foreign.C.Types (CInt(..))
 import Foreign.Marshal.Alloc (allocaBytes)
-import Foreign.Ptr (Ptr, castPtr)
-import Network.Socket (SockAddr, Socket(..), sendBufTo, recvBufFrom)
+import Foreign.Ptr (castPtr)
+import Network.Socket (sendBuf, sendBufTo, recvBuf, recvBufFrom)
+import System.IO.Error (isEOFError)
 
 import qualified Data.ByteString as B
 
@@ -111,28 +118,16 @@ import Network.Socket.Types
 
 
 {-# LINE 63 "Network/Socket/ByteString.hsc" #-}
-import Control.Monad (zipWithM_)
-import Foreign.C.Types (CChar)
-import Foreign.C.Types (CSize(..))
+import Control.Monad (liftM, zipWithM_)
 import Foreign.Marshal.Array (allocaArray)
 import Foreign.Marshal.Utils (with)
-import Foreign.Ptr (plusPtr)
+import Foreign.Ptr (Ptr, plusPtr)
 import Foreign.Storable (Storable(..))
 
 import Network.Socket.ByteString.IOVec (IOVec(..))
 import Network.Socket.ByteString.MsgHdr (MsgHdr(..))
 
-
-{-# LINE 77 "Network/Socket/ByteString.hsc" #-}
-
-
-{-# LINE 79 "Network/Socket/ByteString.hsc" #-}
-foreign import ccall unsafe "send"
-  c_send :: CInt -> Ptr a -> CSize -> CInt -> IO CInt
-foreign import ccall unsafe "recv"
-  c_recv :: CInt -> Ptr CChar -> CSize -> CInt -> IO CInt
-
-{-# LINE 84 "Network/Socket/ByteString.hsc" #-}
+{-# LINE 72 "Network/Socket/ByteString.hsc" #-}
 
 -- ----------------------------------------------------------------------------
 -- Sending
@@ -140,24 +135,21 @@ foreign import ccall unsafe "recv"
 -- | Send data to the socket.  The socket must be connected to a
 -- remote socket.  Returns the number of bytes sent. Applications are
 -- responsible for ensuring that all data has been sent.
+--
+-- Sending data to closed socket may lead to undefined behaviour.
 send :: Socket      -- ^ Connected socket
      -> ByteString  -- ^ Data to send
      -> IO Int      -- ^ Number of bytes sent
-send sock@(MkSocket s _ _ _ _) xs =
-    unsafeUseAsCStringLen xs $ \(str, len) ->
-    liftM fromIntegral $
-
-{-# LINE 101 "Network/Socket/ByteString.hsc" #-}
-        throwSocketErrorWaitWrite sock "send" $
-        c_send s str (fromIntegral len) 0
-
-{-# LINE 104 "Network/Socket/ByteString.hsc" #-}
+send sock xs = unsafeUseAsCStringLen xs $ \(str, len) ->
+    sendBuf sock (castPtr str) len
 
 -- | Send data to the socket.  The socket must be connected to a
 -- remote socket.  Unlike 'send', this function continues to send data
 -- until either all data has been sent or an error occurs.  On error,
 -- an exception is raised, and there is no way to determine how much
 -- data, if any, was successfully sent.
+--
+-- Sending data to closed socket may lead to undefined behaviour.
 sendAll :: Socket      -- ^ Connected socket
         -> ByteString  -- ^ Data to send
         -> IO ()
@@ -169,6 +161,8 @@ sendAll sock bs = do
 -- explicitly, so the socket need not be in a connected state.
 -- Returns the number of bytes sent. Applications are responsible for
 -- ensuring that all data has been sent.
+--
+-- Sending data to closed socket may lead to undefined behaviour.
 sendTo :: Socket      -- ^ Socket
        -> ByteString  -- ^ Data to send
        -> SockAddr    -- ^ Recipient address
@@ -182,6 +176,8 @@ sendTo sock xs addr =
 -- data has been sent or an error occurs.  On error, an exception is
 -- raised, and there is no way to determine how much data, if any, was
 -- successfully sent.
+--
+-- Sending data to closed socket may lead to undefined behaviour.
 sendAllTo :: Socket      -- ^ Socket
           -> ByteString  -- ^ Data to send
           -> SockAddr    -- ^ Recipient address
@@ -218,23 +214,25 @@ sendAllTo sock xs addr = do
 -- sent or an error occurs.  On error, an exception is raised, and
 -- there is no way to determine how much data, if any, was
 -- successfully sent.
+--
+-- Sending data to closed socket may lead to undefined behaviour.
 sendMany :: Socket        -- ^ Connected socket
          -> [ByteString]  -- ^ Data to send
          -> IO ()
 
-{-# LINE 174 "Network/Socket/ByteString.hsc" #-}
+{-# LINE 164 "Network/Socket/ByteString.hsc" #-}
 sendMany sock@(MkSocket fd _ _ _ _) cs = do
     sent <- sendManyInner
     when (sent < totalLength cs) $ sendMany sock (remainingChunks sent cs)
   where
     sendManyInner =
       liftM fromIntegral . withIOVec cs $ \(iovsPtr, iovsLen) ->
-          throwSocketErrorWaitWrite sock "writev" $
+          throwSocketErrorWaitWrite sock "Network.Socket.ByteString.sendMany" $
               c_writev (fromIntegral fd) iovsPtr
               (fromIntegral (min iovsLen (1024)))
-{-# LINE 183 "Network/Socket/ByteString.hsc" #-}
+{-# LINE 173 "Network/Socket/ByteString.hsc" #-}
 
-{-# LINE 186 "Network/Socket/ByteString.hsc" #-}
+{-# LINE 176 "Network/Socket/ByteString.hsc" #-}
 
 -- | Send data to the socket.  The recipient can be specified
 -- explicitly, so the socket need not be in a connected state.  The
@@ -242,12 +240,14 @@ sendMany sock@(MkSocket fd _ _ _ _) cs = do
 -- continues to send data until either all data has been sent or an
 -- error occurs.  On error, an exception is raised, and there is no
 -- way to determine how much data, if any, was successfully sent.
+--
+-- Sending data to closed socket may lead to undefined behaviour.
 sendManyTo :: Socket        -- ^ Socket
            -> [ByteString]  -- ^ Data to send
            -> SockAddr      -- ^ Recipient address
            -> IO ()
 
-{-# LINE 198 "Network/Socket/ByteString.hsc" #-}
+{-# LINE 190 "Network/Socket/ByteString.hsc" #-}
 sendManyTo sock@(MkSocket fd _ _ _ _) cs addr = do
     sent <- liftM fromIntegral sendManyToInner
     when (sent < totalLength cs) $ sendManyTo sock (remainingChunks sent cs) addr
@@ -259,10 +259,10 @@ sendManyTo sock@(MkSocket fd _ _ _ _) cs addr = do
                 addrPtr (fromIntegral addrSize)
                 iovsPtr (fromIntegral iovsLen)
           with msgHdr $ \msgHdrPtr ->
-            throwSocketErrorWaitWrite sock "sendmsg" $
+            throwSocketErrorWaitWrite sock "Network.Socket.ByteString.sendManyTo" $
               c_sendmsg (fromIntegral fd) msgHdrPtr 0
 
-{-# LINE 214 "Network/Socket/ByteString.hsc" #-}
+{-# LINE 206 "Network/Socket/ByteString.hsc" #-}
 
 -- ----------------------------------------------------------------------------
 -- Receiving
@@ -278,29 +278,24 @@ sendManyTo sock@(MkSocket fd _ _ _ _) cs addr = do
 --
 -- For TCP sockets, a zero length return value means the peer has
 -- closed its half side of the connection.
+--
+-- Receiving data from closed socket may lead to undefined behaviour.
 recv :: Socket         -- ^ Connected socket
      -> Int            -- ^ Maximum number of bytes to receive
      -> IO ByteString  -- ^ Data received
 recv sock nbytes
     | nbytes < 0 = ioError (mkInvalidRecvArgError "Network.Socket.ByteString.recv")
-    | otherwise  = createAndTrim nbytes $ recvInner sock nbytes
-
-recvInner :: Socket -> Int -> Ptr Word8 -> IO Int
-recvInner sock nbytes ptr =
-    fmap fromIntegral $
-
-{-# LINE 242 "Network/Socket/ByteString.hsc" #-}
-        throwSocketErrorWaitRead sock "recv" $
-        c_recv s (castPtr ptr) (fromIntegral nbytes) 0
-
-{-# LINE 245 "Network/Socket/ByteString.hsc" #-}
-  where
-    s = sockFd sock
+    | otherwise  = createAndTrim nbytes $ \ptr ->
+        catch
+          (recvBuf sock ptr nbytes)
+          (\e -> if isEOFError e then return 0 else throwIO e)
 
 -- | Receive data from the socket.  The socket need not be in a
 -- connected state.  Returns @(bytes, address)@ where @bytes@ is a
 -- 'ByteString' representing the data received and @address@ is a
 -- 'SockAddr' representing the address of the sending socket.
+--
+-- Receiving data from closed socket may lead to undefined behaviour.
 recvFrom :: Socket                     -- ^ Socket
          -> Int                        -- ^ Maximum number of bytes to receive
          -> IO (ByteString, SockAddr)  -- ^ Data received and sender address
@@ -314,7 +309,7 @@ recvFrom sock nbytes =
 -- Not exported
 
 
-{-# LINE 265 "Network/Socket/ByteString.hsc" #-}
+{-# LINE 252 "Network/Socket/ByteString.hsc" #-}
 -- | Suppose we try to transmit a list of chunks @cs@ via a gathering write
 -- operation and find that @n@ bytes were sent. Then @remainingChunks n cs@ is
 -- list of chunks remaining to be sent.
@@ -346,7 +341,7 @@ withIOVec cs f =
         unsafeUseAsCStringLen s $ \(sPtr, sLen) ->
         poke ptr $ IOVec sPtr (fromIntegral sLen)
 
-{-# LINE 296 "Network/Socket/ByteString.hsc" #-}
+{-# LINE 283 "Network/Socket/ByteString.hsc" #-}
 
 -- ---------------------------------------------------------------------
 -- Example
@@ -372,12 +367,12 @@ withIOVec cs f =
 -- >                     Nothing (Just "3000")
 -- >        let serveraddr = head addrinfos
 -- >        sock <- socket (addrFamily serveraddr) Stream defaultProtocol
--- >        bindSocket sock (addrAddress serveraddr)
+-- >        bind sock (addrAddress serveraddr)
 -- >        listen sock 1
 -- >        (conn, _) <- accept sock
 -- >        talk conn
--- >        sClose conn
--- >        sClose sock
+-- >        close conn
+-- >        close sock
 -- >
 -- >     where
 -- >       talk :: Socket -> IO ()
@@ -400,6 +395,6 @@ withIOVec cs f =
 -- >        connect sock (addrAddress serveraddr)
 -- >        sendAll sock $ C.pack "Hello, world!"
 -- >        msg <- recv sock 1024
--- >        sClose sock
+-- >        close sock
 -- >        putStr "Received "
 -- >        C.putStrLn msg

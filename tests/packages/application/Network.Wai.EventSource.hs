@@ -1,6 +1,5 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010, OverloadedStrings #-}
 {-# LINE 1 "Network/Wai/EventSource.hs" #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-|
     A WAI adapter to the HTML5 Server-Sent Events API.
 -}
@@ -10,12 +9,11 @@ module Network.Wai.EventSource (
     eventSourceAppIO
     ) where
 
-import           Blaze.ByteString.Builder (Builder)
 import           Data.Function (fix)
 import           Control.Concurrent.Chan (Chan, dupChan, readChan)
 import           Control.Monad.IO.Class (liftIO)
-import           Network.HTTP.Types (status200)
-import           Network.Wai (Application, Response, responseStream)
+import           Network.HTTP.Types (status200, hContentType)
+import           Network.Wai (Application, responseStream)
 
 import Network.Wai.EventSource.EventStream
 
@@ -32,7 +30,7 @@ eventSourceAppIO :: IO ServerEvent -> Application
 eventSourceAppIO src _ sendResponse =
     sendResponse $ responseStream
         status200
-        [("Content-Type", "text/event-stream")]
+        [(hContentType, "text/event-stream")]
         $ \sendChunk flush -> fix $ \loop -> do
             se <- src
             case eventToBuilder se of

@@ -1,5 +1,11 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Control/Sequential/STM.hs" #-}
+
+
+
+
+
+
 
 
 
@@ -49,7 +55,7 @@
 
 {-# LANGUAGE CPP #-}
 
-{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE Safe #-}
 
 -- #hide
 module Control.Sequential.STM (
@@ -57,7 +63,6 @@ module Control.Sequential.STM (
         TVar, newTVar, newTVarIO, readTVar, readTVarIO, writeTVar
     ) where
 
-import Control.Applicative (Applicative(pure, (<*>)))
 import Control.Exception
 import Data.IORef
 

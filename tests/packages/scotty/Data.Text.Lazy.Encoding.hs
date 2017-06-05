@@ -51,6 +51,19 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# LANGUAGE BangPatterns,CPP #-}
 {-# LANGUAGE Trustworthy #-}
 -- |
@@ -103,20 +116,19 @@ module Data.Text.Lazy.Encoding
     ) where
 
 import Control.Exception (evaluate, try)
+import Data.Monoid (Monoid(..))
 import Data.Text.Encoding.Error (OnDecodeError, UnicodeException, strictDecode)
 import Data.Text.Internal.Lazy (Text(..), chunk, empty, foldrChunks)
-import qualified Data.ByteString as S
-import qualified Data.ByteString.Lazy as B
-import qualified Data.ByteString.Lazy.Internal as B
-import qualified Data.ByteString.Unsafe as B
 import Data.Word (Word8)
-import Data.Monoid (mappend, mempty)
+import qualified Data.ByteString as S
 import qualified Data.ByteString.Builder as B
 import qualified Data.ByteString.Builder.Extra as B (safeStrategy, toLazyByteStringWith)
 import qualified Data.ByteString.Builder.Prim as BP
+import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.Lazy.Internal as B
+import qualified Data.ByteString.Unsafe as B
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
-import qualified Data.Text.Lazy as L
 import qualified Data.Text.Internal.Lazy.Encoding.Fusion as E
 import qualified Data.Text.Internal.Lazy.Fusion as F
 import Data.Text.Unsafe (unsafeDupablePerformIO)
@@ -157,7 +169,7 @@ decodeUtf8With onErr (B.Chunk b0 bs0) =
       | S.null l  = empty
       | otherwise = case onErr desc (Just (B.unsafeHead l)) of
                       Nothing -> empty
-                      Just c  -> L.singleton c
+                      Just c  -> Chunk (T.singleton c) Empty
     desc = "Data.Text.Lazy.Encoding.decodeUtf8With: Invalid UTF-8 stream"
 decodeUtf8With _ _ = empty
 
@@ -208,13 +220,12 @@ encodeUtf8 lt@(Chunk t _) =
 
 encodeUtf8Builder :: Text -> B.Builder
 encodeUtf8Builder =
-    foldrChunks (\c b -> TE.encodeUtf8Builder c `mappend` b) mempty
+    foldrChunks (\c b -> TE.encodeUtf8Builder c `mappend` b) Data.Monoid.mempty
 
 {-# INLINE encodeUtf8BuilderEscaped #-}
 encodeUtf8BuilderEscaped :: BP.BoundedPrim Word8 -> Text -> B.Builder
 encodeUtf8BuilderEscaped prim =
     foldrChunks (\c b -> TE.encodeUtf8BuilderEscaped prim c `mappend` b) mempty
-
 
 -- | Decode text from little endian UTF-16 encoding.
 decodeUtf16LEWith :: OnDecodeError -> B.ByteString -> Text

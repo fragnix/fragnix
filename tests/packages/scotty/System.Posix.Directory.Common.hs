@@ -1,9 +1,9 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Directory/Common.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Directory/Common.hs" #-}
 {-# LINE 1 "System/Posix/Directory/Common.hsc" #-}
 
-{-# LINE 4 "System/Posix/Directory/Common.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LINE 2 "System/Posix/Directory/Common.hsc" #-}
+{-# LANGUAGE Safe #-}
 
 {-# LINE 6 "System/Posix/Directory/Common.hsc" #-}
 
@@ -47,8 +47,8 @@ import Foreign.C
 
 newtype DirStream = DirStream (Ptr CDir)
 
-type CDir       = ()
-type CDirent    = ()
+data {-# CTYPE "DIR" #-} CDir
+data {-# CTYPE "struct dirent" #-} CDirent
 
 -- | @rewindDirStream dp@ calls @rewinddir@ to reposition
 --   the directory stream @dp@ at the beginning of the directory.

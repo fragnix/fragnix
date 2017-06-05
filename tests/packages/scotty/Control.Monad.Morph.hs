@@ -43,7 +43,19 @@
 
 
 
-{-# LANGUAGE CPP, RankNTypes #-}
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP, RankNTypes, PolyKinds #-}
 
 {-| A monad morphism is a natural transformation:
 
@@ -53,13 +65,13 @@
 
 > morph $ do x <- m  =  do x <- morph m
 >            f x           morph (f x)
-> 
+>
 > morph (return x) = return x
 
     ... which are equivalent to the following two functor laws:
 
 > morph . (f >=> g) = morph . f >=> morph . g
-> 
+>
 > morph . return = return
 
     Examples of monad morphisms include:
@@ -119,14 +131,14 @@ module Control.Monad.Morph (
 
 import Control.Monad.Trans.Class (MonadTrans(lift))
 import qualified Control.Monad.Trans.Error         as E
-import qualified Control.Monad.Trans.Except         as Ex
+import qualified Control.Monad.Trans.Except        as Ex
 import qualified Control.Monad.Trans.Identity      as I
 import qualified Control.Monad.Trans.List          as L
 import qualified Control.Monad.Trans.Maybe         as M
 import qualified Control.Monad.Trans.Reader        as R
 import qualified Control.Monad.Trans.RWS.Lazy      as RWS
 import qualified Control.Monad.Trans.RWS.Strict    as RWS'
-import qualified Control.Monad.Trans.State.Lazy    as S 
+import qualified Control.Monad.Trans.State.Lazy    as S
 import qualified Control.Monad.Trans.State.Strict  as S'
 import qualified Control.Monad.Trans.Writer.Lazy   as W'
 import qualified Control.Monad.Trans.Writer.Strict as W
@@ -145,7 +157,7 @@ import Data.Functor.Identity (Identity)
 {-| A functor in the category of monads, using 'hoist' as the analog of 'fmap':
 
 > hoist (f . g) = hoist f . hoist g
-> 
+>
 > hoist id = id
 -}
 class MFunctor t where
@@ -212,9 +224,9 @@ generalize = return . runIdentity
     analog of 'return' and 'embed' as the analog of ('=<<'):
 
 > embed lift = id
-> 
+>
 > embed f (lift m) = f m
-> 
+>
 > embed g (embed f t) = embed (\m -> embed g (f m)) t
 -}
 class (MFunctor t, MonadTrans t) => MMonad t where
@@ -276,7 +288,7 @@ t |>= f = embed f t
 {-# INLINABLE (|>=) #-}
 
 instance (E.Error e) => MMonad (E.ErrorT e) where
-    embed f m = E.ErrorT (do 
+    embed f m = E.ErrorT (do
         x <- E.runErrorT (f (E.runErrorT m))
         return (case x of
             Left         e  -> Left e
@@ -284,7 +296,7 @@ instance (E.Error e) => MMonad (E.ErrorT e) where
             Right (Right a) -> Right a ) )
 
 instance MMonad (Ex.ExceptT e) where
-    embed f m = Ex.ExceptT (do 
+    embed f m = Ex.ExceptT (do
         x <- Ex.runExceptT (f (Ex.runExceptT m))
         return (case x of
             Left         e  -> Left e
@@ -331,7 +343,7 @@ instance (Monoid w) => MMonad (W'.WriterT w) where
     Imagine that some library provided the following 'S.State' code:
 
 > import Control.Monad.Trans.State
-> 
+>
 > tick :: State Int ()
 > tick = modify (+1)
 
@@ -358,23 +370,23 @@ instance (Monoid w) => MMonad (W'.WriterT w) where
     to be any monad:
 
 > import Data.Functor.Identity
-> 
+>
 > generalize :: (Monad m) => Identity a -> m a
 > generalize m = return (runIdentity m)
 
     ... which we can 'hoist' to change @tick@'s base monad:
 
 > hoist :: (Monad m, MFunctor t) => (forall a . m a -> n a) -> t m b -> t n b
-> 
+>
 > hoist generalize :: (Monad m, MFunctor t) => t Identity b -> t m b
-> 
+>
 > hoist generalize tick :: (Monad m) => StateT Int m ()
 
     This lets us mix @tick@ alongside 'IO' using 'lift':
 
 > import Control.Monad.Morph
 > import Control.Monad.Trans.Class
-> 
+>
 > tock                        ::                   StateT Int IO ()
 > tock = do
 >     hoist generalize tick   :: (Monad      m) => StateT Int m  ()
@@ -393,29 +405,29 @@ Tock!
     morphism laws:
 
 > generalize (return x)
-> 
+>
 > -- Definition of 'return' for the Identity monad
 > = generalize (Identity x)
-> 
+>
 > -- Definition of 'generalize'
 > = return (runIdentity (Identity x))
-> 
+>
 > -- runIdentity (Identity x) = x
 > = return x
 
 > generalize $ do x <- m
 >                 f x
-> 
+>
 > -- Definition of (>>=) for the Identity monad
 > = generalize (f (runIdentity m))
-> 
+>
 > -- Definition of 'generalize'
 > = return (runIdentity (f (runIdentity m)))
-> 
+>
 > -- Monad law: Left identity
 > = do x <- return (runIdentity m)
 >      return (runIdentity (f x))
-> 
+>
 > -- Definition of 'generalize' in reverse
 > = do x <- generalize m
 >      generalize (f x)
@@ -429,7 +441,7 @@ Tock!
     For example, we might want to combine the following @save@ function:
 
 > import Control.Monad.Trans.Writer
-> 
+>
 > -- i.e. :: StateT Int (WriterT [Int] Identity) ()
 > save    :: StateT Int (Writer  [Int]) ()
 > save = do
@@ -450,7 +462,7 @@ Tock!
     generalizing @save@'s base monad:
 
 > import Control.Monad
-> 
+>
 > program ::                   StateT Int (WriterT [Int] IO) ()
 > program = replicateM_ 4 $ do
 >     hoist lift tock
@@ -474,7 +486,7 @@ Tock!
 > import Control.Exception
 > import Control.Monad.Trans.Class
 > import Control.Monad.Trans.Error
-> 
+>
 > check :: IO a -> ErrorT IOException IO a
 > check io = ErrorT (try io)
 

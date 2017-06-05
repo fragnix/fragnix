@@ -1,4 +1,4 @@
-{-# LANGUAGE Haskell2010, CPP, DeriveDataTypeable #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Vector/Generic/New.hs" #-}
 
 
@@ -47,7 +47,15 @@
 
 
 
-{-# LANGUAGE Rank2Types, FlexibleContexts #-}
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP, Rank2Types, FlexibleContexts, MultiParamTypeClasses #-}
 
 -- |
 -- Module      : Data.Vector.Generic.New
@@ -57,33 +65,33 @@
 -- Maintainer  : Roman Leshchinskiy <rl@cse.unsw.edu.au>
 -- Stability   : experimental
 -- Portability : non-portable
--- 
+--
 -- Purely functional interface to initialisation of mutable vectors
 --
 
 module Data.Vector.Generic.New (
-  New(..), create, run, runPrim, apply, modify, modifyWithStream,
+  New(..), create, run, runPrim, apply, modify, modifyWithBundle,
   unstream, transform, unstreamR, transformR,
   slice, init, tail, take, drop,
   unsafeSlice, unsafeInit, unsafeTail
 ) where
 
 import qualified Data.Vector.Generic.Mutable as MVector
-import           Data.Vector.Generic.Mutable ( MVector )
 
 import           Data.Vector.Generic.Base ( Vector, Mutable )
 
-import           Data.Vector.Fusion.Stream ( Stream, MStream )
-import qualified Data.Vector.Fusion.Stream as Stream
+import           Data.Vector.Fusion.Bundle ( Bundle )
+import qualified Data.Vector.Fusion.Bundle as Bundle
+import           Data.Vector.Fusion.Stream.Monadic ( Stream )
+import           Data.Vector.Fusion.Bundle.Size
 
 import Control.Monad.Primitive
 import Control.Monad.ST ( ST )
 import Control.Monad  ( liftM )
 import Prelude hiding ( init, tail, take, drop, reverse, map, filter )
 
+-- Data.Vector.Internal.Check is unused
 
-
-import qualified Data.Vector.Internal.Check as Ck
 
 
 
@@ -111,59 +119,62 @@ modify :: (forall s. Mutable v s a -> ST s ()) -> New v a -> New v a
 {-# INLINE modify #-}
 modify f (New p) = New (do { v <- p; f v; return v })
 
-modifyWithStream :: (forall s. Mutable v s a -> Stream b -> ST s ())
-                 -> New v a -> Stream b -> New v a
-{-# INLINE [1] modifyWithStream #-}
-modifyWithStream f (New p) s = s `seq` New (do { v <- p; f v s; return v })
+modifyWithBundle :: (forall s. Mutable v s a -> Bundle u b -> ST s ())
+                 -> New v a -> Bundle u b -> New v a
+{-# INLINE [1] modifyWithBundle #-}
+modifyWithBundle f (New p) s = s `seq` New (do { v <- p; f v s; return v })
 
-unstream :: Vector v a => Stream a -> New v a
+unstream :: Vector v a => Bundle v a -> New v a
 {-# INLINE [1] unstream #-}
-unstream s = s `seq` New (MVector.unstream s)
+unstream s = s `seq` New (MVector.vunstream s)
 
-transform :: Vector v a =>
-        (forall m. Monad m => MStream m a -> MStream m a) -> New v a -> New v a
+transform
+  :: Vector v a => (forall m. Monad m => Stream m a -> Stream m a)
+                -> (Size -> Size) -> New v a -> New v a
 {-# INLINE [1] transform #-}
-transform f (New p) = New (MVector.transform f =<< p)
+transform f _ (New p) = New (MVector.transform f =<< p)
 
 {-# RULES
 
 "transform/transform [New]"
-  forall (f :: forall m. Monad m => MStream m a -> MStream m a)
-         (g :: forall m. Monad m => MStream m a -> MStream m a)
-         p .
-  transform f (transform g p) = transform (f . g) p
+  forall (f1 :: forall m. Monad m => Stream m a -> Stream m a)
+         (f2 :: forall m. Monad m => Stream m a -> Stream m a)
+         g1 g2 p .
+  transform f1 g1 (transform f2 g2 p) = transform (f1 . f2) (g1 . g2) p
 
 "transform/unstream [New]"
-  forall (f :: forall m. Monad m => MStream m a -> MStream m a)
-         s.
-  transform f (unstream s) = unstream (f s)
-
- #-}
+  forall (f :: forall m. Monad m => Stream m a -> Stream m a)
+         g s.
+  transform f g (unstream s) = unstream (Bundle.inplace f g s)  #-}
 
 
-unstreamR :: Vector v a => Stream a -> New v a
+
+
+unstreamR :: Vector v a => Bundle v a -> New v a
 {-# INLINE [1] unstreamR #-}
 unstreamR s = s `seq` New (MVector.unstreamR s)
 
-transformR :: Vector v a =>
-        (forall m. Monad m => MStream m a -> MStream m a) -> New v a -> New v a
+transformR
+  :: Vector v a => (forall m. Monad m => Stream m a -> Stream m a)
+                -> (Size -> Size) -> New v a -> New v a
 {-# INLINE [1] transformR #-}
-transformR f (New p) = New (MVector.transformR f =<< p)
+transformR f _ (New p) = New (MVector.transformR f =<< p)
 
 {-# RULES
 
 "transformR/transformR [New]"
-  forall (f :: forall m. Monad m => MStream m a -> MStream m a)
-         (g :: forall m. Monad m => MStream m a -> MStream m a)
+  forall (f1 :: forall m. Monad m => Stream m a -> Stream m a)
+         (f2 :: forall m. Monad m => Stream m a -> Stream m a)
+         g1 g2
          p .
-  transformR f (transformR g p) = transformR (f . g) p
+  transformR f1 g1 (transformR f2 g2 p) = transformR (f1 . f2) (g1 . g2) p
 
 "transformR/unstreamR [New]"
-  forall (f :: forall m. Monad m => MStream m a -> MStream m a)
-         s.
-  transformR f (unstreamR s) = unstreamR (f s)
+  forall (f :: forall m. Monad m => Stream m a -> Stream m a)
+         g s.
+  transformR f g (unstreamR s) = unstreamR (Bundle.inplace f g s)  #-}
 
- #-}
+
 
 slice :: Vector v a => Int -> Int -> New v a -> New v a
 {-# INLINE [1] slice #-}
@@ -200,28 +211,28 @@ unsafeTail m = apply MVector.unsafeTail m
 {-# RULES
 
 "slice/unstream [New]" forall i n s.
-  slice i n (unstream s) = unstream (Stream.slice i n s)
+  slice i n (unstream s) = unstream (Bundle.slice i n s)
 
 "init/unstream [New]" forall s.
-  init (unstream s) = unstream (Stream.init s)
+  init (unstream s) = unstream (Bundle.init s)
 
 "tail/unstream [New]" forall s.
-  tail (unstream s) = unstream (Stream.tail s)
+  tail (unstream s) = unstream (Bundle.tail s)
 
 "take/unstream [New]" forall n s.
-  take n (unstream s) = unstream (Stream.take n s)
+  take n (unstream s) = unstream (Bundle.take n s)
 
 "drop/unstream [New]" forall n s.
-  drop n (unstream s) = unstream (Stream.drop n s)
+  drop n (unstream s) = unstream (Bundle.drop n s)
 
 "unsafeSlice/unstream [New]" forall i n s.
-  unsafeSlice i n (unstream s) = unstream (Stream.slice i n s)
+  unsafeSlice i n (unstream s) = unstream (Bundle.slice i n s)
 
 "unsafeInit/unstream [New]" forall s.
-  unsafeInit (unstream s) = unstream (Stream.init s)
+  unsafeInit (unstream s) = unstream (Bundle.init s)
 
 "unsafeTail/unstream [New]" forall s.
-  unsafeTail (unstream s) = unstream (Stream.tail s)
+  unsafeTail (unstream s) = unstream (Bundle.tail s)   #-}
 
-  #-}
+
 

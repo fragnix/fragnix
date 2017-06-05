@@ -45,12 +45,19 @@
 
 
 
+
+
+
+
+
+
+
 {-# LANGUAGE CPP
            , NoImplicitPrelude
            , FlexibleContexts
            , TupleSections #-}
 
-{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE Safe #-}
 
 {- |
 Module      :  Control.Concurrent.MVar.Lifted
@@ -125,57 +132,57 @@ import Control.Monad.Trans.Control ( MonadBaseControl
 -- | Generalized version of 'MVar.newEmptyMVar'.
 newEmptyMVar :: MonadBase IO m => m (MVar a)
 newEmptyMVar = liftBase MVar.newEmptyMVar
-{-# INLINE newEmptyMVar #-}
+{-# INLINABLE newEmptyMVar #-}
 
 -- | Generalized version of 'MVar.newMVar'.
 newMVar :: MonadBase IO m => a -> m (MVar a)
 newMVar = liftBase . MVar.newMVar
-{-# INLINE newMVar #-}
+{-# INLINABLE newMVar #-}
 
 -- | Generalized version of 'MVar.takeMVar'.
 takeMVar :: MonadBase IO m => MVar a -> m a
 takeMVar = liftBase . MVar.takeMVar
-{-# INLINE takeMVar #-}
+{-# INLINABLE takeMVar #-}
 
 -- | Generalized version of 'MVar.putMVar'.
 putMVar :: MonadBase IO m => MVar a -> a -> m ()
 putMVar mv x = liftBase $ MVar.putMVar mv x
-{-# INLINE putMVar #-}
+{-# INLINABLE putMVar #-}
 
 -- | Generalized version of 'MVar.readMVar'.
 readMVar :: MonadBase IO m => MVar a -> m a
 readMVar = liftBase . MVar.readMVar
-{-# INLINE readMVar #-}
+{-# INLINABLE readMVar #-}
 
 -- | Generalized version of 'MVar.swapMVar'.
 swapMVar :: MonadBase IO m => MVar a -> a -> m a
 swapMVar mv x = liftBase $ MVar.swapMVar mv x
-{-# INLINE swapMVar #-}
+{-# INLINABLE swapMVar #-}
 
 -- | Generalized version of 'MVar.tryTakeMVar'.
 tryTakeMVar :: MonadBase IO m => MVar a -> m (Maybe a)
 tryTakeMVar = liftBase . MVar.tryTakeMVar
-{-# INLINE tryTakeMVar #-}
+{-# INLINABLE tryTakeMVar #-}
 
 -- | Generalized version of 'MVar.tryPutMVar'.
 tryPutMVar :: MonadBase IO m => MVar a -> a -> m Bool
 tryPutMVar mv x = liftBase $ MVar.tryPutMVar mv x
-{-# INLINE tryPutMVar #-}
+{-# INLINABLE tryPutMVar #-}
 
 -- | Generalized version of 'MVar.isEmptyMVar'.
 isEmptyMVar :: MonadBase IO m => MVar a -> m Bool
 isEmptyMVar = liftBase . MVar.isEmptyMVar
-{-# INLINE isEmptyMVar #-}
+{-# INLINABLE isEmptyMVar #-}
 
 -- | Generalized version of 'MVar.withMVar'.
 withMVar :: MonadBaseControl IO m => MVar a -> (a -> m b) -> m b
 withMVar = liftBaseOp . MVar.withMVar
-{-# INLINE withMVar #-}
+{-# INLINABLE withMVar #-}
 
 -- | Generalized version of 'MVar.modifyMVar_'.
 modifyMVar_ :: (MonadBaseControl IO m) => MVar a -> (a -> m a) -> m ()
 modifyMVar_ mv = modifyMVar mv . (fmap (, ()) .)
-{-# INLINE modifyMVar_ #-}
+{-# INLINABLE modifyMVar_ #-}
 
 -- | Generalized version of 'MVar.modifyMVar'.
 modifyMVar :: (MonadBaseControl IO m) => MVar a -> (a -> m (a, b)) -> m b
@@ -193,12 +200,12 @@ modifyMVar mv f = control $ \runInIO -> mask $ \restore -> do
     abort <- readIORef aborted
     when abort $ MVar.putMVar mv x
     return stM
-{-# INLINE modifyMVar #-}
+{-# INLINABLE modifyMVar #-}
 
 -- | Generalized version of 'MVar.modifyMVarMasked_'.
 modifyMVarMasked_ :: (MonadBaseControl IO m) => MVar a -> (a -> m a) -> m ()
 modifyMVarMasked_ mv = modifyMVarMasked mv . (fmap (, ()) .)
-{-# INLINE modifyMVarMasked_ #-}
+{-# INLINABLE modifyMVarMasked_ #-}
 
 -- | Generalized version of 'MVar.modifyMVarMasked'.
 modifyMVarMasked :: (MonadBaseControl IO m) => MVar a -> (a -> m (a, b)) -> m b
@@ -215,7 +222,7 @@ modifyMVarMasked mv f = control $ \runInIO -> mask_ $ do
     abort <- readIORef aborted
     when abort $ MVar.putMVar mv x
     return stM
-{-# INLINE modifyMVarMasked #-}
+{-# INLINABLE modifyMVarMasked #-}
 
 -- | Generalized version of 'MVar.mkWeakMVar'.
 --
@@ -223,7 +230,7 @@ modifyMVarMasked mv f = control $ \runInIO -> mask_ $ do
 -- discarded.
 mkWeakMVar :: MonadBaseControl IO m => MVar a -> m () -> m (Weak (MVar a))
 mkWeakMVar = liftBaseDiscard . MVar.mkWeakMVar
-{-# INLINE mkWeakMVar #-}
+{-# INLINABLE mkWeakMVar #-}
 
 -- | Generalized version of 'MVar.withMVarMasked'.
 withMVarMasked :: MonadBaseControl IO m => MVar a -> (a -> m b) -> m b

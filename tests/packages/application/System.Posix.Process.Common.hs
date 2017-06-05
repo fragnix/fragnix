@@ -1,13 +1,11 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Process/Common.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Process/Common.hs" #-}
 {-# LINE 1 "System/Posix/Process/Common.hsc" #-}
-{-# LANGUAGE InterruptibleFFI, RankNTypes #-}
+{-# LANGUAGE CApiFFI #-}
 {-# LINE 2 "System/Posix/Process/Common.hsc" #-}
-
-{-# LINE 3 "System/Posix/Process/Common.hsc" #-}
+{-# LANGUAGE InterruptibleFFI, RankNTypes #-}
 {-# LANGUAGE Trustworthy #-}
 
-{-# LINE 5 "System/Posix/Process/Common.hsc" #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  System.Posix.Process.Common
@@ -27,12 +25,8 @@ module System.Posix.Process.Common (
     -- * Processes
 
     -- ** Forking and executing
-
-{-# LINE 25 "System/Posix/Process/Common.hsc" #-}
     forkProcess,
     forkProcessWithUnmask,
-
-{-# LINE 28 "System/Posix/Process/Common.hsc" #-}
 
     -- ** Exiting
     exitImmediately,
@@ -77,7 +71,7 @@ module System.Posix.Process.Common (
  ) where
 
 
-{-# LINE 72 "System/Posix/Process/Common.hsc" #-}
+{-# LINE 70 "System/Posix/Process/Common.hsc" #-}
 
 import Foreign.C.Error
 import Foreign.C.Types
@@ -90,16 +84,9 @@ import System.Posix.Process.Internals
 import System.Posix.Types
 import Control.Monad
 
-
-{-# LINE 85 "System/Posix/Process/Common.hsc" #-}
 import Control.Exception.Base ( bracket, getMaskingState, MaskingState(..) ) -- used by forkProcess
 import GHC.TopHandler   ( runIO )
 import GHC.IO ( unsafeUnmask, uninterruptibleMask_ )
-
-{-# LINE 89 "System/Posix/Process/Common.hsc" #-}
-
-
-{-# LINE 93 "System/Posix/Process/Common.hsc" #-}
 
 -- -----------------------------------------------------------------------------
 -- Process environment
@@ -209,16 +196,16 @@ data ProcessTimes
 getProcessTimes :: IO ProcessTimes
 getProcessTimes = do
    allocaBytes (32) $ \p_tms -> do
-{-# LINE 202 "System/Posix/Process/Common.hsc" #-}
+{-# LINE 194 "System/Posix/Process/Common.hsc" #-}
      elapsed <- throwErrnoIfMinus1 "getProcessTimes" (c_times p_tms)
      ut  <- ((\hsc_ptr -> peekByteOff hsc_ptr 0))  p_tms
-{-# LINE 204 "System/Posix/Process/Common.hsc" #-}
+{-# LINE 196 "System/Posix/Process/Common.hsc" #-}
      st  <- ((\hsc_ptr -> peekByteOff hsc_ptr 8))  p_tms
-{-# LINE 205 "System/Posix/Process/Common.hsc" #-}
+{-# LINE 197 "System/Posix/Process/Common.hsc" #-}
      cut <- ((\hsc_ptr -> peekByteOff hsc_ptr 16)) p_tms
-{-# LINE 206 "System/Posix/Process/Common.hsc" #-}
+{-# LINE 198 "System/Posix/Process/Common.hsc" #-}
      cst <- ((\hsc_ptr -> peekByteOff hsc_ptr 24)) p_tms
-{-# LINE 207 "System/Posix/Process/Common.hsc" #-}
+{-# LINE 199 "System/Posix/Process/Common.hsc" #-}
      return (ProcessTimes{ elapsedTime     = elapsed,
                            userTime        = ut,
                            systemTime      = st,
@@ -226,9 +213,9 @@ getProcessTimes = do
                            childSystemTime = cst
                           })
 
-type CTms = ()
+data {-# CTYPE "struct tms" #-} CTms
 
-foreign import ccall unsafe "__hsunix_times"
+foreign import capi unsafe "HsUnix.h times"
   c_times :: Ptr CTms -> IO CClock
 
 -- -----------------------------------------------------------------------------
@@ -252,19 +239,19 @@ getUserPriority         :: UserID         -> IO Int
 getProcessPriority pid = do
   r <- throwErrnoIfMinus1 "getProcessPriority" $
          c_getpriority (0) (fromIntegral pid)
-{-# LINE 240 "System/Posix/Process/Common.hsc" #-}
+{-# LINE 232 "System/Posix/Process/Common.hsc" #-}
   return (fromIntegral r)
 
 getProcessGroupPriority pid = do
   r <- throwErrnoIfMinus1 "getProcessPriority" $
          c_getpriority (1) (fromIntegral pid)
-{-# LINE 245 "System/Posix/Process/Common.hsc" #-}
+{-# LINE 237 "System/Posix/Process/Common.hsc" #-}
   return (fromIntegral r)
 
 getUserPriority uid = do
   r <- throwErrnoIfMinus1 "getUserPriority" $
          c_getpriority (2) (fromIntegral uid)
-{-# LINE 250 "System/Posix/Process/Common.hsc" #-}
+{-# LINE 242 "System/Posix/Process/Common.hsc" #-}
   return (fromIntegral r)
 
 foreign import ccall unsafe "getpriority"
@@ -277,17 +264,17 @@ setUserPriority         :: UserID         -> Int -> IO ()
 setProcessPriority pid val =
   throwErrnoIfMinus1_ "setProcessPriority" $
     c_setpriority (0) (fromIntegral pid) (fromIntegral val)
-{-# LINE 262 "System/Posix/Process/Common.hsc" #-}
+{-# LINE 254 "System/Posix/Process/Common.hsc" #-}
 
 setProcessGroupPriority pid val =
   throwErrnoIfMinus1_ "setProcessPriority" $
     c_setpriority (1) (fromIntegral pid) (fromIntegral val)
-{-# LINE 266 "System/Posix/Process/Common.hsc" #-}
+{-# LINE 258 "System/Posix/Process/Common.hsc" #-}
 
 setUserPriority uid val =
   throwErrnoIfMinus1_ "setUserPriority" $
     c_setpriority (2) (fromIntegral uid) (fromIntegral val)
-{-# LINE 270 "System/Posix/Process/Common.hsc" #-}
+{-# LINE 262 "System/Posix/Process/Common.hsc" #-}
 
 foreign import ccall unsafe "setpriority"
   c_setpriority :: CInt -> CInt -> CInt -> IO CInt
@@ -295,8 +282,6 @@ foreign import ccall unsafe "setpriority"
 -- -----------------------------------------------------------------------------
 -- Forking, execution
 
-
-{-# LINE 278 "System/Posix/Process/Common.hsc" #-}
 {- | 'forkProcess' corresponds to the POSIX @fork@ system call.
 The 'IO' action passed as an argument is executed in the child process; no other
 threads will be copied to the child process.
@@ -332,12 +317,9 @@ foreign import ccall "forkProcess" forkProcessPrim :: StablePtr (IO ()) -> IO CP
 
 -- | Variant of 'forkProcess' in the style of 'forkIOWithUnmask'.
 --
--- /Since: 2.7.0.0/
+-- @since 2.7.0.0
 forkProcessWithUnmask :: ((forall a . IO a -> IO a) -> IO ()) -> IO ProcessID
 forkProcessWithUnmask action = forkProcess (action unsafeUnmask)
-
-
-{-# LINE 318 "System/Posix/Process/Common.hsc" #-}
 
 -- -----------------------------------------------------------------------------
 -- Waiting for process termination
@@ -401,12 +383,12 @@ getAnyProcessStatus block stopped = getGroupProcessStatus block stopped 1
 waitOptions :: Bool -> Bool -> CInt
 --             block   stopped
 waitOptions False False = (1)
-{-# LINE 381 "System/Posix/Process/Common.hsc" #-}
+{-# LINE 370 "System/Posix/Process/Common.hsc" #-}
 waitOptions False True  = (3)
-{-# LINE 382 "System/Posix/Process/Common.hsc" #-}
+{-# LINE 371 "System/Posix/Process/Common.hsc" #-}
 waitOptions True  False = 0
 waitOptions True  True  = (2)
-{-# LINE 384 "System/Posix/Process/Common.hsc" #-}
+{-# LINE 373 "System/Posix/Process/Common.hsc" #-}
 
 -- Turn a (ptr to a) wait status into a ProcessStatus
 

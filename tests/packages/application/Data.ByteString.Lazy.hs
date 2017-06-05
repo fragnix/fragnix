@@ -47,6 +47,14 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP, BangPatterns #-}
 {-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 {-# OPTIONS_HADDOCK prune #-}
@@ -184,6 +192,8 @@ module Data.ByteString.Lazy (
         groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
         inits,                  -- :: ByteString -> [ByteString]
         tails,                  -- :: ByteString -> [ByteString]
+        stripPrefix,            -- :: ByteString -> ByteString -> Maybe ByteString
+        stripSuffix,            -- :: ByteString -> ByteString -> Maybe ByteString
 
         -- ** Breaking into many substrings
         split,                  -- :: Word8 -> ByteString -> [ByteString]
@@ -213,6 +223,7 @@ module Data.ByteString.Lazy (
         -- * Indexing ByteStrings
         index,                  -- :: ByteString -> Int64 -> Word8
         elemIndex,              -- :: Word8 -> ByteString -> Maybe Int64
+        elemIndexEnd,           -- :: Word8 -> ByteString -> Maybe Int64
         elemIndices,            -- :: Word8 -> ByteString -> [Int64]
         findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int64
         findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int64]
@@ -268,7 +279,7 @@ import qualified Data.ByteString.Internal as S
 import qualified Data.ByteString.Unsafe as S
 import Data.ByteString.Lazy.Internal
 
-import Data.Monoid              (Monoid(..))
+import Control.Monad            (mplus)
 
 import Data.Word                (Word8)
 import Data.Int                 (Int64)
@@ -281,11 +292,6 @@ import Control.Exception        (bracket)
 import Foreign.ForeignPtr       (withForeignPtr)
 import Foreign.Ptr
 import Foreign.Storable
-
--- -----------------------------------------------------------------------------
---
--- Useful macros, until we have bang patterns
---
 
 
 -- -----------------------------------------------------------------------------
@@ -333,25 +339,13 @@ toStrict Empty           = S.empty
 toStrict (Chunk c Empty) = c
 toStrict cs0 = S.unsafeCreate totalLen $ \ptr -> go cs0 ptr
   where
-    totalLen = checkedSum "Lazy.toStrict" . L.map S.length . toChunks $ cs0
+    totalLen = S.checkedSum "Lazy.toStrict" . L.map S.length . toChunks $ cs0
 
     go Empty                        !_       = return ()
     go (Chunk (S.PS fp off len) cs) !destptr =
       withForeignPtr fp $ \p -> do
         S.memcpy destptr (p `plusPtr` off) len
         go cs (destptr `plusPtr` len)
-
--- just here in 0.10.4.x, in later version it's exported from .Internal
-checkedSum :: String -> [Int] -> Int
-checkedSum fun = go 0
-  where go !a (x:xs)
-            | ax >= 0   = go ax xs
-            | otherwise = overflowError fun
-          where ax = a + x
-        go a  _         = a
-
-overflowError :: String -> a
-overflowError fun = error $ "Data.ByteString." ++ fun ++ ": size overflow"
 
 ------------------------------------------------------------------------
 
@@ -527,9 +521,8 @@ foldl f z = go z
 -- | 'foldl\'' is like 'foldl', but strict in the accumulator.
 foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a
 foldl' f z = go z
-  where go a _ | a `seq` False = undefined
-        go a Empty        = a
-        go a (Chunk c cs) = go (S.foldl' f a c) cs
+  where go !a Empty        = a
+        go !a (Chunk c cs) = go (S.foldl' f a c) cs
 {-# INLINE foldl' #-}
 
 -- | 'foldr', applied to a binary operator, a starting value
@@ -658,7 +651,7 @@ scanl f z = snd . foldl k (z,singleton z)
 -- > iterate f x == [x, f x, f (f x), ...]
 --
 iterate :: (Word8 -> Word8) -> Word8 -> ByteString
-iterate f = unfoldr (\x -> case f x of x' -> x' `seq` Just (x', x'))
+iterate f = unfoldr (\x -> case f x of !x' -> Just (x', x'))
 
 -- | @'repeat' x@ is an infinite ByteString, with @x@ the value of every
 -- element.
@@ -868,16 +861,6 @@ split w (Chunk c0 cs0) = comb [] (S.split w c0) cs0
         comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
 {-# INLINE split #-}
 
-{-
--- | Like 'splitWith', except that sequences of adjacent separators are
--- treated as a single separator. eg.
---
--- > tokens (=='a') "aabbaca" == ["bb","c"]
---
-tokens :: (Word8 -> Bool) -> ByteString -> [ByteString]
-tokens f = L.filter (not.null) . splitWith f
--}
-
 -- | The 'group' function takes a ByteString and returns a list of
 -- ByteStrings such that the concatenation of the result is equal to the
 -- argument.  Moreover, each sublist in the result contains only equal
@@ -954,7 +937,6 @@ elemIndex w cs0 = elemIndex' 0 cs0
             Nothing -> elemIndex' (n + fromIntegral (S.length c)) cs
             Just i  -> Just (n + fromIntegral i)
 
-{-
 -- | /O(n)/ The 'elemIndexEnd' function returns the last index of the
 -- element in the given 'ByteString' which is equal to the query
 -- element, or 'Nothing' if there is no such element. The following
@@ -962,18 +944,16 @@ elemIndex w cs0 = elemIndex' 0 cs0
 --
 -- > elemIndexEnd c xs ==
 -- > (-) (length xs - 1) `fmap` elemIndex c (reverse xs)
---
-elemIndexEnd :: Word8 -> ByteString -> Maybe Int
-elemIndexEnd ch (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
-    go (p `plusPtr` s) (l-1)
+
+elemIndexEnd :: Word8 -> ByteString -> Maybe Int64
+elemIndexEnd w = elemIndexEnd' 0
   where
-    go a b | a `seq` b `seq` False = undefined
-    go p i | i < 0     = return Nothing
-           | otherwise = do ch' <- peekByteOff p i
-                            if ch == ch'
-                                then return $ Just i
-                                else go p (i-1)
--}
+    elemIndexEnd' _ Empty = Nothing
+    elemIndexEnd' n (Chunk c cs) =
+      let !n' = n + S.length c
+          !i  = fmap (fromIntegral . (n +)) $ S.elemIndexEnd w c
+      in elemIndexEnd' n' cs `mplus` i
+
 -- | /O(n)/ The 'elemIndices' function extends 'elemIndex', by returning
 -- the indices of all elements equal to the query element, in ascending order.
 -- This implementation uses memchr(3).
@@ -1087,8 +1067,11 @@ filterNotByte w (LPS xs) = LPS (filterMap (P.filterNotByte w) xs)
 -- > partition p bs == (filter p xs, filter (not . p) xs)
 --
 partition :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-partition f p = (filter f p, filter (not . f) p)
---TODO: use a better implementation
+partition _ Empty = (Empty, Empty)
+partition p (Chunk x xs) = (chunk t ts, chunk f fs)
+  where
+    (t,   f) = S.partition p x
+    (ts, fs) = partition   p xs
 
 -- ---------------------------------------------------------------------
 -- Searching for substrings
@@ -1105,6 +1088,19 @@ isPrefixOf (Chunk x xs) (Chunk y ys)
   where (xh,xt) = S.splitAt (S.length y) x
         (yh,yt) = S.splitAt (S.length x) y
 
+-- | /O(n)/ The 'stripPrefix' function takes two ByteStrings and returns 'Just'
+-- the remainder of the second iff the first is its prefix, and otherwise
+-- 'Nothing'.
+stripPrefix :: ByteString -> ByteString -> Maybe ByteString
+stripPrefix Empty bs  = Just bs
+stripPrefix _ Empty  = Nothing
+stripPrefix (Chunk x xs) (Chunk y ys)
+    | S.length x == S.length y = if x == y then stripPrefix xs ys else Nothing
+    | S.length x <  S.length y = do yt <- S.stripPrefix x y
+                                    stripPrefix xs (Chunk yt ys)
+    | otherwise                = do xt <- S.stripPrefix y x
+                                    stripPrefix (Chunk xt xs) ys
+
 -- | /O(n)/ The 'isSuffixOf' function takes two ByteStrings and returns 'True'
 -- iff the first is a suffix of the second.
 --
@@ -1114,6 +1110,13 @@ isPrefixOf (Chunk x xs) (Chunk y ys)
 --
 isSuffixOf :: ByteString -> ByteString -> Bool
 isSuffixOf x y = reverse x `isPrefixOf` reverse y
+--TODO: a better implementation
+
+-- | /O(n)/ The 'stripSuffix' function takes two ByteStrings and returns 'Just'
+-- the remainder of the second iff the first is its suffix, and otherwise
+-- 'Nothing'.
+stripSuffix :: ByteString -> ByteString -> Maybe ByteString
+stripSuffix x y = reverse <$> stripPrefix (reverse x) (reverse y)
 --TODO: a better implementation
 
 -- ---------------------------------------------------------------------
@@ -1224,8 +1227,7 @@ hGetContentsN k h = lazyRead -- TODO close on exceptions
 hGetN :: Int -> Handle -> Int -> IO ByteString
 hGetN k h n | n > 0 = readChunks n
   where
-    readChunks a | a `seq` False = undefined
-    readChunks i = do
+    readChunks !i = do
         c <- S.hGet h (min k i)
         case S.length c of
             0 -> return Empty
@@ -1242,8 +1244,7 @@ hGetN _ h n = illegalBufferSize h "hGet" n
 hGetNonBlockingN :: Int -> Handle -> Int -> IO ByteString
 hGetNonBlockingN k h n | n > 0= readChunks n
   where
-    readChunks a | a `seq` False = undefined
-    readChunks i = do
+    readChunks !i = do
         c <- S.hGetNonBlocking h (min k i)
         case S.length c of
             0 -> return Empty
@@ -1384,12 +1385,13 @@ revChunks cs = L.foldl' (flip chunk) Empty cs
 -- | 'findIndexOrEnd' is a variant of findIndex, that returns the length
 -- of the string if no element is found, rather than Nothing.
 findIndexOrEnd :: (Word8 -> Bool) -> P.ByteString -> Int
-findIndexOrEnd k (S.PS x s l) = S.inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusPtr` s) 0
+findIndexOrEnd k (S.PS x s l) =
+    S.accursedUnutterablePerformIO $
+      withForeignPtr x $ \f -> go (f `plusPtr` s) 0
   where
-    go a b | a `seq` b `seq` False = undefined
-    go ptr n | n >= l    = return l
-             | otherwise = do w <- peek ptr
-                              if k w
-                                then return n
-                                else go (ptr `plusPtr` 1) (n+1)
+    go !ptr !n | n >= l    = return l
+               | otherwise = do w <- peek ptr
+                                if k w
+                                  then return n
+                                  else go (ptr `plusPtr` 1) (n+1)
 {-# INLINE findIndexOrEnd #-}

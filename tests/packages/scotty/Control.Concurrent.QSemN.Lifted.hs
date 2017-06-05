@@ -45,12 +45,19 @@
 
 
 
+
+
+
+
+
+
+
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE Safe #-}
 
 {- |
 Module      :  Control.Concurrent.QSemN.Lifted
@@ -93,14 +100,14 @@ import Control.Monad.Base ( MonadBase, liftBase )
 -- | Generalized version of 'QSemN.newQSemN'.
 newQSemN :: MonadBase IO m => Int -> m QSemN
 newQSemN = liftBase . QSemN.newQSemN
-{-# INLINE newQSemN #-}
+{-# INLINABLE newQSemN #-}
 
 -- | Generalized version of 'QSemN.waitQSemN'.
 waitQSemN :: MonadBase IO m => QSemN -> Int -> m ()
 waitQSemN sem = liftBase . QSemN.waitQSemN sem
-{-# INLINE waitQSemN #-}
+{-# INLINABLE waitQSemN #-}
 
 -- | Generalized version of 'QSemN.signalQSemN'.
 signalQSemN :: MonadBase IO m => QSemN -> Int -> m ()
 signalQSemN sem = liftBase . QSemN.signalQSemN sem
-{-# INLINE signalQSemN #-}
+{-# INLINABLE signalQSemN #-}

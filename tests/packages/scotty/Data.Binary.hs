@@ -47,6 +47,14 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE Trustworthy #-}
 -----------------------------------------------------------------------------
@@ -77,8 +85,9 @@
 -- If the specifics of the data format is not important to you, for example,
 -- you are more interested in serializing and deserializing values than
 -- in which format will be used, it is possible to derive 'Binary'
--- instances using the generic support. See 'GBinary'.
--- 
+-- instances using the generic support. See 'GBinaryGet' and
+-- 'GBinaryPut'.
+--
 -- If you have specific requirements about the encoding format, you can use
 -- the encoding and decoding primitives directly, see the modules
 -- "Data.Binary.Get" and "Data.Binary.Put".
@@ -94,7 +103,8 @@ module Data.Binary (
 
     -- * Generic support
     -- $generics
-    , GBinary(..)
+    , GBinaryGet(..)
+    , GBinaryPut(..)
 
     -- * The Get and Put monads
     , Get
@@ -223,6 +233,8 @@ decode = runGet get
 -- 'Right' on success. In both cases the unconsumed input and the number of
 -- consumed bytes is returned. In case of failure, a human-readable error
 -- message will be returned as well.
+--
+-- /Since: 0.7.0.0/
 decodeOrFail :: Binary a => L.ByteString
              -> Either (L.ByteString, ByteOffset, String)
                        (L.ByteString, ByteOffset, a)
@@ -247,6 +259,8 @@ encodeFile f v = L.writeFile f (encode v)
 
 -- | Decode a value from a file. In case of errors, 'error' will
 -- be called with the error message.
+--
+-- /Since: 0.7.0.0/
 decodeFile :: Binary a => FilePath -> IO a
 decodeFile f = do
   result <- decodeFileOrFail f

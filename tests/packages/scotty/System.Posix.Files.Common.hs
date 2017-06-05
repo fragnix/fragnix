@@ -1,11 +1,9 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Files/Common.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Files/Common.hs" #-}
 {-# LINE 1 "System/Posix/Files/Common.hsc" #-}
-
-{-# LINE 2 "System/Posix/Files/Common.hsc" #-}
 {-# LANGUAGE Trustworthy #-}
+{-# LINE 2 "System/Posix/Files/Common.hsc" #-}
 
-{-# LINE 4 "System/Posix/Files/Common.hsc" #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  System.Posix.Files.Common
@@ -31,7 +29,7 @@
 -----------------------------------------------------------------------------
 
 
-{-# LINE 29 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 28 "System/Posix/Files/Common.hsc" #-}
 
 module System.Posix.Files.Common (
     -- * File modes
@@ -74,40 +72,36 @@ module System.Posix.Files.Common (
 
     -- * Low level types and functions
 
-{-# LINE 71 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 70 "System/Posix/Files/Common.hsc" #-}
     CTimeSpec(..),
     toCTimeSpec,
     c_utimensat,
 
-{-# LINE 75 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 74 "System/Posix/Files/Common.hsc" #-}
     CTimeVal(..),
     toCTimeVal,
     c_utimes,
 
-{-# LINE 79 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 78 "System/Posix/Files/Common.hsc" #-}
     c_lutimes,
 
-{-# LINE 81 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 80 "System/Posix/Files/Common.hsc" #-}
   ) where
 
 import System.Posix.Types
 import System.IO.Unsafe
 import Data.Bits
-
-{-# LINE 92 "System/Posix/Files/Common.hsc" #-}
 import Data.Int
 import Data.Ratio
-
-{-# LINE 95 "System/Posix/Files/Common.hsc" #-}
 import Data.Time.Clock.POSIX (POSIXTime)
 import System.Posix.Internals
 import Foreign.C
 import Foreign.ForeignPtr
 
-{-# LINE 100 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 92 "System/Posix/Files/Common.hsc" #-}
 import Foreign.Marshal (withArray)
 
-{-# LINE 102 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 94 "System/Posix/Files/Common.hsc" #-}
 import Foreign.Ptr
 import Foreign.Storable
 
@@ -124,57 +118,57 @@ nullFileMode = 0
 -- | Owner has read permission.
 ownerReadMode :: FileMode
 ownerReadMode = (256)
-{-# LINE 118 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 110 "System/Posix/Files/Common.hsc" #-}
 
 -- | Owner has write permission.
 ownerWriteMode :: FileMode
 ownerWriteMode = (128)
-{-# LINE 122 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 114 "System/Posix/Files/Common.hsc" #-}
 
 -- | Owner has execute permission.
 ownerExecuteMode :: FileMode
 ownerExecuteMode = (64)
-{-# LINE 126 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 118 "System/Posix/Files/Common.hsc" #-}
 
 -- | Group has read permission.
 groupReadMode :: FileMode
 groupReadMode = (32)
-{-# LINE 130 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 122 "System/Posix/Files/Common.hsc" #-}
 
 -- | Group has write permission.
 groupWriteMode :: FileMode
 groupWriteMode = (16)
-{-# LINE 134 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 126 "System/Posix/Files/Common.hsc" #-}
 
 -- | Group has execute permission.
 groupExecuteMode :: FileMode
 groupExecuteMode = (8)
-{-# LINE 138 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 130 "System/Posix/Files/Common.hsc" #-}
 
 -- | Others have read permission.
 otherReadMode :: FileMode
 otherReadMode = (4)
-{-# LINE 142 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 134 "System/Posix/Files/Common.hsc" #-}
 
 -- | Others have write permission.
 otherWriteMode :: FileMode
 otherWriteMode = (2)
-{-# LINE 146 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 138 "System/Posix/Files/Common.hsc" #-}
 
 -- | Others have execute permission.
 otherExecuteMode :: FileMode
 otherExecuteMode = (1)
-{-# LINE 150 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 142 "System/Posix/Files/Common.hsc" #-}
 
 -- | Set user ID on execution.
 setUserIDMode :: FileMode
 setUserIDMode = (2048)
-{-# LINE 154 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 146 "System/Posix/Files/Common.hsc" #-}
 
 -- | Set group ID on execution.
 setGroupIDMode :: FileMode
 setGroupIDMode = (1024)
-{-# LINE 158 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 150 "System/Posix/Files/Common.hsc" #-}
 
 -- | Owner, group and others have read and write permission.
 stdFileMode :: FileMode
@@ -185,17 +179,17 @@ stdFileMode = ownerReadMode  .|. ownerWriteMode .|.
 -- | Owner has read, write and execute permission.
 ownerModes :: FileMode
 ownerModes = (448)
-{-# LINE 168 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 160 "System/Posix/Files/Common.hsc" #-}
 
 -- | Group has read, write and execute permission.
 groupModes :: FileMode
 groupModes = (56)
-{-# LINE 172 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 164 "System/Posix/Files/Common.hsc" #-}
 
 -- | Others have read, write and execute permission.
 otherModes :: FileMode
 otherModes = (7)
-{-# LINE 176 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 168 "System/Posix/Files/Common.hsc" #-}
 
 -- | Owner, group and others have read, write and execute permission.
 accessModes :: FileMode
@@ -213,35 +207,35 @@ intersectFileModes m1 m2 = m1 .&. m2
 
 fileTypeModes :: FileMode
 fileTypeModes = (61440)
-{-# LINE 193 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 185 "System/Posix/Files/Common.hsc" #-}
 
 blockSpecialMode :: FileMode
 blockSpecialMode = (24576)
-{-# LINE 196 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 188 "System/Posix/Files/Common.hsc" #-}
 
 characterSpecialMode :: FileMode
 characterSpecialMode = (8192)
-{-# LINE 199 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 191 "System/Posix/Files/Common.hsc" #-}
 
 namedPipeMode :: FileMode
 namedPipeMode = (4096)
-{-# LINE 202 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 194 "System/Posix/Files/Common.hsc" #-}
 
 regularFileMode :: FileMode
 regularFileMode = (32768)
-{-# LINE 205 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 197 "System/Posix/Files/Common.hsc" #-}
 
 directoryMode :: FileMode
 directoryMode = (16384)
-{-# LINE 208 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 200 "System/Posix/Files/Common.hsc" #-}
 
 symbolicLinkMode :: FileMode
 symbolicLinkMode = (40960)
-{-# LINE 211 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 203 "System/Posix/Files/Common.hsc" #-}
 
 socketMode :: FileMode
 socketMode = (49152)
-{-# LINE 214 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 206 "System/Posix/Files/Common.hsc" #-}
 
 -- | @setFdMode fd mode@ acts like 'setFileMode' but uses a file descriptor
 -- @fd@ instead of a 'FilePath'.
@@ -304,75 +298,75 @@ statusChangeTimeHiRes :: FileStatus -> POSIXTime
 
 deviceID (FileStatus stat) =
   unsafePerformIO $ withForeignPtr stat $ ((\hsc_ptr -> peekByteOff hsc_ptr 0))
-{-# LINE 276 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 268 "System/Posix/Files/Common.hsc" #-}
 fileID (FileStatus stat) =
   unsafePerformIO $ withForeignPtr stat $ ((\hsc_ptr -> peekByteOff hsc_ptr 8))
-{-# LINE 278 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 270 "System/Posix/Files/Common.hsc" #-}
 fileMode (FileStatus stat) =
   unsafePerformIO $ withForeignPtr stat $ ((\hsc_ptr -> peekByteOff hsc_ptr 24))
-{-# LINE 280 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 272 "System/Posix/Files/Common.hsc" #-}
 linkCount (FileStatus stat) =
   unsafePerformIO $ withForeignPtr stat $ ((\hsc_ptr -> peekByteOff hsc_ptr 16))
-{-# LINE 282 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 274 "System/Posix/Files/Common.hsc" #-}
 fileOwner (FileStatus stat) =
   unsafePerformIO $ withForeignPtr stat $ ((\hsc_ptr -> peekByteOff hsc_ptr 28))
-{-# LINE 284 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 276 "System/Posix/Files/Common.hsc" #-}
 fileGroup (FileStatus stat) =
   unsafePerformIO $ withForeignPtr stat $ ((\hsc_ptr -> peekByteOff hsc_ptr 32))
-{-# LINE 286 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 278 "System/Posix/Files/Common.hsc" #-}
 specialDeviceID (FileStatus stat) =
   unsafePerformIO $ withForeignPtr stat $ ((\hsc_ptr -> peekByteOff hsc_ptr 40))
-{-# LINE 288 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 280 "System/Posix/Files/Common.hsc" #-}
 fileSize (FileStatus stat) =
   unsafePerformIO $ withForeignPtr stat $ ((\hsc_ptr -> peekByteOff hsc_ptr 48))
-{-# LINE 290 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 282 "System/Posix/Files/Common.hsc" #-}
 accessTime (FileStatus stat) =
   unsafePerformIO $ withForeignPtr stat $ ((\hsc_ptr -> peekByteOff hsc_ptr 72))
-{-# LINE 292 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 284 "System/Posix/Files/Common.hsc" #-}
 modificationTime (FileStatus stat) =
   unsafePerformIO $ withForeignPtr stat $ ((\hsc_ptr -> peekByteOff hsc_ptr 88))
-{-# LINE 294 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 286 "System/Posix/Files/Common.hsc" #-}
 statusChangeTime (FileStatus stat) =
   unsafePerformIO $ withForeignPtr stat $ ((\hsc_ptr -> peekByteOff hsc_ptr 104))
-{-# LINE 296 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 288 "System/Posix/Files/Common.hsc" #-}
 
 accessTimeHiRes (FileStatus stat) =
   unsafePerformIO $ withForeignPtr stat $ \stat_ptr -> do
     sec  <- ((\hsc_ptr -> peekByteOff hsc_ptr 72)) stat_ptr :: IO EpochTime
-{-# LINE 300 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 292 "System/Posix/Files/Common.hsc" #-}
 
-{-# LINE 301 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 293 "System/Posix/Files/Common.hsc" #-}
     nsec <- ((\hsc_ptr -> peekByteOff hsc_ptr 80)) stat_ptr :: IO (Int64)
-{-# LINE 302 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 294 "System/Posix/Files/Common.hsc" #-}
     let frac = toInteger nsec % 10^(9::Int)
 
-{-# LINE 318 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 310 "System/Posix/Files/Common.hsc" #-}
     return $ fromRational $ toRational sec + frac
 
 modificationTimeHiRes (FileStatus stat) =
   unsafePerformIO $ withForeignPtr stat $ \stat_ptr -> do
     sec  <- ((\hsc_ptr -> peekByteOff hsc_ptr 88)) stat_ptr :: IO EpochTime
-{-# LINE 323 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 315 "System/Posix/Files/Common.hsc" #-}
 
-{-# LINE 324 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 316 "System/Posix/Files/Common.hsc" #-}
     nsec <- ((\hsc_ptr -> peekByteOff hsc_ptr 96)) stat_ptr :: IO (Int64)
-{-# LINE 325 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 317 "System/Posix/Files/Common.hsc" #-}
     let frac = toInteger nsec % 10^(9::Int)
 
-{-# LINE 341 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 333 "System/Posix/Files/Common.hsc" #-}
     return $ fromRational $ toRational sec + frac
 
 statusChangeTimeHiRes (FileStatus stat) =
   unsafePerformIO $ withForeignPtr stat $ \stat_ptr -> do
     sec  <- ((\hsc_ptr -> peekByteOff hsc_ptr 104)) stat_ptr :: IO EpochTime
-{-# LINE 346 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 338 "System/Posix/Files/Common.hsc" #-}
 
-{-# LINE 347 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 339 "System/Posix/Files/Common.hsc" #-}
     nsec <- ((\hsc_ptr -> peekByteOff hsc_ptr 112)) stat_ptr :: IO (Int64)
-{-# LINE 348 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 340 "System/Posix/Files/Common.hsc" #-}
     let frac = toInteger nsec % 10^(9::Int)
 
-{-# LINE 364 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 356 "System/Posix/Files/Common.hsc" #-}
     return $ fromRational $ toRational sec + frac
 
 -- | Checks if this file is a block device.
@@ -411,7 +405,7 @@ isSocket stat =
 getFdStatus :: Fd -> IO FileStatus
 getFdStatus (Fd fd) = do
   fp <- mallocForeignPtrBytes (144)
-{-# LINE 402 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 394 "System/Posix/Files/Common.hsc" #-}
   withForeignPtr fp $ \p ->
     throwErrnoIfMinus1_ "getFdStatus" (c_fstat fd p)
   return (FileStatus fp)
@@ -420,23 +414,23 @@ getFdStatus (Fd fd) = do
 -- Setting file times
 
 
-{-# LINE 410 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 402 "System/Posix/Files/Common.hsc" #-}
 data CTimeSpec = CTimeSpec EpochTime CLong
 
 instance Storable CTimeSpec where
     sizeOf    _ = (16)
-{-# LINE 414 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 406 "System/Posix/Files/Common.hsc" #-}
     alignment _ = alignment (undefined :: CInt)
     poke p (CTimeSpec sec nsec) = do
         ((\hsc_ptr -> pokeByteOff hsc_ptr 0)) p sec
-{-# LINE 417 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 409 "System/Posix/Files/Common.hsc" #-}
         ((\hsc_ptr -> pokeByteOff hsc_ptr 8)) p nsec
-{-# LINE 418 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 410 "System/Posix/Files/Common.hsc" #-}
     peek p = do
         sec  <- (\hsc_ptr -> peekByteOff hsc_ptr 0) p
-{-# LINE 420 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 412 "System/Posix/Files/Common.hsc" #-}
         nsec <- (\hsc_ptr -> peekByteOff hsc_ptr 8) p
-{-# LINE 421 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 413 "System/Posix/Files/Common.hsc" #-}
         return $ CTimeSpec sec nsec
 
 toCTimeSpec :: POSIXTime -> CTimeSpec
@@ -445,38 +439,38 @@ toCTimeSpec t = CTimeSpec (CTime sec) (truncate $ 10^(9::Int) * frac)
     (sec, frac) = if (frac' < 0) then (sec' - 1, frac' + 1) else (sec', frac')
     (sec', frac') = properFraction $ toRational t
 
-{-# LINE 429 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 421 "System/Posix/Files/Common.hsc" #-}
 
 
-{-# LINE 431 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 423 "System/Posix/Files/Common.hsc" #-}
 foreign import ccall unsafe "utimensat"
     c_utimensat :: CInt -> CString -> Ptr CTimeSpec -> CInt -> IO CInt
 
-{-# LINE 434 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 426 "System/Posix/Files/Common.hsc" #-}
 
 
-{-# LINE 436 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 428 "System/Posix/Files/Common.hsc" #-}
 foreign import ccall unsafe "futimens"
     c_futimens :: CInt -> Ptr CTimeSpec -> IO CInt
 
-{-# LINE 439 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 431 "System/Posix/Files/Common.hsc" #-}
 
 data CTimeVal = CTimeVal CLong CLong
 
 instance Storable CTimeVal where
     sizeOf    _ = (16)
-{-# LINE 444 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 436 "System/Posix/Files/Common.hsc" #-}
     alignment _ = alignment (undefined :: CInt)
     poke p (CTimeVal sec usec) = do
         ((\hsc_ptr -> pokeByteOff hsc_ptr 0)) p sec
-{-# LINE 447 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 439 "System/Posix/Files/Common.hsc" #-}
         ((\hsc_ptr -> pokeByteOff hsc_ptr 8)) p usec
-{-# LINE 448 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 440 "System/Posix/Files/Common.hsc" #-}
     peek p = do
         sec  <- (\hsc_ptr -> peekByteOff hsc_ptr 0) p
-{-# LINE 450 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 442 "System/Posix/Files/Common.hsc" #-}
         usec <- (\hsc_ptr -> peekByteOff hsc_ptr 8) p
-{-# LINE 451 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 443 "System/Posix/Files/Common.hsc" #-}
         return $ CTimeVal sec usec
 
 toCTimeVal :: POSIXTime -> CTimeVal
@@ -489,18 +483,18 @@ foreign import ccall unsafe "utimes"
     c_utimes :: CString -> Ptr CTimeVal -> IO CInt
 
 
-{-# LINE 463 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 455 "System/Posix/Files/Common.hsc" #-}
 foreign import ccall unsafe "lutimes"
     c_lutimes :: CString -> Ptr CTimeVal -> IO CInt
 
-{-# LINE 466 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 458 "System/Posix/Files/Common.hsc" #-}
 
 
-{-# LINE 468 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 460 "System/Posix/Files/Common.hsc" #-}
 foreign import ccall unsafe "futimes"
     c_futimes :: CInt -> Ptr CTimeVal -> IO CInt
 
-{-# LINE 471 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 463 "System/Posix/Files/Common.hsc" #-}
 
 -- | Like 'setFileTimesHiRes' but uses a file descriptor instead of a path.
 -- This operation is not supported on all platforms. On these platforms,
@@ -508,15 +502,15 @@ foreign import ccall unsafe "futimes"
 --
 -- Note: calls @futimens@ or @futimes@.
 --
--- /Since: 2.7.0.0/
+-- @since 2.7.0.0
 setFdTimesHiRes :: Fd -> POSIXTime -> POSIXTime -> IO ()
 
-{-# LINE 481 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 473 "System/Posix/Files/Common.hsc" #-}
 setFdTimesHiRes (Fd fd) atime mtime =
   withArray [toCTimeSpec atime, toCTimeSpec mtime] $ \times ->
     throwErrnoIfMinus1_ "setFdTimesHiRes" (c_futimens fd times)
 
-{-# LINE 492 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 484 "System/Posix/Files/Common.hsc" #-}
 
 -- | Like 'touchFile' but uses a file descriptor instead of a path.
 -- This operation is not supported on all platforms. On these platforms,
@@ -524,14 +518,14 @@ setFdTimesHiRes (Fd fd) atime mtime =
 --
 -- Note: calls @futimes@.
 --
--- /Since: 2.7.0.0/
+-- @since 2.7.0.0
 touchFd :: Fd -> IO ()
 
-{-# LINE 502 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 494 "System/Posix/Files/Common.hsc" #-}
 touchFd (Fd fd) =
   throwErrnoIfMinus1_ "touchFd" (c_futimes fd nullPtr)
 
-{-# LINE 508 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 500 "System/Posix/Files/Common.hsc" #-}
 
 -- -----------------------------------------------------------------------------
 -- fchown()
@@ -585,56 +579,56 @@ data PathVar
 pathVarConst :: PathVar -> CInt
 pathVarConst v = case v of
         LinkLimit                       -> (0)
-{-# LINE 561 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 553 "System/Posix/Files/Common.hsc" #-}
         InputLineLimit                  -> (1)
-{-# LINE 562 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 554 "System/Posix/Files/Common.hsc" #-}
         InputQueueLimit                 -> (2)
-{-# LINE 563 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 555 "System/Posix/Files/Common.hsc" #-}
         FileNameLimit                   -> (3)
-{-# LINE 564 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 556 "System/Posix/Files/Common.hsc" #-}
         PathNameLimit                   -> (4)
-{-# LINE 565 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 557 "System/Posix/Files/Common.hsc" #-}
         PipeBufferLimit                 -> (5)
-{-# LINE 566 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 558 "System/Posix/Files/Common.hsc" #-}
         SetOwnerAndGroupIsRestricted    -> (6)
-{-# LINE 567 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 559 "System/Posix/Files/Common.hsc" #-}
         FileNamesAreNotTruncated        -> (7)
-{-# LINE 568 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 560 "System/Posix/Files/Common.hsc" #-}
         VDisableChar                    -> (8)
-{-# LINE 569 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 561 "System/Posix/Files/Common.hsc" #-}
 
 
-{-# LINE 571 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 563 "System/Posix/Files/Common.hsc" #-}
         SyncIOAvailable         -> (9)
-{-# LINE 572 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 564 "System/Posix/Files/Common.hsc" #-}
+
+{-# LINE 567 "System/Posix/Files/Common.hsc" #-}
+
+
+{-# LINE 569 "System/Posix/Files/Common.hsc" #-}
+        AsyncIOAvailable        -> (10)
+{-# LINE 570 "System/Posix/Files/Common.hsc" #-}
+
+{-# LINE 573 "System/Posix/Files/Common.hsc" #-}
+
 
 {-# LINE 575 "System/Posix/Files/Common.hsc" #-}
+        PrioIOAvailable         -> (11)
+{-# LINE 576 "System/Posix/Files/Common.hsc" #-}
 
-
-{-# LINE 577 "System/Posix/Files/Common.hsc" #-}
-        AsyncIOAvailable        -> (10)
-{-# LINE 578 "System/Posix/Files/Common.hsc" #-}
-
-{-# LINE 581 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 579 "System/Posix/Files/Common.hsc" #-}
 
 
 {-# LINE 583 "System/Posix/Files/Common.hsc" #-}
-        PrioIOAvailable         -> (11)
-{-# LINE 584 "System/Posix/Files/Common.hsc" #-}
-
-{-# LINE 587 "System/Posix/Files/Common.hsc" #-}
-
-
-{-# LINE 591 "System/Posix/Files/Common.hsc" #-}
         FileSizeBits            -> error "_PC_FILESIZEBITS not available"
 
-{-# LINE 593 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 585 "System/Posix/Files/Common.hsc" #-}
 
 
-{-# LINE 597 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 589 "System/Posix/Files/Common.hsc" #-}
         SymbolicLinkLimit       -> error "_PC_SYMLINK_MAX not available"
 
-{-# LINE 599 "System/Posix/Files/Common.hsc" #-}
+{-# LINE 591 "System/Posix/Files/Common.hsc" #-}
 
 -- | @getFdPathVar var fd@ obtains the dynamic value of the requested
 -- configurable file limit or option associated with the file or directory

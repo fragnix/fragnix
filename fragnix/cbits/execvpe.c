@@ -11,10 +11,6 @@
 
 #include "HsUnixConfig.h"
 
-#if HAVE_EXECVPE
-# define _GNU_SOURCE
-#endif
-
 #include <errno.h>
 #include <sys/types.h>
 #if HAVE_SYS_WAIT_H
@@ -28,6 +24,11 @@
 
 #define HSUNIX_EXECVPE_H_NO_COMPAT
 #include "execvpe.h"
+
+#if !defined(execvpe) && !HAVE_DECL_EXECVPE
+// On some archs such as AIX, the prototype may be missing
+int execvpe(const char *file, char *const argv[], char *const envp[]);
+#endif
 
 /*
  * We want the search semantics of execvp, but we want to provide our

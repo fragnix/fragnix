@@ -1,4 +1,4 @@
-{-# LANGUAGE Haskell2010, DeriveGeneric #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/IP/RouteTable.hs" #-}
 {-|
   IP routing table is a tree of 'IPRange'

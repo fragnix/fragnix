@@ -13,17 +13,17 @@
 -- the comments on each of these functions for more information.
 module Web.Scotty.Trans
     ( -- * scotty-to-WAI
-      scottyT, scottyAppT, scottyOptsT, Options(..)
+      scottyT, scottyAppT, scottyOptsT, scottySocketT, Options(..)
       -- * Defining Middleware and Routes
       --
       -- | 'Middleware' and routes are run in the order in which they
       -- are defined. All middleware is run first, followed by the first
       -- route that matches. If no route matches, a 404 response is given.
-    , middleware, get, post, put, delete, patch, addroute, matchAny, notFound
+    , middleware, get, post, put, delete, patch, options, addroute, matchAny, notFound
       -- ** Route Patterns
     , capture, regex, function, literal
       -- ** Accessing the Request, Captures, and Query Parameters
-    , request, header, headers, body, param, params, jsonData, files
+    , request, header, headers, body, bodyReader, param, params, jsonData, files
       -- ** Modifying the Response and Redirecting
     , status, addHeader, setHeader, redirect
       -- ** Setting Response Body
@@ -32,7 +32,7 @@ module Web.Scotty.Trans
       -- definition, as they completely replace the current 'Response' body.
     , text, html, file, json, stream, raw
       -- ** Exceptions
-    , raise, rescue, next, defaultHandler, ScottyError(..)
+    , raise, rescue, next, finish, defaultHandler, ScottyError(..), liftAndCatchIO
       -- * Parsing Parameters
     , Param, Parsable(..), readEither
       -- * Types
@@ -44,53 +44,67 @@ module Web.Scotty.Trans
 import Blaze.ByteString.Builder (fromByteString)
 
 import Control.Monad (when)
-import Control.Monad.State (execStateT, modify)
+import Control.Monad.State (execState, modify)
 import Control.Monad.IO.Class
 
-import Data.Default (def)
+import Data.Default.Class (def)
 
+import Network (Socket)
 import Network.HTTP.Types (status404, status500)
 import Network.Wai
-import Network.Wai.Handler.Warp (Port, runSettings, setPort, getPort)
+import Network.Wai.Handler.Warp (Port, runSettings, runSettingsSocket, setPort, getPort)
 
 import Web.Scotty.Action
 import Web.Scotty.Route
 import Web.Scotty.Internal.Types hiding (Application, Middleware)
+import Web.Scotty.Util (socketDescription)
 import qualified Web.Scotty.Internal.Types as Scotty
 
 -- | Run a scotty application using the warp server.
--- NB: scotty p === scottyT p id id
+-- NB: scotty p === scottyT p id
 scottyT :: (Monad m, MonadIO n)
         => Port
-        -> (forall a. m a -> n a)      -- ^ Run monad 'm' into monad 'n', called once at 'ScottyT' level.
         -> (m Response -> IO Response) -- ^ Run monad 'm' into 'IO', called at each action.
         -> ScottyT e m ()
         -> n ()
 scottyT p = scottyOptsT $ def { settings = setPort p (settings def) }
 
 -- | Run a scotty application using the warp server, passing extra options.
--- NB: scottyOpts opts === scottyOptsT opts id id
+-- NB: scottyOpts opts === scottyOptsT opts id
 scottyOptsT :: (Monad m, MonadIO n)
             => Options
-            -> (forall a. m a -> n a)      -- ^ Run monad 'm' into monad 'n', called once at 'ScottyT' level.
             -> (m Response -> IO Response) -- ^ Run monad 'm' into 'IO', called at each action.
             -> ScottyT e m ()
             -> n ()
-scottyOptsT opts runM runActionToIO s = do
+scottyOptsT opts runActionToIO s = do
     when (verbose opts > 0) $
         liftIO $ putStrLn $ "Setting phasers to stun... (port " ++ show (getPort (settings opts)) ++ ") (ctrl-c to quit)"
-    liftIO . runSettings (settings opts) =<< scottyAppT runM runActionToIO s
+    liftIO . runSettings (settings opts) =<< scottyAppT runActionToIO s
+
+-- | Run a scotty application using the warp server, passing extra options, and
+-- listening on the provided socket.
+-- NB: scottySocket opts sock === scottySocketT opts sock id
+scottySocketT :: (Monad m, MonadIO n)
+              => Options
+              -> Socket
+              -> (m Response -> IO Response)
+              -> ScottyT e m ()
+              -> n ()
+scottySocketT opts sock runActionToIO s = do
+    when (verbose opts > 0) $ do
+        d <- liftIO $ socketDescription sock
+        liftIO $ putStrLn $ "Setting phasers to stun... (" ++ d ++ ") (ctrl-c to quit)"
+    liftIO . runSettingsSocket (settings opts) sock =<< scottyAppT runActionToIO s
 
 -- | Turn a scotty application into a WAI 'Application', which can be
 -- run with any WAI handler.
--- NB: scottyApp === scottyAppT id id
+-- NB: scottyApp === scottyAppT id
 scottyAppT :: (Monad m, Monad n)
-           => (forall a. m a -> n a)      -- ^ Run monad 'm' into monad 'n', called once at 'ScottyT' level.
-           -> (m Response -> IO Response) -- ^ Run monad 'm' into 'IO', called at each action.
+           => (m Response -> IO Response) -- ^ Run monad 'm' into 'IO', called at each action.
            -> ScottyT e m ()
            -> n Application
-scottyAppT runM runActionToIO defs = do
-    s <- runM $ execStateT (runS defs) def
+scottyAppT runActionToIO defs = do
+    let s = execState (runS defs) def
     let rapp req callback = runActionToIO (foldl (flip ($)) notFoundApp (routes s) req) >>= callback
     return $ foldl (flip ($)) rapp (middlewares s)
 
@@ -113,5 +127,5 @@ defaultHandler f = ScottyT $ modify $ addHandler $ Just (\e -> status status500 
 -- | Use given middleware. Middleware is nested such that the first declared
 -- is the outermost middleware (it has first dibs on the request and last action
 -- on the response). Every middleware is run on each request.
-middleware :: Monad m => Middleware -> ScottyT e m ()
+middleware :: Middleware -> ScottyT e m ()
 middleware = ScottyT . modify . addMiddleware

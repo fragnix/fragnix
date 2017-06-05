@@ -1,11 +1,22 @@
 {-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Control/Reaper.hs" #-}
 {-# LANGUAGE RecordWildCards    #-}
+{-# LANGUAGE BangPatterns       #-}
 
 -- | This module provides the ability to create reapers: dedicated cleanup
 -- threads. These threads will automatically spawn and die based on the
--- presence of a workload to process on.
+-- presence of a workload to process on. Example uses include:
+--
+-- * Killing long-running jobs 
+-- * Closing unused connections in a connection pool
+-- * Pruning a cache of old items (see example below)
+--
+-- For real-world usage, search the <https://github.com/yesodweb/wai WAI family of packages>
+-- for imports of "Control.Reaper".
 module Control.Reaper (
+      -- * Example: Regularly cleaning a cache
+      -- $example1
+
       -- * Settings
       ReaperSettings
     , defaultReaperSettings
@@ -24,10 +35,9 @@ module Control.Reaper (
     ) where
 
 import Control.AutoUpdate.Util (atomicModifyIORef')
-import Control.Concurrent (forkIO, threadDelay)
+import Control.Concurrent (forkIO, threadDelay, killThread, ThreadId)
 import Control.Exception (mask_)
-import Control.Monad (join, void)
-import Data.IORef (IORef, newIORef, readIORef)
+import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 
 -- | Settings for creating a reaper. This type has two parameters:
 -- @workload@ gives the entire workload, whereas @item@ gives an
@@ -35,7 +45,7 @@ import Data.IORef (IORef, newIORef, readIORef)
 -- be a list of @item@s. This is encouraged by 'defaultReaperSettings' and
 -- 'mkListAction'.
 --
--- Since 0.1.1
+-- @since 0.1.1
 data ReaperSettings workload item = ReaperSettings
     { reaperAction :: workload -> IO (workload -> workload)
     -- ^ The action to perform on a workload. The result of this is a
@@ -48,38 +58,38 @@ data ReaperSettings workload item = ReaperSettings
     -- temporary workload. This is incredibly useless; you should
     -- definitely override this default.
     --
-    -- Since 0.1.1
+    -- @since 0.1.1
     , reaperDelay :: {-# UNPACK #-} !Int
     -- ^ Number of microseconds to delay between calls of 'reaperAction'.
     --
     -- Default: 30 seconds.
     --
-    -- Since 0.1.1
+    -- @since 0.1.1
     , reaperCons :: item -> workload -> workload
     -- ^ Add an item onto a workload.
     --
     -- Default: list consing.
     --
-    -- Since 0.1.1
+    -- @since 0.1.1
     , reaperNull :: workload -> Bool
     -- ^ Check if a workload is empty, in which case the worker thread
     -- will shut down.
     --
     -- Default: 'null'.
     --
-    -- Since 0.1.1
+    -- @since 0.1.1
     , reaperEmpty :: workload
     -- ^ An empty workload.
     --
     -- Default: empty list.
     --
-    -- Since 0.1.1
+    -- @since 0.1.1
     }
 
 -- | Default @ReaperSettings@ value, biased towards having a list of work
 -- items.
 --
--- Since 0.1.1
+-- @since 0.1.1
 defaultReaperSettings :: ReaperSettings [item] item
 defaultReaperSettings = ReaperSettings
     { reaperAction = \wl -> return (wl ++)
@@ -98,24 +108,28 @@ data Reaper workload item = Reaper {
     -- | Stopping the reaper thread if exists.
     --   The current workload is returned.
   , reaperStop :: IO workload
+    -- | Killing the reaper thread immediately if exists.
+  , reaperKill :: IO ()
   }
 
 -- | State of reaper.
 data State workload = NoReaper           -- ^ No reaper thread
                     | Workload workload  -- ^ The current jobs
 
--- | Create a reaper addition function. This funciton can be used to add
+-- | Create a reaper addition function. This function can be used to add
 -- new items to the workload. Spawning of reaper threads will be handled
 -- for you automatically.
 --
--- Since 0.1.1
+-- @since 0.1.1
 mkReaper :: ReaperSettings workload item -> IO (Reaper workload item)
 mkReaper settings@ReaperSettings{..} = do
     stateRef <- newIORef NoReaper
+    tidRef   <- newIORef Nothing
     return Reaper {
-        reaperAdd  = update settings stateRef
+        reaperAdd  = add settings stateRef tidRef
       , reaperRead = readRef stateRef
       , reaperStop = stop stateRef
+      , reaperKill = kill tidRef
       }
   where
     readRef stateRef = do
@@ -127,31 +141,46 @@ mkReaper settings@ReaperSettings{..} = do
         case mx of
             NoReaper   -> (NoReaper, reaperEmpty)
             Workload x -> (Workload reaperEmpty, x)
+    kill tidRef = do
+        mtid <- readIORef tidRef
+        case mtid of
+            Nothing  -> return ()
+            Just tid -> killThread tid
 
-update :: ReaperSettings workload item -> IORef (State workload) -> item
-       -> IO ()
-update settings@ReaperSettings{..} stateRef item =
-    mask_ $ join $ atomicModifyIORef' stateRef cons
+add :: ReaperSettings workload item
+    -> IORef (State workload) -> IORef (Maybe ThreadId)
+    -> item -> IO ()
+add settings@ReaperSettings{..} stateRef tidRef item =
+    mask_ $ do
+      next <- atomicModifyIORef' stateRef cons
+      next
   where
-    cons NoReaper      = (Workload $ reaperCons item reaperEmpty
-                         ,spawn settings stateRef)
-    cons (Workload wl) = (Workload $ reaperCons item wl
-                         ,return ())
+    cons NoReaper      = let !wl = reaperCons item reaperEmpty
+                         in (Workload wl, spawn settings stateRef tidRef)
+    cons (Workload wl) = let wl' = reaperCons item wl
+                         in (Workload wl', return ())
 
-spawn :: ReaperSettings workload item -> IORef (State workload) -> IO ()
-spawn settings stateRef = void . forkIO $ reaper settings stateRef
+spawn :: ReaperSettings workload item
+      -> IORef (State workload) -> IORef (Maybe ThreadId)
+      -> IO ()
+spawn settings stateRef tidRef = do
+    tid <- forkIO $ reaper settings stateRef tidRef
+    writeIORef tidRef $ Just tid
 
-reaper :: ReaperSettings workload item -> IORef (State workload) -> IO ()
-reaper settings@ReaperSettings{..} stateRef = do
+reaper :: ReaperSettings workload item
+       -> IORef (State workload) -> IORef (Maybe ThreadId)
+       -> IO ()
+reaper settings@ReaperSettings{..} stateRef tidRef = do
     threadDelay reaperDelay
     -- Getting the current jobs. Push an empty job to the reference.
     wl <- atomicModifyIORef' stateRef swapWithEmpty
     -- Do the jobs. A function to merge the left jobs and
     -- new jobs is returned.
-    merge <- reaperAction wl
+    !merge <- reaperAction wl
     -- Merging the left jobs and new jobs.
     -- If there is no jobs, this thread finishes.
-    join $ atomicModifyIORef' stateRef (check merge)
+    next <- atomicModifyIORef' stateRef (check merge)
+    next
   where
     swapWithEmpty NoReaper      = error "Control.Reaper.reaper: unexpected NoReaper (1)"
     swapWithEmpty (Workload wl) = (Workload reaperEmpty, wl)
@@ -159,9 +188,9 @@ reaper settings@ReaperSettings{..} stateRef = do
     check _ NoReaper   = error "Control.Reaper.reaper: unexpected NoReaper (2)"
     check merge (Workload wl)
       -- If there is no job, reaper is terminated.
-      | reaperNull wl' = (NoReaper,  return ())
+      | reaperNull wl' = (NoReaper, writeIORef tidRef Nothing)
       -- If there are jobs, carry them out.
-      | otherwise      = (Workload wl', reaper settings stateRef)
+      | otherwise      = (Workload wl', reaper settings stateRef tidRef)
       where
         wl' = merge wl
 
@@ -170,18 +199,83 @@ reaper settings@ReaperSettings{..} stateRef = do
 -- return either a new work item, or @Nothing@ if the work item is
 -- expired.
 --
--- Since 0.1.1
+-- @since 0.1.1
 mkListAction :: (item -> IO (Maybe item'))
              -> [item]
              -> IO ([item'] -> [item'])
 mkListAction f =
     go id
   where
-    go front [] = return front
-    go front (x:xs) = do
+    go !front [] = return front
+    go !front (x:xs) = do
         my <- f x
         let front' =
                 case my of
                     Nothing -> front
                     Just y  -> front . (y:)
         go front' xs
+
+-- $example1
+-- In this example code, we use a 'Data.Map.Strict.Map' to cache fibonacci numbers, and a 'Reaper' to prune the cache. 
+--
+-- The @main@ function first creates a 'Reaper', with fields to initialize the 
+-- cache ('reaperEmpty'), add items to it ('reaperCons'), and prune it ('reaperAction').
+-- The reaper will run every two seconds ('reaperDelay'), but will stop running while 
+-- 'reaperNull' is true.
+--
+-- @main@ then loops infinitely ('Control.Monad.forever'). Each second it calculates the fibonacci number 
+-- for a value between 30 and 34, first trying the cache ('reaperRead' and 'Data.Map.Strict.lookup'), 
+-- then falling back to manually calculating it (@fib@) 
+-- and updating the cache with the result ('reaperAdd')
+--
+-- @clean@ simply removes items cached for more than 10 seconds.
+-- This function is where you would perform IO-related cleanup,
+-- like killing threads or closing connections, if that was the purpose of your reaper.
+--
+-- @
+-- module Main where
+--
+-- import "Data.Time" (UTCTime, getCurrentTime, diffUTCTime)
+-- import "Control.Reaper"
+-- import "Control.Concurrent" (threadDelay)
+-- import "Data.Map.Strict" (Map)
+-- import qualified "Data.Map.Strict" as Map
+-- import "Control.Monad" (forever)
+-- import "System.Random" (getStdRandom, randomR)
+--
+-- fib :: 'Int' -> 'Int'
+-- fib 0 = 0
+-- fib 1 = 1
+-- fib n = fib (n-1) + fib (n-2)
+--
+-- type Cache = 'Data.Map.Strict.Map' 'Int' ('Int', 'Data.Time.Clock.UTCTime')
+--
+-- main :: IO ()
+-- main = do
+--   reaper <- 'mkReaper' 'defaultReaperSettings'
+--     { 'reaperEmpty' = Map.'Data.Map.Strict.empty'
+--     , 'reaperCons' = \\(k, v, time) workload -> Map.'Data.Map.Strict.insert' k (v, time) workload
+--     , 'reaperAction' = clean
+--     , 'reaperDelay' = 1000000 * 2 -- Clean every 2 seconds
+--     , 'reaperNull' = Map.'Data.Map.Strict.null'
+--     }
+--   forever $ do
+--     fibArg <- 'System.Random.getStdRandom' ('System.Random.randomR' (30,34))
+--     cache <- 'reaperRead' reaper
+--     let cachedResult = Map.'Data.Map.Strict.lookup' fibArg cache
+--     case cachedResult of
+--       'Just' (fibResult, _createdAt) -> 'putStrLn' $ "Found in cache: `fib " ++ 'show' fibArg ++ "` " ++ 'show' fibResult
+--       'Nothing' -> do
+--         let fibResult = fib fibArg
+--         'putStrLn' $ "Calculating `fib " ++ 'show' fibArg ++ "` " ++ 'show' fibResult
+--         time <- 'Data.Time.Clock.getCurrentTime'
+--         ('reaperAdd' reaper) (fibArg, fibResult, time)
+--     'threadDelay' 1000000 -- 1 second
+--
+-- -- Remove items > 10 seconds old
+-- clean :: Cache -> IO (Cache -> Cache)
+-- clean oldMap = do
+--   currentTime <- 'Data.Time.Clock.getCurrentTime'
+--   let pruned = Map.'Data.Map.Strict.filter' (\\(_, createdAt) -> currentTime \`diffUTCTime\` createdAt < 10.0) oldMap
+--   return (\\newData -> Map.'Data.Map.Strict.union' pruned newData)
+-- @

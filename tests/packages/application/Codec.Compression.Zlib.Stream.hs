@@ -1,5 +1,11 @@
-{-# LANGUAGE Haskell98, CPP, ForeignFunctionInterface #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/Codec/Compression/Zlib/Stream.hs" #-}
+{-# LANGUAGE Haskell2010 #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/Codec/Compression/Zlib/Stream.hs" #-}
+
+
+
+
+
+
 
 
 
@@ -44,16 +50,19 @@
 
 
 {-# LINE 1 "Codec/Compression/Zlib/Stream.hsc" #-}
-{-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE CPP, ForeignFunctionInterface, DeriveDataTypeable #-}
 {-# LINE 2 "Codec/Compression/Zlib/Stream.hsc" #-}
+
+{-# LINE 3 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LANGUAGE DeriveGeneric #-}
+
+{-# LINE 5 "Codec/Compression/Zlib/Stream.hsc" #-}
 -----------------------------------------------------------------------------
 -- |
--- Copyright   :  (c) 2006-2008 Duncan Coutts
+-- Copyright   :  (c) 2006-2015 Duncan Coutts
 -- License     :  BSD-style
 --
--- Maintainer  :  duncan@haskell.org
--- Stability   :  provisional
--- Portability :  portable (H98 + FFI)
+-- Maintainer  :  duncan@community.haskell.org
 --
 -- Zlib wrapper layer
 --
@@ -62,8 +71,9 @@ module Codec.Compression.Zlib.Stream (
 
   -- * The Zlib state monad
   Stream,
-  run,
-  unsafeInterleave,
+  State,
+  mkState,
+  runStream,
   unsafeLiftIO,
   finalise,
 
@@ -105,11 +115,14 @@ module Codec.Compression.Zlib.Stream (
   Status(..),
   Flush(..),
   ErrorCode(..),
+  -- ** Special operations
+  inflateReset,
 
   -- * Buffer management
   -- ** Input buffer
   pushInputBuffer,
   inputBufferEmpty,
+  popRemainingInputBuffer,
 
   -- ** Output buffer
   pushOutputBuffer,
@@ -128,41 +141,61 @@ module Codec.Compression.Zlib.Stream (
   zeroDictionaryHash,
 
 
-{-# LINE 89 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 94 "Codec/Compression/Zlib/Stream.hsc" #-}
 
   ) where
 
-import Foreign
-         ( Word8, Ptr, nullPtr, plusPtr, peekByteOff, pokeByteOff, mallocBytes
-         , ForeignPtr, FinalizerPtr, newForeignPtr_, addForeignPtrFinalizer
-         , withForeignPtr, touchForeignPtr )
+-- Note we don't use the MIN_VERSION_* macros here for compatability with
+-- old Cabal versions that come with old GHC, that didn't provide these
+-- macros for .hsc files. So we use 800 as a proxy.
 
-{-# LINE 97 "Codec/Compression/Zlib/Stream.hsc" #-}
+import Foreign
+         ( Word8, Ptr, nullPtr, plusPtr, peekByteOff, pokeByteOff
+         , ForeignPtr, FinalizerPtr, mallocForeignPtrBytes, addForeignPtrFinalizer
+         , withForeignPtr, touchForeignPtr, minusPtr )
+
+{-# LINE 106 "Codec/Compression/Zlib/Stream.hsc" #-}
 import Foreign.ForeignPtr.Unsafe ( unsafeForeignPtrToPtr )
 import System.IO.Unsafe          ( unsafePerformIO )
 
-{-# LINE 102 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 111 "Codec/Compression/Zlib/Stream.hsc" #-}
 
-{-# LINE 103 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 112 "Codec/Compression/Zlib/Stream.hsc" #-}
 import Foreign
          ( finalizeForeignPtr )
 
-{-# LINE 106 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 115 "Codec/Compression/Zlib/Stream.hsc" #-}
 import Foreign.C
 import Data.ByteString.Internal (nullForeignPtr)
 import qualified Data.ByteString.Unsafe as B
 import Data.ByteString (ByteString)
-import System.IO.Unsafe (unsafeInterleaveIO)
-import Control.Applicative (Applicative(..))
-import Control.Monad (ap,liftM)
-import Control.Exception (assert)
 
-{-# LINE 117 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 122 "Codec/Compression/Zlib/Stream.hsc" #-}
+import Control.Monad (ap,liftM)
+
+{-# LINE 124 "Codec/Compression/Zlib/Stream.hsc" #-}
+
+{-# LINE 125 "Codec/Compression/Zlib/Stream.hsc" #-}
+import Control.Monad.ST.Strict
+
+{-# LINE 129 "Codec/Compression/Zlib/Stream.hsc" #-}
+import Control.Monad.ST.Unsafe
+
+{-# LINE 133 "Codec/Compression/Zlib/Stream.hsc" #-}
+import Control.Exception (assert)
+import Data.Typeable (Typeable)
+
+{-# LINE 136 "Codec/Compression/Zlib/Stream.hsc" #-}
+import GHC.Generics (Generic)
+
+{-# LINE 138 "Codec/Compression/Zlib/Stream.hsc" #-}
+
+{-# LINE 141 "Codec/Compression/Zlib/Stream.hsc" #-}
 
 import Prelude hiding (length)
 
 
-{-# LINE 121 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 145 "Codec/Compression/Zlib/Stream.hsc" #-}
 
 
 pushInputBuffer :: ForeignPtr Word8 -> Int -> Int -> Stream ()
@@ -189,6 +222,20 @@ pushInputBuffer inBuf' offset length = do
 
 inputBufferEmpty :: Stream Bool
 inputBufferEmpty = getInAvail >>= return . (==0)
+
+
+popRemainingInputBuffer :: Stream (ForeignPtr Word8, Int, Int)
+popRemainingInputBuffer = do
+
+  inBuf    <- getInBuf
+  inNext   <- getInNext
+  inAvail  <- getInAvail
+
+  -- there really should be something to pop, otherwise it's silly
+  assert (inAvail > 0) $ return ()
+  setInAvail 0
+
+  return (inBuf, inNext `minusPtr` unsafeForeignPtrToPtr inBuf, inAvail)
 
 
 pushOutputBuffer :: ForeignPtr Word8 -> Int -> Int -> Stream ()
@@ -293,6 +340,23 @@ inflate flush = do
   setOutAvail (outAvail + outExtra)
   return result
 
+
+inflateReset :: Stream ()
+inflateReset = do
+
+  outAvail <- getOutAvail
+  inAvail  <- getInAvail
+  -- At the point where this is used, all the output should have been consumed
+  -- and any trailing input should be extracted and resupplied explicitly, not
+  -- just left.
+  assert (outAvail == 0 && inAvail == 0) $ return ()
+
+  err <- withStreamState $ \zstream ->
+    c_inflateReset zstream
+  failIfError err
+
+
+
 deflateSetDictionary :: ByteString -> Stream Status
 deflateSetDictionary dict = do
   err <- withStreamState $ \zstream ->
@@ -352,14 +416,15 @@ instance Functor Stream where
   fmap   = liftM
 
 instance Applicative Stream where
-  pure   = return
+  pure   = returnZ
   (<*>)  = ap
+  (*>)   = thenZ_
 
 instance Monad Stream where
   (>>=)  = thenZ
 --  m >>= f = (m `thenZ` \a -> consistencyCheck `thenZ_` returnZ a) `thenZ` f
-  (>>)   = thenZ_
-  return = returnZ
+  (>>)   = (*>)
+  return = pure
   fail   = (finalise >>) . failZ
 
 returnZ :: a -> Stream a
@@ -386,46 +451,48 @@ thenZ_ (Z m) f =
 failZ :: String -> Stream a
 failZ msg = Z (\_ _ _ _ _ -> fail ("Codec.Compression.Zlib: " ++ msg))
 
-{-# NOINLINE run #-}
-run :: Stream a -> a
-run (Z m) = unsafePerformIO $ do
-  ptr <- mallocBytes (112)
-{-# LINE 348 "Codec/Compression/Zlib/Stream.hsc" #-}
-  (\hsc_ptr -> pokeByteOff hsc_ptr 48)       ptr nullPtr
-{-# LINE 349 "Codec/Compression/Zlib/Stream.hsc" #-}
-  (\hsc_ptr -> pokeByteOff hsc_ptr 64)    ptr nullPtr
-{-# LINE 350 "Codec/Compression/Zlib/Stream.hsc" #-}
-  (\hsc_ptr -> pokeByteOff hsc_ptr 72)     ptr nullPtr
-{-# LINE 351 "Codec/Compression/Zlib/Stream.hsc" #-}
-  (\hsc_ptr -> pokeByteOff hsc_ptr 80)    ptr nullPtr
-{-# LINE 352 "Codec/Compression/Zlib/Stream.hsc" #-}
-  (\hsc_ptr -> pokeByteOff hsc_ptr 0)   ptr nullPtr
-{-# LINE 353 "Codec/Compression/Zlib/Stream.hsc" #-}
-  (\hsc_ptr -> pokeByteOff hsc_ptr 24)  ptr nullPtr
-{-# LINE 354 "Codec/Compression/Zlib/Stream.hsc" #-}
-  (\hsc_ptr -> pokeByteOff hsc_ptr 8)  ptr (0 :: CUInt)
-{-# LINE 355 "Codec/Compression/Zlib/Stream.hsc" #-}
-  (\hsc_ptr -> pokeByteOff hsc_ptr 32) ptr (0 :: CUInt)
-{-# LINE 356 "Codec/Compression/Zlib/Stream.hsc" #-}
-  stream <- newForeignPtr_ ptr
-  (_,_,_,_,a) <- m stream nullForeignPtr nullForeignPtr 0 0
-  return a
+data State s = State !(ForeignPtr StreamState)
+                     !(ForeignPtr Word8)
+                     !(ForeignPtr Word8)
+      {-# UNPACK #-} !Int
+      {-# UNPACK #-} !Int
 
--- This is marked as unsafe because run uses unsafePerformIO so anything
--- lifted here will end up being unsafePerformIO'd.
+mkState :: ST s (State s)
+mkState = unsafeIOToST $ do
+  stream <- mallocForeignPtrBytes (112)
+{-# LINE 409 "Codec/Compression/Zlib/Stream.hsc" #-}
+  withForeignPtr stream $ \ptr -> do
+    (\hsc_ptr -> pokeByteOff hsc_ptr 48)       ptr nullPtr
+{-# LINE 411 "Codec/Compression/Zlib/Stream.hsc" #-}
+    (\hsc_ptr -> pokeByteOff hsc_ptr 64)    ptr nullPtr
+{-# LINE 412 "Codec/Compression/Zlib/Stream.hsc" #-}
+    (\hsc_ptr -> pokeByteOff hsc_ptr 72)     ptr nullPtr
+{-# LINE 413 "Codec/Compression/Zlib/Stream.hsc" #-}
+    (\hsc_ptr -> pokeByteOff hsc_ptr 80)    ptr nullPtr
+{-# LINE 414 "Codec/Compression/Zlib/Stream.hsc" #-}
+    (\hsc_ptr -> pokeByteOff hsc_ptr 0)   ptr nullPtr
+{-# LINE 415 "Codec/Compression/Zlib/Stream.hsc" #-}
+    (\hsc_ptr -> pokeByteOff hsc_ptr 24)  ptr nullPtr
+{-# LINE 416 "Codec/Compression/Zlib/Stream.hsc" #-}
+    (\hsc_ptr -> pokeByteOff hsc_ptr 8)  ptr (0 :: CUInt)
+{-# LINE 417 "Codec/Compression/Zlib/Stream.hsc" #-}
+    (\hsc_ptr -> pokeByteOff hsc_ptr 32) ptr (0 :: CUInt)
+{-# LINE 418 "Codec/Compression/Zlib/Stream.hsc" #-}
+  return (State stream nullForeignPtr nullForeignPtr 0 0)
+
+runStream :: Stream a -> State s -> ST s (a, State s)
+runStream (Z m) (State stream inBuf outBuf outOffset outLength) =
+  unsafeIOToST $
+    m stream inBuf outBuf outOffset outLength >>=
+      \(inBuf', outBuf', outOffset', outLength', a) ->
+        return (a, State stream inBuf' outBuf' outOffset' outLength')
+
+-- This is marked as unsafe because runStream uses unsafeIOToST so anything
+-- lifted here can end up being unsafePerformIO'd.
 unsafeLiftIO :: IO a -> Stream a
 unsafeLiftIO m = Z $ \_stream inBuf outBuf outOffset outLength -> do
   a <- m
   return (inBuf, outBuf, outOffset, outLength, a)
-
--- It's unsafe because we discard the values here, so if you mutate anything
--- between running this and forcing the result then you'll get an inconsistent
--- stream state.
-unsafeInterleave :: Stream a -> Stream a
-unsafeInterleave (Z m) = Z $ \stream inBuf outBuf outOffset outLength -> do
-  res <- unsafeInterleaveIO (m stream inBuf outBuf outOffset outLength)
-  let select (_,_,_,_,a) = a
-  return (inBuf, outBuf, outOffset, outLength, select res)
 
 getStreamState :: Stream (ForeignPtr StreamState)
 getStreamState = Z $ \stream inBuf outBuf outOffset outLength -> do
@@ -468,7 +535,7 @@ setOutAvail outLength = Z $ \_stream inBuf outBuf outOffset _ -> do
 --
 
 
-{-# LINE 455 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 513 "Codec/Compression/Zlib/Stream.hsc" #-}
 
 
 ----------------------------
@@ -496,32 +563,32 @@ data ErrorCode =
 toStatus :: CInt -> Stream Status
 toStatus errno = case errno of
   (0)            -> return Ok
-{-# LINE 482 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 540 "Codec/Compression/Zlib/Stream.hsc" #-}
   (1)    -> return StreamEnd
-{-# LINE 483 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 541 "Codec/Compression/Zlib/Stream.hsc" #-}
   (2)     -> do
-{-# LINE 484 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 542 "Codec/Compression/Zlib/Stream.hsc" #-}
     adler <- withStreamPtr ((\hsc_ptr -> peekByteOff hsc_ptr 96))
-{-# LINE 485 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 543 "Codec/Compression/Zlib/Stream.hsc" #-}
     err (NeedDict (DictHash adler))  "custom dictionary needed"
   (-5)     -> err BufferError  "buffer error"
-{-# LINE 487 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 545 "Codec/Compression/Zlib/Stream.hsc" #-}
   (-1)         -> err FileError    "file error"
-{-# LINE 488 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 546 "Codec/Compression/Zlib/Stream.hsc" #-}
   (-2)  -> err StreamError  "stream error"
-{-# LINE 489 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 547 "Codec/Compression/Zlib/Stream.hsc" #-}
   (-3)    -> err DataError    "data error"
-{-# LINE 490 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 548 "Codec/Compression/Zlib/Stream.hsc" #-}
   (-4)     -> err MemoryError  "insufficient memory"
-{-# LINE 491 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 549 "Codec/Compression/Zlib/Stream.hsc" #-}
   (-6) -> err VersionError "incompatible zlib version"
-{-# LINE 492 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 550 "Codec/Compression/Zlib/Stream.hsc" #-}
   other                      -> return $ Error Unexpected
                                   ("unexpected zlib status: " ++ show other)
  where
    err errCode altMsg = liftM (Error errCode) $ do
     msgPtr <- withStreamPtr ((\hsc_ptr -> peekByteOff hsc_ptr 48))
-{-# LINE 497 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 555 "Codec/Compression/Zlib/Stream.hsc" #-}
     if msgPtr /= nullPtr
      then unsafeLiftIO (peekCAString msgPtr)
      else return altMsg
@@ -541,13 +608,13 @@ data Flush =
 
 fromFlush :: Flush -> CInt
 fromFlush NoFlush   = 0
-{-# LINE 516 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 574 "Codec/Compression/Zlib/Stream.hsc" #-}
 fromFlush SyncFlush = 2
-{-# LINE 517 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 575 "Codec/Compression/Zlib/Stream.hsc" #-}
 fromFlush FullFlush = 3
-{-# LINE 518 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 576 "Codec/Compression/Zlib/Stream.hsc" #-}
 fromFlush Finish    = 4
-{-# LINE 519 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 577 "Codec/Compression/Zlib/Stream.hsc" #-}
 --  fromFlush Block     = #{const Z_BLOCK}
 
 
@@ -555,7 +622,13 @@ fromFlush Finish    = 4
 -- variations.
 --
 data Format = GZip | Zlib | Raw | GZipOrZlib
-  deriving Eq
+  deriving (Eq, Ord, Enum, Bounded, Show, Typeable
+
+{-# LINE 586 "Codec/Compression/Zlib/Stream.hsc" #-}
+              , Generic
+
+{-# LINE 588 "Codec/Compression/Zlib/Stream.hsc" #-}
+           )
 
 {-# DEPRECATED GZip       "Use gzipFormat. Format constructors will be hidden in version 0.7"       #-}
 {-# DEPRECATED Zlib       "Use zlibFormat. Format constructors will be hidden in version 0.7"       #-}
@@ -600,6 +673,13 @@ formatSupportsDictionary _    = False
 -- | The compression method
 --
 data Method = Deflated
+  deriving (Eq, Ord, Enum, Bounded, Show, Typeable
+
+{-# LINE 635 "Codec/Compression/Zlib/Stream.hsc" #-}
+              , Generic
+
+{-# LINE 637 "Codec/Compression/Zlib/Stream.hsc" #-}
+           )
 
 {-# DEPRECATED Deflated "Use deflateMethod. Method constructors will be hidden in version 0.7" #-}
 
@@ -611,7 +691,7 @@ deflateMethod = Deflated
 
 fromMethod :: Method -> CInt
 fromMethod Deflated = 8
-{-# LINE 582 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 649 "Codec/Compression/Zlib/Stream.hsc" #-}
 
 
 -- | The compression level parameter controls the amount of compression. This
@@ -624,6 +704,13 @@ data CompressionLevel =
   | BestSpeed
   | BestCompression
   | CompressionLevel Int
+  deriving (Eq, Show, Typeable
+
+{-# LINE 663 "Codec/Compression/Zlib/Stream.hsc" #-}
+              , Generic
+
+{-# LINE 665 "Codec/Compression/Zlib/Stream.hsc" #-}
+           )
 
 {-# DEPRECATED DefaultCompression "Use defaultCompression. CompressionLevel constructors will be hidden in version 0.7" #-}
 {-# DEPRECATED NoCompression      "Use noCompression. CompressionLevel constructors will be hidden in version 0.7"      #-}
@@ -679,10 +766,17 @@ fromCompressionLevel (CompressionLevel n)
 --
 data WindowBits = WindowBits Int
                 | DefaultWindowBits -- This constructor must be last to make
-		                    -- the Ord instance work. The Ord instance
-				    -- is defined with and used by the tests.
-				    -- It makse sense because the default value
-				    -- is is also the max value at 15.
+                                    -- the Ord instance work. The Ord instance
+                                    -- is used by the tests.
+                                    -- It makse sense because the default value
+                                    -- is is also the max value at 15.
+  deriving (Eq, Ord, Show, Typeable
+
+{-# LINE 727 "Codec/Compression/Zlib/Stream.hsc" #-}
+              , Generic
+
+{-# LINE 729 "Codec/Compression/Zlib/Stream.hsc" #-}
+           )
 
 {-# DEPRECATED DefaultWindowBits  "Use defaultWindowBits. WindowBits constructors will be hidden in version 0.7" #-}
 --FIXME: cannot deprecate constructor named the same as the type
@@ -738,6 +832,13 @@ data MemoryLevel =
   | MinMemoryLevel
   | MaxMemoryLevel
   | MemoryLevel Int
+  deriving (Eq, Show, Typeable
+
+{-# LINE 787 "Codec/Compression/Zlib/Stream.hsc" #-}
+              , Generic
+
+{-# LINE 789 "Codec/Compression/Zlib/Stream.hsc" #-}
+           )
 
 {-# DEPRECATED DefaultMemoryLevel "Use defaultMemoryLevel. MemoryLevel constructors will be hidden in version 0.7" #-}
 {-# DEPRECATED MinMemoryLevel     "Use minMemoryLevel. MemoryLevel constructors will be hidden in version 0.7"     #-}
@@ -787,6 +888,13 @@ data CompressionStrategy =
     DefaultStrategy
   | Filtered
   | HuffmanOnly
+  deriving (Eq, Ord, Enum, Bounded, Show, Typeable
+
+{-# LINE 841 "Codec/Compression/Zlib/Stream.hsc" #-}
+              , Generic
+
+{-# LINE 843 "Codec/Compression/Zlib/Stream.hsc" #-}
+           )
 
 {-
 -- -- only available in zlib 1.2 and later, uncomment if you need it.
@@ -826,11 +934,11 @@ huffmanOnlyStrategy = HuffmanOnly
 
 fromCompressionStrategy :: CompressionStrategy -> CInt
 fromCompressionStrategy DefaultStrategy = 0
-{-# LINE 796 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 883 "Codec/Compression/Zlib/Stream.hsc" #-}
 fromCompressionStrategy Filtered        = 1
-{-# LINE 797 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 884 "Codec/Compression/Zlib/Stream.hsc" #-}
 fromCompressionStrategy HuffmanOnly     = 2
-{-# LINE 798 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 885 "Codec/Compression/Zlib/Stream.hsc" #-}
 --fromCompressionStrategy RLE             = #{const Z_RLE}
 --fromCompressionStrategy Fixed           = #{const Z_FIXED}
 
@@ -848,36 +956,37 @@ withStreamState f = do
 setInAvail :: Int -> Stream ()
 setInAvail val = withStreamPtr $ \ptr ->
   (\hsc_ptr -> pokeByteOff hsc_ptr 8) ptr (fromIntegral val :: CUInt)
-{-# LINE 815 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 902 "Codec/Compression/Zlib/Stream.hsc" #-}
 
 getInAvail :: Stream Int
 getInAvail = liftM (fromIntegral :: CUInt -> Int) $
   withStreamPtr ((\hsc_ptr -> peekByteOff hsc_ptr 8))
-{-# LINE 819 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 906 "Codec/Compression/Zlib/Stream.hsc" #-}
 
 setInNext :: Ptr Word8 -> Stream ()
 setInNext val = withStreamPtr (\ptr -> (\hsc_ptr -> pokeByteOff hsc_ptr 0) ptr val)
-{-# LINE 822 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 909 "Codec/Compression/Zlib/Stream.hsc" #-}
 
-
-{-# LINE 827 "Codec/Compression/Zlib/Stream.hsc" #-}
+getInNext :: Stream (Ptr Word8)
+getInNext = withStreamPtr ((\hsc_ptr -> peekByteOff hsc_ptr 0))
+{-# LINE 912 "Codec/Compression/Zlib/Stream.hsc" #-}
 
 setOutFree :: Int -> Stream ()
 setOutFree val = withStreamPtr $ \ptr ->
   (\hsc_ptr -> pokeByteOff hsc_ptr 32) ptr (fromIntegral val :: CUInt)
-{-# LINE 831 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 916 "Codec/Compression/Zlib/Stream.hsc" #-}
 
 getOutFree :: Stream Int
 getOutFree = liftM (fromIntegral :: CUInt -> Int) $
   withStreamPtr ((\hsc_ptr -> peekByteOff hsc_ptr 32))
-{-# LINE 835 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 920 "Codec/Compression/Zlib/Stream.hsc" #-}
 
 setOutNext  :: Ptr Word8 -> Stream ()
 setOutNext val = withStreamPtr (\ptr -> (\hsc_ptr -> pokeByteOff hsc_ptr 24) ptr val)
-{-# LINE 838 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 923 "Codec/Compression/Zlib/Stream.hsc" #-}
 
 
-{-# LINE 843 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 928 "Codec/Compression/Zlib/Stream.hsc" #-}
 
 inflateInit :: Format -> WindowBits -> Stream ()
 inflateInit format bits = do
@@ -925,11 +1034,11 @@ deflate_ flush = do
 --
 finalise :: Stream ()
 
-{-# LINE 890 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 975 "Codec/Compression/Zlib/Stream.hsc" #-}
 --TODO: finalizeForeignPtr is ghc-only
 finalise = getStreamState >>= unsafeLiftIO . finalizeForeignPtr
 
-{-# LINE 895 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 980 "Codec/Compression/Zlib/Stream.hsc" #-}
 
 checkFormatSupported :: Format -> Stream ()
 checkFormatSupported format = do
@@ -940,7 +1049,7 @@ checkFormatSupported format = do
       || format == GZipOrZlib
       -> fail $ "version 1.1.x of the zlib C library does not support the"
              ++ " 'gzip' format via the in-memory api, only the 'raw' and "
-	     ++ " 'zlib' formats."
+             ++ " 'zlib' formats."
     _ -> return ()
 
 ----------------------
@@ -962,15 +1071,16 @@ newtype StreamState = StreamState (Ptr StreamState)
 -- So we define c_inflateInit2 and c_deflateInit2 here as wrappers around
 -- their _ counterparts and pass the extra args.
 
+
 foreign import ccall unsafe "zlib.h inflateInit2_"
   c_inflateInit2_ :: StreamState -> CInt -> Ptr CChar -> CInt -> IO CInt
 
 c_inflateInit2 :: StreamState -> CInt -> IO CInt
 c_inflateInit2 z n =
   withCAString "1.2.8" $ \versionStr ->
-{-# LINE 933 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 1024 "Codec/Compression/Zlib/Stream.hsc" #-}
     c_inflateInit2_ z n versionStr (112 :: CInt)
-{-# LINE 934 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 1025 "Codec/Compression/Zlib/Stream.hsc" #-}
 
 foreign import ccall unsafe "zlib.h inflate"
   c_inflate :: StreamState -> CInt -> IO CInt
@@ -978,20 +1088,22 @@ foreign import ccall unsafe "zlib.h inflate"
 foreign import ccall unsafe "zlib.h &inflateEnd"
   c_inflateEnd :: FinalizerPtr StreamState
 
+foreign import ccall unsafe "zlib.h inflateReset"
+  c_inflateReset :: StreamState -> IO CInt
 
 foreign import ccall unsafe "zlib.h deflateInit2_"
   c_deflateInit2_ :: StreamState
                   -> CInt -> CInt -> CInt -> CInt -> CInt
-		  -> Ptr CChar -> CInt
-		  -> IO CInt
+                  -> Ptr CChar -> CInt
+                  -> IO CInt
 
 c_deflateInit2 :: StreamState
                -> CInt -> CInt -> CInt -> CInt -> CInt -> IO CInt
 c_deflateInit2 z a b c d e =
   withCAString "1.2.8" $ \versionStr ->
-{-# LINE 952 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 1045 "Codec/Compression/Zlib/Stream.hsc" #-}
     c_deflateInit2_ z a b c d e versionStr (112 :: CInt)
-{-# LINE 953 "Codec/Compression/Zlib/Stream.hsc" #-}
+{-# LINE 1046 "Codec/Compression/Zlib/Stream.hsc" #-}
 
 foreign import ccall unsafe "zlib.h deflateSetDictionary"
   c_deflateSetDictionary :: StreamState

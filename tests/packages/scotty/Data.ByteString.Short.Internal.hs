@@ -47,6 +47,14 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE DeriveDataTypeable, CPP, BangPatterns, RankNTypes,
              ForeignFunctionInterface, MagicHash, UnboxedTuples,
              UnliftedFFITypes #-}
@@ -83,10 +91,11 @@ module Data.ByteString.Short.Internal (
     createFromPtr, copyToPtr
   ) where
 
-import Data.ByteString.Internal (ByteString(..), inlinePerformIO)
+import Data.ByteString.Internal (ByteString(..), accursedUnutterablePerformIO)
 
 import Data.Typeable    (Typeable)
 import Data.Data        (Data(..), mkNoRepType)
+import Data.Semigroup   (Semigroup((<>)))
 import Data.Monoid      (Monoid(..))
 import Data.String      (IsString(..))
 import Control.DeepSeq  (NFData(..))
@@ -148,12 +157,16 @@ instance Eq ShortByteString where
 instance Ord ShortByteString where
     compare = compareBytes
 
+instance Semigroup ShortByteString where
+    (<>)    = append
+
 instance Monoid ShortByteString where
     mempty  = empty
-    mappend = append
+    mappend = (<>)
     mconcat = concat
 
-instance NFData ShortByteString
+instance NFData ShortByteString where
+    rnf (SBS {}) = ()
 
 instance Show ShortByteString where
     showsPrec p ps r = showsPrec p (unpackChars ps) r
@@ -362,14 +375,16 @@ equateBytes sbs1 sbs2 =
     let !len1 = length sbs1
         !len2 = length sbs2
      in len1 == len2
-     && 0 == inlinePerformIO (memcmp_ByteArray (asBA sbs1) (asBA sbs2) len1)
+     && 0 == accursedUnutterablePerformIO
+               (memcmp_ByteArray (asBA sbs1) (asBA sbs2) len1)
 
 compareBytes :: ShortByteString -> ShortByteString -> Ordering
 compareBytes sbs1 sbs2 =
     let !len1 = length sbs1
         !len2 = length sbs2
         !len  = min len1 len2
-     in case inlinePerformIO (memcmp_ByteArray (asBA sbs1) (asBA sbs2) len) of
+     in case accursedUnutterablePerformIO
+               (memcmp_ByteArray (asBA sbs1) (asBA sbs2) len) of
           i | i    < 0    -> LT
             | i    > 0    -> GT
             | len2 > len1 -> LT

@@ -57,6 +57,22 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# OPTIONS_HADDOCK not-home #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
@@ -66,6 +82,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE RankNTypes #-}
+-- Can only mark as Safe when using a newer GHC, otherwise we get build
+-- failures due to the manual Typeable instance below.
+{-# LANGUAGE Safe #-}
 
 module Control.Monad.Trans.Resource.Internal(
     InvalidAccess(..)
@@ -82,7 +101,9 @@ module Control.Monad.Trans.Resource.Internal(
 ) where
 
 import Control.Exception (throw,Exception,SomeException)
-import Control.Applicative (Applicative (..))
+import Control.Applicative (Applicative (..), Alternative(..))
+import Control.Monad (MonadPlus(..))
+import Control.Monad.Fix (MonadFix(..))
 import Control.Monad.Trans.Control
     ( MonadTransControl (..), MonadBaseControl (..) )
 import Control.Monad.Base (MonadBase, liftBase)
@@ -98,6 +119,7 @@ import Control.Monad.Trans.Identity ( IdentityT)
 import Control.Monad.Trans.List     ( ListT    )
 import Control.Monad.Trans.Maybe    ( MaybeT   )
 import Control.Monad.Trans.Error    ( ErrorT, Error)
+import Control.Monad.Trans.Except   ( ExceptT  )
 import Control.Monad.Trans.Reader   ( ReaderT  )
 import Control.Monad.Trans.State    ( StateT   )
 import Control.Monad.Trans.Writer   ( WriterT  )
@@ -109,7 +131,6 @@ import qualified Control.Monad.Trans.Writer.Strict as Strict ( WriterT )
 
 import Control.Monad.IO.Class (MonadIO (..))
 import qualified Control.Exception as E
-import Control.Monad.ST (ST)
 import Control.Monad.Catch (MonadThrow (..), MonadCatch (..)
     , MonadMask (..)
     )
@@ -122,16 +143,10 @@ import Data.Word(Word)
 import Prelude hiding (catch)
 import Data.Acquire.Internal (ReleaseType (..))
 
-import Control.Monad.ST.Unsafe (unsafeIOToST)
-
-import qualified Control.Monad.ST.Lazy.Unsafe as LazyUnsafe
-
-import qualified Control.Monad.ST.Lazy as Lazy
-
 import Control.Monad.Morph
 
 -- | A @Monad@ which allows for safe resource allocation. In theory, any monad
--- transformer stack included a @ResourceT@ can be an instance of
+-- transformer stack which includes a @ResourceT@ can be an instance of
 -- @MonadResource@.
 --
 -- Note: @runResourceT@ has a requirement for a @MonadBaseControl IO m@ monad,
@@ -262,12 +277,25 @@ instance Applicative m => Applicative (ResourceT m) where
     ResourceT mf <*> ResourceT ma = ResourceT $ \r ->
         mf r <*> ma r
 
+-- | Since 1.1.5
+instance Alternative m => Alternative (ResourceT m) where
+    empty = ResourceT $ \_ -> empty
+    (ResourceT mf) <|> (ResourceT ma) = ResourceT $ \r -> mf r <|> ma r
+
+-- | Since 1.1.5
+instance MonadPlus m => MonadPlus (ResourceT m) where
+    mzero = ResourceT $ \_ -> mzero
+    (ResourceT mf) `mplus` (ResourceT ma) = ResourceT $ \r -> mf r `mplus` ma r
+
 instance Monad m => Monad (ResourceT m) where
-    return = ResourceT . const . return
     ResourceT ma >>= f = ResourceT $ \r -> do
         a <- ma r
         let ResourceT f' = f a
         f' r
+
+-- | @since 1.1.8
+instance MonadFix m => MonadFix (ResourceT m) where
+  mfix f = ResourceT $ \r -> mfix $ \a -> unResourceT (f a) r
 
 instance MonadTrans ResourceT where
     lift = ResourceT . const
@@ -296,6 +324,7 @@ instance (MonadResource m) => MonadResource (IdentityT m) where liftResourceT = 
 instance (MonadResource m) => MonadResource (ListT m) where liftResourceT = lift . liftResourceT
 instance (MonadResource m) => MonadResource (MaybeT m) where liftResourceT = lift . liftResourceT
 instance (Error e, MonadResource m) => MonadResource ( ErrorT e m) where liftResourceT = lift . liftResourceT
+instance (MonadResource m) => MonadResource (ExceptT e m) where liftResourceT = lift . liftResourceT
 instance (MonadResource m) => MonadResource (ReaderT r m) where liftResourceT = lift . liftResourceT
 instance (MonadResource m) => MonadResource (ContT r m) where liftResourceT = lift . liftResourceT
 instance (MonadResource m) => MonadResource (StateT s m) where liftResourceT = lift . liftResourceT

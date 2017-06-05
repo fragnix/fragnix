@@ -47,7 +47,15 @@
 
 
 
-{-# LANGUAGE CPP #-}
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP, BangPatterns #-}
 {-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE Trustworthy #-}
 
@@ -163,6 +171,8 @@ module Data.ByteString.Lazy.Char8 (
         groupBy,                -- :: (Char -> Char -> Bool) -> ByteString -> [ByteString]
         inits,                  -- :: ByteString -> [ByteString]
         tails,                  -- :: ByteString -> [ByteString]
+        stripPrefix,            -- :: ByteString -> ByteString -> Maybe ByteString
+        stripSuffix,            -- :: ByteString -> ByteString -> Maybe ByteString
 
         -- ** Breaking into many substrings
         split,                  -- :: Char -> ByteString -> [ByteString]
@@ -176,7 +186,7 @@ module Data.ByteString.Lazy.Char8 (
 
         -- * Predicates
         isPrefixOf,             -- :: ByteString -> ByteString -> Bool
---      isSuffixOf,             -- :: ByteString -> ByteString -> Bool
+        isSuffixOf,             -- :: ByteString -> ByteString -> Bool
 
         -- * Searching ByteStrings
 
@@ -244,7 +254,9 @@ module Data.ByteString.Lazy.Char8 (
 import Data.ByteString.Lazy 
         (fromChunks, toChunks, fromStrict, toStrict
         ,empty,null,length,tail,init,append,reverse,transpose,cycle
-        ,concat,take,drop,splitAt,intercalate,isPrefixOf,group,inits,tails,copy
+        ,concat,take,drop,splitAt,intercalate
+        ,isPrefixOf,isSuffixOf,group,inits,tails,copy
+        ,stripPrefix,stripSuffix
         ,hGetContents, hGet, hPut, getContents
         ,hGetNonBlocking, hPutNonBlocking
         ,putStr, hPutStr, interact)
@@ -270,7 +282,6 @@ import Prelude hiding
 
 import System.IO            (Handle,stdout,hClose,openBinaryFile,IOMode(..))
 import Control.Exception    (bracket)
-
 
 ------------------------------------------------------------------------
 
@@ -801,13 +812,6 @@ unwords = intercalate (singleton ' ')
 -- Nothing, otherwise it just returns the int read, and the rest of the
 -- string.
 
-{-
--- Faster:
-
-data MaybeS = NothingS
-            | JustS {-# UNPACK #-} !Int {-# UNPACK #-} !ByteString
--}
-
 readInt :: ByteString -> Maybe (Int, ByteString)
 {-# INLINE readInt #-}
 readInt Empty        = Nothing
@@ -818,8 +822,7 @@ readInt (Chunk x xs) = case w2c (B.unsafeHead x) of
 
     where loop :: Bool -> Int -> Int
                 -> S.ByteString -> ByteString -> Maybe (Int, ByteString)
-          loop a b c d _ | a `seq` b `seq` c `seq` d `seq` False = undefined
-          loop neg i n c cs
+          loop neg !i !n !c cs
               | B.null c = case cs of
                              Empty          -> end  neg i n c  cs
                              (Chunk c' cs') -> loop neg i n c' cs'
@@ -864,8 +867,7 @@ readInteger (Chunk c0 cs0) =
 
           loop :: Int -> Int -> [Integer]
                -> S.ByteString -> ByteString -> (Integer, ByteString)
-          loop a b c d _ | a `seq` b `seq` c `seq` d `seq` False = undefined
-          loop d acc ns c cs
+          loop !d !acc ns !c cs
               | B.null c = case cs of
                              Empty          -> combine d acc ns c cs
                              (Chunk c' cs') -> loop d acc ns c' cs'

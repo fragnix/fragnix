@@ -15,6 +15,7 @@
 #include <string.h>
 #include <time.h>
 #include <locale.h>
+#include <stdlib.h>
 
 #if THREAD_SAFE
 #if HAVE_XLOCALE_H
@@ -36,6 +37,31 @@ void init_locale() {
 }
 #endif
 
+/*
+ * Set the value of the TZ environment variable to UTC
+ * and return the old value.
+ */
+char *set_tz_utc() {
+    char *tz;
+    tz = getenv("TZ");
+    setenv("TZ", "", 1);
+    tzset();
+    return tz;
+}
+
+/*
+ * Set the value of the TZ environment variable to tz or
+ * unset the variable if tz is null;
+ */
+void set_tz(char *local_tz) {
+    if (local_tz) {
+      setenv("TZ", local_tz, 1);
+    } else {
+      unsetenv("TZ");
+    }
+    tzset();
+}
+
 time_t c_parse_unix_time(char *fmt, char *src) {
     struct tm dst;
     init_locale();
@@ -54,7 +80,7 @@ time_t c_parse_unix_time(char *fmt, char *src) {
  *
  * Copyright (c) 1997 Kungliga Tekniska H.gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
- * All rights reserved. 
+ * All rights reserved.
  */
 
 static int
@@ -91,13 +117,16 @@ timegm (struct tm *tm)
 
 time_t c_parse_unix_time_gmt(char *fmt, char *src) {
     struct tm dst;
+    char *local_tz;
     init_locale();
     memset(&dst, 0, sizeof(struct tm));
+    local_tz = set_tz_utc();
 #if THREAD_SAFE
     strptime_l(src, fmt, &dst, c_locale);
 #else
     strptime(src, fmt, &dst);
 #endif
+    set_tz(local_tz);
     return timegm(&dst);
 }
 
@@ -114,11 +143,18 @@ size_t c_format_unix_time(char *fmt, time_t src, char* dst, int siz) {
 
 size_t c_format_unix_time_gmt(char *fmt, time_t src, char* dst, int siz) {
     struct tm tim;
+    char *local_tz;
+    size_t dst_size;
+
     init_locale();
     gmtime_r(&src, &tim);
+
+    local_tz = set_tz_utc();
 #if THREAD_SAFE
-    return strftime_l(dst, siz, fmt, &tim, c_locale);
+    dst_size = strftime_l(dst, siz, fmt, &tim, c_locale);
 #else
-    return strftime(dst, siz, fmt, &tim);
+    dst_size = strftime(dst, siz, fmt, &tim);
 #endif
+    set_tz(local_tz);
+    return dst_size;
 }

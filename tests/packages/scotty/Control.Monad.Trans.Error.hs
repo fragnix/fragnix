@@ -41,8 +41,14 @@
 
 
 
+
+
+
+
+
 {-# LANGUAGE CPP #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE Safe #-}
+{-# LANGUAGE AutoDeriveTypeable #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Control.Monad.Trans.Error
@@ -51,7 +57,7 @@
 --                (c) Andriy Palamarchuk 2006
 -- License     :  BSD-style (see the file LICENSE)
 --
--- Maintainer  :  ross@soi.city.ac.uk
+-- Maintainer  :  R.Paterson@city.ac.uk
 -- Stability   :  experimental
 -- Portability :  portable
 --
@@ -97,19 +103,23 @@ import Data.Functor.Classes
 import Control.Applicative
 import Control.Exception (IOException)
 import Control.Monad
+import qualified Control.Monad.Fail as Fail
 import Control.Monad.Fix
 import Data.Foldable (Foldable(foldMap))
 import Data.Monoid (mempty)
 import Data.Traversable (Traversable(traverse))
 import System.IO.Error
 
-instance MonadPlus IO where
-    mzero       = ioError (userError "mzero")
-    m `mplus` n = m `catchIOError` \ _ -> n
 
-instance Alternative IO where
-    empty = mzero
-    (<|>) = mplus
+instance (Error e) => Alternative (Either e) where
+    empty        = Left noMsg
+    Left _ <|> n = n
+    m      <|> _ = m
+
+instance (Error e) => MonadPlus (Either e) where
+    mzero            = Left noMsg
+    Left _ `mplus` n = n
+    m      `mplus` _ = m
 
 
 -- | An exception to be thrown.
@@ -140,20 +150,6 @@ class ErrorList a where
 instance ErrorList Char where
     listMsg = id
 
--- ---------------------------------------------------------------------------
--- Our parameterizable error monad
-
-
-instance (Error e) => Alternative (Either e) where
-    empty        = Left noMsg
-    Left _ <|> n = n
-    m      <|> _ = m
-
-instance (Error e) => MonadPlus (Either e) where
-    mzero            = Left noMsg
-    Left _ `mplus` n = n
-    m      `mplus` _ = m
-
 -- | The error monad transformer. It can be used to add error handling
 -- to other monads.
 --
@@ -167,22 +163,32 @@ instance (Error e) => MonadPlus (Either e) where
 -- sequences two subcomputations, failing on the first error.
 newtype ErrorT e m a = ErrorT { runErrorT :: m (Either e a) }
 
-instance (Eq e, Eq1 m, Eq a) => Eq (ErrorT e m a) where
-    ErrorT x == ErrorT y = eq1 x y
+instance (Eq e, Eq1 m) => Eq1 (ErrorT e m) where
+    liftEq eq (ErrorT x) (ErrorT y) = liftEq (liftEq eq) x y
 
-instance (Ord e, Ord1 m, Ord a) => Ord (ErrorT e m a) where
-    compare (ErrorT x) (ErrorT y) = compare1 x y
+instance (Ord e, Ord1 m) => Ord1 (ErrorT e m) where
+    liftCompare comp (ErrorT x) (ErrorT y) = liftCompare (liftCompare comp) x y
 
+instance (Read e, Read1 m) => Read1 (ErrorT e m) where
+    liftReadsPrec rp rl = readsData $
+        readsUnaryWith (liftReadsPrec rp' rl') "ErrorT" ErrorT
+      where
+        rp' = liftReadsPrec rp rl
+        rl' = liftReadList rp rl
+
+instance (Show e, Show1 m) => Show1 (ErrorT e m) where
+    liftShowsPrec sp sl d (ErrorT m) =
+        showsUnaryWith (liftShowsPrec sp' sl') "ErrorT" d m
+      where
+        sp' = liftShowsPrec sp sl
+        sl' = liftShowList sp sl
+
+instance (Eq e, Eq1 m, Eq a) => Eq (ErrorT e m a) where (==) = eq1
+instance (Ord e, Ord1 m, Ord a) => Ord (ErrorT e m a) where compare = compare1
 instance (Read e, Read1 m, Read a) => Read (ErrorT e m a) where
-    readsPrec = readsData $ readsUnary1 "ErrorT" ErrorT
-
+    readsPrec = readsPrec1
 instance (Show e, Show1 m, Show a) => Show (ErrorT e m a) where
-    showsPrec d (ErrorT m) = showsUnary1 "ErrorT" d m
-
-instance (Eq e, Eq1 m) => Eq1 (ErrorT e m) where eq1 = (==)
-instance (Ord e, Ord1 m) => Ord1 (ErrorT e m) where compare1 = compare
-instance (Read e, Read1 m) => Read1 (ErrorT e m) where readsPrec1 = readsPrec
-instance (Show e, Show1 m) => Show1 (ErrorT e m) where showsPrec1 = showsPrec
+    showsPrec = showsPrec1
 
 -- | Map the unwrapped computation using the given function.
 --
@@ -219,12 +225,14 @@ instance (Functor m, Monad m, Error e) => Alternative (ErrorT e m) where
     (<|>) = mplus
 
 instance (Monad m, Error e) => Monad (ErrorT e m) where
-    return a = ErrorT $ return (Right a)
     m >>= k  = ErrorT $ do
         a <- runErrorT m
         case a of
             Left  l -> return (Left l)
             Right r -> runErrorT (k r)
+    fail msg = ErrorT $ return (Left (strMsg msg))
+
+instance (Monad m, Error e) => Fail.MonadFail (ErrorT e m) where
     fail msg = ErrorT $ return (Left (strMsg msg))
 
 instance (Monad m, Error e) => MonadPlus (ErrorT e m) where
@@ -240,7 +248,7 @@ instance (MonadFix m, Error e) => MonadFix (ErrorT e m) where
         Right r -> r
         _       -> error "empty mfix argument"
 
-instance (Error e) => MonadTrans (ErrorT e) where
+instance MonadTrans (ErrorT e) where
     lift m = ErrorT $ do
         a <- m
         return (Right a)
@@ -253,7 +261,7 @@ instance (Error e, MonadIO m) => MonadIO (ErrorT e m) where
 -- * @'runErrorT' ('throwError' e) = 'return' ('Left' e)@
 --
 -- * @'throwError' e >>= m = 'throwError' e@
-throwError :: (Monad m, Error e) => e -> ErrorT e m a
+throwError :: (Monad m) => e -> ErrorT e m a
 throwError l = ErrorT $ return (Left l)
 
 -- | Handle an error.
@@ -261,7 +269,7 @@ throwError l = ErrorT $ return (Left l)
 -- * @'catchError' h ('lift' m) = 'lift' m@
 --
 -- * @'catchError' h ('throwError' e) = h e@
-catchError :: (Monad m, Error e) =>
+catchError :: (Monad m) =>
     ErrorT e m a                -- ^ the inner computation
     -> (e -> ErrorT e m a)      -- ^ a handler for errors in the inner
                                 -- computation

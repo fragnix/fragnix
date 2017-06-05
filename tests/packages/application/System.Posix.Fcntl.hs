@@ -1,11 +1,11 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Fcntl.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Fcntl.hs" #-}
 {-# LINE 1 "System/Posix/Fcntl.hsc" #-}
 {-# LANGUAGE CApiFFI #-}
 {-# LINE 2 "System/Posix/Fcntl.hsc" #-}
 
-{-# LINE 5 "System/Posix/Fcntl.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LINE 3 "System/Posix/Fcntl.hsc" #-}
+{-# LANGUAGE Safe #-}
 
 {-# LINE 7 "System/Posix/Fcntl.hsc" #-}
 -----------------------------------------------------------------------------
@@ -20,7 +20,7 @@
 --
 -- POSIX file control support
 --
--- /Since: 2.7.1.0/
+-- @since 2.7.1.0
 -----------------------------------------------------------------------------
 
 
@@ -49,7 +49,7 @@ import System.Posix.Types
 --
 -- For more details, see documentation of @posix_fadvise(2)@.
 --
--- /Since: 2.7.1.0/
+-- @since 2.7.1.0
 data Advice
   = AdviceNormal
   | AdviceRandom
@@ -66,7 +66,7 @@ data Advice
 --
 -- (use @#if HAVE_POSIX_FADVISE@ CPP guard to detect availability)
 --
--- /Since: 2.7.1.0/
+-- @since 2.7.1.0
 fileAdvise :: Fd -> FileOffset -> FileOffset -> Advice -> IO ()
 
 {-# LINE 67 "System/Posix/Fcntl.hsc" #-}
@@ -99,7 +99,7 @@ packAdvice AdviceNoReuse    = (5)
 --
 -- (use @#if HAVE_POSIX_FALLOCATE@ CPP guard to detect availability).
 --
--- /Since: 2.7.1.0/
+-- @since 2.7.1.0
 fileAllocate :: Fd -> FileOffset -> FileOffset -> IO ()
 
 {-# LINE 94 "System/Posix/Fcntl.hsc" #-}

@@ -45,6 +45,13 @@
 
 
 
+
+
+
+
+
+
+
 {-# LANGUAGE CPP
            , NoImplicitPrelude
            , ExistentialQuantification
@@ -52,7 +59,7 @@
 
 {-# LANGUAGE RankNTypes #-} -- for mask
 
-{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE Safe #-}
 
 {- |
 Module      :  Control.Exception.Lifted
@@ -152,17 +159,17 @@ import Control.Monad.Trans.Control ( MonadBaseControl, StM
 -- |Generalized version of 'E.throwIO'.
 throwIO :: (MonadBase IO m, Exception e) => e -> m a
 throwIO = liftBase . E.throwIO
-{-# INLINE throwIO #-}
+{-# INLINABLE throwIO #-}
 
 -- |Generalized version of 'E.ioError'.
 ioError :: MonadBase IO m => IOError -> m a
 ioError = liftBase . E.ioError
-{-# INLINE ioError #-}
+{-# INLINABLE ioError #-}
 
 -- | Generalized version of 'C.throwTo'.
 throwTo :: (MonadBase IO m, Exception e) => ThreadId -> e -> m ()
 throwTo tid e = liftBase $ C.throwTo tid e
-{-# INLINE throwTo #-}
+{-# INLINABLE throwTo #-}
 
 --------------------------------------------------------------------------------
 -- * Catching exceptions
@@ -179,7 +186,7 @@ catch :: (MonadBaseControl IO m, Exception e)
 catch a handler = control $ \runInIO ->
                     E.catch (runInIO a)
                             (\e -> runInIO $ handler e)
-{-# INLINE catch #-}
+{-# INLINABLE catch #-}
 
 -- |Generalized version of 'E.catches'.
 --
@@ -191,7 +198,7 @@ catches a handlers = control $ \runInIO ->
                                  [ E.Handler $ \e -> runInIO $ handler e
                                  | Handler handler <- handlers
                                  ]
-{-# INLINE catches #-}
+{-# INLINABLE catches #-}
 
 -- |Generalized version of 'E.Handler'.
 data Handler m a = forall e. Exception e => Handler (e -> m a)
@@ -209,7 +216,7 @@ catchJust p a handler = control $ \runInIO ->
                           E.catchJust p
                                       (runInIO a)
                                       (\e -> runInIO (handler e))
-{-# INLINE catchJust #-}
+{-# INLINABLE catchJust #-}
 
 
 --------------------------------------------------------------------------------
@@ -224,7 +231,7 @@ handle :: (MonadBaseControl IO m, Exception e) => (e -> m a) -> m a -> m a
 handle handler a = control $ \runInIO ->
                      E.handle (\e -> runInIO (handler e))
                               (runInIO a)
-{-# INLINE handle #-}
+{-# INLINABLE handle #-}
 
 -- |Generalized version of 'E.handleJust'.
 --
@@ -235,7 +242,7 @@ handleJust :: (MonadBaseControl IO m, Exception e)
 handleJust p handler a = control $ \runInIO ->
                            E.handleJust p (\e -> runInIO (handler e))
                                           (runInIO a)
-{-# INLINE handleJust #-}
+{-# INLINABLE handleJust #-}
 
 --------------------------------------------------------------------------------
 -- ** The @try@ functions
@@ -251,7 +258,7 @@ sequenceEither = either (return . Left) (liftM Right . restoreM)
 -- side effects in @m@ will be discarded.
 try :: (MonadBaseControl IO m, Exception e) => m a -> m (Either e a)
 try m = liftBaseWith (\runInIO -> E.try (runInIO m)) >>= sequenceEither
-{-# INLINE try #-}
+{-# INLINABLE try #-}
 
 -- |Generalized version of 'E.tryJust'.
 --
@@ -259,7 +266,7 @@ try m = liftBaseWith (\runInIO -> E.try (runInIO m)) >>= sequenceEither
 -- side effects in @m@ will be discarded.
 tryJust :: (MonadBaseControl IO m, Exception e) => (e -> Maybe b) -> m a -> m (Either b a)
 tryJust p m = liftBaseWith (\runInIO -> E.tryJust p (runInIO m)) >>= sequenceEither
-{-# INLINE tryJust #-}
+{-# INLINABLE tryJust #-}
 
 
 --------------------------------------------------------------------------------
@@ -269,7 +276,7 @@ tryJust p m = liftBaseWith (\runInIO -> E.tryJust p (runInIO m)) >>= sequenceEit
 -- |Generalized version of 'E.evaluate'.
 evaluate :: MonadBase IO m => a -> m a
 evaluate = liftBase . E.evaluate
-{-# INLINE evaluate #-}
+{-# INLINABLE evaluate #-}
 
 
 --------------------------------------------------------------------------------
@@ -280,12 +287,12 @@ evaluate = liftBase . E.evaluate
 mask :: MonadBaseControl IO m => ((forall a. m a -> m a) -> m b) -> m b
 mask f = control $ \runInBase ->
            E.mask $ \g -> runInBase $ f $ liftBaseOp_ g
-{-# INLINE mask #-}
+{-# INLINABLE mask #-}
 
 -- |Generalized version of 'E.mask_'.
 mask_ :: MonadBaseControl IO m => m a -> m a
 mask_ = liftBaseOp_ E.mask_
-{-# INLINE mask_ #-}
+{-# INLINABLE mask_ #-}
 
 -- |Generalized version of 'E.uninterruptibleMask'.
 uninterruptibleMask
@@ -294,22 +301,22 @@ uninterruptibleMask f =
     control $ \runInBase ->
         E.uninterruptibleMask $ \g -> runInBase $ f $ liftBaseOp_ g
 
-{-# INLINE uninterruptibleMask #-}
+{-# INLINABLE uninterruptibleMask #-}
 
 -- |Generalized version of 'E.uninterruptibleMask_'.
 uninterruptibleMask_ :: MonadBaseControl IO m => m a -> m a
 uninterruptibleMask_ = liftBaseOp_ E.uninterruptibleMask_
-{-# INLINE uninterruptibleMask_ #-}
+{-# INLINABLE uninterruptibleMask_ #-}
 
 -- |Generalized version of 'E.getMaskingState'.
 getMaskingState :: MonadBase IO m => m MaskingState
 getMaskingState = liftBase E.getMaskingState
-{-# INLINE getMaskingState #-}
+{-# INLINABLE getMaskingState #-}
 
 -- |Generalized version of 'E.allowInterrupt'.
 allowInterrupt :: MonadBase IO m => m ()
 allowInterrupt = liftBase E.allowInterrupt
-{-# INLINE allowInterrupt #-}
+{-# INLINABLE allowInterrupt #-}
 
 
 
@@ -346,7 +353,7 @@ bracket before after thing = control $ \runInIO ->
                                E.bracket (runInIO before)
                                          (\st -> runInIO $ restoreM st >>= after)
                                          (\st -> runInIO $ restoreM st >>= thing)
-{-# INLINE bracket #-}
+{-# INLINABLE bracket #-}
 
 -- |Generalized version of 'E.bracket_'.
 --
@@ -368,7 +375,7 @@ bracket_ before after thing = control $ \runInIO ->
                                 E.bracket_ (runInIO before)
                                            (runInIO after)
                                            (runInIO thing)
-{-# INLINE bracket_ #-}
+{-# INLINABLE bracket_ #-}
 
 -- |Generalized version of 'E.bracketOnError'.
 --
@@ -400,7 +407,7 @@ bracketOnError before after thing =
       E.bracketOnError (runInIO before)
                        (\st -> runInIO $ restoreM st >>= after)
                        (\st -> runInIO $ restoreM st >>= thing)
-{-# INLINE bracketOnError #-}
+{-# INLINABLE bracketOnError #-}
 
 
 --------------------------------------------------------------------------------
@@ -418,7 +425,7 @@ finally :: MonadBaseControl IO m
 finally a sequel = control $ \runInIO ->
                      E.finally (runInIO a)
                                (runInIO sequel)
-{-# INLINE finally #-}
+{-# INLINABLE finally #-}
 
 -- |Generalized version of 'E.onException'.
 --
@@ -428,4 +435,4 @@ onException :: MonadBaseControl IO m => m a -> m b -> m a
 onException m what = control $ \runInIO ->
                        E.onException (runInIO m)
                                      (runInIO what)
-{-# INLINE onException #-}
+{-# INLINABLE onException #-}

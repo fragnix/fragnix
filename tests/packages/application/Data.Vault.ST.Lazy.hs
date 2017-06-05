@@ -48,10 +48,20 @@
 
 
 
+
+
+
+
+
+
+
+
 -- | A persistent store for values of arbitrary types.
 -- Variant for the 'ST' monad.
 --
 -- The 'Vault' type in this module is strict in the keys but lazy in the values.
+{-# LANGUAGE RoleAnnotations #-}
+
 module Data.Vault.ST.Lazy (
     -- * Vault
     Vault, Key,
@@ -97,6 +107,9 @@ fromAny = unsafeCoerce
 ------------------------------------------------------------------------------}
 newtype Vault s = Vault (Map Unique Any)
 newtype Key s a = Key Unique
+
+type role Vault nominal
+type role Key nominal nominal
 
 newKey = STUnsafe.unsafeIOToST $ Key <$> newUnique
 

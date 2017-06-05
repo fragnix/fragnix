@@ -1,6 +1,6 @@
 {-# LANGUAGE Haskell98, BangPatterns #-}
 {-# LINE 1 "Data/ByteString/Search/Internal/Utils.hs" #-}
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns, FlexibleContexts #-}
 {-# OPTIONS_HADDOCK hide, prune #-}
 -- |
 -- Module         : Data.ByteString.Search.Internal.Utils

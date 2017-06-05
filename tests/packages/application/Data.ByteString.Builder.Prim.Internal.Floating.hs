@@ -1,6 +1,63 @@
 {-# LANGUAGE Haskell98 #-}
 {-# LINE 1 "Data/ByteString/Builder/Prim/Internal/Floating.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE Trustworthy #-}
 -- |
 -- Copyright   : (c) 2010 Simon Meier
 --

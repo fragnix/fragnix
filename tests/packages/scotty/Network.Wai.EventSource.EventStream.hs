@@ -1,6 +1,145 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010, OverloadedStrings #-}
 {-# LINE 1 "Network/Wai/EventSource/EventStream.hs" #-}
-{-# LANGUAGE OverloadedStrings #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
 {- code adapted by Mathias Billman originaly from Chris Smith https://github.com/cdsmith/gloss-web -}
 
 {-|
@@ -13,7 +152,6 @@ module Network.Wai.EventSource.EventStream (
 
 import Blaze.ByteString.Builder
 import Blaze.ByteString.Builder.Char8
-import Data.Monoid
 
 {-|
     Type representing a communication over an event stream.  This can be an

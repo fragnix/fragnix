@@ -100,25 +100,35 @@ reverseStream (Text arr off len) = Stream next (off+len-1) (betweenSize (len `sh
 -- | /O(n)/ Convert a 'Stream Char' into a 'Text'.
 unstream :: Stream Char -> Text
 unstream (Stream next0 s0 len) = runText $ \done -> do
-  let mlen = upperBound 4 len
+  -- Before encoding each char we perform a buffer realloc check assuming
+  -- worst case encoding size of two 16-bit units for the char. Just add an
+  -- extra space to the buffer so that we do not end up reallocating even when
+  -- all the chars are encoded as single unit.
+  let mlen = upperBound 4 len + 1
   arr0 <- A.new mlen
-  let outer arr top = loop
+  let outer !arr !maxi = encode
        where
-        loop !s !i =
-            case next0 s of
-              Done          -> done arr i
-              Skip s'       -> loop s' i
-              Yield x s'
-                | j >= top  -> {-# SCC "unstream/resize" #-} do
-                               let top' = (top + 1) `shiftL` 1
-                               arr' <- A.new top'
-                               A.copyM arr' 0 arr 0 top
-                               outer arr' top' s i
-                | otherwise -> do d <- unsafeWrite arr i x
-                                  loop s' (i+d)
-                where j | ord x < 0x10000 = i
-                        | otherwise       = i + 1
-  outer arr0 mlen s0 0
+        -- keep the common case loop as small as possible
+        encode !si !di =
+            case next0 si of
+                Done        -> done arr di
+                Skip si'    -> encode si' di
+                Yield c si'
+                    -- simply check for the worst case
+                    | maxi < di + 1 -> realloc si di
+                    | otherwise -> do
+                            n <- unsafeWrite arr di c
+                            encode si' (di + n)
+
+        -- keep uncommon case separate from the common case code
+        {-# NOINLINE realloc #-}
+        realloc !si !di = do
+            let newlen = (maxi + 1) * 2
+            arr' <- A.new newlen
+            A.copyM arr' 0 arr 0 di
+            outer arr' (newlen - 1) si di
+
+  outer arr0 (mlen - 1) s0 0
 {-# INLINE [0] unstream #-}
 {-# RULES "STREAM stream/unstream fusion" forall s. stream (unstream s) = s #-}
 
@@ -168,15 +178,15 @@ reverse (Stream next s len0)
 -- | /O(n)/ Perform the equivalent of 'scanr' over a list, only with
 -- the input and result reversed.
 reverseScanr :: (Char -> Char -> Char) -> Char -> Stream Char -> Stream Char
-reverseScanr f z0 (Stream next0 s0 len) = Stream next (S1 :*: z0 :*: s0) (len+1) -- HINT maybe too low
+reverseScanr f z0 (Stream next0 s0 len) = Stream next (Scan1 z0 s0) (len+1) -- HINT maybe too low
   where
     {-# INLINE next #-}
-    next (S1 :*: z :*: s) = Yield z (S2 :*: z :*: s)
-    next (S2 :*: z :*: s) = case next0 s of
-                              Yield x s' -> let !x' = f x z
-                                            in Yield x' (S2 :*: x' :*: s')
-                              Skip s'    -> Skip (S2 :*: z :*: s')
-                              Done       -> Done
+    next (Scan1 z s) = Yield z (Scan2 z s)
+    next (Scan2 z s) = case next0 s of
+                         Yield x s' -> let !x' = f x z
+                                       in Yield x' (Scan2 x' s')
+                         Skip s'    -> Skip (Scan2 z s')
+                         Done       -> Done
 {-# INLINE reverseScanr #-}
 
 -- | /O(n)/ Like 'unfoldr', 'unfoldrN' builds a stream from a seed

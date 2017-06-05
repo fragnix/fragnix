@@ -13,7 +13,7 @@
 -- Contains the various unsafe operations that can be performed
 -- on arrays.
 --
--- /Since: 0.4.0.0/
+-- @since 0.4.0.0
 -----------------------------------------------------------------------------
 
 module Data.Array.Unsafe (

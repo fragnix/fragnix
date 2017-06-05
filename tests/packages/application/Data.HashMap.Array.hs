@@ -45,6 +45,13 @@
 
 
 
+
+
+
+
+
+
+
 {-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types, UnboxedTuples #-}
 {-# OPTIONS_GHC -fno-full-laziness -funbox-strict-fields #-}
 
@@ -96,9 +103,7 @@ module Data.HashMap.Array
     ) where
 
 import qualified Data.Traversable as Traversable
-import Control.Applicative (Applicative)
 import Control.DeepSeq
-import Control.Monad.ST hiding (runST)
 -- GHC 7.7 exports toList/fromList from GHC.Exts
 -- In order to avoid warnings on previous GHC versions, we provide
 -- an explicit import list instead of only hiding the offending symbols
@@ -107,7 +112,7 @@ import GHC.Exts (Array#, Int(..), newArray#, readArray#, writeArray#,
                  MutableArray#)
 import GHC.ST (ST(..))
 
-import Prelude hiding (filter, foldr, length, map, read)
+import Prelude hiding (filter, foldr, length, map, read, traverse)
 
 import GHC.Exts (sizeofArray#, copyArray#, thawArray#, sizeofMutableArray#,
                  copyMutableArray#)

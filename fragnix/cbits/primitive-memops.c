@@ -1,18 +1,18 @@
 #include <string.h>
 #include "primitive-memops.h"
 
-void hsprimitive_memcpy( void *dst, int doff, void *src, int soff, size_t len )
+void hsprimitive_memcpy( void *dst, ptrdiff_t doff, void *src, ptrdiff_t soff, size_t len )
 {
   memcpy( (char *)dst + doff, (char *)src + soff, len );
 }
 
-void hsprimitive_memmove( void *dst, int doff, void *src, int soff, size_t len )
+void hsprimitive_memmove( void *dst, ptrdiff_t doff, void *src, ptrdiff_t soff, size_t len )
 {
   memmove( (char *)dst + doff, (char *)src + soff, len );
 }
 
 #define MEMSET(TYPE, ATYPE)                                                  \
-void hsprimitive_memset_ ## TYPE (Hs ## TYPE *p, int off, int n, ATYPE x)    \
+void hsprimitive_memset_ ## TYPE (Hs ## TYPE *p, ptrdiff_t off, size_t n, ATYPE x) \
 {                                                                            \
   p += off;                                                                  \
   if (x == 0)                                                                \
@@ -35,7 +35,7 @@ void hsprimitive_memset_ ## TYPE (Hs ## TYPE *p, int off, int n, ATYPE x)    \
   }                                                                          \
 }
 
-void hsprimitive_memset_Word8 (HsWord8 *p, int off, int n, HsWord x)
+void hsprimitive_memset_Word8 (HsWord8 *p, ptrdiff_t off, size_t n, HsWord x)
 {
   memset( (char *)(p+off), x, n );
 }

@@ -57,12 +57,29 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-# OPTIONS_HADDOCK not-home #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE Trustworthy #-}
 module Data.Acquire.Internal
     ( Acquire (..)
     , Allocated (..)
@@ -111,11 +128,11 @@ newtype Acquire a = Acquire ((forall b. IO b -> IO b) -> IO (Allocated a))
 instance Functor Acquire where
     fmap = liftM
 instance Applicative Acquire where
-    pure = return
+    pure a = Acquire (\_ -> return (Allocated a (const $ return ())))
     (<*>) = ap
 
 instance Monad Acquire where
-    return a = Acquire (\_ -> return (Allocated a (const $ return ())))
+    return = pure
     Acquire f >>= g' = Acquire $ \restore -> do
         Allocated x free1 <- f restore
         let Acquire g = g' x

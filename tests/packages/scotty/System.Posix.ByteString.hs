@@ -45,6 +45,13 @@
 
 
 
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE Safe #-}
 -----------------------------------------------------------------------------
@@ -52,12 +59,13 @@
 -- Module      :  System.Posix.ByteString
 -- Copyright   :  (c) The University of Glasgow 2002
 -- License     :  BSD-style (see the file libraries/base/LICENSE)
--- 
+--
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  provisional
 -- Portability :  non-portable (requires POSIX)
 --
--- POSIX support with ByteString file paths and environment strings.
+-- <http://pubs.opengroup.org/onlinepubs/9699919799/ POSIX.1-2008>
+-- support with 'ByteString' file paths and environment strings.
 --
 -- This module exports exactly the same API as "System.Posix", except
 -- that all file paths and environment strings are represented by

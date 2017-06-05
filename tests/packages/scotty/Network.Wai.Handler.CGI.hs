@@ -1,4 +1,4 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010, OverloadedStrings #-}
 {-# LINE 1 "Network/Wai/Handler/CGI.hs" #-}
 
 
@@ -93,9 +93,53 @@
 
 
 
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE CPP #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE RankNTypes, CPP #-}
 -- | Backend for Common Gateway Interface. Almost all users should use the
 -- 'run' function.
 module Network.Wai.Handler.CGI
@@ -116,15 +160,13 @@ import Control.Arrow ((***))
 import Data.Char (toLower)
 import qualified System.IO
 import qualified Data.String as String
-import Data.Monoid (mconcat, mempty)
 import Blaze.ByteString.Builder (fromByteString, toLazyByteString, flush)
 import Blaze.ByteString.Builder.Char8 (fromChar, fromString)
 import Data.ByteString.Lazy.Internal (defaultChunkSize)
 import System.IO (Handle)
-import Network.HTTP.Types (Status (..))
+import Network.HTTP.Types (Status (..), hRange, hContentType, hContentLength)
 import qualified Network.HTTP.Types as H
 import qualified Data.CaseInsensitive as CI
-import Data.Monoid (mappend)
 import qualified Data.Streaming.Blaze as Blaze
 import Data.Function (fix)
 import Control.Monad (unless, void)
@@ -209,7 +251,9 @@ runGeneric vars inputH outputH xsendfile app = do
             , vault = mempty
             , requestBodyLength = KnownLength $ fromIntegral contentLength
             , requestHeaderHost = lookup "host" reqHeaders
-            , requestHeaderRange = lookup "range" reqHeaders
+            , requestHeaderRange = lookup hRange reqHeaders
+            , requestHeaderReferer = lookup "referer" reqHeaders
+            , requestHeaderUserAgent = lookup "user-agent" reqHeaders
             }
     void $ app env $ \res ->
         case (xsendfile, res) of
@@ -253,13 +297,13 @@ runGeneric vars inputH outputH xsendfile app = do
         , fromByteString " not supported"
         ]
     fixHeaders h =
-        case lookup "content-type" h of
-            Nothing -> ("Content-Type", "text/html; charset=utf-8") : h
+        case lookup hContentType h of
+            Nothing -> (hContentType, "text/html; charset=utf-8") : h
             Just _ -> h
 
 cleanupVarName :: String -> CI.CI B.ByteString
-cleanupVarName "CONTENT_TYPE" = "Content-Type"
-cleanupVarName "CONTENT_LENGTH" = "Content-Length"
+cleanupVarName "CONTENT_TYPE" = hContentType
+cleanupVarName "CONTENT_LENGTH" = hContentLength
 cleanupVarName "SCRIPT_NAME" = "CGI-Script-Name"
 cleanupVarName s =
     case s of

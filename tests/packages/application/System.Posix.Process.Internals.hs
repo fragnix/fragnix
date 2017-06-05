@@ -1,51 +1,6 @@
 {-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "System/Posix/Process/Internals.hs" #-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CApiFFI #-}
 {-# LANGUAGE Trustworthy #-}
 
 module System.Posix.Process.Internals (
@@ -66,13 +21,13 @@ data ProcessStatus
                             -- signal, the @Bool@ is @True@ if a core
                             -- dump was produced
                             --
-                            -- /Since: 2.7.0.0/
+                            -- @since 2.7.0.0
    | Stopped Signal         -- ^ the process was stopped by a signal
    deriving (Eq, Ord, Show)
 
 -- this function disables the itimer, which would otherwise cause confusing
 -- signals to be sent to the new process.
-foreign import ccall unsafe "pPrPr_disableITimers"
+foreign import capi unsafe "Rts.h stopTimer"
   pPrPr_disableITimers :: IO ()
 
 foreign import ccall unsafe "__hsunix_execvpe"
@@ -101,24 +56,25 @@ decipherWaitStatus wstat =
                         ioError (mkIOError illegalOperationErrorType
                                    "waitStatus" Nothing Nothing)
 
-foreign import ccall unsafe "__hsunix_wifexited"
+
+foreign import capi unsafe "HsUnix.h WIFEXITED"
   c_WIFEXITED :: CInt -> CInt
 
-foreign import ccall unsafe "__hsunix_wexitstatus"
+foreign import capi unsafe "HsUnix.h WEXITSTATUS"
   c_WEXITSTATUS :: CInt -> CInt
 
-foreign import ccall unsafe "__hsunix_wifsignaled"
+foreign import capi unsafe "HsUnix.h WIFSIGNALED"
   c_WIFSIGNALED :: CInt -> CInt
 
-foreign import ccall unsafe "__hsunix_wtermsig"
+foreign import capi unsafe "HsUnix.h WTERMSIG"
   c_WTERMSIG :: CInt -> CInt
 
-foreign import ccall unsafe "__hsunix_wifstopped"
+foreign import capi unsafe "HsUnix.h WIFSTOPPED"
   c_WIFSTOPPED :: CInt -> CInt
 
-foreign import ccall unsafe "__hsunix_wstopsig"
+foreign import capi unsafe "HsUnix.h WSTOPSIG"
   c_WSTOPSIG :: CInt -> CInt
 
-foreign import ccall unsafe "__hsunix_wcoredump"
+foreign import capi unsafe "HsUnix.h WCOREDUMP"
   c_WCOREDUMP :: CInt -> CInt
 

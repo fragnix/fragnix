@@ -1,4 +1,4 @@
-{-# LANGUAGE Haskell2010, CPP, DeriveDataTypeable #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/Vector/Storable/Mutable.hs" #-}
 
 
@@ -47,7 +47,15 @@
 
 
 
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, ScopedTypeVariables #-}
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP, DeriveDataTypeable, FlexibleInstances, MagicHash, MultiParamTypeClasses, ScopedTypeVariables #-}
 
 -- |
 -- Module      : Data.Vector.Storable.Mutable
@@ -57,7 +65,7 @@
 -- Maintainer  : Roman Leshchinskiy <rl@cse.unsw.edu.au>
 -- Stability   : experimental
 -- Portability : non-portable
--- 
+--
 -- Mutable vectors based on Storable.
 --
 
@@ -89,8 +97,8 @@ module Data.Vector.Storable.Mutable(
   clear,
 
   -- * Accessing individual elements
-  read, write, swap,
-  unsafeRead, unsafeWrite, unsafeSwap,
+  read, write, modify, swap,
+  unsafeRead, unsafeWrite, unsafeModify, unsafeSwap,
 
   -- * Modifying vectors
 
@@ -114,11 +122,10 @@ import Data.Vector.Storable.Internal
 import Foreign.Storable
 import Foreign.ForeignPtr
 
-import GHC.ForeignPtr (mallocPlainForeignPtrBytes)
+import GHC.ForeignPtr (mallocPlainForeignPtrAlignedBytes)
 
 import Foreign.Ptr
 import Foreign.Marshal.Array ( advancePtr, copyArray, moveArray )
-import Foreign.C.Types ( CInt )
 
 import Control.Monad.Primitive
 import Data.Primitive.Addr
@@ -132,9 +139,8 @@ import Prelude hiding ( length, null, replicate, reverse, map, read,
 
 import Data.Typeable ( Typeable )
 
+-- Data.Vector.Internal.Check is not needed
 
-
-import qualified Data.Vector.Internal.Check as Ck
 
 
 
@@ -156,7 +162,7 @@ instance Storable a => G.MVector MVector a where
   basicLength (MVector n _) = n
 
   {-# INLINE basicUnsafeSlice #-}
-  basicUnsafeSlice j m (MVector n fp) = MVector m (updPtr (`advancePtr` j) fp)
+  basicUnsafeSlice j m (MVector _ fp) = MVector m (updPtr (`advancePtr` j) fp)
 
   -- FIXME: this relies on non-portable pointer comparisons
   {-# INLINE basicOverlaps #-}
@@ -169,10 +175,17 @@ instance Storable a => G.MVector MVector a where
 
   {-# INLINE basicUnsafeNew #-}
   basicUnsafeNew n
-    = unsafePrimToPrim
-    $ do
+    | n < 0 = error $ "Storable.basicUnsafeNew: negative length: " ++ show n
+    | n > mx = error $ "Storable.basicUnsafeNew: length too large: " ++ show n
+    | otherwise = unsafePrimToPrim $ do
         fp <- mallocVector n
         return $ MVector n fp
+    where
+      size = sizeOf (undefined :: a)
+      mx = maxBound `quot` size :: Int
+
+  {-# INLINE basicInitialize #-}
+  basicInitialize = storableZero
 
   {-# INLINE basicUnsafeRead #-}
   basicUnsafeRead (MVector _ fp) i
@@ -193,7 +206,7 @@ instance Storable a => G.MVector MVector a where
     $ withForeignPtr fp $ \p ->
       withForeignPtr fq $ \q ->
       copyArray p q n
-  
+
   {-# INLINE basicUnsafeMove #-}
   basicUnsafeMove (MVector n fp) (MVector _ fq)
     = unsafePrimToPrim
@@ -201,9 +214,21 @@ instance Storable a => G.MVector MVector a where
       withForeignPtr fq $ \q ->
       moveArray p q n
 
+storableZero :: forall a m. (Storable a, PrimMonad m) => MVector (PrimState m) a -> m ()
+{-# INLINE storableZero #-}
+storableZero (MVector n fp) = unsafePrimToPrim . withForeignPtr fp $ \(Ptr p) -> do
+  let q = Addr p
+  setAddr q byteSize (0 :: Word8)
+ where
+ x :: a
+ x = undefined
+
+ byteSize :: Int
+ byteSize = n * sizeOf x
+
 storableSet :: (Storable a, PrimMonad m) => MVector (PrimState m) a -> a -> m ()
 {-# INLINE storableSet #-}
-storableSet v@(MVector n fp) x
+storableSet (MVector n fp) x
   | n == 0 = return ()
   | otherwise = unsafePrimToPrim $
                 case sizeOf x of
@@ -234,10 +259,11 @@ storableSetAsPrim n fp x y = withForeignPtr fp $ \(Ptr p) -> do
 {-# INLINE mallocVector #-}
 mallocVector :: Storable a => Int -> IO (ForeignPtr a)
 mallocVector =
-    doMalloc undefined
-        where
-          doMalloc :: Storable b => b -> Int -> IO (ForeignPtr b)
-          doMalloc dummy size = mallocPlainForeignPtrBytes (size * sizeOf dummy)
+  doMalloc undefined
+  where
+    doMalloc :: Storable b => b -> Int -> IO (ForeignPtr b)
+    doMalloc dummy size =
+      mallocPlainForeignPtrAlignedBytes (size * sizeOf dummy) (alignment dummy)
 
 -- Length information
 -- ------------------
@@ -309,7 +335,7 @@ unsafeTail = G.unsafeTail
 -- Overlapping
 -- -----------
 
--- Check whether two vectors overlap.
+-- | Check whether two vectors overlap.
 overlaps :: Storable a => MVector s a -> MVector s a -> Bool
 {-# INLINE overlaps #-}
 overlaps = G.overlaps
@@ -322,7 +348,7 @@ new :: (PrimMonad m, Storable a) => Int -> m (MVector (PrimState m) a)
 {-# INLINE new #-}
 new = G.new
 
--- | Create a mutable vector of the given length. The length is not checked.
+-- | Create a mutable vector of the given length. The memory is not initialized.
 unsafeNew :: (PrimMonad m, Storable a) => Int -> m (MVector (PrimState m) a)
 {-# INLINE unsafeNew #-}
 unsafeNew = G.unsafeNew
@@ -350,15 +376,15 @@ clone = G.clone
 
 -- | Grow a vector by the given number of elements. The number must be
 -- positive.
-grow :: (PrimMonad m, Storable a)  
-              => MVector (PrimState m) a -> Int -> m (MVector (PrimState m) a)
+grow :: (PrimMonad m, Storable a)
+     => MVector (PrimState m) a -> Int -> m (MVector (PrimState m) a)
 {-# INLINE grow #-}
 grow = G.grow
 
 -- | Grow a vector by the given number of elements. The number must be
 -- positive but this is not checked.
 unsafeGrow :: (PrimMonad m, Storable a)
-               => MVector (PrimState m) a -> Int -> m (MVector (PrimState m) a)
+           => MVector (PrimState m) a -> Int -> m (MVector (PrimState m) a)
 {-# INLINE unsafeGrow #-}
 unsafeGrow = G.unsafeGrow
 
@@ -366,7 +392,7 @@ unsafeGrow = G.unsafeGrow
 -- ------------------------
 
 -- | Reset all elements of the vector to some undefined value, clearing all
--- references to external objects. This is usually a noop for unboxed vectors. 
+-- references to external objects. This is usually a noop for unboxed vectors.
 clear :: (PrimMonad m, Storable a) => MVector (PrimState m) a -> m ()
 {-# INLINE clear #-}
 clear = G.clear
@@ -384,6 +410,11 @@ write
     :: (PrimMonad m, Storable a) => MVector (PrimState m) a -> Int -> a -> m ()
 {-# INLINE write #-}
 write = G.write
+
+-- | Modify the element at the given position.
+modify :: (PrimMonad m, Storable a) => MVector (PrimState m) a -> (a -> a) -> Int -> m ()
+{-# INLINE modify #-}
+modify = G.modify
 
 -- | Swap the elements at the given positions.
 swap
@@ -403,6 +434,11 @@ unsafeWrite
 {-# INLINE unsafeWrite #-}
 unsafeWrite = G.unsafeWrite
 
+-- | Modify the element at the given position. No bounds checks are performed.
+unsafeModify :: (PrimMonad m, Storable a) => MVector (PrimState m) a -> (a -> a) -> Int -> m ()
+{-# INLINE unsafeModify #-}
+unsafeModify = G.unsafeModify
+
 -- | Swap the elements at the given positions. No bounds checks are performed.
 unsafeSwap
     :: (PrimMonad m, Storable a) => MVector (PrimState m) a -> Int -> Int -> m ()
@@ -419,8 +455,10 @@ set = G.set
 
 -- | Copy a vector. The two vectors must have the same length and may not
 -- overlap.
-copy :: (PrimMonad m, Storable a) 
-                 => MVector (PrimState m) a -> MVector (PrimState m) a -> m ()
+copy :: (PrimMonad m, Storable a)
+     => MVector (PrimState m) a   -- ^ target
+     -> MVector (PrimState m) a   -- ^ source
+     -> m ()
 {-# INLINE copy #-}
 copy = G.copy
 
@@ -435,27 +473,27 @@ unsafeCopy = G.unsafeCopy
 
 -- | Move the contents of a vector. The two vectors must have the same
 -- length.
--- 
+--
 -- If the vectors do not overlap, then this is equivalent to 'copy'.
 -- Otherwise, the copying is performed as if the source vector were
 -- copied to a temporary vector and then the temporary vector was copied
 -- to the target vector.
 move :: (PrimMonad m, Storable a)
-                 => MVector (PrimState m) a -> MVector (PrimState m) a -> m ()
+     => MVector (PrimState m) a -> MVector (PrimState m) a -> m ()
 {-# INLINE move #-}
 move = G.move
 
 -- | Move the contents of a vector. The two vectors must have the same
 -- length, but this is not checked.
--- 
+--
 -- If the vectors do not overlap, then this is equivalent to 'unsafeCopy'.
 -- Otherwise, the copying is performed as if the source vector were
 -- copied to a temporary vector and then the temporary vector was copied
 -- to the target vector.
 unsafeMove :: (PrimMonad m, Storable a)
-                          => MVector (PrimState m) a   -- ^ target
-                          -> MVector (PrimState m) a   -- ^ source
-                          -> m ()
+           => MVector (PrimState m) a   -- ^ target
+           -> MVector (PrimState m) a   -- ^ source
+           -> m ()
 {-# INLINE unsafeMove #-}
 unsafeMove = G.unsafeMove
 
@@ -490,15 +528,15 @@ unsafeFromForeignPtr :: Storable a
                      -> Int             -- ^ offset
                      -> Int             -- ^ length
                      -> MVector s a
-{-# INLINE unsafeFromForeignPtr #-}
+{-# INLINE [1] unsafeFromForeignPtr #-}
 unsafeFromForeignPtr fp i n = unsafeFromForeignPtr0 fp' n
     where
       fp' = updPtr (`advancePtr` i) fp
 
 {-# RULES
 "unsafeFromForeignPtr fp 0 n -> unsafeFromForeignPtr0 fp n " forall fp n.
-  unsafeFromForeignPtr fp 0 n = unsafeFromForeignPtr0 fp n
-  #-}
+  unsafeFromForeignPtr fp 0 n = unsafeFromForeignPtr0 fp n   #-}
+
 
 -- | /O(1)/ Create a mutable vector from a 'ForeignPtr' and a length.
 --
@@ -536,5 +574,5 @@ unsafeToForeignPtr0 (MVector n fp) = (fp, n)
 -- the modification.
 unsafeWith :: Storable a => IOVector a -> (Ptr a -> IO b) -> IO b
 {-# INLINE unsafeWith #-}
-unsafeWith (MVector n fp) = withForeignPtr fp
+unsafeWith (MVector _ fp) = withForeignPtr fp
 

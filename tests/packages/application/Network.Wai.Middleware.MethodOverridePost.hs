@@ -1,6 +1,145 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010, OverloadedStrings #-}
 {-# LINE 1 "Network/Wai/Middleware/MethodOverridePost.hs" #-}
-{-# LANGUAGE OverloadedStrings #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
 -----------------------------------------------------------------
 -- | Module : Network.Wai.Middleware.MethodOverridePost
 --
@@ -11,8 +150,8 @@ module Network.Wai.Middleware.MethodOverridePost
   ) where
 
 import Network.Wai
-import Network.HTTP.Types           (parseQuery)
-import Data.Monoid                  (mconcat, mempty)
+import Network.HTTP.Types           (parseQuery, hContentType)
+
 import Data.IORef
 import Data.ByteString.Lazy (toChunks)
 
@@ -29,7 +168,7 @@ import Data.ByteString.Lazy (toChunks)
 --
 methodOverridePost :: Middleware
 methodOverridePost app req send =
-    case (requestMethod req, lookup "Content-Type" (requestHeaders req)) of
+    case (requestMethod req, lookup hContentType (requestHeaders req)) of
       ("POST", Just "application/x-www-form-urlencoded") -> setPost req >>= flip app send
       _                                                  -> app req send
 

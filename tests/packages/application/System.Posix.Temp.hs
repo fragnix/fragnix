@@ -1,11 +1,13 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Temp.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Temp.hs" #-}
 {-# LINE 1 "System/Posix/Temp.hsc" #-}
+{-# LANGUAGE CApiFFI #-}
+{-# LINE 2 "System/Posix/Temp.hsc" #-}
 
-{-# LINE 4 "System/Posix/Temp.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LINE 3 "System/Posix/Temp.hsc" #-}
+{-# LANGUAGE Safe #-}
 
-{-# LINE 6 "System/Posix/Temp.hsc" #-}
+{-# LINE 7 "System/Posix/Temp.hsc" #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  System.Posix.Temp
@@ -26,22 +28,18 @@ module System.Posix.Temp (
     ) where
 
 
-{-# LINE 26 "System/Posix/Temp.hsc" #-}
+{-# LINE 27 "System/Posix/Temp.hsc" #-}
 
 import Foreign.C
 import System.IO
 
-{-# LINE 32 "System/Posix/Temp.hsc" #-}
+{-# LINE 33 "System/Posix/Temp.hsc" #-}
 import System.Posix.IO
 import System.Posix.Types
 import System.Posix.Internals (withFilePath, peekFilePath)
 
-
-{-# LINE 37 "System/Posix/Temp.hsc" #-}
-foreign import ccall unsafe "HsUnix.h __hscore_mkstemp"
+foreign import capi unsafe "HsUnix.h mkstemp"
   c_mkstemp :: CString -> IO CInt
-
-{-# LINE 40 "System/Posix/Temp.hsc" #-}
 
 -- | Make a unique filename and open it for reading\/writing. The returned
 -- 'FilePath' is the (possibly relative) path of the created file, which is
@@ -53,22 +51,18 @@ foreign import ccall unsafe "HsUnix.h __hscore_mkstemp"
 mkstemp :: String -> IO (FilePath, Handle)
 mkstemp template' = do
   let template = template' ++ "XXXXXX"
-
-{-# LINE 52 "System/Posix/Temp.hsc" #-}
   withFilePath template $ \ ptr -> do
     fd <- throwErrnoIfMinus1 "mkstemp" (c_mkstemp ptr)
     name <- peekFilePath ptr
     h <- fdToHandle (Fd fd)
     return (name, h)
 
-{-# LINE 62 "System/Posix/Temp.hsc" #-}
 
-
-{-# LINE 64 "System/Posix/Temp.hsc" #-}
-foreign import ccall unsafe "HsUnix.h __hscore_mkstemps"
+{-# LINE 57 "System/Posix/Temp.hsc" #-}
+foreign import capi unsafe "HsUnix.h mkstemps"
   c_mkstemps :: CString -> CInt -> IO CInt
 
-{-# LINE 67 "System/Posix/Temp.hsc" #-}
+{-# LINE 60 "System/Posix/Temp.hsc" #-}
 
 -- | Make a unique filename with a given prefix and suffix and open it for
 -- reading\/writing. The returned 'FilePath' is the (possibly relative) path of
@@ -81,7 +75,7 @@ foreign import ccall unsafe "HsUnix.h __hscore_mkstemps"
 -- (supported in glibc > 2.11) then this function simply throws an error.
 mkstemps :: String -> String -> IO (FilePath, Handle)
 
-{-# LINE 79 "System/Posix/Temp.hsc" #-}
+{-# LINE 72 "System/Posix/Temp.hsc" #-}
 mkstemps prefix suffix = do
   let template = prefix ++ "XXXXXX" ++ suffix
       lenOfsuf = (fromIntegral $ length suffix) :: CInt
@@ -91,14 +85,14 @@ mkstemps prefix suffix = do
     h <- fdToHandle (Fd fd)
     return (name, h)
 
-{-# LINE 90 "System/Posix/Temp.hsc" #-}
+{-# LINE 83 "System/Posix/Temp.hsc" #-}
 
 
-{-# LINE 92 "System/Posix/Temp.hsc" #-}
-foreign import ccall unsafe "HsUnix.h __hscore_mkdtemp"
+{-# LINE 85 "System/Posix/Temp.hsc" #-}
+foreign import capi unsafe "HsUnix.h mkdtemp"
   c_mkdtemp :: CString -> IO CString
 
-{-# LINE 95 "System/Posix/Temp.hsc" #-}
+{-# LINE 88 "System/Posix/Temp.hsc" #-}
 
 -- | Make a unique directory. The returned 'FilePath' is the path of the
 -- created directory, which is padded with 6 random characters. The argument is
@@ -111,14 +105,14 @@ mkdtemp :: String -> IO FilePath
 mkdtemp template' = do
   let template = template' ++ "XXXXXX"
 
-{-# LINE 107 "System/Posix/Temp.hsc" #-}
+{-# LINE 100 "System/Posix/Temp.hsc" #-}
   withFilePath template $ \ ptr -> do
     _ <- throwErrnoIfNull "mkdtemp" (c_mkdtemp ptr)
     name <- peekFilePath ptr
     return name
 
-{-# LINE 116 "System/Posix/Temp.hsc" #-}
+{-# LINE 109 "System/Posix/Temp.hsc" #-}
 
 
-{-# LINE 131 "System/Posix/Temp.hsc" #-}
+{-# LINE 124 "System/Posix/Temp.hsc" #-}
 

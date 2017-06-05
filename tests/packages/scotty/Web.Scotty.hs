@@ -9,17 +9,17 @@
 -- the comments on each of these functions for more information.
 module Web.Scotty
     ( -- * scotty-to-WAI
-      scotty, scottyApp, scottyOpts, Options(..)
+      scotty, scottyApp, scottyOpts, scottySocket, Options(..)
       -- * Defining Middleware and Routes
       --
       -- | 'Middleware' and routes are run in the order in which they
       -- are defined. All middleware is run first, followed by the first
       -- route that matches. If no route matches, a 404 response is given.
-    , middleware, get, post, put, delete, patch, addroute, matchAny, notFound
+    , middleware, get, post, put, delete, patch, options, addroute, matchAny, notFound
       -- ** Route Patterns
     , capture, regex, function, literal
       -- ** Accessing the Request, Captures, and Query Parameters
-    , request, header, headers, body, param, params, jsonData, files
+    , request, header, headers, body, bodyReader, param, params, jsonData, files
       -- ** Modifying the Response and Redirecting
     , status, addHeader, setHeader, redirect
       -- ** Setting Response Body
@@ -28,7 +28,7 @@ module Web.Scotty
       -- definition, as they completely replace the current 'Response' body.
     , text, html, file, json, stream, raw
       -- ** Exceptions
-    , raise, rescue, next, defaultHandler
+    , raise, rescue, next, finish, defaultHandler, liftAndCatchIO
       -- * Parsing Parameters
     , Param, Trans.Parsable(..), Trans.readEither
       -- * Types
@@ -39,9 +39,11 @@ module Web.Scotty
 import qualified Web.Scotty.Trans as Trans
 
 import Data.Aeson (FromJSON, ToJSON)
+import qualified Data.ByteString as BS
 import Data.ByteString.Lazy.Char8 (ByteString)
 import Data.Text.Lazy (Text)
 
+import Network (Socket)
 import Network.HTTP.Types (Status, StdMethod)
 import Network.Wai (Application, Middleware, Request, StreamingBody)
 import Network.Wai.Handler.Warp (Port)
@@ -53,16 +55,23 @@ type ActionM = ActionT Text IO
 
 -- | Run a scotty application using the warp server.
 scotty :: Port -> ScottyM () -> IO ()
-scotty p = Trans.scottyT p id id
+scotty p = Trans.scottyT p id
 
 -- | Run a scotty application using the warp server, passing extra options.
 scottyOpts :: Options -> ScottyM () -> IO ()
-scottyOpts opts = Trans.scottyOptsT opts id id
+scottyOpts opts = Trans.scottyOptsT opts id
+
+-- | Run a scotty application using the warp server, passing extra options,
+-- and listening on the provided socket. This allows the user to provide, for
+-- example, a Unix named socket, which can be used when reverse HTTP proxying
+-- into your application.
+scottySocket :: Options -> Socket -> ScottyM () -> IO ()
+scottySocket opts sock = Trans.scottySocketT opts sock id
 
 -- | Turn a scotty application into a WAI 'Application', which can be
 -- run with any WAI handler.
 scottyApp :: ScottyM () -> IO Application
-scottyApp = Trans.scottyAppT id id
+scottyApp = Trans.scottyAppT id
 
 -- | Global handler for uncaught exceptions.
 --
@@ -104,11 +113,30 @@ raise = Trans.raise
 next :: ActionM a
 next = Trans.next
 
+-- | Abort execution of this action. Like an exception, any code after 'finish'
+-- is not executed.
+--
+-- As an example only requests to /foo/special will include in the response
+-- content the text message.
+--
+-- > get "/foo/:bar" $ do
+-- >   w :: Text <- param "bar"
+-- >   unless (w == "special") finish
+-- >   text "You made a request to /foo/special"
+--
+-- /Since: 0.10.3/
+finish :: ActionM a
+finish = Trans.finish
+
 -- | Catch an exception thrown by 'raise'.
 --
 -- > raise "just kidding" `rescue` (\msg -> text msg)
 rescue :: ActionM a -> (Text -> ActionM a) -> ActionM a
 rescue = Trans.rescue
+
+-- | Like 'liftIO', but catch any IO exceptions and turn them into Scotty exceptions.
+liftAndCatchIO :: IO a -> ActionM a
+liftAndCatchIO = Trans.liftAndCatchIO
 
 -- | Redirect to given URL. Like throwing an uncatchable exception. Any code after the call to redirect
 -- will not be run.
@@ -140,6 +168,12 @@ headers = Trans.headers
 -- | Get the request body.
 body :: ActionM ByteString
 body = Trans.body
+
+-- | Get an IO action that reads body chunks
+--
+-- * This is incompatible with 'body' since 'body' consumes all chunks.
+bodyReader :: ActionM (IO BS.ByteString)
+bodyReader = Trans.bodyReader
 
 -- | Parse the request body as a JSON object and return it. Raises an exception if parse is unsuccessful.
 jsonData :: FromJSON a => ActionM a
@@ -222,6 +256,10 @@ delete = Trans.delete
 -- | patch = 'addroute' 'PATCH'
 patch :: RoutePattern -> ActionM () -> ScottyM ()
 patch = Trans.patch
+
+-- | options = 'addroute' 'OPTIONS'
+options :: RoutePattern -> ActionM () -> ScottyM ()
+options = Trans.options
 
 -- | Add a route that matches regardless of the HTTP verb.
 matchAny :: RoutePattern -> ActionM () -> ScottyM ()

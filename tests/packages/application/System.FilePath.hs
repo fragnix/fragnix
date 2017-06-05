@@ -1,5 +1,10 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "System/FilePath.hs" #-}
+
+
+
+
+
 
 
 
@@ -45,10 +50,10 @@
 {-# LANGUAGE Safe #-}
 {- |
 Module      :  System.FilePath
-Copyright   :  (c) Neil Mitchell 2005-2007
+Copyright   :  (c) Neil Mitchell 2005-2014
 License     :  BSD3
 
-Maintainer  :  libraries@haskell.org
+Maintainer  :  ndmitchell@gmail.com
 Stability   :  stable
 Portability :  portable
 
@@ -60,6 +65,6 @@ same interface. See either for examples and a list of the available
 functions.
 -}
 
+
 module System.FilePath(module System.FilePath.Posix) where
 import System.FilePath.Posix
-

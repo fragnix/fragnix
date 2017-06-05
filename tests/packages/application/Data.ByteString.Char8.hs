@@ -47,7 +47,15 @@
 
 
 
-{-# LANGUAGE CPP #-}
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP, BangPatterns #-}
 {-# LANGUAGE MagicHash, UnboxedTuples #-}
 {-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE Trustworthy #-}
@@ -69,8 +77,8 @@
 -- More specifically these byte strings are taken to be in the
 -- subset of Unicode covered by code points 0-255. This covers
 -- Unicode Basic Latin, Latin-1 Supplement and C0+C1 Controls.
--- 
--- See: 
+--
+-- See:
 --
 --  * <http://www.unicode.org/charts/>
 --
@@ -171,6 +179,8 @@ module Data.ByteString.Char8 (
         groupBy,                -- :: (Char -> Char -> Bool) -> ByteString -> [ByteString]
         inits,                  -- :: ByteString -> [ByteString]
         tails,                  -- :: ByteString -> [ByteString]
+        stripPrefix,            -- :: ByteString -> ByteString -> Maybe ByteString
+        stripSuffix,            -- :: ByteString -> ByteString -> Maybe ByteString
 
         -- ** Breaking into many substrings
         split,                  -- :: Char -> ByteString -> [ByteString]
@@ -180,7 +190,7 @@ module Data.ByteString.Char8 (
         lines,                  -- :: ByteString -> [ByteString]
         words,                  -- :: ByteString -> [ByteString]
         unlines,                -- :: [ByteString] -> ByteString
-        unwords,                -- :: ByteString -> [ByteString]
+        unwords,                -- :: [ByteString] -> ByteString
 
         -- * Predicates
         isPrefixOf,             -- :: ByteString -> ByteString -> Bool
@@ -289,6 +299,7 @@ import Data.ByteString (empty,null,length,tail,init,append
                        ,inits,tails,reverse,transpose
                        ,concat,take,drop,splitAt,intercalate
                        ,sort,isPrefixOf,isSuffixOf,isInfixOf
+                       ,stripPrefix,stripSuffix
                        ,findSubstring,findSubstrings,breakSubstring,copy,group
 
                        ,getLine, getContents, putStr, interact
@@ -301,6 +312,8 @@ import Data.ByteString (empty,null,length,tail,init,append
 import Data.ByteString.Internal
 
 import Data.Char    ( isSpace )
+-- See bytestring #70
+import GHC.Char (eqChar)
 import qualified Data.List as List (intersperse)
 
 import System.IO    (Handle,stdout,openBinaryFile,hClose,hFileSize,IOMode(..))
@@ -503,11 +516,11 @@ replicate :: Int -> Char -> ByteString
 replicate w = B.replicate w . c2w
 {-# INLINE replicate #-}
 
--- | /O(n)/, where /n/ is the length of the result.  The 'unfoldr' 
--- function is analogous to the List \'unfoldr\'.  'unfoldr' builds a 
--- ByteString from a seed value.  The function takes the element and 
--- returns 'Nothing' if it is done producing the ByteString or returns 
--- 'Just' @(a,b)@, in which case, @a@ is the next character in the string, 
+-- | /O(n)/, where /n/ is the length of the result.  The 'unfoldr'
+-- function is analogous to the List \'unfoldr\'.  'unfoldr' builds a
+-- ByteString from a seed value.  The function takes the element and
+-- returns 'Nothing' if it is done producing the ByteString or returns
+-- 'Just' @(a,b)@, in which case, @a@ is the next character in the string,
 -- and @b@ is the seed value for further production.
 --
 -- Examples:
@@ -552,11 +565,12 @@ break :: (Char -> Bool) -> ByteString -> (ByteString, ByteString)
 break f = B.break (f . w2c)
 {-# INLINE [1] break #-}
 
+-- See bytestring #70
 {-# RULES
 "ByteString specialise break (x==)" forall x.
-    break ((==) x) = breakChar x
+    break (x `eqChar`) = breakChar x
 "ByteString specialise break (==x)" forall x.
-    break (==x) = breakChar x
+    break (`eqChar` x) = breakChar x
   #-}
 
 -- INTERNAL:
@@ -564,7 +578,7 @@ break f = B.break (f . w2c)
 -- | 'breakChar' breaks its ByteString argument at the first occurence
 -- of the specified char. It is more efficient than 'break' as it is
 -- implemented with @memchr(3)@. I.e.
--- 
+--
 -- > break (=='c') "abcd" == breakChar 'c' "abcd"
 --
 breakChar :: Char -> ByteString -> (ByteString, ByteString)
@@ -587,41 +601,19 @@ span f = B.span (f . w2c)
 -- and
 --
 -- > spanEnd (not . isSpace) ps
--- >    == 
--- > let (x,y) = span (not.isSpace) (reverse ps) in (reverse y, reverse x) 
+-- >    ==
+-- > let (x,y) = span (not.isSpace) (reverse ps) in (reverse y, reverse x)
 --
 spanEnd :: (Char -> Bool) -> ByteString -> (ByteString, ByteString)
 spanEnd f = B.spanEnd (f . w2c)
 {-# INLINE spanEnd #-}
 
 -- | 'breakEnd' behaves like 'break' but from the end of the 'ByteString'
--- 
+--
 -- breakEnd p == spanEnd (not.p)
 breakEnd :: (Char -> Bool) -> ByteString -> (ByteString, ByteString)
 breakEnd f = B.breakEnd (f . w2c)
 {-# INLINE breakEnd #-}
-
-{-
--- | 'breakChar' breaks its ByteString argument at the first occurence
--- of the specified Char. It is more efficient than 'break' as it is
--- implemented with @memchr(3)@. I.e.
--- 
--- > break (=='c') "abcd" == breakChar 'c' "abcd"
---
-breakChar :: Char -> ByteString -> (ByteString, ByteString)
-breakChar = B.breakByte . c2w
-{-# INLINE breakChar #-}
-
--- | 'spanChar' breaks its ByteString argument at the first
--- occurence of a Char other than its argument. It is more efficient
--- than 'span (==)'
---
--- > span  (=='c') "abcd" == spanByte 'c' "abcd"
---
-spanChar :: Char -> ByteString -> (ByteString, ByteString)
-spanChar = B.spanByte . c2w
-{-# INLINE spanChar #-}
--}
 
 -- | /O(n)/ Break a 'ByteString' into pieces separated by the byte
 -- argument, consuming the delimiter. I.e.
@@ -629,12 +621,12 @@ spanChar = B.spanByte . c2w
 -- > split '\n' "a\nb\nd\ne" == ["a","b","d","e"]
 -- > split 'a'  "aXaXaXa"    == ["","X","X","X",""]
 -- > split 'x'  "x"          == ["",""]
--- 
+--
 -- and
 --
 -- > intercalate [c] . split c == id
 -- > split == splitWith . (==)
--- 
+--
 -- As for all splitting functions in this library, this function does
 -- not copy the substrings, it just constructs new 'ByteStrings' that
 -- are slices of the original.
@@ -658,7 +650,7 @@ splitWith f = B.splitWith (f . w2c)
 {-
 -- | Like 'splitWith', except that sequences of adjacent separators are
 -- treated as a single separator. eg.
--- 
+--
 -- > tokens (=='a') "aabbaca" == ["bb","c"]
 --
 tokens :: (Char -> Bool) -> ByteString -> [ByteString]
@@ -687,7 +679,7 @@ elemIndex = B.elemIndex . c2w
 -- element, or 'Nothing' if there is no such element. The following
 -- holds:
 --
--- > elemIndexEnd c xs == 
+-- > elemIndexEnd c xs ==
 -- > (-) (length xs - 1) `fmap` elemIndex c (reverse xs)
 --
 elemIndexEnd :: Char -> ByteString -> Maybe Int
@@ -714,9 +706,9 @@ findIndices f = B.findIndices (f . w2c)
 -- | count returns the number of times its argument appears in the ByteString
 --
 -- > count = length . elemIndices
--- 
+--
 -- Also
---  
+--
 -- > count '\n' == length . lines
 --
 -- But more efficiently than using length on the intermediate list.
@@ -839,11 +831,11 @@ unsafeHead  = w2c . B.unsafeHead
 
 -- | 'breakSpace' returns the pair of ByteStrings when the argument is
 -- broken at the first whitespace byte. I.e.
--- 
+--
 -- > break isSpace == breakSpace
 --
 breakSpace :: ByteString -> (ByteString,ByteString)
-breakSpace (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
+breakSpace (PS x s l) = accursedUnutterablePerformIO $ withForeignPtr x $ \p -> do
     i <- firstspace (p `plusPtr` s) 0 l
     return $! case () of {_
         | i == 0    -> (empty, PS x s l)
@@ -853,8 +845,7 @@ breakSpace (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
 {-# INLINE breakSpace #-}
 
 firstspace :: Ptr Word8 -> Int -> Int -> IO Int
-firstspace a b c | a `seq` b `seq` c `seq` False = undefined
-firstspace ptr n m
+firstspace !ptr !n !m
     | n >= m    = return n
     | otherwise = do w <- peekByteOff ptr n
                      if (not . isSpaceWord8) w then firstspace ptr (n+1) m else return n
@@ -862,18 +853,17 @@ firstspace ptr n m
 -- | 'dropSpace' efficiently returns the 'ByteString' argument with
 -- white space Chars removed from the front. It is more efficient than
 -- calling dropWhile for removing whitespace. I.e.
--- 
+--
 -- > dropWhile isSpace == dropSpace
 --
 dropSpace :: ByteString -> ByteString
-dropSpace (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
+dropSpace (PS x s l) = accursedUnutterablePerformIO $ withForeignPtr x $ \p -> do
     i <- firstnonspace (p `plusPtr` s) 0 l
     return $! if i == l then empty else PS x (s+i) (l-i)
 {-# INLINE dropSpace #-}
 
 firstnonspace :: Ptr Word8 -> Int -> Int -> IO Int
-firstnonspace a b c | a `seq` b `seq` c `seq` False = undefined
-firstnonspace ptr n m
+firstnonspace !ptr !n !m
     | n >= m    = return n
     | otherwise = do w <- peekElemOff ptr n
                      if isSpaceWord8 w then firstnonspace ptr (n+1) m else return n
@@ -881,19 +871,18 @@ firstnonspace ptr n m
 {-
 -- | 'dropSpaceEnd' efficiently returns the 'ByteString' argument with
 -- white space removed from the end. I.e.
--- 
+--
 -- > reverse . (dropWhile isSpace) . reverse == dropSpaceEnd
 --
 -- but it is more efficient than using multiple reverses.
 --
 dropSpaceEnd :: ByteString -> ByteString
-dropSpaceEnd (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
+dropSpaceEnd (PS x s l) = accursedUnutterablePerformIO $ withForeignPtr x $ \p -> do
     i <- lastnonspace (p `plusPtr` s) (l-1)
     return $! if i == (-1) then empty else PS x s (i+1)
 {-# INLINE dropSpaceEnd #-}
 
 lastnonspace :: Ptr Word8 -> Int -> IO Int
-lastnonspace a b | a `seq` b `seq` False = undefined
 lastnonspace ptr n
     | n < 0     = return n
     | otherwise = do w <- peekElemOff ptr n
@@ -915,10 +904,9 @@ lines ps
 -- Just as fast, but more complex. Should be much faster, I thought.
 lines :: ByteString -> [ByteString]
 lines (PS _ _ 0) = []
-lines (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
+lines (PS x s l) = accursedUnutterablePerformIO $ withForeignPtr x $ \p -> do
         let ptr = p `plusPtr` s
 
-            loop a | a `seq` False = undefined
             loop n = do
                 let q = memchr (ptr `plusPtr` n) 0x0a (fromIntegral (l-n))
                 if q == nullPtr
@@ -963,8 +951,7 @@ readInt as
             _   -> loop False 0 0 as
 
     where loop :: Bool -> Int -> Int -> ByteString -> Maybe (Int, ByteString)
-          loop a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
-          loop neg i n ps
+          loop neg !i !n !ps
               | null ps   = end neg i n ps
               | otherwise =
                   case B.unsafeHead ps of
@@ -999,8 +986,7 @@ readInteger as
 
           loop :: Int -> Int -> [Integer]
                -> ByteString -> (Integer, ByteString)
-          loop a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
-          loop d acc ns ps
+          loop !d !acc ns !ps
               | null ps   = combine d acc ns empty
               | otherwise =
                   case B.unsafeHead ps of

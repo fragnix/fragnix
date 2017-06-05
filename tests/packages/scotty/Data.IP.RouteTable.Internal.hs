@@ -1,5 +1,65 @@
-{-# LANGUAGE Haskell2010, DeriveGeneric #-}
+{-# LANGUAGE Haskell2010 #-}
 {-# LINE 1 "Data/IP/RouteTable/Internal.hs" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CPP #-}
+
 {-|
   IP routing table is a tree of 'AddrRange'
   to search one of them on the longest
@@ -11,12 +71,14 @@ module Data.IP.RouteTable.Internal where
 
 import Control.Monad
 import Data.Bits
+import Data.Foldable (Foldable(..))
 import Data.IP.Addr
 import Data.IP.Op
 import Data.IP.Range
 import Data.IntMap (IntMap, (!))
 import qualified Data.IntMap as IM (fromList)
-import Data.List (foldl')
+import Data.Monoid
+import Data.Traversable
 import Data.Word
 import Prelude hiding (lookup)
 
@@ -97,6 +159,18 @@ True
 -}
 empty :: Routable k => IPRTable k a
 empty = Nil
+
+instance Functor (IPRTable k) where
+    fmap _ Nil = Nil
+    fmap f (Node r a mv b1 b2) = Node r a (f <$> mv) (fmap f b1) (fmap f b2)
+
+instance Foldable (IPRTable k) where
+    foldMap _ Nil = mempty
+    foldMap f (Node _ _ mv b1 b2) = foldMap f mv <> foldMap f b1 <> foldMap f b2
+
+instance Traversable (IPRTable k) where
+    traverse _ Nil = pure Nil
+    traverse f (Node r a mv b1 b2) = Node r a <$> traverse f mv <*> traverse f b1 <*> traverse f b2
 
 ----------------------------------------------------------------
 

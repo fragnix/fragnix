@@ -45,11 +45,18 @@
 
 
 
+
+
+
+
+
+
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE Safe #-}
 
 {- |
 Module      :  Foreign.Marshal.Utils.Lifted

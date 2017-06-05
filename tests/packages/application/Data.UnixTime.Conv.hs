@@ -21,6 +21,9 @@ import System.IO.Unsafe (unsafePerformIO)
 import System.Posix.Types (EpochTime)
 import System.Time (ClockTime(..))
 
+-- $setup
+-- >>> import Data.Function (on)
+
 foreign import ccall unsafe "c_parse_unix_time"
         c_parse_unix_time :: CString -> CString -> IO CTime
 
@@ -40,6 +43,7 @@ foreign import ccall unsafe "c_format_unix_time_gmt"
 -- This is a wrapper for strptime_l().
 -- Many implementations of strptime_l() do not support %Z and
 -- some implementations of strptime_l() do not support %z, either.
+-- 'utMicroSeconds' is always set to 0.
 
 parseUnixTime :: Format -> ByteString -> UnixTime
 parseUnixTime fmt str = unsafePerformIO $
@@ -50,6 +54,7 @@ parseUnixTime fmt str = unsafePerformIO $
 -- |
 -- Parsing 'ByteString' to 'UnixTime' interpreting as GMT.
 -- This is a wrapper for strptime_l().
+-- 'utMicroSeconds' is always set to 0.
 --
 -- >>> parseUnixTimeGMT webDateFormat "Thu, 01 Jan 1970 00:00:00 GMT"
 -- UnixTime {utSeconds = 0, utMicroSeconds = 0}
@@ -66,6 +71,8 @@ parseUnixTimeGMT fmt str = unsafePerformIO $
 -- |
 -- Formatting 'UnixTime' to 'ByteString' in local time.
 -- This is a wrapper for strftime_l().
+-- 'utMicroSeconds' is ignored.
+-- The result depends on the TZ environment variable.
 
 formatUnixTime :: Format -> UnixTime -> IO ByteString
 formatUnixTime fmt t =
@@ -75,9 +82,17 @@ formatUnixTime fmt t =
 -- |
 -- Formatting 'UnixTime' to 'ByteString' in GMT.
 -- This is a wrapper for strftime_l().
+-- 'utMicroSeconds' is ignored.
 --
 -- >>> formatUnixTimeGMT webDateFormat $ UnixTime 0 0
 -- "Thu, 01 Jan 1970 00:00:00 GMT"
+-- >>> let ut = UnixTime 100 200
+-- >>> let str = formatUnixTimeGMT "%s" ut
+-- >>> let ut' = parseUnixTimeGMT "%s" str
+-- >>> ((==) `on` utSeconds) ut ut'
+-- True
+-- >>> ((==) `on` utMicroSeconds) ut ut'
+-- False
 
 formatUnixTimeGMT :: Format -> UnixTime -> ByteString
 formatUnixTimeGMT fmt t =

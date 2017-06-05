@@ -1,11 +1,60 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Time.hs" #-}
-{-# LINE 1 "System/Posix/Time.hsc" #-}
+{-# LINE 1 "System/Posix/Time.hs" #-}
 
-{-# LINE 4 "System/Posix/Time.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
 
-{-# LINE 6 "System/Posix/Time.hsc" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LANGUAGE CApiFFI #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE Safe #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  System.Posix.Time
@@ -26,9 +75,6 @@ module System.Posix.Time (
         -- how much already supported by System.Time?
   ) where
 
-
-{-# LINE 27 "System/Posix/Time.hsc" #-}
-
 import System.Posix.Types
 import Foreign
 import Foreign.C
@@ -41,5 +87,5 @@ import Foreign.C
 epochTime :: IO EpochTime
 epochTime = throwErrnoIfMinus1 "epochTime" (c_time nullPtr)
 
-foreign import ccall unsafe "__hsunix_time"
+foreign import capi unsafe "HsUnix.h time"
   c_time :: Ptr CTime -> IO CTime

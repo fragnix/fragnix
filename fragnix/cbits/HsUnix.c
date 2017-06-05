@@ -8,170 +8,109 @@
 
 #include "HsUnix.h"
 
-int __hsunix_wifexited   (int stat) { return WIFEXITED(stat); }
-int __hsunix_wexitstatus (int stat) { return WEXITSTATUS(stat); }
-int __hsunix_wifsignaled (int stat) { return WIFSIGNALED(stat); }
-int __hsunix_wtermsig    (int stat) { return WTERMSIG(stat); }
-int __hsunix_wifstopped  (int stat) { return WIFSTOPPED(stat); }
-int __hsunix_wstopsig    (int stat) { return WSTOPSIG(stat); }
-int __hsunix_wcoredump   (int stat) { return WCOREDUMP(stat); }
-
 #ifdef HAVE_RTLDNEXT
-void *__hsunix_rtldNext (void) {return RTLD_NEXT;} 
+void *__hsunix_rtldNext (void) {return RTLD_NEXT;}
 #endif
 
 #ifdef HAVE_RTLDDEFAULT
 void *__hsunix_rtldDefault (void) {return RTLD_DEFAULT;}
 #endif
 
-// lstat is a macro on some platforms, so we need a wrapper:
-int __hsunix_lstat(const char *path, struct stat *buf) 
-{ 
-    return lstat(path,buf);
-}
+#if HAVE_PTSNAME && (__GLASGOW_HASKELL__ < 800)
+// On Linux (and others), <stdlib.h> needs to be included while
+// `_XOPEN_SOURCE` is already defined. However, GHCs before GHC 8.0
+// didn't do that yet for CApiFFI, so we need this workaround here.
 
-// mknod is a macro on some platforms, so we need a wrapper:
-int __hsunix_mknod(const char *pathname, mode_t mode, dev_t dev)
-{ 
-    return mknod(pathname,mode,dev);
-}
-
-#ifdef HAVE_GETPWENT
-// getpwent is a macro on some platforms, so we need a wrapper:
-struct passwd *__hsunix_getpwent(void)
-{
-    return getpwent();
-}
-#endif
-
-#if HAVE_GETPWNAM_R
-// getpwnam_r is a macro on some platforms, so we need a wrapper:
-int __hsunix_getpwnam_r(const char *name, struct passwd *pw, char *buffer,
-                        size_t buflen, struct passwd **result)
-{
-    return getpwnam_r(name, pw, buffer, buflen, result);
-}
-#endif
-
-#ifdef HAVE_GETPWUID_R
-// getpwuid_r is a macro on some platforms, so we need a wrapper:
-int __hsunix_getpwuid_r(uid_t uid, struct passwd *pw, char *buffer,
-                        size_t buflen, struct passwd **result)
-{
-    return getpwuid_r(uid, pw, buffer, buflen, result);
-}
-#endif
-
-#ifdef HAVE_NANOSLEEP
-// nanosleep is a macro on some platforms, so we need a wrapper:
-int __hsunix_nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
-{
-    return nanosleep(rqtp, rmtp);
-}
-#endif
-
-// opendir is a macro on some platforms, so we need a wrapper:
-DIR *__hsunix_opendir(const char *filename)
-{
-    return opendir(filename);
-}
-
-// time is a macro on some platforms, so we need a wrapper:
-time_t __hsunix_time(time_t *tloc)
-{
-    return time(tloc);
-}
-
-// times is a macro on some platforms, so we need a wrapper:
-clock_t __hsunix_times(struct tms *tp)
-{
-    return times(tp);
-}
-
-#ifdef HAVE_PTSNAME
-// I cannot figure out how to make the definitions of the following
-// functions visible in <stdlib.h> on Linux.  But these definitions
-// follow the POSIX specs, and everything links and runs.
-
-char *__hsunix_ptsname(int fd)
-{
-    extern char *ptsname(int);
-    return ptsname(fd);
-}
-
-int __hsunix_grantpt(int fd)
-{
-    extern int grantpt(int);
-    return grantpt(fd);
-}
-
-int __hsunix_unlockpt(int fd)
-{
-    extern int unlockpt(int);
-    return unlockpt(fd);
-}
+char *__hsunix_ptsname(int fd)   { return ptsname(fd);  }
+int   __hsunix_grantpt(int fd)   { return grantpt(fd);  }
+int   __hsunix_unlockpt(int fd)  { return unlockpt(fd); }
 #endif
 
 // push a SVR4 STREAMS module; do nothing if STREAMS not available
 int __hsunix_push_module(int fd, const char *module)
 {
-#if defined(I_PUSH) && !defined(__CYGWIN__) && !defined(HAVE_DEV_PTC)
+#if defined(I_PUSH) && !defined(HAVE_DEV_PTC)
     return ioctl(fd, I_PUSH, module);
 #else
     return 0;
 #endif
 }
 
-#if !defined(__MINGW32__)
-int __hscore_mkstemp(char *filetemplate) {
-    return (mkstemp(filetemplate));
-}
-#endif
-
-#if HAVE_MKSTEMPS
-int __hscore_mkstemps(char *filetemplate, int suffixlen) {
-    return (mkstemps(filetemplate, suffixlen));
-}
-#endif
-
-#if HAVE_MKDTEMP
-char *__hscore_mkdtemp(char *filetemplate) {
-    return (mkdtemp(filetemplate));
-}
-#endif
-
-
-#if !defined(__MINGW32__) && !defined(irix_HOST_OS)
-int __hscore_getrlimit(int resource, struct rlimit *rlim) {
-    return (getrlimit(resource, rlim));
-}
-
-int __hscore_setrlimit(int resource, struct rlimit *rlim) {
-    return (setrlimit(resource, rlim));
-}
-#endif
-
-#ifdef HAVE_UNSETENV
-int __hsunix_unsetenv(const char *name)
-{
-#ifdef UNSETENV_RETURNS_VOID
-    unsetenv(name);
-    return 0;
-#else
-    return unsetenv(name);
-#endif
-}
-#endif
-
-/* A size that will contain many path names, but not necessarily all
- * (PATH_MAX is not defined on systems with unlimited path length,
- * e.g. the Hurd).
+/*
+ * GNU glibc 2.23 and later deprecate `readdir_r` in favour of plain old
+ * `readdir` which in some upcoming POSIX standard is going to required to be
+ * re-entrant.
+ * Eventually we want to drop `readder_r` all together, but want to be
+ * compatible with older unixen which may not have a re-entrant `readdir`.
+ * Solution is to make systems with *known* re-entrant `readir` use that and use
+ * `readdir_r` whereever we have it and don't *know* that `readdir` is
+ * re-entrant.
  */
-HsInt __hsunix_long_path_size(void) {
-#ifdef PATH_MAX
-    return PATH_MAX;
+
+#if defined (__GLIBC__) && (__GLIBC__ >= 2) && (__GLIBC_MINOR__ >= 23)
+#define USE_READDIR_R 0
 #else
-    return 4096;
+#define USE_READDIR_R 1
+#endif
+
+/*
+ * read an entry from the directory stream; opt for the
+ * re-entrant friendly way of doing this, if available.
+ */
+int __hscore_readdir( DIR *dirPtr, struct dirent **pDirEnt )
+{
+#if HAVE_READDIR_R && USE_READDIR_R
+  struct dirent* p;
+  int res;
+  static unsigned int nm_max = (unsigned int)-1;
+
+  if (pDirEnt == NULL) {
+    return -1;
+  }
+  if (nm_max == (unsigned int)-1) {
+#ifdef NAME_MAX
+    nm_max = NAME_MAX + 1;
+#else
+    nm_max = pathconf(".", _PC_NAME_MAX);
+    if (nm_max == -1) { nm_max = 255; }
+    nm_max++;
+#endif
+  }
+  p = (struct dirent*)malloc(sizeof(struct dirent) + nm_max);
+  if (p == NULL) return -1;
+  res = readdir_r(dirPtr, p, pDirEnt);
+  if (res != 0) {
+      *pDirEnt = NULL;
+      free(p);
+  }
+  else if (*pDirEnt == NULL) {
+    // end of stream
+    free(p);
+  }
+  return res;
+#else
+
+  if (pDirEnt == NULL) {
+    return -1;
+  }
+
+  *pDirEnt = readdir(dirPtr);
+  if (*pDirEnt == NULL) {
+    return -1;
+  } else {
+    return 0;
+  }
 #endif
 }
 
+char *__hscore_d_name( struct dirent* d )
+{
+  return (d->d_name);
+}
+
+void __hscore_free_dirent(struct dirent *dEnt)
+{
+#if HAVE_READDIR_R && USE_READDIR_R
+  free(dEnt);
+#endif
+}

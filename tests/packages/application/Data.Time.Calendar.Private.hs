@@ -43,6 +43,12 @@
 
 
 
+
+
+
+
+
+
 -- #hide
 module Data.Time.Calendar.Private where
 
@@ -66,7 +72,7 @@ showPaddedMin :: (Num t,Ord t,Show t) => Int -> NumericPadOption -> t -> String
 showPaddedMin _ Nothing i = show i
 showPaddedMin pl opt i | i < 0 = '-':(showPaddedMin pl opt (negate i))
 showPaddedMin pl (Just c) i =
-  let s = show i in 
+  let s = show i in
     padN (pl - (length s)) c s
 
 show2 :: (Num t,Ord t,Show t) => NumericPadOption -> t -> String

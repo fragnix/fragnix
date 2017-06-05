@@ -1,4 +1,4 @@
-{-# LANGUAGE Haskell98 #-}
+{-# LANGUAGE Haskell2010, OverloadedStrings #-}
 {-# LINE 1 "Network/Wai/Middleware/AddHeaders.hs" #-}
 -- |
 --
@@ -7,8 +7,8 @@ module Network.Wai.Middleware.AddHeaders
     ( addHeaders
     ) where
 
-import Network.HTTP.Types   (ResponseHeaders, Header)
-import Network.Wai          (Middleware)
+import Network.HTTP.Types   (Header)
+import Network.Wai          (Middleware, modifyResponse, mapResponseHeaders)
 import Network.Wai.Internal (Response(..))
 import Data.ByteString      (ByteString)
 
@@ -20,13 +20,7 @@ addHeaders :: [(ByteString, ByteString)] -> Middleware
 --
 -- Since 3.0.3
 
-addHeaders h app req respond = app req $ respond . addHeaders' (map (first CI.mk) h)
-
-mapHeader :: (ResponseHeaders -> ResponseHeaders) -> Response -> Response
-mapHeader f (ResponseFile s h b1 b2) = ResponseFile s (f h) b1 b2
-mapHeader f (ResponseBuilder s h b) = ResponseBuilder s (f h) b
-mapHeader f (ResponseStream s h b) = ResponseStream s (f h) b
-mapHeader _ r@(ResponseRaw _ _) = r
+addHeaders h = modifyResponse $ addHeaders' (map (first CI.mk) h)
 
 addHeaders' :: [Header] -> Response -> Response
-addHeaders' h = mapHeader (\hs -> h ++ hs)
+addHeaders' h = mapResponseHeaders (\hs -> h ++ hs)

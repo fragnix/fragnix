@@ -1,11 +1,13 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LINE 1 "dist/dist-sandbox-d76e0d17/build/System/Posix/Temp/ByteString.hs" #-}
+{-# LINE 1 "dist/dist-sandbox-261cd265/build/System/Posix/Temp/ByteString.hs" #-}
 {-# LINE 1 "System/Posix/Temp/ByteString.hsc" #-}
+{-# LANGUAGE CApiFFI #-}
+{-# LINE 2 "System/Posix/Temp/ByteString.hsc" #-}
 
-{-# LINE 4 "System/Posix/Temp/ByteString.hsc" #-}
-{-# LANGUAGE Trustworthy #-}
+{-# LINE 3 "System/Posix/Temp/ByteString.hsc" #-}
+{-# LANGUAGE Safe #-}
 
-{-# LINE 6 "System/Posix/Temp/ByteString.hsc" #-}
+{-# LINE 7 "System/Posix/Temp/ByteString.hsc" #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  System.Posix.Temp.ByteString
@@ -26,7 +28,7 @@ module System.Posix.Temp.ByteString (
     ) where
 
 
-{-# LINE 26 "System/Posix/Temp/ByteString.hsc" #-}
+{-# LINE 27 "System/Posix/Temp/ByteString.hsc" #-}
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as B
@@ -37,16 +39,12 @@ import Foreign.C
 import System.IO
 import System.Posix.ByteString.FilePath
 
-{-# LINE 38 "System/Posix/Temp/ByteString.hsc" #-}
+{-# LINE 39 "System/Posix/Temp/ByteString.hsc" #-}
 import System.Posix.IO
 import System.Posix.Types
 
-
-{-# LINE 42 "System/Posix/Temp/ByteString.hsc" #-}
-foreign import ccall unsafe "HsUnix.h __hscore_mkstemp"
+foreign import capi unsafe "HsUnix.h mkstemp"
   c_mkstemp :: CString -> IO CInt
-
-{-# LINE 45 "System/Posix/Temp/ByteString.hsc" #-}
 
 -- | Make a unique filename and open it for reading\/writing. The returned
 -- 'RawFilePath' is the (possibly relative) path of the created file, which is
@@ -58,31 +56,27 @@ foreign import ccall unsafe "HsUnix.h __hscore_mkstemp"
 mkstemp :: ByteString -> IO (RawFilePath, Handle)
 mkstemp template' = do
   let template = template' `B.append` (BC.pack "XXXXXX")
-
-{-# LINE 57 "System/Posix/Temp/ByteString.hsc" #-}
   withFilePath template $ \ ptr -> do
     fd <- throwErrnoIfMinus1 "mkstemp" (c_mkstemp ptr)
     name <- peekFilePath ptr
     h <- fdToHandle (Fd fd)
     return (name, h)
 
-{-# LINE 67 "System/Posix/Temp/ByteString.hsc" #-}
 
-
-{-# LINE 69 "System/Posix/Temp/ByteString.hsc" #-}
-foreign import ccall unsafe "HsUnix.h __hscore_mkstemps"
+{-# LINE 62 "System/Posix/Temp/ByteString.hsc" #-}
+foreign import capi unsafe "HsUnix.h mkstemps"
   c_mkstemps :: CString -> CInt -> IO CInt
 
-{-# LINE 72 "System/Posix/Temp/ByteString.hsc" #-}
+{-# LINE 65 "System/Posix/Temp/ByteString.hsc" #-}
 
--- |'mkstemps' - make a unique filename with a given prefix and suffix 
+-- |'mkstemps' - make a unique filename with a given prefix and suffix
 -- and open it for reading\/writing (only safe on GHC & Hugs).
 -- The returned 'RawFilePath' is the (possibly relative) path of
 -- the created file, which contains  6 random characters in between
 -- the prefix and suffix.
 mkstemps :: ByteString -> ByteString -> IO (RawFilePath, Handle)
 
-{-# LINE 80 "System/Posix/Temp/ByteString.hsc" #-}
+{-# LINE 73 "System/Posix/Temp/ByteString.hsc" #-}
 mkstemps prefix suffix = do
   let template = prefix `B.append` (BC.pack "XXXXXX") `B.append` suffix
       lenOfsuf = (fromIntegral $ B.length suffix) :: CInt
@@ -92,14 +86,14 @@ mkstemps prefix suffix = do
     h <- fdToHandle (Fd fd)
     return (name, h)
 
-{-# LINE 91 "System/Posix/Temp/ByteString.hsc" #-}
+{-# LINE 84 "System/Posix/Temp/ByteString.hsc" #-}
 
 
-{-# LINE 93 "System/Posix/Temp/ByteString.hsc" #-}
-foreign import ccall unsafe "HsUnix.h __hscore_mkdtemp"
+{-# LINE 86 "System/Posix/Temp/ByteString.hsc" #-}
+foreign import capi unsafe "HsUnix.h mkdtemp"
   c_mkdtemp :: CString -> IO CString
 
-{-# LINE 96 "System/Posix/Temp/ByteString.hsc" #-}
+{-# LINE 89 "System/Posix/Temp/ByteString.hsc" #-}
 
 -- | Make a unique directory. The returned 'RawFilePath' is the path of the
 -- created directory, which is padded with 6 random characters. The argument is
@@ -111,14 +105,14 @@ mkdtemp :: ByteString -> IO RawFilePath
 mkdtemp template' = do
   let template = template' `B.append` (BC.pack "XXXXXX")
 
-{-# LINE 107 "System/Posix/Temp/ByteString.hsc" #-}
+{-# LINE 100 "System/Posix/Temp/ByteString.hsc" #-}
   withFilePath template $ \ ptr -> do
     _ <- throwErrnoIfNull "mkdtemp" (c_mkdtemp ptr)
     name <- peekFilePath ptr
     return name
 
-{-# LINE 116 "System/Posix/Temp/ByteString.hsc" #-}
+{-# LINE 109 "System/Posix/Temp/ByteString.hsc" #-}
 
 
-{-# LINE 131 "System/Posix/Temp/ByteString.hsc" #-}
+{-# LINE 124 "System/Posix/Temp/ByteString.hsc" #-}
 

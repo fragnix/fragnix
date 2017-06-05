@@ -47,6 +47,14 @@
 
 
 
+
+
+
+
+
+
+
+
 {-# LANGUAGE CPP, ForeignFunctionInterface, BangPatterns #-}
 {-# LANGUAGE UnliftedFFITypes, MagicHash,
             UnboxedTuples, DeriveDataTypeable #-}
@@ -81,6 +89,7 @@ module Data.ByteString.Internal (
         unpackBytes, unpackAppendBytesLazy, unpackAppendBytesStrict,
         unpackChars, unpackAppendCharsLazy, unpackAppendCharsStrict,
         unsafePackAddress,
+        checkedSum,
 
         -- * Low level imperative construction
         create,                 -- :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
@@ -96,7 +105,6 @@ module Data.ByteString.Internal (
         toForeignPtr,           -- :: ByteString -> (ForeignPtr Word8, Int, Int)
 
         -- * Utilities
-        inlinePerformIO,        -- :: IO a -> a
         nullForeignPtr,         -- :: ForeignPtr Word8
 
         -- * Standard C Functions
@@ -116,8 +124,11 @@ module Data.ByteString.Internal (
         c_count,                -- :: Ptr Word8 -> CInt -> Word8 -> IO CInt
 
         -- * Chars
-        w2c, c2w, isSpaceWord8, isSpaceChar8
+        w2c, c2w, isSpaceWord8, isSpaceChar8,
 
+        -- * Deprecated and unmentionable
+        accursedUnutterablePerformIO, -- :: IO a -> a
+        inlinePerformIO               -- :: IO a -> a
   ) where
 
 import Prelude hiding (concat)
@@ -129,8 +140,8 @@ import Foreign.Storable         (Storable(..))
 import Foreign.C.Types          (CInt(..), CSize(..), CULong(..))
 import Foreign.C.String         (CString)
 
-import Data.Monoid              (Monoid(..))
-import Control.DeepSeq          (NFData)
+import Data.Semigroup           (Semigroup((<>)))
+import Control.DeepSeq          (NFData(rnf))
 
 import Data.String              (IsString(..))
 
@@ -140,8 +151,7 @@ import Data.Char                (ord)
 import Data.Word                (Word8)
 
 import Data.Typeable            (Typeable)
-import Data.Data                (Data(..))
-import Data.Data                (mkNoRepType)
+import Data.Data                (Data(..), mkNoRepType)
 
 import GHC.Base                 (realWorld#,unsafeChr)
 import GHC.CString              (unpackCString#)
@@ -149,23 +159,13 @@ import GHC.Prim                 (Addr#)
 import GHC.IO                   (IO(IO))
 import GHC.IO                   (unsafeDupablePerformIO)
 
-import GHC.ForeignPtr           (newForeignPtr_, mallocPlainForeignPtrBytes)
-import GHC.Ptr                  (Ptr(..), castPtr)
-
-import GHC.ForeignPtr           (ForeignPtr(ForeignPtr))
 import GHC.Base                 (nullAddr#)
-
+import GHC.ForeignPtr           (ForeignPtr(ForeignPtr)
+                                ,newForeignPtr_, mallocPlainForeignPtrBytes)
+import GHC.Ptr                  (Ptr(..), castPtr)
 
 -- CFILES stuff is Hugs only
 {-# CFILES cbits/fpstring.c #-}
-
--- An alternative to Control.Exception (assert) for nhc98
-
--- -----------------------------------------------------------------------------
---
--- Useful macros, until we have bang patterns
---
-
 
 -- -----------------------------------------------------------------------------
 
@@ -179,7 +179,6 @@ import GHC.Base                 (nullAddr#)
 data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
                      {-# UNPACK #-} !Int                -- offset
                      {-# UNPACK #-} !Int                -- length
-
     deriving (Typeable)
 
 instance Eq  ByteString where
@@ -188,12 +187,16 @@ instance Eq  ByteString where
 instance Ord ByteString where
     compare = compareBytes
 
+instance Semigroup ByteString where
+    (<>)    = append
+
 instance Monoid ByteString where
     mempty  = PS nullForeignPtr 0 0
-    mappend = append
+    mappend = (<>)
     mconcat = concat
 
-instance NFData ByteString
+instance NFData ByteString where
+    rnf (PS _ _ _) = ()
 
 instance Show ByteString where
     showsPrec p ps r = showsPrec p (unpackChars ps) r
@@ -223,7 +226,7 @@ packChars cs = unsafePackLenChars (List.length cs) cs
 
 {-# RULES
 "ByteString packChars/packAddress" forall s .
-   packChars (unpackCString# s) = inlinePerformIO (unsafePackAddress s)
+   packChars (unpackCString# s) = accursedUnutterablePerformIO (unsafePackAddress s)
  #-}
 
 unsafePackLenBytes :: Int -> [Word8] -> ByteString
@@ -239,6 +242,7 @@ unsafePackLenChars len cs0 =
   where
     go !_ []     = return ()
     go !p (c:cs) = poke p (c2w c) >> go (p `plusPtr` 1) cs
+
 
 -- | /O(n)/ Pack a null-terminated sequence of bytes, pointed to by an
 -- Addr\# (an arbitrary machine address assumed to point outside the
@@ -270,6 +274,7 @@ unsafePackAddress addr# = do
     cstr :: CString
     cstr = Ptr addr#
 {-# INLINE unsafePackAddress #-}
+
 
 packUptoLenBytes :: Int -> [Word8] -> (ByteString, [Word8])
 packUptoLenBytes len xs0 =
@@ -329,7 +334,7 @@ unpackAppendCharsLazy (PS fp off len) cs
 
 unpackAppendBytesStrict :: ByteString -> [Word8] -> [Word8]
 unpackAppendBytesStrict (PS fp off len) xs =
-    inlinePerformIO $ withForeignPtr fp $ \base -> do
+    accursedUnutterablePerformIO $ withForeignPtr fp $ \base -> do
       loop (base `plusPtr` (off-1)) (base `plusPtr` (off-1+len)) xs
   where
     loop !sentinal !p acc
@@ -339,7 +344,7 @@ unpackAppendBytesStrict (PS fp off len) xs =
 
 unpackAppendCharsStrict :: ByteString -> [Char] -> [Char]
 unpackAppendCharsStrict (PS fp off len) xs =
-    inlinePerformIO $ withForeignPtr fp $ \base ->
+    accursedUnutterablePerformIO $ withForeignPtr fp $ \base ->
       loop (base `plusPtr` (off-1)) (base `plusPtr` (off-1+len)) xs
   where
     loop !sentinal !p acc
@@ -391,7 +396,6 @@ unsafeCreateUptoN l f = unsafeDupablePerformIO (createUptoN l f)
 unsafeCreateUptoN' :: Int -> (Ptr Word8 -> IO (Int, a)) -> (ByteString, a)
 unsafeCreateUptoN' l f = unsafeDupablePerformIO (createUptoN' l f)
 {-# INLINE unsafeCreateUptoN' #-}
-
 
 -- | Create ByteString of size @l@ and use action @f@ to fill it's contents.
 create :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
@@ -450,8 +454,7 @@ createAndTrim' l f = do
 -- | Wrapper of 'mallocForeignPtrBytes' with faster implementation for GHC
 --
 mallocByteString :: Int -> IO (ForeignPtr a)
-mallocByteString l = do
-    mallocPlainForeignPtrBytes l
+mallocByteString l = mallocPlainForeignPtrBytes l
 {-# INLINE mallocByteString #-}
 
 ------------------------------------------------------------------------
@@ -468,7 +471,7 @@ eq a@(PS fp off len) b@(PS fp' off' len')
 compareBytes :: ByteString -> ByteString -> Ordering
 compareBytes (PS _   _    0)    (PS _   _    0)    = EQ  -- short cut for empty strings
 compareBytes (PS fp1 off1 len1) (PS fp2 off2 len2) =
-    inlinePerformIO $
+    accursedUnutterablePerformIO $
       withForeignPtr fp1 $ \p1 ->
       withForeignPtr fp2 $ \p2 -> do
         i <- memcmp (p1 `plusPtr` off1) (p2 `plusPtr` off2) (min len1 len2)
@@ -573,9 +576,14 @@ overflowError fun = error $ "Data.ByteString." ++ fun ++ ": size overflow"
 -- Yield not to its blasphemous call! Flee traveller! Flee or you will be
 -- corrupted and devoured!
 --
-{-# INLINE inlinePerformIO #-}
+{-# INLINE accursedUnutterablePerformIO #-}
+accursedUnutterablePerformIO :: IO a -> a
+accursedUnutterablePerformIO (IO m) = case m realWorld# of (# _, r #) -> r
+
 inlinePerformIO :: IO a -> a
-inlinePerformIO (IO m) = case m realWorld# of (# _, r #) -> r
+inlinePerformIO = accursedUnutterablePerformIO
+{-# INLINE inlinePerformIO #-}
+{-# DEPRECATED inlinePerformIO "If you think you know what you are doing, use 'unsafePerformIO'. If you are sure you know what you are doing, use 'unsafeDupablePerformIO'. If you enjoy sharing an address space with a malevolent agent of chaos, try 'accursedUnutterablePerformIO'." #-}
 
 -- ---------------------------------------------------------------------
 --
