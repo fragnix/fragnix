@@ -31,7 +31,7 @@ The `fragnix` executable is then in `.stack-work/bin/`.
 Example
 -------
 
-If you have completed the installation you have a `fragnix` executable. The following assumes you have it somewhere in your `PATH`. You also have to have GHC 7.8 in your `PATH`.
+If you have completed the installation you have a `fragnix` executable. The following assumes you have it somewhere in your `PATH`. You also have to have GHC 8.0 in your `PATH`.
 
 In `tests/quick/HelloFragnix/` we have two Haskell module files: `Greet.hs` and `Main.hs`.
 
@@ -157,7 +157,7 @@ Related work
 
 Rich Hickey [has similar thoughts](https://www.youtube.com/watch?v=oyLBGkS5ICk).
 
-Joe Armstrong wondered [Why do we need modules at all?]](http://lambda-the-ultimate.org/node/5079).
+Joe Armstrong wondered [Why do we need modules at all?](http://lambda-the-ultimate.org/node/5079).
 
 Joachim Breitner [suggested to track dependencies at the level of individual functions, types, etc.](http://nominolo.blogspot.de/2012/08/beyond-package-version-policies.html)
 
