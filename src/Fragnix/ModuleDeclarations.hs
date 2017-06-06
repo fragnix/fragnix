@@ -12,8 +12,7 @@ import Language.Haskell.Exts (
     ParseResult(ParseOk,ParseFailed),
     SrcSpan,srcInfoSpan,SrcLoc(SrcLoc),
     prettyPrint,
-    Extension(EnableExtension),
-    KnownExtension(..))
+    readExtensions,Extension(EnableExtension,UnknownExtension),KnownExtension(..))
 import Language.Haskell.Names (
     resolve,annotate,
     Environment,Symbol,Error,Scoped(Scoped),
@@ -52,7 +51,8 @@ moduleDeclarationsWithEnvironment environment modules = declarations where
     declarations = do
         annotatedModule <- annotatedModules
         let (_,moduleExtensions) = getModuleExtensions annotatedModule
-        extractDeclarations (moduleExtensions ++ globalExtensions) annotatedModule
+            allExtensions = moduleExtensions ++ globalExtensions ++ perhapsTemplateHaskell moduleExtensions
+        extractDeclarations allExtensions annotatedModule
     environment' = resolve modules environment
     annotatedModules = map (annotate environment') modules
 
@@ -79,9 +79,10 @@ parse path = do
     fileContents <- readFile path
     let parseMode = defaultParseMode {
             parseFilename = path,
-            extensions = globalExtensions,
+            extensions = globalExtensions ++ perhapsTemplateHaskell moduleExtensions,
             fixities = Just baseFixities}
         parseresult = parseFileContentsWithMode parseMode (stripRoles fileContents)
+        moduleExtensions = maybe [] snd (readExtensions fileContents)
     case parseresult of
         ParseOk ast -> return (fmap srcInfoSpan ast)
         ParseFailed (SrcLoc filename line column) message -> error (unlines [
@@ -105,6 +106,15 @@ globalExtensions = [
     EnableExtension NondecreasingIndentation,
     EnableExtension ExplicitForAll,
     EnableExtension PatternGuards]
+
+-- | Because haskell-src-exts cannot handle TemplateHaskellQuotes we enable
+-- TemplateHaskell when we encounter it.
+-- See https://github.com/haskell-suite/haskell-src-exts/issues/357
+perhapsTemplateHaskell :: [Extension] -> [Extension]
+perhapsTemplateHaskell extensions =
+  if any (== UnknownExtension "TemplateHaskellQuotes") extensions
+    then [EnableExtension TemplateHaskell]
+    else []
 
 extractDeclarations :: [Extension] -> Module (Scoped SrcSpan) -> [Declaration]
 extractDeclarations declarationExtensions annotatedast =
