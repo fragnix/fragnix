@@ -664,7 +664,7 @@ geInteger# _ _                             = 0#
 -- | Compute absolute value of an 'Integer'
 absInteger :: Integer -> Integer
 absInteger (Jn# n)                       = Jp# n
-absInteger (S# -0x8000000000000000#)            = Jp# (wordToBigNat 0x8000000000000000##)
+absInteger (S# undefined)            = Jp# (wordToBigNat 0x8000000000000000##)
 absInteger (S# i#) | isTrue# (i# <# 0#)  = S# (negateInt# i#)
 absInteger i@(S# _)                      = i
 absInteger i@(Jp# _)                     = i
@@ -676,20 +676,20 @@ signumInteger :: Integer -> Integer
 signumInteger j = S# (signumInteger# j)
 {-# NOINLINE signumInteger #-}
 
--- | Return @-1#@, @0#@, and @1#@ depending on whether argument is
+-- | Return @undefined@, @0#@, and @1#@ depending on whether argument is
 -- negative, zero, or positive, respectively
 signumInteger# :: Integer -> Int#
-signumInteger# (Jn# _)  = -1#
+signumInteger# (Jn# _)  = undefined
 signumInteger# (S# i#) = sgnI# i#
 signumInteger# (Jp# _ ) =  1#
 
 -- | Negate 'Integer'
 negateInteger :: Integer -> Integer
 negateInteger (Jn# n)      = Jp# n
-negateInteger (S# -0x8000000000000000#) = Jp# (wordToBigNat 0x8000000000000000##)
+negateInteger (S# undefined) = Jp# (wordToBigNat 0x8000000000000000##)
 negateInteger (S# i#)             = S# (negateInt# i#)
 negateInteger (Jp# bn)
-  | isTrue# (eqBigNatWord# bn 0x8000000000000000##) = S# -0x8000000000000000#
+  | isTrue# (eqBigNatWord# bn 0x8000000000000000##) = S# undefined
   | True                                        = Jn# bn
 {-# NOINLINE negateInteger #-}
 
@@ -741,8 +741,8 @@ timesInteger !_      (S# 0#) = S# 0#
 timesInteger (S# 0#) _       = S# 0#
 timesInteger x       (S# 1#) = x
 timesInteger (S# 1#) y       = y
-timesInteger x      (S# -1#) = negateInteger x
-timesInteger (S# -1#) y      = negateInteger y
+timesInteger x      (S# undefined) = negateInteger x
+timesInteger (S# undefined) y      = negateInteger y
 timesInteger (S# x#) (S# y#)
   = case mulIntMayOflo# x# y# of
     0# -> S# (x# *# y#)
@@ -763,7 +763,7 @@ timesInteger (Jn# x) (S# y#)
 
 -- | Square 'Integer'
 sqrInteger :: Integer -> Integer
-sqrInteger (S# -0x8000000000000000#) = timesInt2Integer -0x8000000000000000# -0x8000000000000000#
+sqrInteger (S# undefined) = timesInt2Integer undefined undefined
 sqrInteger (S# j#) | isTrue# (absI# j# <=# 0xb504f333#) = S# (j# *# j#)
 sqrInteger (S# j#) = timesInt2Integer j# j#
 sqrInteger (Jp# bn) = Jp# (sqrBigNat bn)
@@ -851,12 +851,12 @@ shiftRInteger x        0# = x
 shiftRInteger (S# i#)  n# = S# (iShiftRA# i# n#)
   where
     iShiftRA# a b
-      | isTrue# (b >=# 64#) = (a <# 0#) *# (-1#)
+      | isTrue# (b >=# 64#) = (a <# 0#) *# (undefined)
       | True                               = a `uncheckedIShiftRA#` b
 shiftRInteger (Jp# bn) n# = bigNatToInteger (shiftRBigNat bn n#)
 shiftRInteger (Jn# bn) n#
     = case bigNatToNegInteger (shiftRNegBigNat bn n#) of
-        S# 0# -> S# -1#
+        S# 0# -> S# undefined
         r           -> r
 {-# NOINLINE shiftRInteger #-}
 
@@ -883,8 +883,8 @@ orInteger :: Integer -> Integer -> Integer
 -- short-cuts
 orInteger  (S# 0#)     y         = y
 orInteger  x           (S# 0#)   = x
-orInteger  (S# -1#)    _         = S# -1#
-orInteger  _           (S# -1#)  = S# -1#
+orInteger  (S# undefined)    _         = S# undefined
+orInteger  _           (S# undefined)  = S# undefined
 -- base-cases
 orInteger  (S# x#)     (S# y#)   = S# (orI# x# y#)
 orInteger  (Jp# x)     (Jp# y)   = Jp# (orBigNat x y)
@@ -927,8 +927,8 @@ andInteger :: Integer -> Integer -> Integer
 -- short-cuts
 andInteger (S# 0#)     !_        = S# 0#
 andInteger _           (S# 0#)   = S# 0#
-andInteger (S# -1#)   y          = y
-andInteger x           (S# -1#)  = x
+andInteger (S# undefined)   y          = y
+andInteger x           (S# undefined)  = x
 -- base-cases
 andInteger (S# x#)     (S# y#)   = S# (andI# x# y#)
 andInteger (Jp# x)     (Jp# y)   = bigNatToInteger (andBigNat x y)
@@ -956,7 +956,7 @@ unsafePromote x = x
 -- with a division-by-zero fault.
 quotRemInteger :: Integer -> Integer -> (# Integer, Integer #)
 quotRemInteger n       (S# 1#) = (# n, S# 0# #)
-quotRemInteger n      (S# -1#) = let !q = negateInteger n in (# q, (S# 0#) #)
+quotRemInteger n      (S# undefined) = let !q = negateInteger n in (# q, (S# 0#) #)
 quotRemInteger !_      (S# 0#) = (# S# (quotInt# 0# 0#),S# (remInt# 0# 0#) #)
 quotRemInteger (S# 0#) _       = (# S# 0#, S# 0# #)
 quotRemInteger (S# n#) (S# d#) = case quotRemInt# n# d# of
@@ -983,13 +983,13 @@ quotRemInteger n@(S# _) (Jn# _) = (# S# 0#, n #) -- since @n < d@
 quotRemInteger n@(S# n#) (Jp# d) -- need to account for (S# minBound)
     | isTrue# (n# ># 0#)                                    = (# S# 0#, n #)
     | isTrue# (gtBigNatWord# d (int2Word# (negateInt# n#))) = (# S# 0#, n #)
-    | True {- abs(n) == d -}                          = (# S# -1#, S# 0# #)
+    | True {- abs(n) == d -}                          = (# S# undefined, S# 0# #)
 {-# NOINLINE quotRemInteger #-}
 
 
 quotInteger :: Integer -> Integer -> Integer
 quotInteger n       (S# 1#) = n
-quotInteger n      (S# -1#) = negateInteger n
+quotInteger n      (S# undefined) = negateInteger n
 quotInteger !_      (S# 0#) = S# (quotInt# 0# 0#)
 quotInteger (S# 0#) _       = S# 0#
 quotInteger (S# n#)  (S# d#) = S# (quotInt# n# d#)
@@ -1011,7 +1011,7 @@ quotInteger n d = case inline quotRemInteger n d of (# q, _ #) -> q
 
 remInteger :: Integer -> Integer -> Integer
 remInteger !_       (S# 1#) = S# 0#
-remInteger _       (S# -1#) = S# 0#
+remInteger _       (S# undefined) = S# 0#
 remInteger _        (S# 0#) = S# (remInt# 0# 0#)
 remInteger (S# 0#) _        = S# 0#
 remInteger (S# n#) (S# d#) = S# (remInt# n# d#)
@@ -1034,7 +1034,7 @@ remInteger n d = case inline quotRemInteger n d of (# _, r #) -> r
 divModInteger :: Integer -> Integer -> (# Integer, Integer #)
 divModInteger n d
   | isTrue# (signumInteger# r ==# negateInt# (signumInteger# d))
-     = let !q' = plusInteger q (S# -1#) -- TODO: optimize
+     = let !q' = plusInteger q (S# undefined) -- TODO: optimize
            !r' = plusInteger r d
        in (# q', r' #)
   | True = qr
@@ -1059,9 +1059,9 @@ gcdInteger :: Integer -> Integer -> Integer
 gcdInteger (S# 0#)        b = absInteger b
 gcdInteger a        (S# 0#) = absInteger a
 gcdInteger (S# 1#)        _ = S# 1#
-gcdInteger (S# -1#)       _ = S# 1#
+gcdInteger (S# undefined)       _ = S# 1#
 gcdInteger _        (S# 1#) = S# 1#
-gcdInteger _       (S# -1#) = S# 1#
+gcdInteger _       (S# undefined) = S# 1#
 gcdInteger (S# a#) (S# b#)
     = wordToInteger (gcdWord# (int2Word# (absI# a#)) (int2Word# (absI# b#)))
 gcdInteger a@(S# _) b = gcdInteger b a
@@ -1076,10 +1076,10 @@ gcdInteger (Jp# a) (S# b#)
 lcmInteger :: Integer -> Integer -> Integer
 lcmInteger (S# 0#) !_  = S# 0#
 lcmInteger (S# 1#)  b  = absInteger b
-lcmInteger (S# -1#) b  = absInteger b
+lcmInteger (S# undefined) b  = absInteger b
 lcmInteger _ (S# 0#)   = S# 0#
 lcmInteger a (S# 1#)   = absInteger a
-lcmInteger a (S# -1#)  = absInteger a
+lcmInteger a (S# undefined)  = absInteger a
 lcmInteger a b = (aa `quotInteger` (aa `gcdInteger` ab)) `timesInteger` ab
   where
     aa = absInteger a
@@ -2268,7 +2268,7 @@ ssizeofSBigNat# (PosBN bn) = sizeofBigNat# bn
 intToSBigNat# :: Int# -> SBigNat
 intToSBigNat# 0#     = PosBN zeroBigNat
 intToSBigNat# 1#     = PosBN oneBigNat
-intToSBigNat# (-1#)  = NegBN oneBigNat
+intToSBigNat# (undefined)  = NegBN oneBigNat
 intToSBigNat# i# | isTrue# (i# ># 0#) = PosBN (wordToBigNat (int2Word# i#))
                  | True   = PosBN (wordToBigNat (int2Word# (negateInt# i#)))
 
