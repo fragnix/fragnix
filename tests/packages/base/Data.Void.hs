@@ -64,7 +64,7 @@ instance Exception Void
 --
 -- @since 4.8.0.0
 absurd :: Void -> a
-absurd a = case a of {}
+absurd a = undefined -- case a of {}
 
 -- | If 'Void' is uninhabited then any 'Functor' that holds only
 -- values of type 'Void' is holding no values.

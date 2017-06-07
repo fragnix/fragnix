@@ -56,7 +56,7 @@ import Data.Type.Bool
 -- | Lifted, homogeneous equality. By lifted, we mean that it can be
 -- bogus (deferred type error). By homogeneous, the two types @a@
 -- and @b@ must have the same kind.
-class a ~~ b => (a :: k) ~ (b :: k) | a -> b, b -> a
+-- class a ~~ b => (a :: k) ~ (b :: k) | a -> b, b -> a
   -- See Note [The equality types story] in TysPrim
   -- NB: All this class does is to wrap its superclass, which is
   --     the "real", inhomogeneous equality; this is needed when
@@ -64,7 +64,7 @@ class a ~~ b => (a :: k) ~ (b :: k) | a -> b, b -> a
   -- NB: Not exported, as (~) is magical syntax. That's also why there's
   -- no fixity.
 
-instance {-# INCOHERENT #-} a ~~ b => a ~ b
+-- instance {-# INCOHERENT #-} a ~~ b => a ~ b
   -- See Note [The equality types story] in TysPrim
   -- If we have a Wanted (t1 ~ t2), we want to immediately
   -- simplify it to (t1 ~~ t2) and solve that instead

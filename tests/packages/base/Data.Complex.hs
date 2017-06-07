@@ -226,7 +226,7 @@ instance Storable a => Storable (Complex a) where
 
 instance Applicative Complex where
   pure a = a :+ a
-  f :+ g <*> a :+ b = f a :+ g b
+--  f :+ g <*> a :+ b = f a :+ g b
 
 instance Monad Complex where
   a :+ b >>= f = realPart (f a) :+ imagPart (f b)

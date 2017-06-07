@@ -186,7 +186,7 @@ type family (m :: Nat) <=? (n :: Nat) :: Bool
 type family (m :: Nat) + (n :: Nat) :: Nat
 
 -- | Multiplication of type-level naturals.
-type family (m :: Nat) * (n :: Nat) :: Nat
+type family (*) (m :: Nat) (n :: Nat) :: Nat
 
 -- | Exponentiation of type-level naturals.
 type family (m :: Nat) ^ (n :: Nat) :: Nat
@@ -242,7 +242,7 @@ infixl 6 :<>:
 -- @
 --
 -- @since 4.9.0.0
-type family TypeError (a :: ErrorMessage) :: b where
+type family TypeError (a :: ErrorMessage) :: b
 
 
 --------------------------------------------------------------------------------

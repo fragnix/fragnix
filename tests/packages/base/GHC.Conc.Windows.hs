@@ -366,6 +366,6 @@ foreign import ccall unsafe "readIOManagerEvent" -- in the RTS (ThrIOManager.c)
 foreign import ccall unsafe "sendIOManagerEvent" -- in the RTS (ThrIOManager.c)
   c_sendIOManagerEvent :: Word32 -> IO ()
 
-foreign import WINDOWS_CCONV "WaitForSingleObject"
+foreign import ccall "WaitForSingleObject"
    c_WaitForSingleObject :: HANDLE -> DWORD -> IO DWORD
 
