@@ -365,11 +365,7 @@ rewrite convert app req sendResponse = do
   let convertIO = pathsOnly . curry $ liftIO . uncurry convert
   newReq <- rewriteRequestRawM convertIO req
   app newReq sendResponse
-{-# WARNING rewrite [
-          "This modifies the 'rawPathInfo' field of a 'Request'."
-        , " This is not recommended behaviour; it is however how"
-        , " this function has worked in the past."
-        , " Use 'rewriteWithQueries' instead"] #-}
+{-# WARNING rewrite "This modifies the 'rawPathInfo' field of a 'Request'. This is not recommended behaviour; it is however how this function has worked in the past. Use 'rewriteWithQueries' instead" #-}
 
 -- | Rewrite based on pure conversion function for paths only, to be
 -- supplied by users of this library.
@@ -380,11 +376,7 @@ rewritePure convert app req =
   let convertPure = pathsOnly . curry $ Identity . uncurry convert
       newReq = runIdentity $ rewriteRequestRawM convertPure req
   in  app newReq
-{-# WARNING rewritePure [
-          "This modifies the 'rawPathInfo' field of a 'Request'."
-        , " This is not recommended behaviour; it is however how"
-        , " this function has worked in the past."
-        , " Use 'rewritePureWithQueries' instead"] #-}
+{-# WARNING rewritePure "This modifies the 'rawPathInfo' field of a 'Request'. This is not recommended behaviour; it is however how this function has worked in the past. Use 'rewritePureWithQueries' instead" #-}
 
 -- | Rewrite based on your own conversion function for paths and queries.
 -- This function is to be supplied by users of this library, and operates
@@ -444,11 +436,7 @@ rewriteRequestRawM convert req = do
   newReq <- rewriteRequestM convert req
   let rawPInfo = TE.encodeUtf8 . T.intercalate "/" . pathInfo $ newReq
   pure newReq { rawPathInfo = rawPInfo }
-{-# WARNING rewriteRequestRawM [
-          "This modifies the 'rawPathInfo' field of a 'Request'."
-        , " This is not recommended behaviour; it is however how"
-        , " this function has worked in the past."
-        , " Use 'rewriteRequestM' instead"] #-}
+{-# WARNING rewriteRequestRawM "This modifies the 'rawPathInfo' field of a 'Request'. This is not recommended behaviour; it is however how this function has worked in the past. Use 'rewriteRequestM' instead" #-}
 
 -- | Produce a function that works on 'PathsAndQueries' from one working
 -- only on paths. This is not exported, as it is only needed to handle
