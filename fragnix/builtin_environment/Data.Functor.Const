@@ -1,0 +1,1 @@
+[{"name":"Const","module":"Data.Functor.Const","entity":"newtype"},{"name":"Const","module":"Data.Functor.Const","type":"Const","entity":"constructor"},{"constructors":["Const"],"name":"getConst","module":"Data.Functor.Const","type":"Const","entity":"selector"}]

@@ -1,0 +1,1 @@
+[{"name":"Identity","module":"Data.Functor.Identity","entity":"newtype"},{"name":"Identity","module":"Data.Functor.Identity","type":"Identity","entity":"constructor"},{"constructors":["Identity"],"name":"runIdentity","module":"Data.Functor.Identity","type":"Identity","entity":"selector"}]

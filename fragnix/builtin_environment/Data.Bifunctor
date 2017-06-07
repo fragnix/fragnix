@@ -1,0 +1,1 @@
+[{"name":"Bifunctor","module":"Data.Bifunctor","entity":"class"},{"name":"bimap","module":"Data.Bifunctor","entity":"method","class":"Bifunctor"},{"name":"first","module":"Data.Bifunctor","entity":"method","class":"Bifunctor"},{"name":"second","module":"Data.Bifunctor","entity":"method","class":"Bifunctor"}]

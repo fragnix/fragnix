@@ -1,0 +1,1 @@
+[{"name":"Product","module":"Data.Functor.Product","entity":"data"},{"name":"Pair","module":"Data.Functor.Product","type":"Product","entity":"constructor"}]

@@ -1,0 +1,1 @@
+[{"name":"Sum","module":"Data.Functor.Sum","entity":"data"},{"name":"InL","module":"Data.Functor.Sum","type":"Sum","entity":"constructor"},{"name":"InR","module":"Data.Functor.Sum","type":"Sum","entity":"constructor"}]

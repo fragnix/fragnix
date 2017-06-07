@@ -1,1 +1,1 @@
-[{"name":"absentErr","module":"GHC.Err","entity":"value"},{"name":"error","module":"GHC.Err","entity":"value"},{"name":"undefined","module":"GHC.Err","entity":"value"}]
+[{"name":"absentErr","module":"GHC.Err","entity":"value"},{"name":"error","module":"GHC.Err","entity":"value"},{"name":"errorWithoutStackTrace","module":"GHC.Err","entity":"value"},{"name":"undefined","module":"GHC.Err","entity":"value"}]

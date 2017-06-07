@@ -1,1 +1,1 @@
-[{"name":"unsafePerformIO","module":"GHC.IO","entity":"value"},{"name":"unsafeDupablePerformIO","module":"GHC.IO","entity":"value"},{"name":"unsafeInterleaveIO","module":"GHC.IO","entity":"value"},{"name":"unsafeFixIO","module":"System.IO.Unsafe","entity":"value"}]
+[{"name":"unsafeFixIO","module":"System.IO.Unsafe","entity":"value"}]
