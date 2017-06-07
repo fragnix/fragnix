@@ -64,6 +64,21 @@ executable fragnix
   ghc-options:         -O2 -threaded -rtsopts
 
 
+executable create_builtin_environment
+  main-is:             create_builtin_environment.hs
+  -- other-modules:
+  -- other-extensions:
+  build-depends:       base >=4.6 && <4.10,
+                       directory >=1.3 && < 1.4,
+                       containers >=0.5.0.0 && <0.6,
+                       haskell-src-exts >=1.18.2 && <1.19,
+                       haskell-names >=0.8.0 && <0.10,
+                       fragnix
+  hs-source-dirs:      utilities-src
+  default-language:    Haskell2010
+  ghc-options:         -O2 -threaded -rtsopts -Wall
+
+
 test-suite test
   main-is:             Main.hs
   -- other-modules:
