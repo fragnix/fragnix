@@ -85,7 +85,7 @@ module GHC.Types (
 
 import GHC.Prim
 
-infixr 5 :
+-- infixr 5 :
 
 -- Take note: All types defined here must have associated type representations
 -- defined in Data.Typeable.Internal.
@@ -104,10 +104,10 @@ data Constraint
 type Type = TYPE 'PtrRepLifted
 
 -- | A backward-compatible (pre-GHC 8.0) synonym for 'Type'
-type * = TYPE 'PtrRepLifted
+-- type * = TYPE 'PtrRepLifted
 
 -- | A unicode backward-compatible (pre-GHC 8.0) synonym for 'Type'
-type ★ = TYPE 'PtrRepLifted
+-- type ★ = TYPE 'PtrRepLifted
 
 {- *********************************************************************
 *                                                                      *
@@ -130,7 +130,7 @@ data Symbol
 *                                                                      *
 ********************************************************************* -}
 
-data [] a = [] | a : [a]
+-- data [] a = [] | a : [a]
 
 
 {- *********************************************************************
