@@ -7,12 +7,13 @@ import Language.Haskell.Exts (
     Module,parseFileContentsWithMode,defaultParseMode,ParseMode(..),baseFixities,
     ParseResult(ParseOk,ParseFailed),
     SrcSpan,srcInfoSpan,SrcLoc(SrcLoc),
-    Extension(EnableExtension),KnownExtension(..))
+    Extension(EnableExtension),KnownExtension(..),
+    ModuleName(ModuleName), Name(Ident))
 import Language.Haskell.Names (
-  resolve)
+  resolve, Environment, Symbol(Value, symbolModule))
 
 import Data.Map (
-  empty)
+  empty, adjust)
 import System.Directory (
   listDirectory)
 import Control.Monad (
@@ -31,8 +32,9 @@ main = do
   integerGmpModules <- forM integerGmpFiles parse
 
   let builtinEnvironment = resolve (baseModules ++ ghcPrimModules ++ integerGmpModules) Data.Map.empty
+      patchedBuiltinEnvironment = patchBuiltinEnvironment builtinEnvironment
 
-  persistEnvironment "fragnix/new_builtin_environment" builtinEnvironment
+  persistEnvironment "fragnix/new_builtin_environment" patchedBuiltinEnvironment
 
 
 parse :: FilePath -> IO (Module SrcSpan)
@@ -65,4 +67,25 @@ globalExtensions = [
     EnableExtension KindSignatures,
     EnableExtension PolyKinds]
 
+
+-- | The environment we get needs two changes:
+--    1. We have to add 'realWorld#' to "GHC.Base"
+--    2. We have to rewrite the origin of names exported in "Data.List"
+--       They come from "Data.OldList" but this module is hidden
+patchBuiltinEnvironment :: Environment -> Environment
+patchBuiltinEnvironment = rewriteDataList . addRealWorld
+
+addRealWorld :: Environment -> Environment
+addRealWorld = adjust (++ [realWorldSymbol]) ghcBaseModuleName where
+  ghcBaseModuleName = ModuleName () "GHC.Base"
+  realWorldSymbol = Value ghcBaseModuleName (Ident () "realWorld#")
+
+rewriteDataList :: Environment -> Environment
+rewriteDataList = adjust (map rewriteSymbolModule) dataListModuleName where
+  dataListModuleName = ModuleName () "Data.List"
+  dataOldListModuleName = ModuleName () "Data.OldList"
+  rewriteSymbolModule symbol =
+    if symbolModule symbol == dataOldListModuleName
+      then symbol { symbolModule = dataListModuleName}
+      else symbol
 
