@@ -12,7 +12,7 @@ import Language.Haskell.Exts (
 import Language.Haskell.Names (
   resolve, Environment, Symbol(Value, symbolModule))
 
-import Data.Map (
+import qualified Data.Map as Map (
   empty, adjust)
 import System.Directory (
   listDirectory)
@@ -31,7 +31,7 @@ main = do
   ghcPrimModules <- forM ghcPrimFiles parse
   integerGmpModules <- forM integerGmpFiles parse
 
-  let builtinEnvironment = resolve (baseModules ++ ghcPrimModules ++ integerGmpModules) Data.Map.empty
+  let builtinEnvironment = resolve (baseModules ++ ghcPrimModules ++ integerGmpModules) Map.empty
       patchedBuiltinEnvironment = patchBuiltinEnvironment builtinEnvironment
 
   persistEnvironment "fragnix/new_builtin_environment" patchedBuiltinEnvironment
@@ -70,22 +70,33 @@ globalExtensions = [
 
 -- | The environment we get needs two changes:
 --    1. We have to add 'realWorld#' to "GHC.Base"
---    2. We have to rewrite the origin of names exported in "Data.List"
---       They come from "Data.OldList" but this module is hidden
+--    2. We have to rewrite the origin of names exported in several modules
+--       The reason is that the origin is hidden
 patchBuiltinEnvironment :: Environment -> Environment
-patchBuiltinEnvironment = rewriteDataList . addRealWorld
+patchBuiltinEnvironment =
+   rewriteLazyST . rewriteForeignPtr . rewriteGHCInteger . rewriteDataList . addRealWorld
 
 addRealWorld :: Environment -> Environment
-addRealWorld = adjust (++ [realWorldSymbol]) ghcBaseModuleName where
+addRealWorld = Map.adjust (++ [realWorldSymbol]) ghcBaseModuleName where
   ghcBaseModuleName = ModuleName () "GHC.Base"
   realWorldSymbol = Value ghcBaseModuleName (Ident () "realWorld#")
 
+rewriteSymbolModule :: String -> String -> [String] -> Environment -> Environment
+rewriteSymbolModule fromModuleName toModuleName inModules =
+  foldr (.) id (map (Map.adjust (map rewriteSymbol) . ModuleName ()) inModules) where
+    rewriteSymbol symbol = if symbolModule symbol == ModuleName () fromModuleName
+        then symbol { symbolModule = ModuleName () toModuleName }
+        else symbol
+
 rewriteDataList :: Environment -> Environment
-rewriteDataList = adjust (map rewriteSymbolModule) dataListModuleName where
-  dataListModuleName = ModuleName () "Data.List"
-  dataOldListModuleName = ModuleName () "Data.OldList"
-  rewriteSymbolModule symbol =
-    if symbolModule symbol == dataOldListModuleName
-      then symbol { symbolModule = dataListModuleName}
-      else symbol
+rewriteDataList = rewriteSymbolModule "Data.OldList" "Data.List" ["Data.List"]
+
+rewriteGHCInteger :: Environment -> Environment
+rewriteGHCInteger = rewriteSymbolModule "GHC.Integer.Type" "GHC.Integer" ["Prelude", "GHC.Num", "GHC.Integer"]
+
+rewriteForeignPtr :: Environment -> Environment
+rewriteForeignPtr = rewriteSymbolModule "Foreign.ForeignPtr.Imp" "Foreign.ForeignPtr" ["Foreign", "Foreign.ForeignPtr", "Foreign.Safe", "Foreign.ForeignPtr.Safe"]
+
+rewriteLazyST :: Environment -> Environment
+rewriteLazyST = rewriteSymbolModule "Control.Monad.ST.Lazy.Imp" "Control.Monad.ST.Lazy"  ["Control.Monad.ST.Lazy", "Control.Monad.ST.Lazy.Safe", "Control.Monad.ST.Lazy.Unsafe"]
 
