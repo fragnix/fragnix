@@ -171,7 +171,7 @@ buildTempSlice tempEnvironment constructorMap instanceTempIDList (node,declarati
             Declaration _ _ ast _ _ <- arrange declarations
             return ast)
 
-        uses = nub (mentionedUses ++ implicitConstructorUses)
+        uses = nub (mentionedUses ++ implicitConstructorUses ++ cTypesConstructorUses)
 
         -- A use for every mentioned symbol
         mentionedUses = nub (do
@@ -202,6 +202,18 @@ buildTempSlice tempEnvironment constructorMap instanceTempIDList (node,declarati
             let Declaration _ _ _ _ mentionedSymbols = declaration
             mentionedSymbol <- map fst mentionedSymbols
             symbolConstructorUses tempEnvironment constructorMap mentionedSymbol
+
+        -- Foreign imports need to have constructors of C types in scope.
+        cTypesConstructorUses = do
+            Declaration ForeignImport _ _ _ _ <- declarations
+            let cIntName = ConstructorName (Identifier "CInt") (Identifier "CInt")
+                cSizeName = ConstructorName (Identifier "CSize") (Identifier "CSize")
+                cTypesReference = Builtin "Foreign.C.Types"
+                cOffName = ConstructorName (Identifier "COff") (Identifier "COff")
+                posixTypesReference = Builtin "System.Posix.Types"
+            [Use Nothing cIntName cTypesReference,
+             Use Nothing cSizeName cTypesReference,
+             Use Nothing cOffName posixTypesReference]
 
         -- Add instances for this type or class.
         instances = classInstances ++ typeInstances
@@ -240,9 +252,9 @@ needsConstructors (Declaration _ _ _ _ mentionedSymbols) =
 
 -- | Given a temporary environment and a Map from type symbol to its constructor
 -- symbol and a symbol this function finds the given symbol's constructors and
--- returns a list of use references for them.
+-- wraps them in 'Use's.
 -- We have two cases. If the given symbol is builtin and a newtype we return
--- a constructor with the same name and a use of "CInt".
+-- a constructor with the same name.
 -- If the given symbol is from a slice we look up its constructors and return
 -- a use for each of those.
 symbolConstructorUses :: Map Symbol TempID -> Map Symbol [Symbol] -> Symbol -> [Use]
@@ -253,10 +265,7 @@ symbolConstructorUses tempEnvironment constructorMap symbol =
                 NewType _ symbolname -> do
                     let symbolTypeName = fromName symbolname
                         constructorName = ConstructorName symbolTypeName symbolTypeName
-                        cIntName = ConstructorName (Identifier "CInt") (Identifier "CInt")
-                        cIntReference = Builtin "Foreign.C.Types"
-                        cIntUse = Use Nothing cIntName cIntReference
-                    [Use Nothing constructorName builtinReference, cIntUse]
+                    return (Use Nothing constructorName builtinReference)
                 _ -> []
             _ -> []
         Just referenceNode -> do
