@@ -10,7 +10,7 @@ import Language.Haskell.Exts (
     Extension(EnableExtension),KnownExtension(..),
     ModuleName(ModuleName), Name(Ident))
 import Language.Haskell.Names (
-  resolve, Environment, Symbol(Value, symbolModule))
+  resolve, Environment, Symbol(Value, symbolModule, Data, Constructor))
 
 import qualified Data.Map as Map (
   empty, adjust)
@@ -92,29 +92,55 @@ globalExtensions = [
 --       The reason is that the origin is hidden
 patchBuiltinEnvironment :: Environment -> Environment
 patchBuiltinEnvironment =
-   rewriteLazyST . rewriteForeignPtr . rewriteGHCInteger . rewriteDataList . addRealWorld
+   rewriteFloat . rewriteLazyST . rewriteForeignPtr . rewriteGHCInteger . rewriteDataList . addRealWorld
 
 addRealWorld :: Environment -> Environment
 addRealWorld = Map.adjust (++ [realWorldSymbol]) ghcBaseModuleName where
   ghcBaseModuleName = ModuleName () "GHC.Base"
   realWorldSymbol = Value ghcBaseModuleName (Ident () "realWorld#")
 
-rewriteSymbolModule :: String -> String -> [String] -> Environment -> Environment
-rewriteSymbolModule fromModuleName toModuleName inModules =
+rewriteSymbolModuleInModules :: String -> String -> [String] -> Environment -> Environment
+rewriteSymbolModuleInModules fromModuleName toModuleName inModules =
   foldr (.) id (map (Map.adjust (map rewriteSymbol) . ModuleName ()) inModules) where
     rewriteSymbol symbol = if symbolModule symbol == ModuleName () fromModuleName
         then symbol { symbolModule = ModuleName () toModuleName }
         else symbol
 
 rewriteDataList :: Environment -> Environment
-rewriteDataList = rewriteSymbolModule "Data.OldList" "Data.List" ["Data.List"]
+rewriteDataList = rewriteSymbolModuleInModules "Data.OldList" "Data.List" ["Data.List"]
 
 rewriteGHCInteger :: Environment -> Environment
-rewriteGHCInteger = rewriteSymbolModule "GHC.Integer.Type" "GHC.Integer" ["Prelude", "GHC.Num", "GHC.Integer"]
+rewriteGHCInteger = rewriteSymbolModuleInModules "GHC.Integer.Type" "GHC.Integer" ["Prelude", "GHC.Num", "GHC.Integer"]
 
 rewriteForeignPtr :: Environment -> Environment
-rewriteForeignPtr = rewriteSymbolModule "Foreign.ForeignPtr.Imp" "Foreign.ForeignPtr" ["Foreign", "Foreign.ForeignPtr", "Foreign.Safe", "Foreign.ForeignPtr.Safe"]
+rewriteForeignPtr = rewriteSymbolModuleInModules "Foreign.ForeignPtr.Imp" "Foreign.ForeignPtr" ["Foreign", "Foreign.ForeignPtr", "Foreign.Safe", "Foreign.ForeignPtr.Safe"]
 
 rewriteLazyST :: Environment -> Environment
-rewriteLazyST = rewriteSymbolModule "Control.Monad.ST.Lazy.Imp" "Control.Monad.ST.Lazy"  ["Control.Monad.ST.Lazy", "Control.Monad.ST.Lazy.Safe", "Control.Monad.ST.Lazy.Unsafe"]
+rewriteLazyST = rewriteSymbolModuleInModules "Control.Monad.ST.Lazy.Imp" "Control.Monad.ST.Lazy"  ["Control.Monad.ST.Lazy", "Control.Monad.ST.Lazy.Safe", "Control.Monad.ST.Lazy.Unsafe"]
+
+rewriteSymbolInModules :: Symbol -> Symbol -> [String] -> Environment -> Environment
+rewriteSymbolInModules fromSymbol toSymbol inModules =
+  foldr (.) id (map (Map.adjust (map rewriteSymbol) . ModuleName ()) inModules) where
+    rewriteSymbol symbol = if symbol == fromSymbol
+        then toSymbol
+        else symbol
+
+rewriteFloat :: Environment -> Environment
+rewriteFloat = foldr (.) id [
+  rewriteSymbolInModules
+    (Data (ModuleName () "GHC.Types") (Ident () "Double"))
+    (Data (ModuleName () "GHC.Float") (Ident () "Double"))
+    ["Prelude", "GHC.Exts"],
+  rewriteSymbolInModules
+    (Constructor (ModuleName () "GHC.Types") (Ident () "D#") (Ident () "Double"))
+    (Constructor (ModuleName () "GHC.Float") (Ident () "D#") (Ident () "Double"))
+    ["Prelude", "GHC.Exts"],
+  rewriteSymbolInModules
+    (Data (ModuleName () "GHC.Types") (Ident () "Float"))
+    (Data (ModuleName () "GHC.Float") (Ident () "Float"))
+    ["Prelude", "GHC.Exts"],
+  rewriteSymbolInModules
+    (Constructor (ModuleName () "GHC.Types") (Ident () "F#") (Ident () "Float"))
+    (Constructor (ModuleName () "GHC.Float") (Ident () "F#") (Ident () "Float"))
+    ["Prelude", "GHC.Exts"]]
 
