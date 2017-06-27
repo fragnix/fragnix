@@ -92,7 +92,14 @@ globalExtensions = [
 --       The reason is that the origin is hidden
 patchBuiltinEnvironment :: Environment -> Environment
 patchBuiltinEnvironment =
-   rewriteFloat . rewriteLazyST . rewriteForeignPtr . rewriteGHCInteger . rewriteDataList . addRealWorld
+   rewriteFloat .
+   rewriteLazyST .
+   rewriteForeignPtr .
+   rewriteGHCIntegerType .
+   rewriteInteger .
+   rewriteBigNat .
+   rewriteDataList .
+   addRealWorld
 
 addRealWorld :: Environment -> Environment
 addRealWorld = Map.adjust (++ [realWorldSymbol]) ghcBaseModuleName where
@@ -109,8 +116,8 @@ rewriteSymbolModuleInModules fromModuleName toModuleName inModules =
 rewriteDataList :: Environment -> Environment
 rewriteDataList = rewriteSymbolModuleInModules "Data.OldList" "Data.List" ["Data.List"]
 
-rewriteGHCInteger :: Environment -> Environment
-rewriteGHCInteger = rewriteSymbolModuleInModules "GHC.Integer.Type" "GHC.Integer" ["Prelude", "GHC.Num", "GHC.Integer"]
+rewriteGHCIntegerType :: Environment -> Environment
+rewriteGHCIntegerType = rewriteSymbolModuleInModules "GHC.Integer.Type" "GHC.Integer" ["Prelude", "GHC.Num", "GHC.Integer"]
 
 rewriteForeignPtr :: Environment -> Environment
 rewriteForeignPtr = rewriteSymbolModuleInModules "Foreign.ForeignPtr.Imp" "Foreign.ForeignPtr" ["Foreign", "Foreign.ForeignPtr", "Foreign.Safe", "Foreign.ForeignPtr.Safe"]
@@ -143,4 +150,36 @@ rewriteFloat = foldr (.) id [
     (Constructor (ModuleName () "GHC.Types") (Ident () "F#") (Ident () "Float"))
     (Constructor (ModuleName () "GHC.Float") (Ident () "F#") (Ident () "Float"))
     ["Prelude", "GHC.Exts"]]
+
+-- | It is important that this comes before 'rewriteGHCIntegerType'
+rewriteBigNat :: Environment -> Environment
+rewriteBigNat = foldr (.) id [
+  rewriteSymbolInModules
+    (Data (ModuleName () "GHC.Integer.Type") (Ident () "BigNat"))
+    (Data (ModuleName () "GHC.Integer.GMP.Internals") (Ident () "BigNat"))
+    ["GHC.Integer.GMP.Internals"],
+  rewriteSymbolInModules
+    (Constructor (ModuleName () "GHC.Integer.Type") (Ident () "BN#") (Ident () "BigNat"))
+    (Constructor (ModuleName () "GHC.Integer.GMP.Internals") (Ident () "BN#") (Ident () "BigNat"))
+    ["GHC.Natural", "GHC.Integer.GMP.Internals"]]
+
+-- | It is important that this comes before 'rewriteGHCIntegerType'
+rewriteInteger :: Environment -> Environment
+rewriteInteger = foldr (.) id [
+  rewriteSymbolInModules
+    (Data (ModuleName () "GHC.Integer.Type") (Ident () "Integer"))
+    (Data (ModuleName () "GHC.Integer.GMP.Internals") (Ident () "Integer"))
+    ["Prelude", "GHC.Num", "GHC.Integer", "GHC.Integer.GMP.Internals"],
+  rewriteSymbolInModules
+    (Constructor (ModuleName () "GHC.Integer.Type") (Ident () "S#") (Ident () "Integer"))
+    (Constructor (ModuleName () "GHC.Integer.GMP.Internals") (Ident () "S#") (Ident () "Integer"))
+    ["Prelude", "GHC.Num", "GHC.Integer", "GHC.Integer.GMP.Internals"],
+  rewriteSymbolInModules
+    (Constructor (ModuleName () "GHC.Integer.Type") (Ident () "Jp#") (Ident () "Integer"))
+    (Constructor (ModuleName () "GHC.Integer.GMP.Internals") (Ident () "Jp#") (Ident () "Integer"))
+    ["Prelude", "GHC.Num", "GHC.Integer", "GHC.Integer.GMP.Internals"],
+  rewriteSymbolInModules
+    (Constructor (ModuleName () "GHC.Integer.Type") (Ident () "Jn#") (Ident () "Integer"))
+    (Constructor (ModuleName () "GHC.Integer.GMP.Internals") (Ident () "Jn#") (Ident () "Integer"))
+    ["Prelude", "GHC.Num", "GHC.Integer", "GHC.Integer.GMP.Internals"]]
 
