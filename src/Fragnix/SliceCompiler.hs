@@ -385,7 +385,7 @@ writeModule modul = writeFileStrictIfMissing (modulePath modul) (prettyPrint mod
 
 
 writeHSBoot :: Module a -> IO ()
-writeHSBoot modul = writeFileStrictIfMissing (moduleHSBootPath modul) (addRoleAnnotation (prettyPrint modul))
+writeHSBoot modul = writeFileStrictIfMissing (moduleHSBootPath modul) (prettyPrint modul)
 
 
 -- | Write out the given string to the given file path but only if
@@ -479,45 +479,4 @@ cFiles = [
     "runProcess.c",
     "timeUtils.c"]
 
-
--- | Sadly GHC generates different role annotations in hs-boot files than
--- in regular modules.
--- See ghc.haskell.org/trac/ghc/ticket/9204
--- Will be fixed in GHC 7.12
-addRoleAnnotation :: String -> String
-addRoleAnnotation code = case Map.lookup (last (lines code)) roleAnnotations of
-    Nothing -> code
-    Just roleAnnotation -> unlines [
-        "{-# LANGUAGE RoleAnnotations #-}",
-        code,
-        roleAnnotation]
-
-roleAnnotations :: Map String String
-roleAnnotations = Map.fromList [
-    ("data UArray i e = UArray !i !i !Int ByteArray#",
-        "type role UArray representational phantom"),
-    ("data StorableArray i e = StorableArray !i !i Int !(ForeignPtr e)",
-        "type role StorableArray representational phantom"),
-    ("data STUArray s i e = STUArray !i !i !Int (MutableByteArray# s)",
-        "type role STUArray nominal representational phantom"),
-    ("newtype IOUArray i e = IOUArray (STUArray RealWorld i e)",
-        "type role IOUArray representational phantom"),
-    ("newtype Constant a b = Constant{getConstant :: a}",
-        "type role Constant representational phantom"),
-    ("                           {-# UNPACK #-} !(ForeignPtr a)",
-        "type role MVector phantom phantom"),
-    ("                           {-# UNPACK #-} !(MutableByteArray s)",
-        "type role MVector nominal phantom"),
-    ("                       {-# UNPACK #-} !(ForeignPtr a)",
-        "type role Vector phantom"),
-    ("                       {-# UNPACK #-} !ByteArray",
-        "type role Vector phantom"),
-    ("newtype Vault s = Vault (Map Unique Any)",
-        "type role Vault phantom"),
-    ("newtype Tagged s b = Tagged{unTagged :: b}",
-        "type role Tagged phantom representational"),
-    ("newtype Tagged2 (s :: * -> *) b = Tagged2{unTagged2 :: b}",
-        "type role Tagged2 phantom representational"),
-    ("newtype Tagged (s :: * -> *) = Tagged{unTagged :: Int}",
-        "type role Tagged phantom")]
 
