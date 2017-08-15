@@ -1,4 +1,6 @@
-resolver: lts-7.10
+resolver: lts-9.0
 extra-deps:
 - haskell-src-exts-1.18.2
-- haskell-names-0.8.0
+- traverse-with-class-0.2.0.4
+packages:
+- haskell-names
