@@ -81,7 +81,7 @@ parse path = do
             parseFilename = path,
             extensions = globalExtensions ++ perhapsTemplateHaskell moduleExtensions,
             fixities = Just baseFixities}
-        parseresult = parseFileContentsWithMode parseMode (stripRoles fileContents)
+        parseresult = parseFileContentsWithMode parseMode fileContents
         moduleExtensions = maybe [] snd (readExtensions fileContents)
     case parseresult of
         ParseOk ast -> return (fmap srcInfoSpan ast)
@@ -91,14 +91,6 @@ parse path = do
             "line: " ++ show line,
             "column: " ++ show column,
             "error: " ++ message])
-
--- | haskell-src-exts parser is not yet able to parse role annotations.
-stripRoles :: String -> String
-stripRoles = unlines . map replaceRoleLine . lines where
-    replaceRoleLine line
-        | "type role" `isPrefixOf` line = ""
-        | otherwise = line
-
 
 globalExtensions :: [Extension]
 globalExtensions = [
