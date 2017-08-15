@@ -5,7 +5,7 @@ import Fragnix.Slice (
     Reference(OtherSlice,Builtin),
     UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
     InstanceID,Instance(Instance),
-    InstancePart(OfClass,OfClassForBuiltinType,ForType,ForTypeOfBuiltinClass),
+    InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass),
     readSliceDefault)
 
 import Prelude hiding (writeFile)
@@ -44,7 +44,7 @@ import qualified Data.Map.Strict as Map (
 import Data.Set (Set)
 import qualified Data.Set as Set (
     fromList,toList,map,filter,insert,delete,
-    union,intersection,unions,difference)
+    empty,singleton,union,intersection,unions,difference)
 import Control.Monad (forM,forM_,unless)
 import Data.Maybe (mapMaybe, isJust)
 import Data.List (partition)
@@ -78,15 +78,13 @@ invokeGHCMain sliceID = rawSystem "ghc" ([
 writeSliceModules :: SliceID -> IO ()
 writeSliceModules sliceID = do
     createDirectoryIfMissing True sliceModuleDirectory
-    (slices, instanceSlices) <- loadSlicesTransitive sliceID
+    slices <- loadSlicesTransitive sliceID
     let sliceModules = map (sliceModule sliceInstancesMap) slices
         sliceHSBoots = map bootModule sliceModules
-        instanceSliceModules = map (sliceModule sliceInstancesMap) instanceSlices
-        instanceSliceHSBoots = map bootInstanceModule instanceSliceModules
-        sliceInstancesMap = sliceInstances (slices ++ instanceSlices)
+        sliceInstancesMap = sliceInstances slices
     _ <- evaluate sliceInstancesMap
-    forM_ (sliceModules ++ instanceSliceModules) writeModule
-    forM_ (sliceHSBoots ++ instanceSliceHSBoots) writeHSBoot
+    forM_ sliceModules writeModule
+    forM_ sliceHSBoots writeHSBoot
 
 
 -- | Given a slice generate the corresponding module.
@@ -106,7 +104,7 @@ sliceModule sliceInstancesMap (Slice sliceID language fragment uses _) =
         languagepragmas =
             [Ident () "NoImplicitPrelude"] ++
             (map (Ident () . unpack) ghcextensions)
-        Language ghcextensions _ = language
+        Language ghcextensions = language
     in Module () (Just moduleHead) pragmas imports decls
 
 
@@ -175,37 +173,12 @@ bootModule (Module annotation maybeModuleHead pragmas imports decls) =
 bootModule _ = error "XML module not supported."
 
 
--- | Create a boot module for an instance module
--- WORKAROUND: We can not put data family constructors into hs-boot files.
--- https://ghc.haskell.org/trac/ghc/ticket/8441
--- hs-boot files contain source imports for constructors.
--- We remove constructor imports from hs-boot files that contain only instances.
-bootInstanceModule :: Module a -> Module a
-bootInstanceModule (Module annotation maybeModuleHead pragmas imports decls) =
-    Module annotation maybeModuleHead pragmas bootImports bootDecls where
-        bootImports = mapMaybe bootInstanceImport imports
-        bootDecls = concatMap bootDecl decls
-bootInstanceModule _ = error "XML module not supported"
-
-
 -- | Remove all source imports and make all other imports source except those
 -- from builtin modules. The removal of source imports means that no instance
 -- modules will be imported.
 bootImport :: ImportDecl a -> Maybe (ImportDecl a)
 bootImport importDecl
     | importSrc importDecl = Nothing
-    | isSliceModule (importModule importDecl) = Just (importDecl {importSrc = True})
-    | otherwise = Just importDecl
-
-
--- | Remove all source imports and make all other imports source except those
--- from builtin modules. The removal of source imports means that no instance
--- modules will be imported.
--- Also remove constructor imports.
-bootInstanceImport :: ImportDecl a -> Maybe (ImportDecl a)
-bootInstanceImport importDecl
-    | importSrc importDecl = Nothing
-    | isConstructorImport importDecl = Nothing
     | isSliceModule (importModule importDecl) = Just (importDecl {importSrc = True})
     | otherwise = Just importDecl
 
@@ -254,20 +227,16 @@ sliceInstances slices = sliceInstancesMap where
 
     -- Map from slice ID to set of all required instances. Contains instances that would be
     -- in scope implicitly. The set never includes the slice itself.
-    explicitInstancesMap = removeNonInstanceSlices (removeSliceItself usedSliceMapFixpoint)
-    removeNonInstanceSlices = Map.map (Set.filter (\sliceID -> isInstanceMap Map.! sliceID))
+    explicitInstancesMap = removeSliceItself (Map.map snd usedSliceMapFixpoint)
     removeSliceItself = Map.mapWithKey (\sliceID -> Set.delete sliceID)
 
-    -- Fixpoint of transitively adding more and more instances.
-    usedSliceMapFixpoint = fixpoint (addInstances instancesMap . addUsedSlices) initialUsedSliceMap
+    -- Fixedpoint of transitively adding more and more used slices and instances.
+    usedSliceMapFixpoint = fixedpoint (addInstances instancesMap . addUsedSlices directlyUsedSliceMap) initialUsedSlicesAndInstancesMap
 
-    -- For each slice True if it contains an instance.
-    isInstanceMap = Map.fromList (do
-        slice@(Slice sliceID _ _ _ _) <- slices
-        return (sliceID,isInstance slice))
-    -- Directly used slices plus the slice itself.
-    initialUsedSliceMap = Map.mapWithKey (\sliceID usedSliceIDSet ->
-        Set.insert sliceID usedSliceIDSet) directlyUsedSliceMap
+    -- Initially a slice uses just itself and no instances
+    initialUsedSlicesAndInstancesMap = Map.fromList (do
+        Slice sliceID _ _ _ _ <- slices
+        return (sliceID, (Set.singleton sliceID, Set.empty)))
     -- Directly used slices.
     directlyUsedSliceMap = Map.fromList (do
         slice@(Slice sliceID _ _ _ _) <- slices
@@ -279,52 +248,58 @@ sliceInstances slices = sliceInstancesMap where
 
 
 -- | Iterate the given function untile the argument doesn't change anymore.
-fixpoint :: (Eq a) => (a -> a) -> a -> a
-fixpoint f x
+fixedpoint :: (Eq a) => (a -> a) -> a -> a
+fixedpoint f x
     | x == x' = x
     | otherwise = f x' where
         x' = f x
 
--- | Given a Map from slice ID to set of used slices, does one step of transitivity
--- i.e. adds all slices the used slices use.
-addUsedSlices :: Map SliceID (Set SliceID) -> Map SliceID (Set SliceID)
-addUsedSlices usedSliceMap = Map.fromList (do
-    sliceID <- Map.keys usedSliceMap
-    let usedSliceIDSet = usedSliceMap Map.! sliceID
+-- | Given a Map from slice ID to set of directly used slices and a map from
+-- SliceID to a pair of a set of used slices and implicitly
+-- used instances, does one step of transitivity
+-- i.e. adds all slices the used slices or instances directly use.
+addUsedSlices :: Map SliceID (Set SliceID) -> Map SliceID (Set SliceID, Set InstanceID) -> Map SliceID (Set SliceID, Set InstanceID)
+addUsedSlices directlyUsedSliceMap usedSlicesAndInstancesMap = Map.fromList (do
+    sliceID <- Map.keys usedSlicesAndInstancesMap
+    let (usedSliceIDSet, usedInstanceIDSet) = usedSlicesAndInstancesMap Map.! sliceID
         usedSliceIDSet' = Set.union usedSliceIDSet (Set.unions (do
-            usedSliceID <- Set.toList usedSliceIDSet
-            return (usedSliceMap Map.! usedSliceID)))
-    return (sliceID,usedSliceIDSet'))
+            usedSliceID <- Set.toList (Set.union usedSliceIDSet usedInstanceIDSet)
+            return (directlyUsedSliceMap Map.! usedSliceID)))
+    return (sliceID,(usedSliceIDSet', usedInstanceIDSet)))
 
 
--- | Given a Map from slice ID to list of instances of that slice and a Map from slice ID
--- to list of used slices, adds for each key in the map the relevant instances.
-addInstances :: Map SliceID [Instance] -> Map SliceID (Set SliceID) -> Map SliceID (Set SliceID)
-addInstances instancesMap usedSliceMap = Map.fromList (do
-    sliceID <- Map.keys usedSliceMap
-    let usedSliceIDSet = usedSliceMap Map.! sliceID
+-- | Given a Map from slice ID to list of instances of that slice and a Map
+-- from slice ID to sets of used slices and instances, adds for each key in
+-- the map the relevant instances.
+addInstances :: Map SliceID [Instance] -> Map SliceID (Set SliceID, Set InstanceID) -> Map SliceID (Set SliceID, Set InstanceID)
+addInstances instancesMap usedSlicesAndInstancesMap = Map.fromList (do
+    sliceID <- Map.keys usedSlicesAndInstancesMap
+    let (usedSliceIDSet, usedInstanceIDSet) = usedSlicesAndInstancesMap Map.! sliceID
         instances = Set.fromList (do
             usedSliceID <- Set.toList usedSliceIDSet
             instancesMap Map.! usedSliceID)
-        usedSliceIDSet' = Set.union usedSliceIDSet (relevantInstanceIDs instances)
-    return (sliceID,usedSliceIDSet'))
+        usedInstanceIDSet' = Set.union usedInstanceIDSet (relevantInstanceIDs instances)
+    return (sliceID,(usedSliceIDSet, usedInstanceIDSet')))
 
+
+-- | As an optimization we prune the set of instances that might be relevant for
+-- a slice. Given a set of instances possibly used by a slice, finds those that are
+-- actually relevant. The given set of instances contains information on why
+-- we think the instance might be relevant.
 -- An instance is relevant for a slice if one of the
 -- following four conditions holds:
 --     * The slice transitively uses the instance's class and type
---     * The slice transitively uses the instance's class and the type is builtin
---     * The slice transitively uses the instance's type and the class is builtin
+--     * The slice transitively uses the instance's class and the type is unknown
+--     * The slice transitively uses the instance's type and the class is unknown
 --     * The slices that a relevant instance uses make one of the previous
 --       conditions true.
 -- The last condition requires us to do a fixed point iteration.
 relevantInstanceIDs :: Set Instance -> Set InstanceID
-relevantInstanceIDs instances = Set.union
-    (Set.union
-        (instancesPlayingPart OfClassForBuiltinType instances)
-        (instancesPlayingPart ForTypeOfBuiltinClass instances))
-    (Set.intersection
-        (instancesPlayingPart OfClass instances)
-        (instancesPlayingPart ForType instances))
+relevantInstanceIDs instances = Set.unions [
+    Set.intersection (instancesPlayingPart OfThisClass instances) (instancesPlayingPart ForThisType instances),
+    instancesPlayingPart OfThisClassForUnknownType instances,
+    instancesPlayingPart ForThisTypeOfUnknownClass instances]
+
 
 -- | Given a set of instances find the set of instance IDs of all instances playing
 -- the given part.
@@ -374,11 +349,6 @@ isSliceModule :: ModuleName a -> Bool
 isSliceModule (ModuleName _ ('F':rest)) = all isDigit rest
 isSliceModule _ = False
 
--- | Does the import import a constructor
-isConstructorImport :: ImportDecl a -> Bool
-isConstructorImport (ImportDecl _ _ _ _ _ _ _ (Just (ImportSpecList _ False [IThingWith _ _ _]))) = True
-isConstructorImport _ = False
-
 
 writeModule :: Module a -> IO ()
 writeModule modul = writeFileStrictIfMissing (modulePath modul) (prettyPrint modul)
@@ -407,17 +377,10 @@ writeFileStrict filePath content = (do
 
 -- | Given a slice ID load all slices and all instance slices nedded
 -- for compilation.
-loadSlicesTransitive :: SliceID -> IO ([Slice], [Slice])
+loadSlicesTransitive :: SliceID -> IO [Slice]
 loadSlicesTransitive sliceID = do
     sliceIDs <- loadSliceIDsTransitive sliceID
-    slices <- forM sliceIDs readSliceDefault
-    return (partitionInstances slices)
-
-
--- | Given a list of slices partition it into non-instance
--- slices and instance slices.
-partitionInstances :: [Slice] -> ([Slice], [Slice])
-partitionInstances = partition (not . isInstance)
+    forM sliceIDs readSliceDefault
 
 
 -- | Given a slice ID find all IDs of all the slices needed
@@ -449,10 +412,6 @@ sliceInstanceIDs :: Slice -> [InstanceID]
 sliceInstanceIDs (Slice _ _ _ _ instances) = do
     Instance _ instanceID <- instances
     return instanceID
-
-isInstance :: Slice -> Bool
-isInstance (Slice _ (Language _ True) _ _ _) = True
-isInstance _ = False
 
 doesSliceModuleExist :: SliceID -> IO Bool
 doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)

@@ -24,7 +24,7 @@ import System.Directory (createDirectoryIfMissing)
 
 data Slice = Slice SliceID Language Fragment [Use] [Instance]
 
-data Language = Language [GHCExtension] IsInstance
+data Language = Language [GHCExtension]
 
 data Fragment = Fragment [SourceCode]
 
@@ -33,10 +33,10 @@ data Use = Use (Maybe Qualification) UsedName Reference
 data Instance = Instance InstancePart InstanceID
 
 data InstancePart =
-    OfClass |
-    OfClassForBuiltinType |
-    ForType |
-    ForTypeOfBuiltinClass
+    OfThisClass |
+    OfThisClassForUnknownType |
+    ForThisType |
+    ForThisTypeOfUnknownClass
 
 type InstanceID = SliceID
 
@@ -56,7 +56,6 @@ type SourceCode = Text
 type Qualification = Text
 type OriginalModule = Text
 type GHCExtension = Text
-type IsInstance = Bool
 
 
 -- Slice instances
@@ -88,15 +87,13 @@ deriving instance Show Language
 deriving instance Generic Language
 
 instance ToJSON Language where
-    toJSON (Language ghcExtensions isInstance) = object [
-        "extensions" .= toJSON ghcExtensions,
-        "isInstance" .= toJSON isInstance]
+    toJSON (Language ghcExtensions) = object [
+        "extensions" .= toJSON ghcExtensions]
 
 instance FromJSON Language where
     parseJSON = withObject "language" (\o ->
         Language <$>
-            o .: "extensions" <*>
-            o .: "isInstance")
+            o .: "extensions")
 
 instance Hashable Language
 
@@ -220,17 +217,17 @@ deriving instance Ord InstancePart
 deriving instance Generic InstancePart
 
 instance ToJSON InstancePart where
-    toJSON OfClass = toJSON ("OfClass" :: Text)
-    toJSON OfClassForBuiltinType = toJSON ("OfClassForBuiltinType" :: Text)
-    toJSON ForType = toJSON ("ForType" :: Text)
-    toJSON ForTypeOfBuiltinClass = toJSON ("ForTypeOfBuiltinClass" :: Text)
+    toJSON OfThisClass = toJSON ("OfThisClass" :: Text)
+    toJSON OfThisClassForUnknownType = toJSON ("OfThisClassForUnknownType" :: Text)
+    toJSON ForThisType = toJSON ("ForThisType" :: Text)
+    toJSON ForThisTypeOfUnknownClass = toJSON ("ForThisTypeOfUnknownClass" :: Text)
 
 instance FromJSON InstancePart where
     parseJSON = withText "instancePart" (\s -> case s of
-        "OfClass" -> return OfClass
-        "OfClassForBuiltinType" -> return OfClassForBuiltinType
-        "ForType" -> return ForType
-        "ForTypeOfBuiltinClass" -> return ForTypeOfBuiltinClass
+        "OfThisClass" -> return OfThisClass
+        "OfThisClassForUnknownType" -> return OfThisClassForUnknownType
+        "ForThisType" -> return ForThisType
+        "ForThisTypeOfUnknownClass" -> return ForThisTypeOfUnknownClass
         _ -> empty)
 
 instance Hashable InstancePart

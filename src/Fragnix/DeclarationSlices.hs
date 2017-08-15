@@ -8,7 +8,7 @@ import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
     Use(Use),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Builtin),
     InstanceID,Instance(Instance),
-    InstancePart(OfClass,OfClassForBuiltinType,ForType,ForTypeOfBuiltinClass))
+    InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass))
 
 import Language.Haskell.Names (
     Symbol(Constructor,Value,Method,Selector,Class,Type,Data,NewType,TypeFam,DataFam,
@@ -158,7 +158,7 @@ buildTempSlice tempEnvironment constructorMap instanceTempIDList (node,declarati
     Slice tempID language fragments uses instances where
         tempID = fromIntegral node
 
-        language = Language extensions (any isInstance declarations)
+        language = Language extensions
 
         extensions = (nub (do
             Declaration _ ghcextensions _ _ _ <- declarations
@@ -224,8 +224,8 @@ buildTempSlice tempEnvironment constructorMap instanceTempIDList (node,declarati
             (instanceID,Just classTempID,maybeTypeTempID) <- instanceTempIDList
             guard (tempID == classTempID)
             case maybeTypeTempID of
-                Nothing -> return (Instance OfClassForBuiltinType instanceID)
-                Just _ -> return (Instance OfClass instanceID)
+                Nothing -> return (Instance OfThisClassForUnknownType instanceID)
+                Just _ -> return (Instance OfThisClass instanceID)
 
         -- Type instances are instance slices that have this slice as their type
         -- Some may be of builtin classes
@@ -233,8 +233,8 @@ buildTempSlice tempEnvironment constructorMap instanceTempIDList (node,declarati
             (instanceID,maybeClassTempID,Just typeTempID) <- instanceTempIDList
             guard (tempID == typeTempID)
             case maybeClassTempID of
-                Nothing -> return (Instance ForTypeOfBuiltinClass instanceID)
-                Just _ -> return (Instance ForType instanceID)
+                Nothing -> return (Instance ForThisTypeOfUnknownClass instanceID)
+                Just _ -> return (Instance ForThisType instanceID)
 
 
 
