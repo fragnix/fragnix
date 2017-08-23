@@ -159,7 +159,7 @@ Rich Hickey [has similar thoughts](https://www.youtube.com/watch?v=oyLBGkS5ICk).
 
 Joe Armstrong wondered [Why do we need modules at all?](http://lambda-the-ultimate.org/node/5079).
 
-Joachim Breitner [suggested to track dependencies at the level of individual functions, types, etc.](http://nominolo.blogspot.de/2012/08/beyond-package-version-policies.html)
+Thomas Schilling [suggested to track dependencies at the level of individual functions, types, etc.](http://nominolo.blogspot.de/2012/08/beyond-package-version-policies.html)
 
 Some people use [`npm`](https://www.npmjs.com/) the way you would use `fragnix`. For example [this guy](https://github.com/jonschlinkert/ansi-green/issues/1). Remember [`left-pad`](https://www.npmjs.com/package/left-pad)?
 
