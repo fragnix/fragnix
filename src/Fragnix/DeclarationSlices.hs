@@ -297,11 +297,15 @@ arrange declarations = arrangements ++ (declarations \\ arrangements) where
 
 
 -- | We abuse module names to either refer to builtin modules or to a slice.
--- If the module name refers to a slice it consists entirely of digits.
+-- If the module name refers to a slice it starts with F followed by
+-- digits.
 moduleReference :: ModuleName () -> Reference
-moduleReference (ModuleName () moduleName)
-    | all isDigit moduleName = OtherSlice (read moduleName)
-    | otherwise = Builtin (pack moduleName)
+moduleReference (ModuleName () moduleName) =
+  case moduleName of
+    'F' : rest -> if all isDigit rest
+      then OtherSlice (read rest)
+      else Builtin (pack moduleName)
+    _ -> Builtin (pack moduleName)
 
 
 -- | Given a map from symbol to ID of the slice that binds that symbol and

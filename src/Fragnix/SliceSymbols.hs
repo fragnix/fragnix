@@ -33,4 +33,4 @@ updateEnvironment symbolSlices environment =
 updateSymbol :: Map Symbol SliceID -> Symbol -> Symbol
 updateSymbol symbolSlices symbol = case Map.lookup symbol symbolSlices of
     Nothing -> symbol
-    Just sliceID -> symbol { symbolModule = ModuleName () (show sliceID) }
+    Just sliceID -> symbol { symbolModule = ModuleName () ('F' : show sliceID) }
