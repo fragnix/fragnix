@@ -36,6 +36,7 @@ import qualified Data.Map as Map (
 import Data.Maybe (maybeToList,listToMaybe)
 import Data.Hashable (hash)
 import Data.List (nub,(\\))
+import qualified Data.Text as Text
 
 
 -- | Extract all slices from the given list of declarations. Also return a map
@@ -60,7 +61,7 @@ declarationSlices declarations = (slices,symbolSlices) where
 -- type and data family instances. The strongly conncected components of this
 -- graph are our compilation units.
 declarationSCCs :: [Declaration] -> [(TempID,[Declaration])]
-declarationSCCs declarations = zip [-1,-2..] declarationSCCList where
+declarationSCCs declarations = zip (map (pack.show) [-1,-2..]) declarationSCCList where
 
     declarationSCCList = map (map lookupVertex . flatten) (scc declarationGraph)
 
@@ -156,7 +157,7 @@ buildTempSlice ::
     TempSlice
 buildTempSlice tempEnvironment constructorMap instanceTempIDList (node,declarations) =
     Slice tempID language fragments uses instances where
-        tempID = fromIntegral node
+        tempID = node
 
         language = Language extensions
 
@@ -189,7 +190,7 @@ buildTempSlice tempEnvironment constructorMap instanceTempIDList (node,declarati
                     Just referenceNode -> if referenceNode == node
                         then Nothing
                     -- Else the symbol is from another slice
-                        else Just (OtherSlice (fromIntegral referenceNode))
+                        else Just (OtherSlice referenceNode)
 
             reference <- maybeToList maybeReference
 
@@ -270,7 +271,7 @@ symbolConstructorUses tempEnvironment constructorMap symbol =
             _ -> []
         Just referenceNode -> do
             constructorSymbol <- concat (maybeToList (Map.lookup symbol constructorMap))
-            return (Use Nothing (symbolUsedName constructorSymbol) (OtherSlice (fromIntegral referenceNode)))
+            return (Use Nothing (symbolUsedName constructorSymbol) (OtherSlice referenceNode))
 
 
 -- | Some extensions are already handled or cannot be handled by us.
@@ -351,14 +352,14 @@ instanceSymbols fragmentNodes = do
 
 -- | A temporary ID before slices can be hashed.
 -- TempIDs are always smaller than zero.
-type TempID = Integer
+type TempID = SliceID
 
 -- | A Slice with a temporary ID that may use slices with
 -- temporary IDs.
 type TempSlice = Slice
 
 -- | A slice ID after the first round of hashing.
-type Hash1ID = Integer
+type Hash1ID = SliceID
 
 
 -- | Build up a map from temporary ID to corresponding slice for better lookup.
@@ -399,7 +400,7 @@ hashSlice2 tempSliceMap hash1IDMap tempID = do
             let instances = map (
                     replaceInstanceID (\instanceTempID -> hash1IDMap Map.! instanceTempID))
                     tempInstances
-                sliceID = abs (fromIntegral (hash (language,fragment,uses,instances)))
+                sliceID = pack (show (abs (fromIntegral (hash (language,fragment,uses,instances)))))
             put (Map.insert tempID sliceID sliceIDMap)
             return sliceID
 
@@ -413,7 +414,7 @@ hashUse2 ::
     State (Map TempID SliceID) Use
 hashUse2 tempSliceMap hash1IDMap use = case use of
     Use qualification usedName (OtherSlice tempID) -> do
-        if tempID < 0
+        if Text.head(tempID) == '-'
             then do
                 sliceID <- hashSlice2 tempSliceMap hash1IDMap tempID
                 return (Use qualification usedName (OtherSlice sliceID))
@@ -440,7 +441,7 @@ hashSlice1 tempSliceMap tempID = do
             let Just (Slice _ language fragment tempUses _) =
                     Map.lookup tempID tempSliceMap
             uses <- for tempUses (hashUse1 tempSliceMap)
-            let hash1ID = abs (fromIntegral (hash (language,fragment,uses)))
+            let hash1ID = pack(show(abs (fromIntegral (hash (language,fragment,uses)))))
             put (Map.insert tempID hash1ID hash1IDMap)
             return hash1ID
 
@@ -449,7 +450,7 @@ hashSlice1 tempSliceMap tempID = do
 hashUse1 :: Map TempID TempSlice -> Use -> State (Map TempID Hash1ID) Use
 hashUse1 tempSliceMap use = case use of
     Use qualification usedName (OtherSlice tempID) -> do
-        if tempID < 0
+        if Text.head(tempID) == '-'
             then do
                 hash1ID <- hashSlice1 tempSliceMap tempID
                 return (Use qualification usedName (OtherSlice hash1ID))
@@ -466,14 +467,14 @@ replaceSliceID f (Slice tempID language fragment uses instances) =
 -- A temporary as opposed to a slice ID is smaller than zero.
 replaceUseID :: (TempID -> SliceID) -> Use -> Use
 replaceUseID f (Use qualification usedName (OtherSlice tempID))
-    | tempID < 0 = (Use qualification usedName (OtherSlice (f tempID)))
+    | Text.head(tempID) == '-' = (Use qualification usedName (OtherSlice (f tempID)))
 replaceUseID _ use = use
 
 -- | Replace every occurence of a temporary ID in the given Instance with the final
 -- ID. A temporary ID is smaller than zero.
 replaceInstanceID :: (TempID -> SliceID) -> Instance -> Instance
 replaceInstanceID f (Instance instancePart instanceID)
-    | instanceID < 0 = Instance instancePart (f instanceID)
+    | Text.head(instanceID) == '-' = Instance instancePart (f instanceID)
 replaceInstanceID _ instanc = instanc
 
 
@@ -519,4 +520,3 @@ isInstance _ = False
 fromName :: Name.Name () -> Name
 fromName (Name.Ident () name) = Identifier (pack name)
 fromName (Name.Symbol () name) = Operator (pack name)
-

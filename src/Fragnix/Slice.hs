@@ -51,7 +51,7 @@ data Name = Identifier Text | Operator Text
 
 type TypeName = Name
 
-type SliceID = Integer
+type SliceID = Text
 type SourceCode = Text
 type Qualification = Text
 type OriginalModule = Text
