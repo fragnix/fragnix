@@ -338,7 +338,7 @@ sliceModulePath sliceID = sliceModuleDirectory </> sliceModuleName sliceID <.> "
 
 -- | The name we give to the module generated for a slice with the given ID.
 sliceModuleName :: SliceID -> String
-sliceModuleName sliceID = "F" ++ show sliceID
+sliceModuleName sliceID = "F" ++ unpack sliceID
 
 -- | The module name of the module that reexports all instances.
 allInstancesModuleName :: ModuleName ()
@@ -437,5 +437,3 @@ cFiles = [
     "myfree.c",
     "runProcess.c",
     "timeUtils.c"]
-
-
