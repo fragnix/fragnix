@@ -4,7 +4,7 @@ module Main where
 import Fragnix.Environment (
     loadEnvironment, builtinEnvironmentPath)
 import Fragnix.ModuleDeclarations (
-    parse, moduleDeclarationsWithEnvironment)
+    parse, moduleDeclarationsWithEnvironment, Source)
 import Fragnix.DeclarationSlices (
     declarationSlices, tempSlices, hashSlices2,
     declarationSCCs, sliceMap)
@@ -116,6 +116,7 @@ instance NFData Declaration
 instance NFData Genre
 instance NFData Extension
 instance NFData KnownExtension
+instance NFData Source
 
 instance NFData Slice
 instance NFData Language

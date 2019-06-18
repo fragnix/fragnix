@@ -56,10 +56,10 @@ testModules folder = do
 
     modulefilenames <- getDirectoryContents folder >>=
         return . filter (\filename -> takeExtension filename == ".hs")
-    let modulepaths = map (\filename -> folder </> filename) modulefilenames
+    let modulePaths = map (\filename -> folder </> filename) modulefilenames
 
     builtinEnvironment <- loadEnvironment builtinEnvironmentPath
-    modules <- forM modulepaths parse
+    modules <- forM modulePaths parse
 
     let declarations = moduleDeclarationsWithEnvironment builtinEnvironment modules
     writeDeclarations "fragnix/temp/declarations/declarations.json" declarations

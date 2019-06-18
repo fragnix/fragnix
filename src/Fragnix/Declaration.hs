@@ -17,7 +17,7 @@ import System.FilePath (dropFileName)
 import Data.Maybe (fromMaybe)
 import GHC.Generics (Generic)
 
-data Declaration = Declaration Genre [Extension] DeclarationAST DeclaredSymbols MentionedSymbols
+data Declaration = Declaration Genre [Extension] DeclarationSource DeclaredSymbols MentionedSymbols
     deriving (Show,Eq,Ord,Generic)
 
 data Genre =
@@ -33,8 +33,8 @@ data Genre =
     Other
         deriving (Show,Eq,Ord,Read,Generic)
 
-type DeclarationAST   = Text
-type DeclaredSymbols  = [Symbol]
+type DeclarationSource = Text
+type DeclaredSymbols = [Symbol]
 type MentionedSymbols = [(Symbol, Maybe (ModuleName ()))]
 
 readDeclarations :: FilePath -> IO [Declaration]
