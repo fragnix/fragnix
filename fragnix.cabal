@@ -17,7 +17,8 @@ library
   exposed-modules:     Fragnix.Slice,
                        Fragnix.Declaration,
                        Fragnix.ModuleDeclarations,
-                       Fragnix.DeclarationSlices,
+                       Fragnix.DeclarationTempSlices,
+                       Fragnix.HashTempSlices,
                        Fragnix.SliceCompiler,
                        Fragnix.Environment,
                        Fragnix.SliceSymbols
@@ -37,7 +38,7 @@ library
                        transformers >=0.3.0.0 && <0.6
   hs-source-dirs:      src
   default-language:    Haskell2010
-  ghc-options:         -O2
+  ghc-options:         -O2 -Wall
 
 
 executable fragnix

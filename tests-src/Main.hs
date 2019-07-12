@@ -4,7 +4,8 @@ module Main where
 import Fragnix.ModuleDeclarations (
     parse,moduleDeclarationsWithEnvironment,moduleSymbols)
 import Fragnix.Declaration (writeDeclarations)
-import Fragnix.DeclarationSlices (declarationSlices)
+import Fragnix.DeclarationTempSlices (declarationTempSlices)
+import Fragnix.HashTempSlices (hashTempSlices)
 import Fragnix.Slice (Slice(Slice),writeSliceDefault)
 import Fragnix.Environment (
     loadEnvironment,builtinEnvironmentPath)
@@ -64,10 +65,11 @@ testModules folder = do
     let declarations = moduleDeclarationsWithEnvironment builtinEnvironment modules
     writeDeclarations "fragnix/temp/declarations/declarations.json" declarations
 
-    let (slices,symbolSlices) = declarationSlices declarations
+    let (tempSlices, symbolTempIDs) = declarationTempSlices declarations
+    let (slices, symbolSliceIDs) = hashTempSlices tempSlices symbolTempIDs
     forM_ slices writeSliceDefault
 
-    let environment = updateEnvironment symbolSlices (moduleSymbols builtinEnvironment modules)
+    let environment = updateEnvironment symbolSliceIDs (moduleSymbols builtinEnvironment modules)
         moduleSymbolResults = do
             (moduleName,symbols) <- Map.toList environment
             return (prettyPrint moduleName ++ " " ++ unwords (map (prettyPrint . symbolName) symbols))

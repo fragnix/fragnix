@@ -5,9 +5,11 @@ import Fragnix.Environment (
     loadEnvironment, builtinEnvironmentPath)
 import Fragnix.ModuleDeclarations (
     parse, moduleDeclarationsWithEnvironment)
-import Fragnix.DeclarationSlices (
-    declarationSlices, tempSlices, hashSlices2,
-    declarationSCCs, sliceMap)
+import Fragnix.DeclarationTempSlices (
+    declarationTempSlices, tempSlices,
+    declarationSCCs)
+import Fragnix.HashTempSlices (
+    hashTempSlices, hashSlices2, sliceMap)
 import Fragnix.SliceSymbols (
     findMainSliceIDs)
 import Fragnix.SliceCompiler (
@@ -59,9 +61,11 @@ main = do
 
     let tempSliceMap = sliceMap (tempSlices fragmentNodes)
 
-    let (slices,symbolSlices) = declarationSlices declarations
+    let (tempSliceList, symbolTempIDs) = declarationTempSlices declarations
 
-    let mainSliceID = head (findMainSliceIDs symbolSlices)
+    let (slices, symbolSliceIDs) = hashTempSlices tempSliceList symbolTempIDs
+
+    let mainSliceID = head (findMainSliceIDs symbolSliceIDs)
 
     defaultMain [
         bench "loadEnvironment" (
@@ -76,8 +80,8 @@ main = do
             bench "annotate" (
                 nf (map (toList . annotate environment)) modules)],
         bgroup "declarationSlices" [
-            bench "declarationSlices" (
-                nf declarationSlices declarations),
+            bench "declarationTempSlices" (
+                nf declarationTempSlices declarations),
             bench "declarationSCCs" (
                 nf declarationSCCs declarations),
             bench "tempSlices" (

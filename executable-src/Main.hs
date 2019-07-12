@@ -12,8 +12,10 @@ import Fragnix.SliceSymbols (
 import Fragnix.ModuleDeclarations (
     parse, moduleDeclarationsWithEnvironment,
     moduleSymbols)
-import Fragnix.DeclarationSlices (
-    declarationSlices)
+import Fragnix.DeclarationTempSlices (
+    declarationTempSlices)
+import Fragnix.HashTempSlices (
+    hashTempSlices)
 import Fragnix.SliceCompiler (
     writeSliceModules, invokeGHCMain)
 
@@ -56,15 +58,16 @@ main = do
 
     putStrLn "Slicing ..."
 
-    let (slices,symbolSlices) = declarationSlices declarations
+    let (tempSlices, symbolTempIDs) = declarationTempSlices declarations
+    let (slices, symbolSliceIDs) = hashTempSlices tempSlices symbolTempIDs
     timeIt (forM_ slices writeSliceDefault)
 
     putStrLn "Updating environment ..."
 
-    let updatedEnvironment = updateEnvironment symbolSlices (moduleSymbols environment modules)
+    let updatedEnvironment = updateEnvironment symbolSliceIDs (moduleSymbols environment modules)
     timeIt (persistEnvironment environmentPath updatedEnvironment)
 
-    case findMainSliceIDs symbolSlices of
+    case findMainSliceIDs symbolSliceIDs of
         [] -> putStrLn "No main symbol in modules."
         [mainSliceID] -> do
             putStrLn ("Compiling " ++ show mainSliceID)
