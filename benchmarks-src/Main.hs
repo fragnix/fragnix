@@ -5,11 +5,11 @@ import Fragnix.Environment (
     loadEnvironment, builtinEnvironmentPath)
 import Fragnix.ModuleDeclarations (
     parse, moduleDeclarationsWithEnvironment)
-import Fragnix.DeclarationTempSlices (
-    declarationTempSlices, tempSlices,
+import Fragnix.DeclarationLocalSlices (
+    declarationLocalSlices, fragmentLocalSlices,
     declarationSCCs)
-import Fragnix.HashTempSlices (
-    hashTempSlices, hashSlices2, sliceMap)
+import Fragnix.HashLocalSlices (
+    hashLocalSlices, hashSlices2, sliceMap)
 import Fragnix.SliceSymbols (
     findMainSliceIDs)
 import Fragnix.SliceCompiler (
@@ -20,6 +20,11 @@ import Fragnix.Slice (
     Slice, Language, Fragment, Use, Reference, UsedName, Name,
     Instance, InstancePart,
     writeSliceDefault)
+import Fragnix.LocalSlice (
+    LocalSlice, LocalSliceID, LocalUse, LocalReference, LocalInstance)
+import Fragnix.SliceSymbols (
+    lookupLocalIDs)
+
 
 import Criterion.Main (defaultMain, bgroup, bench, nfIO, nf, whnfIO, env)
 
@@ -59,11 +64,13 @@ main = do
 
     let fragmentNodes = declarationSCCs declarations
 
-    let tempSliceMap = sliceMap (tempSlices fragmentNodes)
+    let tempSliceMap = sliceMap (fragmentLocalSlices fragmentNodes)
 
-    let (tempSliceList, symbolTempIDs) = declarationTempSlices declarations
+    let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
 
-    let (slices, symbolSliceIDs) = hashTempSlices tempSliceList symbolTempIDs
+    let slices = hashLocalSlices localSlices
+
+    let symbolSliceIDs = lookupLocalIDs symbolLocalIDs slices
 
     let mainSliceID = head (findMainSliceIDs symbolSliceIDs)
 
@@ -80,12 +87,12 @@ main = do
             bench "annotate" (
                 nf (map (toList . annotate environment)) modules)],
         bgroup "declarationSlices" [
-            bench "declarationTempSlices" (
-                nf declarationTempSlices declarations),
+            bench "declarationLocalSlices" (
+                nf declarationLocalSlices declarations),
             bench "declarationSCCs" (
                 nf declarationSCCs declarations),
-            bench "tempSlices" (
-                nf tempSlices fragmentNodes),
+            bench "fragmentLocalSlices" (
+                nf fragmentLocalSlices fragmentNodes),
             bench "hashSlices2" (
                 nf hashSlices2 tempSliceMap)],
         env (for_ slices writeSliceDefault) (\_ ->
@@ -96,7 +103,7 @@ main = do
                         writeSliceModules mainSliceID
                         invokeGHCMain mainSliceID)),
                 bench "sliceInstances" (
-                    nf sliceInstances slices),
+                    nf sliceInstances (toList slices)),
                 bench "writeSliceModules" (
                     nfIO (do
                         removeDirectoryRecursive "fragnix/temp/compilationunits/"
@@ -130,6 +137,11 @@ instance NFData UsedName
 instance NFData Name
 instance NFData Instance
 instance NFData InstancePart
+instance NFData LocalSlice
+instance NFData LocalSliceID
+instance NFData LocalUse
+instance NFData LocalReference
+instance NFData LocalInstance
 
 deriving instance Generic (Error a)
 deriving instance Generic (NameInfo a)

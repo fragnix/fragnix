@@ -22,6 +22,7 @@ import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>),dropFileName)
 import System.Directory (createDirectoryIfMissing)
 
+
 data Slice = Slice SliceID Language Fragment [Use] [Instance]
 
 data Language = Language [GHCExtension]
@@ -84,6 +85,8 @@ instance FromJSON Slice where
 -- Language instances
 
 deriving instance Show Language
+deriving instance Eq Language
+deriving instance Ord Language
 deriving instance Generic Language
 
 instance ToJSON Language where
@@ -101,6 +104,8 @@ instance Hashable Language
 -- Fragment instances
 
 deriving instance Show Fragment
+deriving instance Eq Fragment
+deriving instance Ord Fragment
 deriving instance Generic Fragment
 
 instance ToJSON Fragment where

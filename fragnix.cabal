@@ -15,10 +15,11 @@ tested-with: GHC == 7.8.4, GHC == 7.10.1, GHC == 8.0.1
 
 library
   exposed-modules:     Fragnix.Slice,
+                       Fragnix.LocalSlice,
                        Fragnix.Declaration,
                        Fragnix.ModuleDeclarations,
-                       Fragnix.DeclarationTempSlices,
-                       Fragnix.HashTempSlices,
+                       Fragnix.DeclarationLocalSlices,
+                       Fragnix.HashLocalSlices,
                        Fragnix.SliceCompiler,
                        Fragnix.Environment,
                        Fragnix.SliceSymbols

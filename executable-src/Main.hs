@@ -12,10 +12,12 @@ import Fragnix.SliceSymbols (
 import Fragnix.ModuleDeclarations (
     parse, moduleDeclarationsWithEnvironment,
     moduleSymbols)
-import Fragnix.DeclarationTempSlices (
-    declarationTempSlices)
-import Fragnix.HashTempSlices (
-    hashTempSlices)
+import Fragnix.DeclarationLocalSlices (
+    declarationLocalSlices)
+import Fragnix.HashLocalSlices (
+    hashLocalSlices)
+import Fragnix.SliceSymbols (
+    lookupLocalIDs)
 import Fragnix.SliceCompiler (
     writeSliceModules, invokeGHCMain)
 
@@ -25,7 +27,8 @@ import System.Clock (
     getTime, Clock(Monotonic), toNanoSecs, diffTimeSpec)
 import qualified Data.Map as Map (union)
 
-import Control.Monad (forM_,forM)
+import Data.Foldable (for_)
+import Control.Monad (forM)
 import System.Environment (getArgs)
 import Text.Printf (printf)
 
@@ -58,9 +61,10 @@ main = do
 
     putStrLn "Slicing ..."
 
-    let (tempSlices, symbolTempIDs) = declarationTempSlices declarations
-    let (slices, symbolSliceIDs) = hashTempSlices tempSlices symbolTempIDs
-    timeIt (forM_ slices writeSliceDefault)
+    let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
+    let slices = hashLocalSlices localSlices
+    let symbolSliceIDs = lookupLocalIDs symbolLocalIDs slices
+    timeIt (for_ slices writeSliceDefault)
 
     putStrLn "Updating environment ..."
 

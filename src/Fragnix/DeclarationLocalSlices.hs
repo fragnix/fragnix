@@ -1,14 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Fragnix.DeclarationTempSlices where
+module Fragnix.DeclarationLocalSlices where
 
 import Fragnix.Declaration (
     Declaration(Declaration),
     Genre(TypeSignature,TypeClassInstance,InfixFixity,DerivingInstance,FamilyInstance,ForeignImport))
 import Fragnix.Slice (
-    Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
-    Use(Use),UsedName(..),Name(Identifier,Operator),Reference(OtherSlice,Builtin),
-    InstanceID,Instance(Instance),
+    Language(Language),Fragment(Fragment),
+    UsedName(..),Name(Identifier,Operator),
     InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass))
+import Fragnix.LocalSlice (
+    LocalSlice(LocalSlice),LocalSliceID(LocalSliceID),
+    LocalUse(LocalUse),LocalReference(OtherLocalSlice,OtherSlice,Builtin),
+    LocalInstanceID,LocalInstance(LocalInstance))
 
 import Language.Haskell.Names (
     Symbol(Constructor,Value,Method,Selector,Class,Type,Data,NewType,TypeFam,DataFam,
@@ -33,37 +36,30 @@ import Data.Maybe (maybeToList,listToMaybe)
 import Data.List (nub,(\\))
 
 
--- | A temporary ID before slices can be hashed.
--- TempIDs are always smaller than zero.
-type TempID = SliceID
-
--- | A Slice with a temporary ID that may use slices with
--- temporary IDs.
-type TempSlice = Slice
-
-
 -- | Extract all slices from the given list of declarations. Also return a map
 -- from a symbol to the sliceID of the slice that binds it now.
-declarationTempSlices :: [Declaration] -> ([TempSlice],Map Symbol TempID)
-declarationTempSlices declarations = let
+declarationLocalSlices :: [Declaration] -> ([LocalSlice], Map Symbol LocalSliceID)
+declarationLocalSlices declarations = let
 
     fragmentNodes = declarationSCCs declarations
 
-    tempSliceList = tempSlices fragmentNodes
+    tempSliceList = fragmentLocalSlices fragmentNodes
 
     symbolTempIDs = sliceBindings fragmentNodes
 
     in (tempSliceList, symbolTempIDs)
 
 
--- | Create a dependency graph between all declarations in the given list. Then find and
--- returns the strongly connected components of this graph.
--- Edges in this graph come primarily from when a declaration mentions a symbol
--- another declaration binds. But also from signatures, fixities and
--- type and data family instances. The strongly conncected components of this
--- graph are our compilation units.
-declarationSCCs :: [Declaration] -> [(TempID,[Declaration])]
-declarationSCCs declarations = zip (map (pack . show) [-1 :: Integer,-2..]) declarationSCCList where
+-- | Create a dependency graph between all declarations in the given list. Then
+-- find and returns the strongly connected components of this graph. Edges in
+-- this graph come primarily from when a declaration mentions a symbol another
+-- declaration binds. But also from signatures, fixities and type and data
+-- family instances. The strongly conncected components of this graph are our
+-- compilation units.
+declarationSCCs :: [Declaration] -> [(LocalSliceID,[Declaration])]
+declarationSCCs declarations = zip localSliceIDs declarationSCCList where
+
+    localSliceIDs = map (LocalSliceID . pack . show) [-1 :: Integer,-2..]
 
     declarationSCCList = map (map lookupVertex . flatten) (scc declarationGraph)
 
@@ -107,7 +103,7 @@ declarationSCCs declarations = zip (map (pack . show) [-1 :: Integer,-2..]) decl
         bindingnode <- maybeToList (Map.lookup mentionedsymbol boundMap)
         return (bindingnode,fixitynode)
 
-    -- Each data or type family should be in the same compilation unit as its instances
+    -- Each data or type family should be in the same compilation unit as its localInstances
     familyInstanceEdges = do
         (familyInstanceNode,Declaration FamilyInstance _ _ _ mentionedSymbols) <- declarationNodes
         mentionedFamily <- take 1 (filter isFamily (map fst mentionedSymbols))
@@ -115,28 +111,28 @@ declarationSCCs declarations = zip (map (pack . show) [-1 :: Integer,-2..]) decl
         return (familyNode, familyInstanceNode)
 
 
--- | Given a list of declaration nodes builds a list of temporary
+-- | Given a list of declaration nodes builds a list of local
 -- slices. One for each declaration node.
-tempSlices :: [(TempID,[Declaration])] -> [TempSlice]
-tempSlices fragmentNodes = map build fragmentNodes where
-    build = buildTempSlice sliceBindingsMap constructorMap instanceTempIDList
+fragmentLocalSlices :: [(LocalSliceID,[Declaration])] -> [LocalSlice]
+fragmentLocalSlices fragmentNodes = map build fragmentNodes where
+    build = buildTempSlice sliceBindingsMap constructorMap instanceLocalIDs
     sliceBindingsMap = sliceBindings fragmentNodes
     constructorMap = sliceConstructors fragmentNodes
-    instanceTempIDList = instanceTempIDs sliceBindingsMap fragmentNodes
+    instanceLocalIDs = instanceLocalSliceIDs sliceBindingsMap fragmentNodes
 
 
--- | Build a Map from symbol to temporary ID that binds this symbol. If
--- a symbol is builtin there is not entry in this Map.
-sliceBindings :: [(TempID,[Declaration])] -> Map Symbol TempID
+-- | Build a Map from symbol to local ID that binds this symbol. If
+-- a symbol is builtin there is no entry in this Map.
+sliceBindings :: [(LocalSliceID,[Declaration])] -> Map Symbol LocalSliceID
 sliceBindings fragmentNodes = Map.fromList (do
-    (tempID,declarations) <- fragmentNodes
+    (localSliceID,declarations) <- fragmentNodes
     Declaration _ _ _ boundsymbols _ <- declarations
     boundsymbol <- boundsymbols
-    return (boundsymbol,tempID))
+    return (boundsymbol,localSliceID))
 
 
 -- | Create a map from symbol to a list of its constructors.
-sliceConstructors :: [(TempID,[Declaration])] -> Map Symbol [Symbol]
+sliceConstructors :: [(LocalSliceID,[Declaration])] -> Map Symbol [Symbol]
 sliceConstructors fragmentNodes = Map.fromListWith (++) (do
     (_,declarations) <- fragmentNodes
     Declaration _ _ _ boundSymbols _ <- declarations
@@ -147,19 +143,18 @@ sliceConstructors fragmentNodes = Map.fromListWith (++) (do
     return (typeSymbol,[constructor]))
 
 
--- | Take a temporary environment, a constructor map and a pair of a node and a fragment.
--- Return a slice with a temporary ID that might contain references to temporary IDs.
--- The nodes must have negative IDs starting from -1 to distinguish temporary from permanent
--- slice IDs. The resulting temporary slice does not have its required instances resolved.
+-- | Take a local environment, a constructor Map and a pair of a local ID and a
+-- fragment. Return a local slice. The resulting local slice does not yet have
+-- have its required local instances resolved.
 buildTempSlice ::
-    Map Symbol TempID ->
+    Map Symbol LocalSliceID ->
     Map Symbol [Symbol] ->
-    [(InstanceID,Maybe TempID,Maybe TempID)] ->
-    (TempID,[Declaration]) ->
-    TempSlice
-buildTempSlice tempEnvironment constructorMap instanceTempIDList (node,declarations) =
-    Slice tempID language fragments uses instances where
-        tempID = node
+    [(LocalInstanceID,Maybe LocalSliceID,Maybe LocalSliceID)] ->
+    (LocalSliceID,[Declaration]) ->
+    LocalSlice
+buildTempSlice localEnvironment constructorMap instanceLocalIDs (node,declarations) =
+    LocalSlice localSliceID language fragments localUses localInstances where
+        localSliceID = node
 
         language = Language extensions
 
@@ -174,7 +169,7 @@ buildTempSlice tempEnvironment constructorMap instanceTempIDList (node,declarati
             Declaration _ _ ast _ _ <- arrange declarations
             return ast)
 
-        uses = nub (mentionedUses ++ implicitConstructorUses ++ cTypesConstructorUses)
+        localUses = nub (mentionedUses ++ implicitConstructorUses ++ cTypesConstructorUses)
 
         -- A use for every mentioned symbol
         mentionedUses = nub (do
@@ -185,18 +180,18 @@ buildTempSlice tempEnvironment constructorMap instanceTempIDList (node,declarati
                 usedName = symbolUsedName mentionedsymbol
                 -- Look up reference to other slice from this graph
                 -- if it fails the symbol must be from the environment
-                maybeReference = case Map.lookup mentionedsymbol tempEnvironment of
+                maybeReference = case Map.lookup mentionedsymbol localEnvironment of
                     -- If the symbol is from the environment it is either builtin or refers to an existing slice
                     Nothing -> Just (moduleReference (symbolModule (mentionedsymbol)))
                     -- If the symbol is from this fragment we generate no reference
                     Just referenceNode -> if referenceNode == node
                         then Nothing
                     -- Else the symbol is from another slice
-                        else Just (OtherSlice referenceNode)
+                        else Just (OtherLocalSlice referenceNode)
 
             reference <- maybeToList maybeReference
 
-            return (Use maybeQualificationText usedName reference))
+            return (LocalUse maybeQualificationText usedName reference))
 
         -- If a declaration needs the constructors of used types we add them here.
         implicitConstructorUses = do
@@ -204,7 +199,7 @@ buildTempSlice tempEnvironment constructorMap instanceTempIDList (node,declarati
             guard (needsConstructors declaration)
             let Declaration _ _ _ _ mentionedSymbols = declaration
             mentionedSymbol <- map fst mentionedSymbols
-            symbolConstructorUses tempEnvironment constructorMap mentionedSymbol
+            symbolConstructorUses localEnvironment constructorMap mentionedSymbol
 
         -- Foreign imports need to have constructors of C types in scope.
         cTypesConstructorUses = do
@@ -214,30 +209,30 @@ buildTempSlice tempEnvironment constructorMap instanceTempIDList (node,declarati
                 cTypesReference = Builtin "Foreign.C.Types"
                 cOffName = ConstructorName (Identifier "COff") (Identifier "COff")
                 posixTypesReference = Builtin "System.Posix.Types"
-            [Use Nothing cIntName cTypesReference,
-             Use Nothing cSizeName cTypesReference,
-             Use Nothing cOffName posixTypesReference]
+            [LocalUse Nothing cIntName cTypesReference,
+             LocalUse Nothing cSizeName cTypesReference,
+             LocalUse Nothing cOffName posixTypesReference]
 
-        -- Add instances for this type or class.
-        instances = classInstances ++ typeInstances
+        -- Add localInstances for this type or class.
+        localInstances = classInstances ++ typeInstances
 
-        -- Class instances are instance slices that have this slice as their class
+        -- Class localInstances are instance slices that have this slice as their class
         -- Some may be for builtin types
         classInstances = do
-            (instanceID,Just classTempID,maybeTypeTempID) <- instanceTempIDList
-            guard (tempID == classTempID)
-            case maybeTypeTempID of
-                Nothing -> return (Instance OfThisClassForUnknownType instanceID)
-                Just _ -> return (Instance OfThisClass instanceID)
+            (instanceID,Just classTempID,maybeTypeLocalID) <- instanceLocalIDs
+            guard (localSliceID == classTempID)
+            case maybeTypeLocalID of
+                Nothing -> return (LocalInstance OfThisClassForUnknownType instanceID)
+                Just _ -> return (LocalInstance OfThisClass instanceID)
 
-        -- Type instances are instance slices that have this slice as their type
+        -- Type localInstances are instance slices that have this slice as their type
         -- Some may be of builtin classes
         typeInstances = do
-            (instanceID,maybeClassTempID,Just typeTempID) <- instanceTempIDList
-            guard (tempID == typeTempID)
-            case maybeClassTempID of
-                Nothing -> return (Instance ForThisTypeOfUnknownClass instanceID)
-                Just _ -> return (Instance ForThisType instanceID)
+            (instanceID,maybeClassLocalID,Just typeTempID) <- instanceLocalIDs
+            guard (localSliceID == typeTempID)
+            case maybeClassLocalID of
+                Nothing -> return (LocalInstance ForThisTypeOfUnknownClass instanceID)
+                Just _ -> return (LocalInstance ForThisType instanceID)
 
 
 
@@ -253,27 +248,25 @@ needsConstructors (Declaration _ _ _ _ mentionedSymbols) =
     any ((==(Name.Ident () "coerce")) . symbolName . fst) mentionedSymbols
 
 
--- | Given a temporary environment and a Map from type symbol to its constructor
--- symbol and a symbol this function finds the given symbol's constructors and
--- wraps them in 'Use's.
--- We have two cases. If the given symbol is builtin and a newtype we return
--- a constructor with the same name.
--- If the given symbol is from a slice we look up its constructors and return
--- a use for each of those.
-symbolConstructorUses :: Map Symbol TempID -> Map Symbol [Symbol] -> Symbol -> [Use]
-symbolConstructorUses tempEnvironment constructorMap symbol =
-    case Map.lookup symbol tempEnvironment of
+-- | Finds the given symbol's constructors and wraps them in 'LocalUse's. It
+-- needs a local environment and a Map from type symbol to its constructor
+-- symbols. We have two cases. If the given symbol is builtin and a newtype we
+-- return a constructor with the same name. If the given symbol is from a slice
+-- we look up its constructors and return a use for each of those.
+symbolConstructorUses :: Map Symbol LocalSliceID -> Map Symbol [Symbol] -> Symbol -> [LocalUse]
+symbolConstructorUses localEnvironment constructorMap symbol =
+    case Map.lookup symbol localEnvironment of
         Nothing -> case moduleReference (symbolModule symbol) of
             builtinReference@(Builtin _) -> case symbol of
                 NewType _ symbolname -> do
                     let symbolTypeName = fromName symbolname
                         constructorName = ConstructorName symbolTypeName symbolTypeName
-                    return (Use Nothing constructorName builtinReference)
+                    return (LocalUse Nothing constructorName builtinReference)
                 _ -> []
             _ -> []
         Just referenceNode -> do
             constructorSymbol <- concat (maybeToList (Map.lookup symbol constructorMap))
-            return (Use Nothing (symbolUsedName constructorSymbol) (OtherSlice referenceNode))
+            return (LocalUse Nothing (symbolUsedName constructorSymbol) (OtherLocalSlice referenceNode))
 
 
 -- | Some extensions are already handled or cannot be handled by us.
@@ -302,7 +295,7 @@ arrange declarations = arrangements ++ (declarations \\ arrangements) where
 -- | We abuse module names to either refer to builtin modules or to a slice.
 -- If the module name refers to a slice it starts with F followed by
 -- digits.
-moduleReference :: ModuleName () -> Reference
+moduleReference :: ModuleName () -> LocalReference
 moduleReference (ModuleName () moduleName) =
   case moduleName of
     'F' : rest -> if all isDigit rest
@@ -311,31 +304,32 @@ moduleReference (ModuleName () moduleName) =
     _ -> Builtin (pack moduleName)
 
 
--- | Given a map from symbol to ID of the slice that binds that symbol and
--- a list of pairs of a temporaty ID and a framgent. Produces a list of triples
--- of an instance ID and maybe a the ID of a class and maybe the ID of a type.
--- If the class or type of the instance are not in the list of fragments there
--- is no class or type ID. This means they are either builtin or in a preexisting
--- slice.
-instanceTempIDs ::
-    Map Symbol TempID ->
-    [(TempID,[Declaration])] ->
-    [(InstanceID,Maybe TempID,Maybe TempID)]
-instanceTempIDs sliceBindingsMap fragmentNodes = do
+-- | Finds for each instance maybe the local ID of the class it is of and maybe
+-- the local ID of the type it is for. Needs a map from symbol to ID of the
+-- slice that binds that symbol and a list of pairs of a local ID and a
+-- framgent. Produces a list of triples of an instance ID and maybe a the ID of
+-- a class and maybe the ID of a type. If the class or type of the instance are
+-- not in the list of fragments there is no class or type ID. This means they
+-- are either builtin or in a preexisting slice.
+instanceLocalSliceIDs ::
+    Map Symbol LocalSliceID ->
+    [(LocalSliceID,[Declaration])] ->
+    [(LocalInstanceID,Maybe LocalSliceID,Maybe LocalSliceID)]
+instanceLocalSliceIDs sliceBindingsMap fragmentNodes = do
     (instanceID,maybeClassSymbol,maybeTypeSymbol) <- instanceSymbols fragmentNodes
-    let maybeClassTempID = case maybeClassSymbol of
+    let maybeClassLocalID = case maybeClassSymbol of
             Nothing -> Nothing
             Just classSymbol -> Map.lookup classSymbol sliceBindingsMap
-        maybeTypeTempID = case maybeTypeSymbol of
+        maybeTypeLocalID = case maybeTypeSymbol of
             Nothing -> Nothing
             Just typeSymbol -> Map.lookup typeSymbol sliceBindingsMap
-    return (instanceID,maybeClassTempID,maybeTypeTempID)
+    return (instanceID,maybeClassLocalID,maybeTypeLocalID)
 
 
 -- | A list of triples of the instance, its class symbol and its type symbol.
 -- For builtin types like '(,)' we cannot provide a symbol and have to return
 -- 'Nothing'.
-instanceSymbols :: [(TempID,[Declaration])] -> [(InstanceID,Maybe Symbol,Maybe Symbol)]
+instanceSymbols :: [(LocalSliceID,[Declaration])] -> [(LocalInstanceID,Maybe Symbol,Maybe Symbol)]
 instanceSymbols fragmentNodes = do
 
     (instanceTempID,declarations) <- fragmentNodes
