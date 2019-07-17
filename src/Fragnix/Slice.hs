@@ -11,7 +11,7 @@ import Data.Aeson (
 import GHC.Generics (Generic)
 import Data.Hashable (Hashable)
 
-import Data.Text (Text)
+import Data.Text (Text, unpack)
 
 import Control.Applicative ((<$>),(<*>),(<|>),empty)
 
@@ -258,7 +258,7 @@ readSliceDefault :: SliceID -> IO Slice
 readSliceDefault sliceID = readSlice (sliceDefaultPath sliceID)
 
 sliceDefaultPath :: SliceID -> FilePath
-sliceDefaultPath sliceID = sliceDirectory </> show sliceID
+sliceDefaultPath sliceID = sliceDirectory </> (unpack sliceID)
 
 sliceDirectory :: FilePath
 sliceDirectory = "fragnix" </> "slices"
