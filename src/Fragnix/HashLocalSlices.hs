@@ -17,7 +17,7 @@ import Control.Monad.Trans.State (State,execState,get,put)
 import Data.Text (pack)
 import Data.Map (Map)
 import qualified Data.Map as Map (
-    lookup,fromList,(!),map,keys,
+    lookup,fromList,(!),keys,
     empty,insert)
 import qualified Data.Hashable as Hashable (hash)
 
@@ -27,17 +27,17 @@ type Hash1ID = SliceID
 
 
 -- | Hash the given local slices to give each of them a slice ID. The results
--- associates each local ID to the resulting slice.
-hashLocalSlices :: [LocalSlice] -> Map LocalSliceID Slice
+-- are a map from local ID to slice ID and the list of slices.
+hashLocalSlices :: [LocalSlice] -> (Map LocalSliceID SliceID, [Slice])
 hashLocalSlices localSlices = let
 
     localSliceMap = sliceMap localSlices
 
     localSliceIDMap = hashSlices2 localSliceMap
 
-    slicesMap = Map.map (replaceSliceID (localSliceIDMap Map.!)) localSliceMap
+    slices = map (replaceSliceID (localSliceIDMap Map.!)) localSlices
 
-    in slicesMap
+    in (localSliceIDMap, slices)
 
 
 -- | Build up a map from local ID to corresponding local slice for better lookup.

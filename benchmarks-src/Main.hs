@@ -68,9 +68,9 @@ main = do
 
     let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
 
-    let slices = hashLocalSlices localSlices
+    let (localSliceIDMap, slices) = hashLocalSlices localSlices
 
-    let symbolSliceIDs = lookupLocalIDs symbolLocalIDs slices
+    let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
 
     let mainSliceID = head (findMainSliceIDs symbolSliceIDs)
 

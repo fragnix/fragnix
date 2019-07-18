@@ -62,8 +62,8 @@ main = do
     putStrLn "Slicing ..."
 
     let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
-    let slices = hashLocalSlices localSlices
-    let symbolSliceIDs = lookupLocalIDs symbolLocalIDs slices
+    let (localSliceIDMap, slices) = hashLocalSlices localSlices
+    let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
     timeIt (for_ slices writeSliceDefault)
 
     putStrLn "Updating environment ..."

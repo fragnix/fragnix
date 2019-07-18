@@ -12,8 +12,8 @@ import System.Environment (getArgs)
 
 
 -- | Take a file name on the command line. The file contains a list of local slices
--- in JSON. Write a file that is a JSON encoding of a Map from local slice ID to
--- hashed slice.
+-- in JSON. Write two files that are JSON encodings of a Map from local slice ID to
+-- sliceID and a list of slices.
 main :: IO ()
 main = do
 
@@ -23,8 +23,9 @@ main = do
 
     localSlices <- either error return (eitherDecode localSlicesFile)
 
-    let slicesPath = localSlicesFilePath <.> "hashed"
-    let slices = hashLocalSlices localSlices
+    let slicesPath = localSlicesFilePath <.> "slices"
+    let localSliceIDsPath = localSlicesFilePath <.> "localSliceIDs"
+    let (localSliceIDMap, slices) = hashLocalSlices localSlices
 
     writeFile slicesPath (encode slices)
 

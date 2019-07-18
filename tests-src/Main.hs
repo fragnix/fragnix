@@ -67,8 +67,8 @@ testModules folder = do
     writeDeclarations "fragnix/temp/declarations/declarations.json" declarations
 
     let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
-    let slices = hashLocalSlices localSlices
-    let symbolSliceIDs = lookupLocalIDs symbolLocalIDs slices
+    let (localSliceIDMap, slices) = hashLocalSlices localSlices
+    let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
     forM_ slices writeSliceDefault
 
     let environment = updateEnvironment symbolSliceIDs (moduleSymbols builtinEnvironment modules)
