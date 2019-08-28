@@ -1,12 +1,12 @@
 name:                fragnix
 version:             0.1.0.0
 synopsis:            Immutable, fragment-based dependency management!
--- description:         
+-- description:
 license:             BSD3
 license-file:        LICENSE
 author:              phischu
 maintainer:          pschuster@uni-koblenz.de
--- copyright:           
+-- copyright:
 category:            Distribution
 build-type:          Simple
 extra-source-files:  README.md
@@ -23,7 +23,7 @@ library
                        Fragnix.SliceCompiler,
                        Fragnix.Environment,
                        Fragnix.SliceSymbols
-  -- other-extensions:    
+  -- other-extensions:
   build-depends:       base >=4.6 && <4.10,
                        text >=1.2 && < 1.3,
                        filepath >=1.3 && < 1.6,
@@ -74,6 +74,21 @@ executable fragnix_hash_local_slices
                        bytestring >=0.10.4.0 && <0.11,
                        filepath >=1.3 && < 1.6,
                        aeson >=0.8.0.0 && <1.3,
+                       fragnix
+  hs-source-dirs:      utilities-src
+  default-language:    Haskell2010
+  ghc-options:         -O2 -threaded -rtsopts
+
+
+executable fragnix-browse
+  main-is:             fragnix-browse.hs
+  -- other-modules:
+  -- other-extensions:
+  build-depends:       base >=4.6 && <4.10,
+                       bytestring >=0.10.4.0 && <0.11,
+                       filepath >=1.3 && < 1.6,
+                       aeson >=0.8.0.0 && <1.3,
+                       directory >=1.3 && < 1.4,
                        fragnix
   hs-source-dirs:      utilities-src
   default-language:    Haskell2010
@@ -135,5 +150,3 @@ benchmark benchmark
   default-language:    Haskell2010
   ghc-options:         -O2
   type:                exitcode-stdio-1.0
-
- 
