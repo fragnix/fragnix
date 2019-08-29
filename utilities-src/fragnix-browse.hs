@@ -15,8 +15,8 @@ import Data.ByteString.Lazy (writeFile,readFile)
 
 -- import System.Environment (getArgs)
 
-import System.Directory (getCurrentDirectory, listDirectory)
-import Control.Monad (forM)
+import System.Directory (getCurrentDirectory, listDirectory, doesFileExist)
+import Control.Monad (forM, filterM)
 
 -- | Imports for the Servant Server
 import Control.Monad.IO.Class (liftIO)
@@ -53,11 +53,12 @@ api = Proxy
 getSlices :: IO [Slice]
 getSlices = do
   slicesDir <- getCurrentDirectory
-  sliceFilePaths <- listDirectory slicesDir
-  rawSlices <- forM sliceFilePaths readFile
+  allContents <- listDirectory slicesDir
+  filePaths <- filterM doesFileExist allContents
+  rawFiles <- forM filePaths readFile
   -- ignore anything that's not a valid slice - let the elm part figure
   -- out if the tree is complete
-  slices <- return (rights (map eitherDecode rawSlices))
+  slices <- return (rights (map eitherDecode rawFiles))
   return slices
 
 getSlicesHandler :: Handler [Slice]
