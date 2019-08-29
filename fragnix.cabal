@@ -87,8 +87,12 @@ executable fragnix-browse
   build-depends:       base >=4.6 && <4.10,
                        bytestring >=0.10.4.0 && <0.11,
                        filepath >=1.3 && < 1.6,
-                       aeson >=0.8.0.0 && <1.3,
+                       aeson >=0.8.0.0 && < 1.3,
                        directory >=1.3 && < 1.4,
+                       either >= 4.5 && < 4.6,
+                       servant >= 0.13 && < 0.14,
+                       servant-server >= 0.13 && < 0.14,
+                       warp>=3.2.13 && <3.3,
                        fragnix
   hs-source-dirs:      utilities-src
   default-language:    Haskell2010
