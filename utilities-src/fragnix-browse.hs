@@ -17,19 +17,27 @@ import Data.ByteString.Lazy (writeFile,readFile)
 
 import System.Directory (getCurrentDirectory, listDirectory)
 import Control.Monad (forM)
+
+-- | Imports for the Servant Server
 import Control.Monad.IO.Class (liftIO)
 
--- imports for Servant
-import Servant.API
--- import Servant.API.ContentTypes
-import Servant
-import Data.Proxy
-import Control.Monad.Trans.Either (EitherT)
-import Network.Wai.Handler.Warp
+import Servant.API ((:>), Get, JSON)
+import Servant (Server, Handler, serve)
+import Data.Proxy (Proxy(..))
+-- import Control.Monad.Trans.Either (EitherT)
+import Network.Wai.Handler.Warp (run)
+
+
+-- | Start the API Server
+main :: IO ()
+main = run 8080 (serve api server)
+
+
+-- | API Definition
 
 type API
   -- GET /contents
-  = "contents" :> Get '[Servant.API.JSON] [Slice]
+  = "contents" :> Get '[JSON] [Slice]
 
 server :: Server API
 server
@@ -39,14 +47,13 @@ server
 api :: Proxy API
 api = Proxy
 
--- This is Servant's default handler type.
--- type Handler a = EitherT Servant.ServantErr IO a
+
+-- | GET /contents implementation
 
 getSlices :: IO [Slice]
 getSlices = do
   slicesDir <- getCurrentDirectory
   sliceFilePaths <- listDirectory slicesDir
-  -- _ <- forM sliceFilePaths putStrLn
   rawSlices <- forM sliceFilePaths readFile
   -- ignore anything that's not a valid slice - let the elm part figure
   -- out if the tree is complete
@@ -55,9 +62,3 @@ getSlices = do
 
 getSlicesHandler :: Handler [Slice]
 getSlicesHandler = liftIO getSlices
-
-
-
--- | Second Step: Exposing directory contents to localhost
-main :: IO ()
-main = run 8080 (serve api server)
