@@ -82,7 +82,7 @@ executable fragnix_hash_local_slices
 
 executable fragnix-browse
   main-is:             fragnix-browse.hs
-  -- other-modules:
+  other-modules:       Api
   -- other-extensions:
   build-depends:       base >=4.6 && <4.10,
                        bytestring >=0.10.4.0 && <0.11,
@@ -94,7 +94,7 @@ executable fragnix-browse
                        servant-server >= 0.13 && < 0.14,
                        warp>=3.2.13 && <3.3,
                        fragnix
-  hs-source-dirs:      utilities-src
+  hs-source-dirs:      gui-src
   default-language:    Haskell2010
   ghc-options:         -O2 -threaded -rtsopts
 

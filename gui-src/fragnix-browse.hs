@@ -21,18 +21,30 @@ import Control.Monad (forM, filterM)
 -- | Imports for the Servant Server
 import Control.Monad.IO.Class (liftIO)
 
+{-
 import Servant.API ((:>), Get, JSON)
-import Servant (Server, Handler, serve)
 import Data.Proxy (Proxy(..))
+-}
+
+import Servant (Server, Handler, serve)
+
 -- import Control.Monad.Trans.Either (EitherT)
 import Network.Wai.Handler.Warp (run)
+
+import Api
 
 
 -- | Start the API Server
 main :: IO ()
 main = run 8080 (serve api server)
 
+server :: Server API
+server
+  -- GET /contents
+  = getSlicesHandler
 
+
+{-
 -- | API Definition
 
 type API
@@ -46,7 +58,7 @@ server
 
 api :: Proxy API
 api = Proxy
-
+-}
 
 -- | GET /contents implementation
 
