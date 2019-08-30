@@ -99,6 +99,20 @@ executable fragnix-browse
   ghc-options:         -O2 -threaded -rtsopts
 
 
+executable generate-elm
+  main-is:             generate-elm.hs
+  other-modules:       Api
+  -- other-extensions:
+  build-depends:       base >=4.6 && <4.10,
+                       servant-elm >=0.6.0.2 && < 0.6.1,
+                       elm-bridge >=0.5 && <0.6,
+                       servant >= 0.13 && < 0.14,
+                       fragnix
+  hs-source-dirs:      gui-src
+  default-language:    Haskell2010
+  ghc-options:         -O2 -threaded -rtsopts
+
+
 executable create_builtin_environment
   main-is:             create_builtin_environment.hs
   -- other-modules:
