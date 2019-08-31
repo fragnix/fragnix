@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE TypeOperators     #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
@@ -25,73 +25,75 @@ import Fragnix.Slice ( Slice
                      )
 import Api
 
-import Elm.Derive   ( defaultOptions
-                    , deriveElmDef
-                    )
+import Elm ( Spec (Spec)
+           , specsToDir
+           , toElmDecoderSource
+           , toElmTypeSource
+           )
 
-import Servant.Elm  ( DefineElm (DefineElm)
+import Servant.Elm  ( ElmType
                     , Proxy (Proxy)
                     , defElmImports
-                    , defElmOptions
-                    , generateElmModuleWith
+                    , generateElmForAPI
                     )
 
-deriveElmDef defaultOptions ''Slice
+instance ElmType Slice
 
-deriveElmDef defaultOptions ''Language
+instance ElmType Language
 
-deriveElmDef defaultOptions ''Fragment
+instance ElmType Fragment
 
-deriveElmDef defaultOptions ''Use
+instance ElmType Use
 
-deriveElmDef defaultOptions ''Instance
+instance ElmType Instance
 
-deriveElmDef defaultOptions ''InstancePart
+instance ElmType InstancePart
 
-deriveElmDef defaultOptions ''Reference
+instance ElmType Reference
 
-deriveElmDef defaultOptions ''UsedName
+instance ElmType UsedName
 
-deriveElmDef defaultOptions ''Name
+instance ElmType Name
 
--- deriveElmDef defaultOptions ''InstanceID 
+-- instance ElmType InstanceID
 
-deriveElmDef defaultOptions ''SliceID
+-- instance ElmType SliceID
 
--- deriveElmDef defaultOptions ''TypeName
+-- instance ElmType TypeName
 
-deriveElmDef defaultOptions ''SourceCode
+-- instance ElmType SourceCode
 
-deriveElmDef defaultOptions ''Qualification
+-- instance ElmType Qualification
 
-deriveElmDef defaultOptions ''OriginalModule
+-- instance ElmType OriginalModule
 
-deriveElmDef defaultOptions ''GHCExtension
+-- instance ElmType GHCExtension
+
+spec :: Spec
+spec = Spec ["Generated", "Api"]
+            ( [defElmImports]
+            ++ defineElm (Proxy :: Proxy Slice)
+            ++ defineElm (Proxy :: Proxy Language)
+            ++ defineElm (Proxy :: Proxy Fragment)
+            ++ defineElm (Proxy :: Proxy Use)
+            ++ defineElm (Proxy :: Proxy Instance)
+            ++ defineElm (Proxy :: Proxy InstancePart)
+            ++ defineElm (Proxy :: Proxy Reference)
+            ++ defineElm (Proxy :: Proxy UsedName)
+            ++ defineElm (Proxy :: Proxy Name)
+            {-++ defineElm (Proxy :: Proxy InstanceID)
+            ++ defineElm (Proxy :: Proxy SliceID)
+            ++ defineElm (Proxy :: Proxy TypeName)
+            ++ defineElm (Proxy :: Proxy SourceCode)
+            ++ defineElm (Proxy :: Proxy Qualification)
+            ++ defineElm (Proxy :: Proxy OriginalModule)
+            ++ defineElm (Proxy :: Proxy GHCExtension) -}
+            ++ generateElmForAPI (Proxy :: Proxy API)
+            )
+
+defineElm p = [ toElmTypeSource p
+              , toElmDecoderSource p
+              ]
 
 main :: IO ()
-main =
-  generateElmModuleWith
-    defElmOptions
-    [ "Generated"
-    , "Api"
-    ]
-    defElmImports
-    "elm"
-    [ DefineElm (Proxy :: Proxy Slice)
-    , DefineElm (Proxy :: Proxy Language)
-    , DefineElm (Proxy :: Proxy Fragment)
-    , DefineElm (Proxy :: Proxy Use)
-    , DefineElm (Proxy :: Proxy Instance)
-    , DefineElm (Proxy :: Proxy InstancePart)
-    , DefineElm (Proxy :: Proxy Reference)
-    , DefineElm (Proxy :: Proxy UsedName)
-    , DefineElm (Proxy :: Proxy Name)
-    --, DefineElm (Proxy :: Proxy InstanceID)
-    , DefineElm (Proxy :: Proxy SliceID)
-    --, DefineElm (Proxy :: Proxy TypeName)
-    , DefineElm (Proxy :: Proxy SourceCode)
-    , DefineElm (Proxy :: Proxy Qualification)
-    , DefineElm (Proxy :: Proxy OriginalModule)
-    , DefineElm (Proxy :: Proxy GHCExtension)
-    ]
-    (Proxy :: Proxy API)
+main = specsToDir [spec] "elm"
