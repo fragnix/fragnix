@@ -39,17 +39,26 @@ getAllSlices = Http.get
                   { url =
                       "http://localhost:8080/contents"
                   , expect =
-                      Http.expectJson ReceivedSlices (Decode.list sliceWrapDecoder)
+                      Http.expectJson ReceivedSlices (Decode.list sliceDecoder)
                   }
 
 httpErrorToString : Http.Error -> String
 httpErrorToString err =
   case err of
-    Http.BadUrl str -> "Bad Url: " ++ str
-    Http.Timeout    -> "Timeout"
-    Http.NetworkError -> "NetworkError"
-    -- Http.BadStatus nr -> "Error Status " ++ nr
-    _    -> "Something else wrong"
+    Http.Timeout ->
+        "Request timeout"
+
+    Http.NetworkError ->
+        "Network error"
+
+    Http.BadBody msg ->
+        "Bad Body: " ++ msg
+
+    Http.BadStatus s ->
+        "Bad Status: " ++ (String.fromInt s)
+
+    Http.BadUrl msg ->
+        "Bad url: " ++ msg
 
 -- MODEL
 
@@ -139,6 +148,9 @@ sliceWrapDecoder =
     (Decode.succeed Inactive)
     (Decode.field "occurences" (Decode.list Decode.string))
 
+toSliceWrap : Slice -> SliceWrap
+toSliceWrap s = SliceWrap s Nothing Unfocused Inactive []
+
 
 -- Slice Decoder
 errorRecoveryDecoder : Decode.Decoder String
@@ -218,7 +230,7 @@ type Msg
   | CloseError
   | Push SliceID
   | Pop
-  | ReceivedSlices (Result Http.Error (List SliceWrap))
+  | ReceivedSlices (Result Http.Error (List Slice))
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -229,11 +241,11 @@ update msg model =
           ( { model | error = Just (httpErrorToString e) }
           , Cmd.none
           )
-        Ok sws ->
+        Ok slices ->
           ( List.foldl
-              (\sw -> (\m -> insertSlice sw m))
-              model
-              sws,
+              (\slice -> (\m -> insertSlice (toSliceWrap slice) m))
+              (setPosition slices model)
+              slices,
             Cmd.none
           )
     CacheSlice sw ->
@@ -272,6 +284,12 @@ insertSlice sw model =
   case sw.slice of
     (Slice sid _ _ _ _) ->
       { model | cache = Dict.insert sid sw model.cache }
+
+setPosition : List Slice -> Model -> Model
+setPosition slices m =
+  case slices of
+    (Slice sid _ _ _ _)::_ -> {m | position = [sid]}
+    _ -> m
 
 missingSlices : Model -> List SliceID
 missingSlices model =

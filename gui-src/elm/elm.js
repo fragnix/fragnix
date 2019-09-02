@@ -4488,12 +4488,6 @@ function _Browser_load(url)
 var author$project$Main$ReceivedSlices = function (a) {
 	return {$: 5, a: a};
 };
-var author$project$Main$Inactive = 1;
-var author$project$Main$SliceWrap = F5(
-	function (slice, tempSlice, focus, editing, occurences) {
-		return {aB: editing, aG: focus, R: occurences, N: slice, aT: tempSlice};
-	});
-var author$project$Main$Unfocused = 1;
 var author$project$Main$Slice = F5(
 	function (a, b, c, d, e) {
 		return {$: 0, a: a, b: b, c: c, d: d, e: e};
@@ -5126,18 +5120,6 @@ var author$project$Main$sliceDecoder = A6(
 		elm$json$Json$Decode$field,
 		'instances',
 		elm$json$Json$Decode$list(author$project$Main$instanceDecoder)));
-var elm$json$Json$Decode$succeed = _Json_succeed;
-var author$project$Main$sliceWrapDecoder = A6(
-	elm$json$Json$Decode$map5,
-	author$project$Main$SliceWrap,
-	A2(elm$json$Json$Decode$field, 'slice', author$project$Main$sliceDecoder),
-	elm$json$Json$Decode$succeed(elm$core$Maybe$Nothing),
-	elm$json$Json$Decode$succeed(1),
-	elm$json$Json$Decode$succeed(1),
-	A2(
-		elm$json$Json$Decode$field,
-		'occurences',
-		elm$json$Json$Decode$list(elm$json$Json$Decode$string)));
 var elm$core$Result$mapError = F2(
 	function (f, result) {
 		if (!result.$) {
@@ -6021,12 +6003,12 @@ var author$project$Main$getAllSlices = elm$http$Http$get(
 		aD: A2(
 			elm$http$Http$expectJson,
 			author$project$Main$ReceivedSlices,
-			elm$json$Json$Decode$list(author$project$Main$sliceWrapDecoder)),
+			elm$json$Json$Decode$list(author$project$Main$sliceDecoder)),
 		aW: 'http://localhost:8080/contents'
 	});
 var author$project$Main$init = function (_n0) {
 	return _Utils_Tuple2(
-		{Y: '', k: elm$core$Dict$empty, z: elm$core$Maybe$Nothing, n: _List_Nil},
+		{Y: '', k: elm$core$Dict$empty, z: elm$core$Maybe$Nothing, m: _List_Nil},
 		author$project$Main$getAllSlices);
 };
 var elm$core$Platform$Sub$batch = _Platform_batch;
@@ -6036,15 +6018,19 @@ var author$project$Main$subscriptions = function (_n0) {
 };
 var author$project$Main$httpErrorToString = function (err) {
 	switch (err.$) {
-		case 0:
-			var str = err.a;
-			return 'Bad Url: ' + str;
 		case 1:
-			return 'Timeout';
+			return 'Request timeout';
 		case 2:
-			return 'NetworkError';
+			return 'Network error';
+		case 4:
+			var msg = err.a;
+			return 'Bad Body: ' + msg;
+		case 3:
+			var s = err.a;
+			return 'Bad Status: ' + elm$core$String$fromInt(s);
 		default:
-			return 'Something else wrong';
+			var msg = err.a;
+			return 'Bad url: ' + msg;
 	}
 };
 var author$project$Main$insertSlice = F2(
@@ -6057,6 +6043,21 @@ var author$project$Main$insertSlice = F2(
 				k: A3(elm$core$Dict$insert, sid, sw, model.k)
 			});
 	});
+var author$project$Main$setPosition = F2(
+	function (slices, m) {
+		if (slices.b) {
+			var _n1 = slices.a;
+			var sid = _n1.a;
+			return _Utils_update(
+				m,
+				{
+					m: _List_fromArray(
+						[sid])
+				});
+		} else {
+			return m;
+		}
+	});
 var author$project$Main$tailE = function (xs) {
 	if (xs.b) {
 		var x = xs.a;
@@ -6065,6 +6066,15 @@ var author$project$Main$tailE = function (xs) {
 	} else {
 		return _List_Nil;
 	}
+};
+var author$project$Main$Inactive = 1;
+var author$project$Main$SliceWrap = F5(
+	function (slice, tempSlice, focus, editing, occurences) {
+		return {aB: editing, aG: focus, R: occurences, N: slice, aT: tempSlice};
+	});
+var author$project$Main$Unfocused = 1;
+var author$project$Main$toSliceWrap = function (s) {
+	return A5(author$project$Main$SliceWrap, s, elm$core$Maybe$Nothing, 1, 1, _List_Nil);
 };
 var elm$core$Platform$Cmd$batch = _Platform_batch;
 var elm$core$Platform$Cmd$none = elm$core$Platform$Cmd$batch(_List_Nil);
@@ -6084,17 +6094,20 @@ var author$project$Main$update = F2(
 							}),
 						elm$core$Platform$Cmd$none);
 				} else {
-					var sws = result.a;
+					var slices = result.a;
 					return _Utils_Tuple2(
 						A3(
 							elm$core$List$foldl,
-							function (sw) {
+							function (slice) {
 								return function (m) {
-									return A2(author$project$Main$insertSlice, sw, m);
+									return A2(
+										author$project$Main$insertSlice,
+										author$project$Main$toSliceWrap(slice),
+										m);
 								};
 							},
-							model,
-							sws),
+							A2(author$project$Main$setPosition, slices, model),
+							slices),
 						elm$core$Platform$Cmd$none);
 				}
 			case 0:
@@ -6123,7 +6136,7 @@ var author$project$Main$update = F2(
 					_Utils_update(
 						model,
 						{
-							n: A2(elm$core$List$cons, sid2, model.n)
+							m: A2(elm$core$List$cons, sid2, model.m)
 						}),
 					elm$core$Platform$Cmd$none);
 			default:
@@ -6131,11 +6144,12 @@ var author$project$Main$update = F2(
 					_Utils_update(
 						model,
 						{
-							n: author$project$Main$tailE(model.n)
+							m: author$project$Main$tailE(model.m)
 						}),
 					elm$core$Platform$Cmd$none);
 		}
 	});
+var elm$json$Json$Decode$succeed = _Json_succeed;
 var elm$virtual_dom$VirtualDom$toHandlerInt = function (handler) {
 	switch (handler.$) {
 		case 0:
@@ -6429,7 +6443,7 @@ var author$project$Main$singleSliceRow = F2(
 	});
 var elm$html$Html$button = _VirtualDom_node('button');
 var author$project$Main$viewSlices = function (model) {
-	var _n0 = model.n;
+	var _n0 = model.m;
 	if (!_n0.b) {
 		return _List_Nil;
 	} else {
@@ -6475,7 +6489,7 @@ var author$project$Main$viewSlices = function (model) {
 							s2,
 							elm$core$Maybe$Just(s1))
 						]),
-					A2(author$project$Main$occurenceRows, model, model.n)));
+					A2(author$project$Main$occurenceRows, model, model.m)));
 		}
 	}
 };
