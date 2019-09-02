@@ -1,0 +1,17 @@
+.row {
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  div {
+    display: inline-block;
+  }
+}
+
+.active {
+  border-color: green;
+}
+
+.focused {
+  border: 2px black;
+}

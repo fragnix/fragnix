@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
@@ -26,13 +27,16 @@ import Servant.API ((:>), Get, JSON)
 import Data.Proxy (Proxy(..))
 -}
 
-import Servant (Server, Handler, serve)
+import Servant -- (Server, Handler, serve, (:<|>))
+import Servant.Static.TH (createServerExp)
 
 -- import Control.Monad.Trans.Either (EitherT)
 import Network.Wai.Handler.Warp (run)
 
 import Api
 
+staticServer :: Server StaticAPI
+staticServer = $(createServerExp "/home/florian/Documents/Sem6/fragnix-gui/fragnix/fragnix/gui-src/elm/dist")
 
 -- | Start the API Server
 main :: IO ()
@@ -41,7 +45,12 @@ main = run 8080 (serve api server)
 server :: Server API
 server
   -- GET /contents
-  = getSlicesHandler
+  = dynamicServer
+  :<|> staticServer
+
+dynamicServer :: Server DynamicAPI
+dynamicServer = getSlicesHandler
+
 
 
 {-

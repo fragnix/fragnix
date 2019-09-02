@@ -92,6 +92,7 @@ executable fragnix-browse
                        either >= 4.5 && < 4.6,
                        servant >= 0.13 && < 0.14,
                        servant-server >= 0.13 && < 0.14,
+                       servant-static-th >= 0.2.2 && < 0.2.3,
                        warp>=3.2.13 && <3.3,
                        fragnix
   hs-source-dirs:      gui-src
