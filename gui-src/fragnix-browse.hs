@@ -5,22 +5,20 @@
 module Main where
 
 import Prelude hiding (writeFile,readFile)
-
 import Fragnix.Slice (Slice)
-
 import Data.Aeson (eitherDecode,encode)
 import Data.Either (rights)
 import Data.ByteString.Lazy (writeFile,readFile)
-
 import System.Directory (getCurrentDirectory, listDirectory, doesFileExist)
 import Control.Monad (forM, filterM)
+-- to prevent too many open files caused by lazy IO
+import Control.Exception (evaluate)
 
 -- | Imports for the Servant Server
 import Control.Monad.IO.Class (liftIO)
 import Servant -- (Server, Handler, serve, (:<|>))
 import Servant.Static.TH (createServerExp)
 import Network.Wai.Handler.Warp (run)
-
 import Api
 
 staticServer :: Server StaticAPI
@@ -48,8 +46,12 @@ getSlices = do
   slicesDir <- getCurrentDirectory
   allContents <- listDirectory slicesDir
   filePaths <- filterM doesFileExist allContents
-  rawFiles <- forM filePaths readFile
+  eitherSlices <- forM filePaths decodeSlice
   -- ignore anything that's not a valid slice - let the elm part figure
   -- out if the tree is complete
-  slices <- return (rights (map eitherDecode rawFiles))
-  return slices
+  return (rights eitherSlices)
+
+decodeSlice :: FilePath -> IO (Either String Slice)
+decodeSlice p = do
+  file <- readFile p
+  evaluate (eitherDecode file)

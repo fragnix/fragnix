@@ -7,3 +7,4 @@ fragnix/environment/*
 fragnix/slices/*
 fragnix/temp/*
 gui-src/elm/elm-stuff
+tests/*/*/fragnix/*
