@@ -2328,10 +2328,10 @@ var _Http_toTask = F3(function(router, toTask, request)
 		xhr.addEventListener('error', function() { done(elm$http$Http$NetworkError_); });
 		xhr.addEventListener('timeout', function() { done(elm$http$Http$Timeout_); });
 		xhr.addEventListener('load', function() { done(_Http_toResponse(request.aC.b, xhr)); });
-		elm$core$Maybe$isJust(request.j) && _Http_track(router, xhr, request.j.a);
+		elm$core$Maybe$isJust(request.k) && _Http_track(router, xhr, request.k.a);
 
 		try {
-			xhr.open(request.h, request.aT, true);
+			xhr.open(request.i, request.aT, true);
 		} catch (e) {
 			return done(elm$http$Http$BadUrl_(request.aT));
 		}
@@ -2354,7 +2354,7 @@ function _Http_configureRequest(xhr, request)
 	{
 		xhr.setRequestHeader(headers.a.a, headers.a.b);
 	}
-	xhr.timeout = request.i.a || 0;
+	xhr.timeout = request.j.a || 0;
 	xhr.responseType = request.aC.d;
 	xhr.withCredentials = request.x;
 }
@@ -4572,8 +4572,8 @@ var elm$core$Set$toList = function (_n0) {
 	return elm$core$Dict$keys(dict);
 };
 var author$project$Main$emptyModel = {
-	o: elm$core$Dict$empty,
-	p: elm$core$Maybe$Just('Am probably loading right now'),
+	p: elm$core$Dict$empty,
+	g: elm$core$Maybe$Just('Am probably loading right now'),
 	R: elm$core$Maybe$Nothing,
 	D: _List_Nil
 };
@@ -5804,7 +5804,7 @@ var elm$http$Http$updateReqs = F3(
 					return A2(
 						elm$core$Task$andThen,
 						function (pid) {
-							var _n4 = req.j;
+							var _n4 = req.k;
 							if (_n4.$ === 1) {
 								return A3(elm$http$Http$updateReqs, router, otherCmds, reqs);
 							} else {
@@ -5972,9 +5972,9 @@ var elm$http$Http$cmdMap = F2(
 					az: r.az,
 					aC: A2(_Http_mapExpect, func, r.aC),
 					e: r.e,
-					h: r.h,
 					i: r.i,
 					j: r.j,
+					k: r.k,
 					aT: r.aT
 				});
 		}
@@ -5998,11 +5998,11 @@ var elm$http$Http$subscription = _Platform_leaf('Http');
 var elm$http$Http$request = function (r) {
 	return elm$http$Http$command(
 		elm$http$Http$Request(
-			{x: false, az: r.az, aC: r.aC, e: r.e, h: r.h, i: r.i, j: r.j, aT: r.aT}));
+			{x: false, az: r.az, aC: r.aC, e: r.e, i: r.i, j: r.j, k: r.k, aT: r.aT}));
 };
 var elm$http$Http$get = function (r) {
 	return elm$http$Http$request(
-		{az: elm$http$Http$emptyBody, aC: r.aC, e: _List_Nil, h: 'GET', i: elm$core$Maybe$Nothing, j: elm$core$Maybe$Nothing, aT: r.aT});
+		{az: elm$http$Http$emptyBody, aC: r.aC, e: _List_Nil, i: 'GET', j: elm$core$Maybe$Nothing, k: elm$core$Maybe$Nothing, aT: r.aT});
 };
 var author$project$Main$getAllSlices = elm$http$Http$get(
 	{
@@ -6020,23 +6020,12 @@ var elm$core$Platform$Sub$none = elm$core$Platform$Sub$batch(_List_Nil);
 var author$project$Main$subscriptions = function (_n0) {
 	return elm$core$Platform$Sub$none;
 };
-var author$project$Main$httpErrorToString = function (err) {
-	switch (err.$) {
-		case 1:
-			return 'Request timeout';
-		case 2:
-			return 'Network error';
-		case 4:
-			var msg = err.a;
-			return 'Bad Body: ' + msg;
-		case 3:
-			var s = err.a;
-			return 'Bad Status: ' + elm$core$String$fromInt(s);
-		default:
-			var msg = err.a;
-			return 'Bad url: ' + msg;
-	}
+var author$project$Main$ComputeOccurences = {$: 5};
+var author$project$Main$Index = {$: 4};
+var author$project$Main$Insert = function (a) {
+	return {$: 3, a: a};
 };
+var author$project$Main$IntegrityCheck = {$: 6};
 var author$project$Main$addOccurence = F3(
 	function (sid, occId, dict) {
 		var _n0 = A2(elm$core$Dict$get, sid, dict);
@@ -6079,14 +6068,31 @@ var author$project$Main$computeOccurences = function (model) {
 	return _Utils_update(
 		model,
 		{
-			o: A3(elm$core$List$foldl, author$project$Main$addOccurences, model.o, model.D)
+			p: A3(elm$core$List$foldl, author$project$Main$addOccurences, model.p, model.D)
 		});
+};
+var author$project$Main$httpErrorToString = function (err) {
+	switch (err.$) {
+		case 1:
+			return 'Request timeout';
+		case 2:
+			return 'Network error';
+		case 4:
+			var msg = err.a;
+			return 'Bad Body: ' + msg;
+		case 3:
+			var s = err.a;
+			return 'Bad Status: ' + elm$core$String$fromInt(s);
+		default:
+			var msg = err.a;
+			return 'Bad url: ' + msg;
+	}
 };
 var author$project$Main$indexSlices = function (model) {
 	return _Utils_update(
 		model,
 		{
-			o: A3(
+			p: A3(
 				elm$core$List$foldl,
 				F2(
 					function (s, c) {
@@ -6168,7 +6174,7 @@ var author$project$Main$checkDependencies = F3(
 var author$project$Main$integrityCheck = function (model) {
 	return A3(
 		elm$core$List$foldl,
-		author$project$Main$checkDependencies(model.o),
+		author$project$Main$checkDependencies(model.p),
 		elm$core$Result$Ok(0),
 		model.D);
 };
@@ -6193,20 +6199,69 @@ var author$project$Main$performIntegrityCheck = function (model) {
 		return _Utils_update(
 			model,
 			{
-				p: elm$core$Maybe$Just(
+				g: elm$core$Maybe$Just(
 					author$project$Main$missingSlicesToString(missing))
 			});
 	}
 };
-var author$project$Main$loadSlices = F2(
-	function (slices, model) {
-		return author$project$Main$performIntegrityCheck(
-			author$project$Main$computeOccurences(
-				author$project$Main$indexSlices(
-					A2(author$project$Main$insertSlices, slices, model))));
-	});
 var elm$core$Platform$Cmd$batch = _Platform_batch;
 var elm$core$Platform$Cmd$none = elm$core$Platform$Cmd$batch(_List_Nil);
+var elm$core$Task$Perform = elm$core$Basics$identity;
+var elm$core$Task$init = elm$core$Task$succeed(0);
+var elm$core$Task$map = F2(
+	function (func, taskA) {
+		return A2(
+			elm$core$Task$andThen,
+			function (a) {
+				return elm$core$Task$succeed(
+					func(a));
+			},
+			taskA);
+	});
+var elm$core$Task$spawnCmd = F2(
+	function (router, _n0) {
+		var task = _n0;
+		return _Scheduler_spawn(
+			A2(
+				elm$core$Task$andThen,
+				elm$core$Platform$sendToApp(router),
+				task));
+	});
+var elm$core$Task$onEffects = F3(
+	function (router, commands, state) {
+		return A2(
+			elm$core$Task$map,
+			function (_n0) {
+				return 0;
+			},
+			elm$core$Task$sequence(
+				A2(
+					elm$core$List$map,
+					elm$core$Task$spawnCmd(router),
+					commands)));
+	});
+var elm$core$Task$onSelfMsg = F3(
+	function (_n0, _n1, _n2) {
+		return elm$core$Task$succeed(0);
+	});
+var elm$core$Task$cmdMap = F2(
+	function (tagger, _n0) {
+		var task = _n0;
+		return A2(elm$core$Task$map, tagger, task);
+	});
+_Platform_effectManagers['Task'] = _Platform_createManager(elm$core$Task$init, elm$core$Task$onEffects, elm$core$Task$onSelfMsg, elm$core$Task$cmdMap);
+var elm$core$Task$command = _Platform_leaf('Task');
+var elm$core$Task$perform = F2(
+	function (toMessage, task) {
+		return elm$core$Task$command(
+			A2(elm$core$Task$map, toMessage, task));
+	});
+var the_sett$elm_update_helper$Task$Extra$message = function (x) {
+	return A2(
+		elm$core$Task$perform,
+		elm$core$Basics$identity,
+		elm$core$Task$succeed(x));
+};
 var author$project$Main$update = F2(
 	function (msg, model) {
 		switch (msg.$) {
@@ -6218,35 +6273,72 @@ var author$project$Main$update = F2(
 						_Utils_update(
 							model,
 							{
-								p: elm$core$Maybe$Just(
+								g: elm$core$Maybe$Just(
 									author$project$Main$httpErrorToString(e))
 							}),
 						elm$core$Platform$Cmd$none);
 				} else {
 					var slices = result.a;
 					return _Utils_Tuple2(
-						A2(
-							author$project$Main$loadSlices,
-							slices,
-							_Utils_update(
-								model,
-								{p: elm$core$Maybe$Nothing})),
-						elm$core$Platform$Cmd$none);
+						_Utils_update(
+							model,
+							{
+								g: elm$core$Maybe$Just('Reading Slices in...')
+							}),
+						the_sett$elm_update_helper$Task$Extra$message(
+							author$project$Main$Insert(slices)));
 				}
+			case 3:
+				var slices = msg.a;
+				return _Utils_Tuple2(
+					A2(
+						author$project$Main$insertSlices,
+						slices,
+						_Utils_update(
+							model,
+							{
+								g: elm$core$Maybe$Just('Indexing Slices...')
+							})),
+					the_sett$elm_update_helper$Task$Extra$message(author$project$Main$Index));
+			case 4:
+				return _Utils_Tuple2(
+					author$project$Main$indexSlices(
+						_Utils_update(
+							model,
+							{
+								g: elm$core$Maybe$Just('Computing Occurences...')
+							})),
+					the_sett$elm_update_helper$Task$Extra$message(author$project$Main$ComputeOccurences));
+			case 5:
+				return _Utils_Tuple2(
+					author$project$Main$computeOccurences(
+						_Utils_update(
+							model,
+							{
+								g: elm$core$Maybe$Just('Checking Integrity...')
+							})),
+					the_sett$elm_update_helper$Task$Extra$message(author$project$Main$IntegrityCheck));
+			case 6:
+				return _Utils_Tuple2(
+					author$project$Main$performIntegrityCheck(
+						_Utils_update(
+							model,
+							{g: elm$core$Maybe$Nothing})),
+					elm$core$Platform$Cmd$none);
 			case 0:
 				var err = msg.a;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							p: elm$core$Maybe$Just(err)
+							g: elm$core$Maybe$Just(err)
 						}),
 					elm$core$Platform$Cmd$none);
 			default:
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{p: elm$core$Maybe$Nothing}),
+						{g: elm$core$Maybe$Nothing}),
 					elm$core$Platform$Cmd$none);
 		}
 	});
@@ -6368,7 +6460,7 @@ var author$project$Main$viewError = function (err) {
 			]));
 };
 var author$project$Main$view = function (model) {
-	var _n0 = model.p;
+	var _n0 = model.g;
 	if (!_n0.$) {
 		var err = _n0.a;
 		return author$project$Main$viewError(err);
@@ -6392,56 +6484,6 @@ var elm$core$Basics$never = function (_n0) {
 		continue never;
 	}
 };
-var elm$core$Task$Perform = elm$core$Basics$identity;
-var elm$core$Task$init = elm$core$Task$succeed(0);
-var elm$core$Task$map = F2(
-	function (func, taskA) {
-		return A2(
-			elm$core$Task$andThen,
-			function (a) {
-				return elm$core$Task$succeed(
-					func(a));
-			},
-			taskA);
-	});
-var elm$core$Task$spawnCmd = F2(
-	function (router, _n0) {
-		var task = _n0;
-		return _Scheduler_spawn(
-			A2(
-				elm$core$Task$andThen,
-				elm$core$Platform$sendToApp(router),
-				task));
-	});
-var elm$core$Task$onEffects = F3(
-	function (router, commands, state) {
-		return A2(
-			elm$core$Task$map,
-			function (_n0) {
-				return 0;
-			},
-			elm$core$Task$sequence(
-				A2(
-					elm$core$List$map,
-					elm$core$Task$spawnCmd(router),
-					commands)));
-	});
-var elm$core$Task$onSelfMsg = F3(
-	function (_n0, _n1, _n2) {
-		return elm$core$Task$succeed(0);
-	});
-var elm$core$Task$cmdMap = F2(
-	function (tagger, _n0) {
-		var task = _n0;
-		return A2(elm$core$Task$map, tagger, task);
-	});
-_Platform_effectManagers['Task'] = _Platform_createManager(elm$core$Task$init, elm$core$Task$onEffects, elm$core$Task$onSelfMsg, elm$core$Task$cmdMap);
-var elm$core$Task$command = _Platform_leaf('Task');
-var elm$core$Task$perform = F2(
-	function (toMessage, task) {
-		return elm$core$Task$command(
-			A2(elm$core$Task$map, toMessage, task));
-	});
 var elm$core$String$length = _String_length;
 var elm$core$String$slice = _String_slice;
 var elm$core$String$dropLeft = F2(

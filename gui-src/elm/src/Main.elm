@@ -9,6 +9,7 @@ import Json.Decode as Decode
 import Dict exposing (Dict)
 import Set exposing (Set)
 import Http
+import Task.Extra exposing (message)
 
 
 main =
@@ -194,6 +195,10 @@ type Msg
   = Error String
   | CloseError
   | ReceivedSlices (Result Http.Error (List Slice))
+  | Insert (List Slice)
+  | Index
+  | ComputeOccurences
+  | IntegrityCheck
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -205,9 +210,29 @@ update msg model =
           , Cmd.none
           )
         Ok slices ->
-          ( loadSlices slices { model | error = Nothing },
-            Cmd.none
+          ( { model | error = Just "Reading Slices in..." }
+          , message (Insert slices)
           )
+
+    Insert slices ->
+      ( insertSlices slices { model | error = Just "Indexing Slices..." }
+      , message Index
+      )
+
+    Index ->
+      ( indexSlices { model | error = Just "Computing Occurences..." }
+      , message ComputeOccurences
+      )
+
+    ComputeOccurences ->
+      ( computeOccurences { model | error = Just "Checking Integrity..." }
+      , message IntegrityCheck
+      )
+
+    IntegrityCheck ->
+      ( performIntegrityCheck { model | error = Nothing }
+      , Cmd.none
+      )
 
     Error err ->
       ( { model | error = Just err }
@@ -219,12 +244,12 @@ update msg model =
       , Cmd.none
       )
 
-loadSlices : List Slice -> Model -> Model
+{- loadSlices : List Slice -> Model -> Model
 loadSlices slices model =
   insertSlices slices model
   |> indexSlices
   |> computeOccurences
-  |> performIntegrityCheck
+  |> performIntegrityCheck -}
 
 insertSlices : List Slice -> Model -> Model
 insertSlices newSlices model =
