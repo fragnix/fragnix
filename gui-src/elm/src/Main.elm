@@ -7,6 +7,7 @@ import Html.Events exposing (onClick, on)
 import Json.Encode as E
 import Json.Decode as Decode
 import Dict exposing (Dict)
+import Set exposing (Set)
 import Http
 
 
@@ -16,22 +17,6 @@ main =
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
 subscriptions _ = Sub.none
-{-subscriptions : Model -> Sub Msg
-subscriptions _ =
-  Sub.batch
-    [ sendBaseDirectory setDirectory
-    , sendSlice cacheSlice
-    ]
-
-
-cacheSlice : E.Value -> Msg
-cacheSlice s =
-  case Decode.decodeValue sliceWrapDecoder s of
-    Ok sw -> CacheSlice sw
-    Err e -> case Decode.decodeValue errorRecoveryDecoder s of
-      Ok sid -> SliceLoadError sid (Decode.errorToString e)
-      Err f  -> Error ("Error decoding slice: " ++ (Decode.errorToString e))
--}
 
 -- HTTP
 getAllSlices : Cmd Msg
@@ -63,29 +48,31 @@ httpErrorToString err =
 -- MODEL
 
 -- Editor State
-type alias Model = Editor
-
-type alias Editor =
-  { position: List SliceID
+type alias Model =
+  { main:  Maybe SliceID
+  , slices: List SliceWrap
   , cache: Dict SliceID SliceWrap
-  , baseDirectory: BaseDirectory
   , error: Maybe String
   }
 
-type alias BaseDirectory = String
+emptyModel : Model
+emptyModel =
+  { main = Nothing
+  , slices = []
+  , cache = Dict.empty
+  , error = Just "Am probably loading right now"
+  }
 
 type alias SliceWrap =
   { slice: Slice
-  , tempSlice: Maybe TempSlice
-  , focus: Focus
-  , editing: Editing
   , occurences: List SliceID
   }
 
-type alias TempSlice = Slice
-
-type Focus = Focused | Unfocused
-type Editing = Active | Inactive
+wrap : Slice -> SliceWrap
+wrap bare =
+  { slice = bare
+  , occurences = []
+  }
 
 
 -- Slices
@@ -129,34 +116,13 @@ type alias Flags = E.Value
 
 init : Flags -> (Model, Cmd Msg)
 init _ =
-  ( { position = []
-    , cache = Dict.empty
-    , baseDirectory = ""
-    , error = Nothing
-    }
+  ( emptyModel
   , getAllSlices
   )
 
 -- DECODERS
 
-sliceWrapDecoder : Decode.Decoder SliceWrap
-sliceWrapDecoder =
-  Decode.map5 SliceWrap
-    (Decode.field "slice" sliceDecoder)
-    (Decode.succeed Nothing)
-    (Decode.succeed Unfocused)
-    (Decode.succeed Inactive)
-    (Decode.field "occurences" (Decode.list Decode.string))
-
-toSliceWrap : Slice -> SliceWrap
-toSliceWrap s = SliceWrap s Nothing Unfocused Inactive []
-
-
 -- Slice Decoder
-errorRecoveryDecoder : Decode.Decoder String
-errorRecoveryDecoder =
-  (Decode.field "slice" (Decode.field "sliceID" Decode.string))
-
 sliceDecoder : Decode.Decoder Slice
 sliceDecoder =
   Decode.map5 Slice
@@ -225,11 +191,8 @@ instancePartDecoder =
 -- UPDATE
 
 type Msg
-  = CacheSlice SliceWrap
-  | Error String
+  = Error String
   | CloseError
-  | Push SliceID
-  | Pop
   | ReceivedSlices (Result Http.Error (List Slice))
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -242,16 +205,9 @@ update msg model =
           , Cmd.none
           )
         Ok slices ->
-          ( List.foldl
-              (\slice -> (\m -> insertSlice (toSliceWrap slice) m))
-              (setPosition slices model)
-              slices,
+          ( loadSlices slices { model | error = Nothing },
             Cmd.none
           )
-    CacheSlice sw ->
-      ( insertSlice sw model
-      , Cmd.none
-      )
 
     Error err ->
       ( { model | error = Just err }
@@ -263,16 +219,121 @@ update msg model =
       , Cmd.none
       )
 
-    Push sid2 ->
-      ( { model | position = sid2 :: model.position }
-      , Cmd.none
-      )
+loadSlices : List Slice -> Model -> Model
+loadSlices slices model =
+  insertSlices slices model
+  |> indexSlices
+  |> computeOccurences
+  |> performIntegrityCheck
 
-    Pop ->
-      ( { model | position = tailE model.position}
-      , Cmd.none
-      )
+insertSlices : List Slice -> Model -> Model
+insertSlices newSlices model =
+  { model | slices = (List.map wrap newSlices) }
 
+indexSlices : Model -> Model
+indexSlices model =
+  { model | cache =
+      List.foldl
+        (\s c -> case s.slice of
+          (Slice sid _ _ _ _) -> Dict.insert sid s c)
+        Dict.empty
+        model.slices
+  }
+
+computeOccurences : Model -> Model
+computeOccurences model =
+  { model | cache =
+      List.foldl
+        addOccurences
+        model.cache
+        model.slices
+  }
+
+addOccurences : SliceWrap -> (Dict SliceID SliceWrap) -> (Dict SliceID SliceWrap)
+addOccurences sw dict =
+  case sw.slice of
+    (Slice occId _ _ uses _) ->
+      List.foldl
+        (\u acc -> case u of
+          (Use _ _ ref) -> case ref of
+            OtherSlice sid -> addOccurence sid occId acc
+            _              -> acc)
+        dict
+        uses
+
+addOccurence : SliceID -> SliceID -> (Dict SliceID SliceWrap) -> (Dict SliceID SliceWrap)
+addOccurence sid occId dict =
+  case Dict.get sid dict of
+    Nothing -> dict
+    Just sw -> Dict.insert sid { sw | occurences = occId :: sw.occurences } dict
+
+performIntegrityCheck : Model -> Model
+performIntegrityCheck model =
+  case integrityCheck model of
+    Ok _        -> model
+    Err missing -> { model | error = Just (missingSlicesToString missing) }
+
+missingSlicesToString : Set SliceID -> String
+missingSlicesToString missing =
+  "Missing Slices: "
+  ++ String.concat (List.map (\x -> x ++ " ") (Set.toList missing))
+
+
+integrityCheck : Model -> Result (Set SliceID) ()
+integrityCheck model =
+  List.foldl (checkDependencies model.cache) (Ok ()) model.slices
+
+checkDependencies : (Dict SliceID SliceWrap) -> SliceWrap -> Result (Set SliceID) () -> Result (Set SliceID) ()
+checkDependencies cache sw res =
+  case sw.slice of
+    (Slice _ _ _ uses _) ->
+      List.foldl
+        (\u acc -> case u of
+          (Use _ _ ref) -> case ref of
+            OtherSlice sid -> checkDependency sid cache acc
+            _              -> acc)
+        res
+        uses
+
+checkDependency : SliceID -> (Dict SliceID SliceWrap) -> Result (Set SliceID) () -> Result (Set SliceID) ()
+checkDependency sid cache res =
+  case Dict.get sid cache of
+    Just _  -> res
+    Nothing -> case res of
+      Ok _         -> Err (Set.insert sid Set.empty)
+      Err missing  -> Err (Set.insert sid missing)
+
+
+-- VIEW
+view : Model -> Html Msg
+view model =
+  case model.error of
+    Just err -> viewError err
+    Nothing  -> viewEditor model
+
+viewError : String -> Html Msg
+viewError err =
+  div
+    [ class "editorContainer" ]
+    [ div
+        [ class "row" ]
+        [ p [] [ text err ]
+        , button [ onClick CloseError ] [ text "Trotzdem anzeigen" ]
+        ]
+    ]
+
+viewEditor : Model -> Html Msg
+viewEditor model =
+  div
+    [ class "editorContainer" ]
+    ( case model.main of
+        Just sid -> [ p [] [ text ("Found main in Slice " ++ sid) ] ]
+        Nothing  -> [ p [] [ text "Loading complete" ] ]
+    )
+
+
+-- HELPERS
+-- Why is this not in base?!
 tailE : List a -> List a
 tailE xs =
   case xs of
@@ -285,7 +346,7 @@ insertSlice sw model =
     (Slice sid _ _ _ _) ->
       { model | cache = Dict.insert sid sw model.cache }
 
-setPosition : List Slice -> Model -> Model
+{- setPosition : List Slice -> Model -> Model
 setPosition slices m =
   case slices of
     (Slice sid _ _ _ _)::_ -> {m | position = [sid]}
@@ -457,6 +518,7 @@ extractFragment s =
   case s of
     (Slice _ _ (Fragment frag) _ _) ->
       List.foldl (\x xs -> x ++ "\n" ++ xs) "" frag
+-}
 
 
 -- STUBS
