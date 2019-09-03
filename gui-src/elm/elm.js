@@ -4989,23 +4989,25 @@ var author$project$Main$ForThisType = 2;
 var author$project$Main$ForThisTypeOfUnknownClass = 3;
 var author$project$Main$OfThisClass = 0;
 var author$project$Main$OfThisClassForUnknownType = 1;
-var author$project$Main$instancePartDecoder = A2(
-	elm$json$Json$Decode$map,
-	function (s) {
-		switch (s) {
-			case 'OfThisClass':
-				return 0;
-			case 'OfThisClassForUnknownType':
-				return 1;
-			case 'ForThisType':
-				return 2;
-			case 'ForThisTypeOfUnknownClass':
-				return 3;
-			default:
-				return 1;
-		}
-	},
-	elm$json$Json$Decode$string);
+var elm$json$Json$Decode$fail = _Json_fail;
+var elm$json$Json$Decode$succeed = _Json_succeed;
+var author$project$Main$instancePartFromString = function (s) {
+	switch (s) {
+		case 'OfThisClass':
+			return elm$json$Json$Decode$succeed(0);
+		case 'OfThisClassForUnknownType':
+			return elm$json$Json$Decode$succeed(1);
+		case 'ForThisType':
+			return elm$json$Json$Decode$succeed(2);
+		case 'ForThisTypeOfUnknownClass':
+			return elm$json$Json$Decode$succeed(3);
+		default:
+			var wrong = s;
+			return elm$json$Json$Decode$fail('Bad Value for InstancePart: ' + wrong);
+	}
+};
+var elm$json$Json$Decode$andThen = _Json_andThen;
+var author$project$Main$instancePartDecoder = A2(elm$json$Json$Decode$andThen, author$project$Main$instancePartFromString, elm$json$Json$Decode$string);
 var elm$json$Json$Decode$field = _Json_decodeField;
 var elm$json$Json$Decode$map2 = _Json_map2;
 var author$project$Main$instanceDecoder = A3(
@@ -6346,7 +6348,6 @@ var author$project$Main$update = F2(
 					elm$core$Platform$Cmd$none);
 		}
 	});
-var elm$json$Json$Decode$succeed = _Json_succeed;
 var elm$virtual_dom$VirtualDom$toHandlerInt = function (handler) {
 	switch (handler.$) {
 		case 0:

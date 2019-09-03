@@ -199,14 +199,17 @@ instanceDecoder =
 
 instancePartDecoder : Decode.Decoder InstancePart
 instancePartDecoder =
-  Decode.map
-    (\s -> case s of
-      "OfThisClass" -> OfThisClass
-      "OfThisClassForUnknownType" -> OfThisClassForUnknownType
-      "ForThisType" -> ForThisType
-      "ForThisTypeOfUnknownClass" -> ForThisTypeOfUnknownClass
-      _ -> OfThisClassForUnknownType) -- Dirty dirty Hack!!
-    Decode.string
+  Decode.string
+    |> Decode.andThen instancePartFromString
+
+instancePartFromString : String -> Decode.Decoder InstancePart
+instancePartFromString s =
+  case s of
+    "OfThisClass" -> Decode.succeed OfThisClass
+    "OfThisClassForUnknownType" -> Decode.succeed OfThisClassForUnknownType
+    "ForThisType" -> Decode.succeed ForThisType
+    "ForThisTypeOfUnknownClass" -> Decode.succeed ForThisTypeOfUnknownClass
+    wrong -> Decode.fail ("Bad Value for InstancePart: " ++ wrong)
 
 -- UPDATE
 
