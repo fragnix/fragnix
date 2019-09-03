@@ -60,19 +60,39 @@ emptyModel =
   { main = Nothing
   , slices = []
   , cache = Dict.empty
-  , error = Just "Am probably loading right now"
+  , error = Nothing
   }
 
 type alias SliceWrap =
   { slice: Slice
   , occurences: List SliceID
+  , comments: SourceCode
+  , signature: SourceCode
+  , name: SourceCode
+  , id: SliceID
   }
 
 wrap : Slice -> SliceWrap
 wrap bare =
-  { slice = bare
-  , occurences = []
-  }
+  case bare of
+    (Slice sid _ (Fragment lines) _ _) ->
+      { slice = bare
+      , occurences = []
+      , comments = String.concat (List.filter (String.startsWith "--") lines)
+      , signature =
+          case (List.filter (String.contains "::") lines) of
+            l :: _ -> case (String.indexes "::" l) of
+              i :: _ -> String.dropLeft (i + 2) l
+              _      -> ""
+            _      -> ""
+      , name =
+          case (List.filter (String.contains "=") lines) of
+            l :: _ -> case (String.indexes "=" l) of
+              i :: _ -> String.dropRight i l
+              _      -> ""
+            _      -> ""
+      , id = sid
+      }
 
 
 -- Slices
@@ -116,7 +136,7 @@ type alias Flags = E.Value
 
 init : Flags -> (Model, Cmd Msg)
 init _ =
-  ( emptyModel
+  ( { emptyModel | error = Just "Loading and analyzing slices..." }
   , getAllSlices
   )
 
@@ -225,6 +245,7 @@ loadSlices slices model =
   |> indexSlices
   |> computeOccurences
   |> performIntegrityCheck
+  |> findMain
 
 insertSlices : List Slice -> Model -> Model
 insertSlices newSlices model =
@@ -303,6 +324,16 @@ checkDependency sid cache res =
       Ok _         -> Err (Set.insert sid Set.empty)
       Err missing  -> Err (Set.insert sid missing)
 
+findMain : Model -> Model
+findMain model =
+  case List.filter isMain model.slices of
+    x :: _ -> { model | main = Just x.id }
+    _      -> model
+
+isMain : SliceWrap -> Bool
+isMain sw =
+  String.startsWith "main " sw.name
+
 
 -- VIEW
 view : Model -> Html Msg
@@ -318,7 +349,7 @@ viewError err =
     [ div
         [ class "row" ]
         [ p [] [ text err ]
-        , button [ onClick CloseError ] [ text "Trotzdem anzeigen" ]
+        , button [ onClick CloseError ] [ text "Ignore and show editor" ]
         ]
     ]
 

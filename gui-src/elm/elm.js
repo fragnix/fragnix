@@ -519,11 +519,11 @@ function _Debug_crash_UNUSED(identifier, fact1, fact2, fact3, fact4)
 
 function _Debug_regionToString(region)
 {
-	if (region.W.I === region.aa.I)
+	if (region.Y.I === region.ad.I)
 	{
-		return 'on line ' + region.W.I;
+		return 'on line ' + region.Y.I;
 	}
-	return 'on lines ' + region.W.I + ' through ' + region.aa.I;
+	return 'on lines ' + region.Y.I + ' through ' + region.ad.I;
 }
 
 
@@ -1857,9 +1857,9 @@ var _Platform_worker = F4(function(impl, flagDecoder, debugMetadata, args)
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.aH,
-		impl.aS,
-		impl.aQ,
+		impl.aL,
+		impl.aV,
+		impl.aT,
 		function() { return function() {} }
 	);
 });
@@ -2321,25 +2321,25 @@ var _Http_toTask = F3(function(router, toTask, request)
 	return _Scheduler_binding(function(callback)
 	{
 		function done(response) {
-			callback(toTask(request.aC.a(response)));
+			callback(toTask(request.aG.a(response)));
 		}
 
 		var xhr = new XMLHttpRequest();
 		xhr.addEventListener('error', function() { done(elm$http$Http$NetworkError_); });
 		xhr.addEventListener('timeout', function() { done(elm$http$Http$Timeout_); });
-		xhr.addEventListener('load', function() { done(_Http_toResponse(request.aC.b, xhr)); });
+		xhr.addEventListener('load', function() { done(_Http_toResponse(request.aG.b, xhr)); });
 		elm$core$Maybe$isJust(request.j) && _Http_track(router, xhr, request.j.a);
 
 		try {
-			xhr.open(request.h, request.aT, true);
+			xhr.open(request.h, request.aW, true);
 		} catch (e) {
-			return done(elm$http$Http$BadUrl_(request.aT));
+			return done(elm$http$Http$BadUrl_(request.aW));
 		}
 
 		_Http_configureRequest(xhr, request);
 
-		request.az.a && xhr.setRequestHeader('Content-Type', request.az.a);
-		xhr.send(request.az.b);
+		request.aD.a && xhr.setRequestHeader('Content-Type', request.aD.a);
+		xhr.send(request.aD.b);
 
 		return function() { xhr.c = true; xhr.abort(); };
 	});
@@ -2355,8 +2355,8 @@ function _Http_configureRequest(xhr, request)
 		xhr.setRequestHeader(headers.a.a, headers.a.b);
 	}
 	xhr.timeout = request.i.a || 0;
-	xhr.responseType = request.aC.d;
-	xhr.withCredentials = request.x;
+	xhr.responseType = request.aG.d;
+	xhr.withCredentials = request.y;
 }
 
 
@@ -2377,9 +2377,9 @@ function _Http_toResponse(toBody, xhr)
 function _Http_toMetadata(xhr)
 {
 	return {
-		aT: xhr.responseURL,
-		at: xhr.status,
-		aP: xhr.statusText,
+		aW: xhr.responseURL,
+		ax: xhr.status,
+		aS: xhr.statusText,
 		e: _Http_parseHeaders(xhr.getAllResponseHeaders())
 	};
 }
@@ -2475,15 +2475,15 @@ function _Http_track(router, xhr, tracker)
 	xhr.upload.addEventListener('progress', function(event) {
 		if (xhr.c) { return; }
 		_Scheduler_rawSpawn(A2(elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, elm$http$Http$Sending({
-			aO: event.loaded,
-			V: event.total
+			aR: event.loaded,
+			X: event.total
 		}))));
 	});
 	xhr.addEventListener('progress', function(event) {
 		if (xhr.c) { return; }
 		_Scheduler_rawSpawn(A2(elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, elm$http$Http$Receiving({
-			aM: event.loaded,
-			V: event.lengthComputable ? elm$core$Maybe$Just(event.total) : elm$core$Maybe$Nothing
+			aP: event.loaded,
+			X: event.lengthComputable ? elm$core$Maybe$Just(event.total) : elm$core$Maybe$Nothing
 		}))));
 	});
 }
@@ -2835,8 +2835,8 @@ var _VirtualDom_mapEventRecord = F2(function(func, record)
 {
 	return {
 		q: func(record.q),
-		X: record.X,
-		U: record.U
+		Z: record.Z,
+		W: record.W
 	}
 });
 
@@ -3105,10 +3105,10 @@ function _VirtualDom_makeCallback(eventNode, initialHandler)
 
 		var value = result.a;
 		var message = !tag ? value : tag < 3 ? value.a : value.q;
-		var stopPropagation = tag == 1 ? value.b : tag == 3 && value.X;
+		var stopPropagation = tag == 1 ? value.b : tag == 3 && value.Z;
 		var currentEventNode = (
 			stopPropagation && event.stopPropagation(),
-			(tag == 2 ? value.b : tag == 3 && value.U) && event.preventDefault(),
+			(tag == 2 ? value.b : tag == 3 && value.W) && event.preventDefault(),
 			eventNode
 		);
 		var tagger;
@@ -4058,11 +4058,11 @@ var _Browser_element = _Debugger_element || F4(function(impl, flagDecoder, debug
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.aH,
-		impl.aS,
-		impl.aQ,
+		impl.aL,
+		impl.aV,
+		impl.aT,
 		function(sendToApp, initialModel) {
-			var view = impl.aU;
+			var view = impl.aX;
 			/**/
 			var domNode = args['node'];
 			//*/
@@ -4094,12 +4094,12 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.aH,
-		impl.aS,
-		impl.aQ,
+		impl.aL,
+		impl.aV,
+		impl.aT,
 		function(sendToApp, initialModel) {
 			var divertHrefToApp = impl.J && impl.J(sendToApp)
-			var view = impl.aU;
+			var view = impl.aX;
 			var title = _VirtualDom_doc.title;
 			var bodyNode = _VirtualDom_doc.body;
 			var currNode = _VirtualDom_virtualize(bodyNode);
@@ -4107,12 +4107,12 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 			{
 				_VirtualDom_divertHrefToApp = divertHrefToApp;
 				var doc = view(model);
-				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.az);
+				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.aD);
 				var patches = _VirtualDom_diff(currNode, nextNode);
 				bodyNode = _VirtualDom_applyPatches(bodyNode, currNode, patches, sendToApp);
 				currNode = nextNode;
 				_VirtualDom_divertHrefToApp = 0;
-				(title !== doc.aR) && (_VirtualDom_doc.title = title = doc.aR);
+				(title !== doc.aU) && (_VirtualDom_doc.title = title = doc.aU);
 			});
 		}
 	);
@@ -4168,8 +4168,8 @@ function _Browser_makeAnimator(model, draw)
 
 function _Browser_application(impl)
 {
-	var onUrlChange = impl.aJ;
-	var onUrlRequest = impl.aK;
+	var onUrlChange = impl.aM;
+	var onUrlRequest = impl.aN;
 	var key = function() { key.a(onUrlChange(_Browser_getUrl())); };
 
 	return _Browser_document({
@@ -4189,9 +4189,9 @@ function _Browser_application(impl)
 					var next = elm$url$Url$fromString(href).a;
 					sendToApp(onUrlRequest(
 						(next
-							&& curr.am === next.am
-							&& curr.ad === next.ad
-							&& curr.aj.a === next.aj.a
+							&& curr.ap === next.ap
+							&& curr.ag === next.ag
+							&& curr.am.a === next.am.a
 						)
 							? elm$browser$Browser$Internal(next)
 							: elm$browser$Browser$External(href)
@@ -4199,13 +4199,13 @@ function _Browser_application(impl)
 				}
 			});
 		},
-		aH: function(flags)
+		aL: function(flags)
 		{
-			return A3(impl.aH, flags, _Browser_getUrl(), key);
+			return A3(impl.aL, flags, _Browser_getUrl(), key);
 		},
-		aU: impl.aU,
-		aS: impl.aS,
-		aQ: impl.aQ
+		aX: impl.aX,
+		aV: impl.aV,
+		aT: impl.aT
 	});
 }
 
@@ -4271,17 +4271,17 @@ var _Browser_decodeEvent = F2(function(decoder, event)
 function _Browser_visibilityInfo()
 {
 	return (typeof _VirtualDom_doc.hidden !== 'undefined')
-		? { aF: 'hidden', aA: 'visibilitychange' }
+		? { aJ: 'hidden', aE: 'visibilitychange' }
 		:
 	(typeof _VirtualDom_doc.mozHidden !== 'undefined')
-		? { aF: 'mozHidden', aA: 'mozvisibilitychange' }
+		? { aJ: 'mozHidden', aE: 'mozvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.msHidden !== 'undefined')
-		? { aF: 'msHidden', aA: 'msvisibilitychange' }
+		? { aJ: 'msHidden', aE: 'msvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.webkitHidden !== 'undefined')
-		? { aF: 'webkitHidden', aA: 'webkitvisibilitychange' }
-		: { aF: 'hidden', aA: 'visibilitychange' };
+		? { aJ: 'webkitHidden', aE: 'webkitvisibilitychange' }
+		: { aJ: 'hidden', aE: 'visibilitychange' };
 }
 
 
@@ -4362,12 +4362,12 @@ var _Browser_call = F2(function(functionName, id)
 function _Browser_getViewport()
 {
 	return {
-		as: _Browser_getScene(),
-		aw: {
-			P: _Browser_window.pageXOffset,
-			Q: _Browser_window.pageYOffset,
+		av: _Browser_getScene(),
+		aA: {
+			Q: _Browser_window.pageXOffset,
+			R: _Browser_window.pageYOffset,
 			G: _Browser_doc.documentElement.clientWidth,
-			z: _Browser_doc.documentElement.clientHeight
+			A: _Browser_doc.documentElement.clientHeight
 		}
 	};
 }
@@ -4378,7 +4378,7 @@ function _Browser_getScene()
 	var elem = _Browser_doc.documentElement;
 	return {
 		G: Math.max(body.scrollWidth, body.offsetWidth, elem.scrollWidth, elem.offsetWidth, elem.clientWidth),
-		z: Math.max(body.scrollHeight, body.offsetHeight, elem.scrollHeight, elem.offsetHeight, elem.clientHeight)
+		A: Math.max(body.scrollHeight, body.offsetHeight, elem.scrollHeight, elem.offsetHeight, elem.clientHeight)
 	};
 }
 
@@ -4401,15 +4401,15 @@ function _Browser_getViewportOf(id)
 	return _Browser_withNode(id, function(node)
 	{
 		return {
-			as: {
+			av: {
 				G: node.scrollWidth,
-				z: node.scrollHeight
+				A: node.scrollHeight
 			},
-			aw: {
-				P: node.scrollLeft,
-				Q: node.scrollTop,
+			aA: {
+				Q: node.scrollLeft,
+				R: node.scrollTop,
 				G: node.clientWidth,
-				z: node.clientHeight
+				A: node.clientHeight
 			}
 		};
 	});
@@ -4439,18 +4439,18 @@ function _Browser_getElement(id)
 		var x = _Browser_window.pageXOffset;
 		var y = _Browser_window.pageYOffset;
 		return {
-			as: _Browser_getScene(),
-			aw: {
-				P: x,
-				Q: y,
+			av: _Browser_getScene(),
+			aA: {
+				Q: x,
+				R: y,
 				G: _Browser_doc.documentElement.clientWidth,
-				z: _Browser_doc.documentElement.clientHeight
+				A: _Browser_doc.documentElement.clientHeight
 			},
-			aB: {
-				P: x + rect.left,
-				Q: y + rect.top,
+			aF: {
+				Q: x + rect.left,
+				R: y + rect.top,
 				G: rect.width,
-				z: rect.height
+				A: rect.height
 			}
 		};
 	});
@@ -4487,9 +4487,6 @@ function _Browser_load(url)
 }
 var elm$core$Dict$RBEmpty_elm_builtin = {$: -2};
 var elm$core$Dict$empty = elm$core$Dict$RBEmpty_elm_builtin;
-var elm$core$Maybe$Just = function (a) {
-	return {$: 0, a: a};
-};
 var elm$core$Maybe$Nothing = {$: 1};
 var elm$core$Basics$EQ = 1;
 var elm$core$Basics$LT = 0;
@@ -4571,12 +4568,7 @@ var elm$core$Set$toList = function (_n0) {
 	var dict = _n0;
 	return elm$core$Dict$keys(dict);
 };
-var author$project$Main$emptyModel = {
-	o: elm$core$Dict$empty,
-	p: elm$core$Maybe$Just('Am probably loading right now'),
-	R: elm$core$Maybe$Nothing,
-	D: _List_Nil
-};
+var author$project$Main$emptyModel = {p: elm$core$Dict$empty, l: elm$core$Maybe$Nothing, O: elm$core$Maybe$Nothing, w: _List_Nil};
 var author$project$Main$ReceivedSlices = function (a) {
 	return {$: 2, a: a};
 };
@@ -4760,6 +4752,9 @@ var elm$core$Array$initialize = F2(
 			return A5(elm$core$Array$initializeHelp, fn, initialFromIndex, len, _List_Nil, tail);
 		}
 	});
+var elm$core$Maybe$Just = function (a) {
+	return {$: 0, a: a};
+};
 var elm$core$Result$Err = function (a) {
 	return {$: 1, a: a};
 };
@@ -5729,7 +5724,7 @@ var elm$http$Http$resolve = F2(
 			case 3:
 				var metadata = response.a;
 				return elm$core$Result$Err(
-					elm$http$Http$BadStatus(metadata.at));
+					elm$http$Http$BadStatus(metadata.ax));
 			default:
 				var body = response.b;
 				return A2(
@@ -5759,7 +5754,7 @@ var elm$http$Http$Request = function (a) {
 var elm$core$Task$succeed = _Scheduler_succeed;
 var elm$http$Http$State = F2(
 	function (reqs, subs) {
-		return {ap: reqs, au: subs};
+		return {as: reqs, ay: subs};
 	});
 var elm$http$Http$init = elm$core$Task$succeed(
 	A2(elm$http$Http$State, elm$core$Dict$empty, _List_Nil));
@@ -5834,7 +5829,7 @@ var elm$http$Http$onEffects = F4(
 				return elm$core$Task$succeed(
 					A2(elm$http$Http$State, reqs, subs));
 			},
-			A3(elm$http$Http$updateReqs, router, cmds, state.ap));
+			A3(elm$http$Http$updateReqs, router, cmds, state.as));
 	});
 var elm$core$List$foldrHelper = F4(
 	function (fn, acc, ctr, ls) {
@@ -5954,7 +5949,7 @@ var elm$http$Http$onSelfMsg = F3(
 				A2(
 					elm$core$List$filterMap,
 					A3(elm$http$Http$maybeSend, router, tracker, progress),
-					state.au)));
+					state.ay)));
 	});
 var elm$http$Http$Cancel = function (a) {
 	return {$: 0, a: a};
@@ -5968,14 +5963,14 @@ var elm$http$Http$cmdMap = F2(
 			var r = cmd.a;
 			return elm$http$Http$Request(
 				{
-					x: r.x,
-					az: r.az,
-					aC: A2(_Http_mapExpect, func, r.aC),
+					y: r.y,
+					aD: r.aD,
+					aG: A2(_Http_mapExpect, func, r.aG),
 					e: r.e,
 					h: r.h,
 					i: r.i,
 					j: r.j,
-					aT: r.aT
+					aW: r.aW
 				});
 		}
 	});
@@ -5998,22 +5993,28 @@ var elm$http$Http$subscription = _Platform_leaf('Http');
 var elm$http$Http$request = function (r) {
 	return elm$http$Http$command(
 		elm$http$Http$Request(
-			{x: false, az: r.az, aC: r.aC, e: r.e, h: r.h, i: r.i, j: r.j, aT: r.aT}));
+			{y: false, aD: r.aD, aG: r.aG, e: r.e, h: r.h, i: r.i, j: r.j, aW: r.aW}));
 };
 var elm$http$Http$get = function (r) {
 	return elm$http$Http$request(
-		{az: elm$http$Http$emptyBody, aC: r.aC, e: _List_Nil, h: 'GET', i: elm$core$Maybe$Nothing, j: elm$core$Maybe$Nothing, aT: r.aT});
+		{aD: elm$http$Http$emptyBody, aG: r.aG, e: _List_Nil, h: 'GET', i: elm$core$Maybe$Nothing, j: elm$core$Maybe$Nothing, aW: r.aW});
 };
 var author$project$Main$getAllSlices = elm$http$Http$get(
 	{
-		aC: A2(
+		aG: A2(
 			elm$http$Http$expectJson,
 			author$project$Main$ReceivedSlices,
 			elm$json$Json$Decode$list(author$project$Main$sliceDecoder)),
-		aT: 'http://localhost:8080/contents'
+		aW: 'http://localhost:8080/contents'
 	});
 var author$project$Main$init = function (_n0) {
-	return _Utils_Tuple2(author$project$Main$emptyModel, author$project$Main$getAllSlices);
+	return _Utils_Tuple2(
+		_Utils_update(
+			author$project$Main$emptyModel,
+			{
+				l: elm$core$Maybe$Just('Loading and analyzing slices...')
+			}),
+		author$project$Main$getAllSlices);
 };
 var elm$core$Platform$Sub$batch = _Platform_batch;
 var elm$core$Platform$Sub$none = elm$core$Platform$Sub$batch(_List_Nil);
@@ -6050,14 +6051,14 @@ var author$project$Main$addOccurence = F3(
 				_Utils_update(
 					sw,
 					{
-						O: A2(elm$core$List$cons, occId, sw.O)
+						P: A2(elm$core$List$cons, occId, sw.P)
 					}),
 				dict);
 		}
 	});
 var author$project$Main$addOccurences = F2(
 	function (sw, dict) {
-		var _n0 = sw.C;
+		var _n0 = sw.D;
 		var occId = _n0.a;
 		var uses = _n0.d;
 		return A3(
@@ -6079,27 +6080,124 @@ var author$project$Main$computeOccurences = function (model) {
 	return _Utils_update(
 		model,
 		{
-			o: A3(elm$core$List$foldl, author$project$Main$addOccurences, model.o, model.D)
+			p: A3(elm$core$List$foldl, author$project$Main$addOccurences, model.p, model.w)
 		});
+};
+var elm$core$String$startsWith = _String_startsWith;
+var author$project$Main$isMain = function (sw) {
+	return A2(elm$core$String$startsWith, 'main ', sw.U);
+};
+var elm$core$List$filter = F2(
+	function (isGood, list) {
+		return A3(
+			elm$core$List$foldr,
+			F2(
+				function (x, xs) {
+					return isGood(x) ? A2(elm$core$List$cons, x, xs) : xs;
+				}),
+			_List_Nil,
+			list);
+	});
+var author$project$Main$findMain = function (model) {
+	var _n0 = A2(elm$core$List$filter, author$project$Main$isMain, model.w);
+	if (_n0.b) {
+		var x = _n0.a;
+		return _Utils_update(
+			model,
+			{
+				O: elm$core$Maybe$Just(x.S)
+			});
+	} else {
+		return model;
+	}
 };
 var author$project$Main$indexSlices = function (model) {
 	return _Utils_update(
 		model,
 		{
-			o: A3(
+			p: A3(
 				elm$core$List$foldl,
 				F2(
 					function (s, c) {
-						var _n0 = s.C;
+						var _n0 = s.D;
 						var sid = _n0.a;
 						return A3(elm$core$Dict$insert, sid, s, c);
 					}),
 				elm$core$Dict$empty,
-				model.D)
+				model.w)
 		});
 };
+var elm$core$String$concat = function (strings) {
+	return A2(elm$core$String$join, '', strings);
+};
+var elm$core$String$contains = _String_contains;
+var elm$core$String$length = _String_length;
+var elm$core$String$slice = _String_slice;
+var elm$core$String$dropLeft = F2(
+	function (n, string) {
+		return (n < 1) ? string : A3(
+			elm$core$String$slice,
+			n,
+			elm$core$String$length(string),
+			string);
+	});
+var elm$core$Basics$negate = function (n) {
+	return -n;
+};
+var elm$core$String$dropRight = F2(
+	function (n, string) {
+		return (n < 1) ? string : A3(elm$core$String$slice, 0, -n, string);
+	});
+var elm$core$String$indexes = _String_indexes;
 var author$project$Main$wrap = function (bare) {
-	return {O: _List_Nil, C: bare};
+	var sid = bare.a;
+	var lines = bare.c;
+	return {
+		ab: elm$core$String$concat(
+			A2(
+				elm$core$List$filter,
+				elm$core$String$startsWith('--'),
+				lines)),
+		S: sid,
+		U: function () {
+			var _n1 = A2(
+				elm$core$List$filter,
+				elm$core$String$contains('='),
+				lines);
+			if (_n1.b) {
+				var l = _n1.a;
+				var _n2 = A2(elm$core$String$indexes, '=', l);
+				if (_n2.b) {
+					var i = _n2.a;
+					return A2(elm$core$String$dropRight, i, l);
+				} else {
+					return '';
+				}
+			} else {
+				return '';
+			}
+		}(),
+		P: _List_Nil,
+		aw: function () {
+			var _n3 = A2(
+				elm$core$List$filter,
+				elm$core$String$contains('::'),
+				lines);
+			if (_n3.b) {
+				var l = _n3.a;
+				var _n4 = A2(elm$core$String$indexes, '::', l);
+				if (_n4.b) {
+					var i = _n4.a;
+					return A2(elm$core$String$dropLeft, i + 2, l);
+				} else {
+					return '';
+				}
+			} else {
+				return '';
+			}
+		}(),
+		D: bare
+	};
 };
 var elm$core$List$map = F2(
 	function (f, xs) {
@@ -6120,7 +6218,7 @@ var author$project$Main$insertSlices = F2(
 		return _Utils_update(
 			model,
 			{
-				D: A2(elm$core$List$map, author$project$Main$wrap, newSlices)
+				w: A2(elm$core$List$map, author$project$Main$wrap, newSlices)
 			});
 	});
 var elm$core$Set$Set_elm_builtin = elm$core$Basics$identity;
@@ -6148,7 +6246,7 @@ var author$project$Main$checkDependency = F3(
 	});
 var author$project$Main$checkDependencies = F3(
 	function (cache, sw, res) {
-		var _n0 = sw.C;
+		var _n0 = sw.D;
 		var uses = _n0.d;
 		return A3(
 			elm$core$List$foldl,
@@ -6168,12 +6266,9 @@ var author$project$Main$checkDependencies = F3(
 var author$project$Main$integrityCheck = function (model) {
 	return A3(
 		elm$core$List$foldl,
-		author$project$Main$checkDependencies(model.o),
+		author$project$Main$checkDependencies(model.p),
 		elm$core$Result$Ok(0),
-		model.D);
-};
-var elm$core$String$concat = function (strings) {
-	return A2(elm$core$String$join, '', strings);
+		model.w);
 };
 var author$project$Main$missingSlicesToString = function (missing) {
 	return 'Missing Slices: ' + elm$core$String$concat(
@@ -6193,17 +6288,18 @@ var author$project$Main$performIntegrityCheck = function (model) {
 		return _Utils_update(
 			model,
 			{
-				p: elm$core$Maybe$Just(
+				l: elm$core$Maybe$Just(
 					author$project$Main$missingSlicesToString(missing))
 			});
 	}
 };
 var author$project$Main$loadSlices = F2(
 	function (slices, model) {
-		return author$project$Main$performIntegrityCheck(
-			author$project$Main$computeOccurences(
-				author$project$Main$indexSlices(
-					A2(author$project$Main$insertSlices, slices, model))));
+		return author$project$Main$findMain(
+			author$project$Main$performIntegrityCheck(
+				author$project$Main$computeOccurences(
+					author$project$Main$indexSlices(
+						A2(author$project$Main$insertSlices, slices, model)))));
 	});
 var elm$core$Platform$Cmd$batch = _Platform_batch;
 var elm$core$Platform$Cmd$none = elm$core$Platform$Cmd$batch(_List_Nil);
@@ -6218,7 +6314,7 @@ var author$project$Main$update = F2(
 						_Utils_update(
 							model,
 							{
-								p: elm$core$Maybe$Just(
+								l: elm$core$Maybe$Just(
 									author$project$Main$httpErrorToString(e))
 							}),
 						elm$core$Platform$Cmd$none);
@@ -6230,7 +6326,7 @@ var author$project$Main$update = F2(
 							slices,
 							_Utils_update(
 								model,
-								{p: elm$core$Maybe$Nothing})),
+								{l: elm$core$Maybe$Nothing})),
 						elm$core$Platform$Cmd$none);
 				}
 			case 0:
@@ -6239,14 +6335,14 @@ var author$project$Main$update = F2(
 					_Utils_update(
 						model,
 						{
-							p: elm$core$Maybe$Just(err)
+							l: elm$core$Maybe$Just(err)
 						}),
 					elm$core$Platform$Cmd$none);
 			default:
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{p: elm$core$Maybe$Nothing}),
+						{l: elm$core$Maybe$Nothing}),
 					elm$core$Platform$Cmd$none);
 		}
 	});
@@ -6284,7 +6380,7 @@ var author$project$Main$viewEditor = function (model) {
 				elm$html$Html$Attributes$class('editorContainer')
 			]),
 		function () {
-			var _n0 = model.R;
+			var _n0 = model.O;
 			if (!_n0.$) {
 				var sid = _n0.a;
 				return _List_fromArray(
@@ -6362,13 +6458,13 @@ var author$project$Main$viewError = function (err) {
 							]),
 						_List_fromArray(
 							[
-								elm$html$Html$text('Trotzdem anzeigen')
+								elm$html$Html$text('Ignore and show editor')
 							]))
 					]))
 			]));
 };
 var author$project$Main$view = function (model) {
-	var _n0 = model.p;
+	var _n0 = model.l;
 	if (!_n0.$) {
 		var err = _n0.a;
 		return author$project$Main$viewError(err);
@@ -6442,20 +6538,8 @@ var elm$core$Task$perform = F2(
 		return elm$core$Task$command(
 			A2(elm$core$Task$map, toMessage, task));
 	});
-var elm$core$String$length = _String_length;
-var elm$core$String$slice = _String_slice;
-var elm$core$String$dropLeft = F2(
-	function (n, string) {
-		return (n < 1) ? string : A3(
-			elm$core$String$slice,
-			n,
-			elm$core$String$length(string),
-			string);
-	});
-var elm$core$String$startsWith = _String_startsWith;
 var elm$url$Url$Http = 0;
 var elm$url$Url$Https = 1;
-var elm$core$String$indexes = _String_indexes;
 var elm$core$String$isEmpty = function (string) {
 	return string === '';
 };
@@ -6463,11 +6547,10 @@ var elm$core$String$left = F2(
 	function (n, string) {
 		return (n < 1) ? '' : A3(elm$core$String$slice, 0, n, string);
 	});
-var elm$core$String$contains = _String_contains;
 var elm$core$String$toInt = _String_toInt;
 var elm$url$Url$Url = F6(
 	function (protocol, host, port_, path, query, fragment) {
-		return {ac: fragment, ad: host, ah: path, aj: port_, am: protocol, an: query};
+		return {af: fragment, ag: host, ak: path, am: port_, ap: protocol, aq: query};
 	});
 var elm$url$Url$chompBeforePath = F5(
 	function (protocol, path, params, frag, str) {
@@ -6574,5 +6657,5 @@ var elm$url$Url$fromString = function (str) {
 var elm$browser$Browser$element = _Browser_element;
 var elm$json$Json$Decode$value = _Json_decodeValue;
 var author$project$Main$main = elm$browser$Browser$element(
-	{aH: author$project$Main$init, aQ: author$project$Main$subscriptions, aS: author$project$Main$update, aU: author$project$Main$view});
+	{aL: author$project$Main$init, aT: author$project$Main$subscriptions, aV: author$project$Main$update, aX: author$project$Main$view});
 _Platform_export({'Main':{'init':author$project$Main$main(elm$json$Json$Decode$value)(0)}});}(this));
