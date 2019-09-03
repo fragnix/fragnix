@@ -519,11 +519,11 @@ function _Debug_crash_UNUSED(identifier, fact1, fact2, fact3, fact4)
 
 function _Debug_regionToString(region)
 {
-	if (region.Y.I === region.ad.I)
+	if (region.Y.H === region.ad.H)
 	{
-		return 'on line ' + region.Y.I;
+		return 'on line ' + region.Y.H;
 	}
-	return 'on lines ' + region.Y.I + ' through ' + region.ad.I;
+	return 'on lines ' + region.Y.H + ' through ' + region.ad.H;
 }
 
 
@@ -2356,7 +2356,7 @@ function _Http_configureRequest(xhr, request)
 	}
 	xhr.timeout = request.i.a || 0;
 	xhr.responseType = request.aG.d;
-	xhr.withCredentials = request.y;
+	xhr.withCredentials = request.x;
 }
 
 
@@ -2834,7 +2834,7 @@ var _VirtualDom_mapEventTuple = F2(function(func, tuple)
 var _VirtualDom_mapEventRecord = F2(function(func, record)
 {
 	return {
-		q: func(record.q),
+		p: func(record.p),
 		Z: record.Z,
 		W: record.W
 	}
@@ -3104,7 +3104,7 @@ function _VirtualDom_makeCallback(eventNode, initialHandler)
 		// 3 = Custom
 
 		var value = result.a;
-		var message = !tag ? value : tag < 3 ? value.a : value.q;
+		var message = !tag ? value : tag < 3 ? value.a : value.p;
 		var stopPropagation = tag == 1 ? value.b : tag == 3 && value.Z;
 		var currentEventNode = (
 			stopPropagation && event.stopPropagation(),
@@ -4098,7 +4098,7 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 		impl.aV,
 		impl.aT,
 		function(sendToApp, initialModel) {
-			var divertHrefToApp = impl.J && impl.J(sendToApp)
+			var divertHrefToApp = impl.I && impl.I(sendToApp)
 			var view = impl.aX;
 			var title = _VirtualDom_doc.title;
 			var bodyNode = _VirtualDom_doc.body;
@@ -4173,7 +4173,7 @@ function _Browser_application(impl)
 	var key = function() { key.a(onUrlChange(_Browser_getUrl())); };
 
 	return _Browser_document({
-		J: function(sendToApp)
+		I: function(sendToApp)
 		{
 			key.a = sendToApp;
 			_Browser_window.addEventListener('popstate', key);
@@ -4366,7 +4366,7 @@ function _Browser_getViewport()
 		aA: {
 			Q: _Browser_window.pageXOffset,
 			R: _Browser_window.pageYOffset,
-			G: _Browser_doc.documentElement.clientWidth,
+			F: _Browser_doc.documentElement.clientWidth,
 			A: _Browser_doc.documentElement.clientHeight
 		}
 	};
@@ -4377,7 +4377,7 @@ function _Browser_getScene()
 	var body = _Browser_doc.body;
 	var elem = _Browser_doc.documentElement;
 	return {
-		G: Math.max(body.scrollWidth, body.offsetWidth, elem.scrollWidth, elem.offsetWidth, elem.clientWidth),
+		F: Math.max(body.scrollWidth, body.offsetWidth, elem.scrollWidth, elem.offsetWidth, elem.clientWidth),
 		A: Math.max(body.scrollHeight, body.offsetHeight, elem.scrollHeight, elem.offsetHeight, elem.clientHeight)
 	};
 }
@@ -4402,13 +4402,13 @@ function _Browser_getViewportOf(id)
 	{
 		return {
 			av: {
-				G: node.scrollWidth,
+				F: node.scrollWidth,
 				A: node.scrollHeight
 			},
 			aA: {
 				Q: node.scrollLeft,
 				R: node.scrollTop,
-				G: node.clientWidth,
+				F: node.clientWidth,
 				A: node.clientHeight
 			}
 		};
@@ -4443,13 +4443,13 @@ function _Browser_getElement(id)
 			aA: {
 				Q: x,
 				R: y,
-				G: _Browser_doc.documentElement.clientWidth,
+				F: _Browser_doc.documentElement.clientWidth,
 				A: _Browser_doc.documentElement.clientHeight
 			},
 			aF: {
 				Q: x + rect.left,
 				R: y + rect.top,
-				G: rect.width,
+				F: rect.width,
 				A: rect.height
 			}
 		};
@@ -4568,7 +4568,7 @@ var elm$core$Set$toList = function (_n0) {
 	var dict = _n0;
 	return elm$core$Dict$keys(dict);
 };
-var author$project$Main$emptyModel = {p: elm$core$Dict$empty, l: elm$core$Maybe$Nothing, O: elm$core$Maybe$Nothing, w: _List_Nil};
+var author$project$Main$emptyModel = {y: elm$core$Dict$empty, l: elm$core$Maybe$Nothing, O: elm$core$Maybe$Nothing, v: _List_Nil};
 var author$project$Main$ReceivedSlices = function (a) {
 	return {$: 2, a: a};
 };
@@ -5965,7 +5965,7 @@ var elm$http$Http$cmdMap = F2(
 			var r = cmd.a;
 			return elm$http$Http$Request(
 				{
-					y: r.y,
+					x: r.x,
 					aD: r.aD,
 					aG: A2(_Http_mapExpect, func, r.aG),
 					e: r.e,
@@ -5995,7 +5995,7 @@ var elm$http$Http$subscription = _Platform_leaf('Http');
 var elm$http$Http$request = function (r) {
 	return elm$http$Http$command(
 		elm$http$Http$Request(
-			{y: false, aD: r.aD, aG: r.aG, e: r.e, h: r.h, i: r.i, j: r.j, aW: r.aW}));
+			{x: false, aD: r.aD, aG: r.aG, e: r.e, h: r.h, i: r.i, j: r.j, aW: r.aW}));
 };
 var elm$http$Http$get = function (r) {
 	return elm$http$Http$request(
@@ -6060,7 +6060,7 @@ var author$project$Main$addOccurence = F3(
 	});
 var author$project$Main$addOccurences = F2(
 	function (sw, dict) {
-		var _n0 = sw.D;
+		var _n0 = sw.J;
 		var occId = _n0.a;
 		var uses = _n0.d;
 		return A3(
@@ -6082,7 +6082,7 @@ var author$project$Main$computeOccurences = function (model) {
 	return _Utils_update(
 		model,
 		{
-			p: A3(elm$core$List$foldl, author$project$Main$addOccurences, model.p, model.w)
+			y: A3(elm$core$List$foldl, author$project$Main$addOccurences, model.y, model.v)
 		});
 };
 var elm$core$String$startsWith = _String_startsWith;
@@ -6101,7 +6101,7 @@ var elm$core$List$filter = F2(
 			list);
 	});
 var author$project$Main$findMain = function (model) {
-	var _n0 = A2(elm$core$List$filter, author$project$Main$isMain, model.w);
+	var _n0 = A2(elm$core$List$filter, author$project$Main$isMain, model.v);
 	if (_n0.b) {
 		var x = _n0.a;
 		return _Utils_update(
@@ -6117,16 +6117,16 @@ var author$project$Main$indexSlices = function (model) {
 	return _Utils_update(
 		model,
 		{
-			p: A3(
+			y: A3(
 				elm$core$List$foldl,
 				F2(
 					function (s, c) {
-						var _n0 = s.D;
+						var _n0 = s.J;
 						var sid = _n0.a;
 						return A3(elm$core$Dict$insert, sid, s, c);
 					}),
 				elm$core$Dict$empty,
-				model.w)
+				model.v)
 		});
 };
 var elm$core$String$concat = function (strings) {
@@ -6198,7 +6198,7 @@ var author$project$Main$wrap = function (bare) {
 				return '';
 			}
 		}(),
-		D: bare
+		J: bare
 	};
 };
 var elm$core$List$map = F2(
@@ -6220,7 +6220,7 @@ var author$project$Main$insertSlices = F2(
 		return _Utils_update(
 			model,
 			{
-				w: A2(elm$core$List$map, author$project$Main$wrap, newSlices)
+				v: A2(elm$core$List$map, author$project$Main$wrap, newSlices)
 			});
 	});
 var elm$core$Set$Set_elm_builtin = elm$core$Basics$identity;
@@ -6248,7 +6248,7 @@ var author$project$Main$checkDependency = F3(
 	});
 var author$project$Main$checkDependencies = F3(
 	function (cache, sw, res) {
-		var _n0 = sw.D;
+		var _n0 = sw.J;
 		var uses = _n0.d;
 		return A3(
 			elm$core$List$foldl,
@@ -6268,9 +6268,9 @@ var author$project$Main$checkDependencies = F3(
 var author$project$Main$integrityCheck = function (model) {
 	return A3(
 		elm$core$List$foldl,
-		author$project$Main$checkDependencies(model.p),
+		author$project$Main$checkDependencies(model.y),
 		elm$core$Result$Ok(0),
-		model.w);
+		model.v);
 };
 var author$project$Main$missingSlicesToString = function (missing) {
 	return 'Missing Slices: ' + elm$core$String$concat(

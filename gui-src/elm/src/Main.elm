@@ -14,11 +14,21 @@ import Http
 main =
   Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
 
--- SUBSCRIPTIONS
+-- | INIT
+type alias Flags = E.Value
+
+
+init : Flags -> (Model, Cmd Msg)
+init _ =
+  ( { emptyModel | error = Just "Loading and analyzing slices..." }
+  , getAllSlices
+  )
+
+-- | SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
 subscriptions _ = Sub.none
 
--- HTTP
+-- | API Requests
 getAllSlices : Cmd Msg
 getAllSlices = Http.get
                   { url =
@@ -45,9 +55,9 @@ httpErrorToString err =
     Http.BadUrl msg ->
         "Bad url: " ++ msg
 
--- MODEL
+-- | MODEL
 
--- Editor State
+-- | Editor State
 type alias Model =
   { main:  Maybe SliceID
   , slices: List SliceWrap
@@ -63,6 +73,7 @@ emptyModel =
   , error = Nothing
   }
 
+-- | SliceWrap and helper
 type alias SliceWrap =
   { slice: Slice
   , occurences: List SliceID
@@ -95,7 +106,7 @@ wrap bare =
       }
 
 
--- Slices
+-- | Slices
 type Slice = Slice SliceID Language Fragment (List Use) (List Instance)
 
 type Language = Language (List GHCExtension)
@@ -131,18 +142,9 @@ type alias Qualification = String
 type alias OriginalModule = String
 type alias GHCExtension = String
 
-type alias Flags = E.Value
+-- | DECODERS
 
-
-init : Flags -> (Model, Cmd Msg)
-init _ =
-  ( { emptyModel | error = Just "Loading and analyzing slices..." }
-  , getAllSlices
-  )
-
--- DECODERS
-
--- Slice Decoder
+-- | Slice Decoder
 sliceDecoder : Decode.Decoder Slice
 sliceDecoder =
   Decode.map5 Slice
@@ -211,7 +213,7 @@ instancePartFromString s =
     "ForThisTypeOfUnknownClass" -> Decode.succeed ForThisTypeOfUnknownClass
     wrong -> Decode.fail ("Bad Value for InstancePart: " ++ wrong)
 
--- UPDATE
+-- | UPDATE
 
 type Msg
   = Error String
@@ -241,6 +243,8 @@ update msg model =
       ( { model | error = Nothing }
       , Cmd.none
       )
+
+-- | Loading Slices
 
 loadSlices : List Slice -> Model -> Model
 loadSlices slices model =
@@ -338,7 +342,7 @@ isMain sw =
   String.startsWith "main " sw.name
 
 
--- VIEW
+-- | VIEW
 view : Model -> Html Msg
 view model =
   case model.error of
@@ -364,21 +368,6 @@ viewEditor model =
         Just sid -> [ p [] [ text ("Found main in Slice " ++ sid) ] ]
         Nothing  -> [ p [] [ text "Loading complete" ] ]
     )
-
-
--- HELPERS
--- Why is this not in base?!
-tailE : List a -> List a
-tailE xs =
-  case xs of
-    (x::r) -> r
-    _      -> []
-
-insertSlice : SliceWrap -> Model -> Model
-insertSlice sw model =
-  case sw.slice of
-    (Slice sid _ _ _ _) ->
-      { model | cache = Dict.insert sid sw model.cache }
 
 {- setPosition : List Slice -> Model -> Model
 setPosition slices m =
