@@ -66,14 +66,21 @@ httpErrorToString err =
 -- | Editor State
 type alias Model =
   { main:  Maybe SliceID
+  , rows: Maybe Rows
   , slices: List SliceWrap
   , cache: Dict SliceID SliceWrap
   , error: Maybe String
   }
 
+type alias Rows =
+  { focus: SliceID
+  , trace: List SliceID
+  }
+
 emptyModel : Model
 emptyModel =
   { main = Nothing
+  , rows = Nothing
   , slices = []
   , cache = Dict.empty
   , error = Nothing
@@ -155,6 +162,14 @@ extractReferences slice =
       List.map extractReference uses
         |> fromMaybeList
         |> Dict.fromList
+
+extractDependencies : Slice -> List SliceID
+extractDependencies slice =
+  case slice of
+    (Slice _ _ _ uses _) ->
+      List.map extractReference uses
+        |> fromMaybeList
+        |> List.map Tuple.second
 
 extractReference : Use -> Maybe (String, SliceID)
 extractReference use =
@@ -249,6 +264,7 @@ type Msg
   = Error String
   | CloseError
   | ReceivedSlices (Result Http.Error (List Slice))
+  | Focus SliceID (List SliceID)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -274,6 +290,29 @@ update msg model =
       , Cmd.none
       )
 
+    Focus sid occs ->
+      ( setFocus sid occs model
+      , Cmd.none
+      )
+
+setFocus : SliceID -> List SliceID -> Model -> Model
+setFocus sid occs model =
+  case model.rows of
+    Nothing -> { model | rows = Just {focus = sid, trace = []} }
+    Just {focus, trace} ->
+      { model | rows =
+          Just { focus = sid
+               , trace = pruneUntilIn occs (focus :: trace)
+               }
+      }
+
+pruneUntilIn : List SliceID -> List SliceID -> List SliceID
+pruneUntilIn set xs =
+  case xs of
+    []       -> []
+    x :: rst ->
+      if List.member x set then xs else pruneUntilIn set rst
+
 -- | Loading Slices
 
 loadSlices : List Slice -> Model -> Model
@@ -283,6 +322,7 @@ loadSlices slices model =
   |> computeOccurences
   |> performIntegrityCheck
   |> findMain
+  |> setRows
 
 insertSlices : List Slice -> Model -> Model
 insertSlices newSlices model =
@@ -371,6 +411,18 @@ isMain : SliceWrap -> Bool
 isMain sw =
   String.startsWith "main " sw.name
 
+setRows : Model -> Model
+setRows model =
+  case model.main of
+    -- for testing purposes
+    Nothing  ->
+      case model.slices of
+        [] -> model
+        x :: rst ->
+          { model | rows = Just { focus = x.id, trace = [] } }
+    Just sid ->
+      { model | rows = Just { focus = sid, trace = [] } }
+
 
 -- | VIEW
 view : Model -> Html Msg
@@ -394,16 +446,67 @@ viewEditor : Model -> Html Msg
 viewEditor model =
   div
     [ class "editorContainer" ]
-    ( case model.main of
-        Just sid -> [ tryViewSlice model sid ]
-        Nothing  -> [ p [] [ text "Loading complete" ] ]
+    ( case model.rows of
+        Just r   -> viewRowEditor r model
+        Nothing  -> [ p [] [ text "No rows generated" ] ]
     )
 
-tryViewSlice : Model -> SliceID -> Html Msg
-tryViewSlice model sid =
+viewRowEditor : Rows -> Model -> List (Html Msg)
+viewRowEditor {focus, trace} model =
+  List.reverse
+    ([ dependenciesRow focus Nothing model
+    , (case trace of
+        parent :: _ -> dependenciesRow parent (Just focus) model
+        _           -> singleRow focus model)
+    ] ++ occurenceRows (focus :: trace) model)
+
+singleRow : SliceID -> Model -> Html Msg
+singleRow sid model =
+  div [ class "row" ] [ tryViewSlice model "" sid ]
+
+occurenceRows : List SliceID -> Model -> List (Html Msg)
+occurenceRows trace model =
+  case trace of
+    x :: y :: rst ->
+      (occurencesRow x (Just y) model) :: (occurenceRows (y :: rst) model)
+    y :: [] ->
+      [ occurencesRow y Nothing model ]
+    [] ->
+      []
+
+dependenciesRow : SliceID -> Maybe SliceID -> Model -> Html Msg
+dependenciesRow parent center model =
+  let
+    foc = case center of
+      Nothing -> ""
+      Just s  -> s
+  in
+    div
+      [ class "row" ]
+      (case Dict.get parent model.cache of
+        Nothing      -> [ text ("Missing Slice: " ++ parent) ]
+        Just {slice} -> List.map (tryViewSlice model foc) (extractDependencies slice))
+
+occurencesRow : SliceID -> Maybe SliceID -> Model -> Html Msg
+occurencesRow parent center model =
+  let
+    foc = case center of
+      Nothing -> ""
+      Just s  -> s
+  in
+    div
+      [ class "row" ]
+      (case Dict.get parent model.cache of
+        Nothing           -> [ text ("Missing Slice: " ++ parent) ]
+        Just {occurences} -> List.map (tryViewSlice model foc) occurences)
+
+
+-- | viewing a single Slice
+tryViewSlice : Model -> SliceID -> SliceID -> Html Msg
+tryViewSlice model focus sid =
   case Dict.get sid model.cache of
     Nothing -> text ("Missing Slice: " ++ sid)
-    Just sw -> viewSlice sw
+    Just sw -> viewSlice focus sw
 
 renderFragment : Slice -> String
 renderFragment slice =
@@ -411,16 +514,27 @@ renderFragment slice =
     (Slice _ _ (Fragment codes) _ _) ->
       String.concat (List.intersperse "\n" codes)
 
-viewSlice : SliceWrap -> Html Msg
-viewSlice sw =
+viewSlice : SliceID -> SliceWrap -> Html Msg
+viewSlice sid sw =
   let
     renderedFragment = renderFragment sw.slice
   in
     div
       [ classList
+          [ ( "elmsh", True )
+          , ( "focus", String.contains sw.id sid)
+          ]
+      , onClick (Focus sw.id sw.occurences)
+      ]
+      [ toHtml renderedFragment (extractReferences sw.slice)
+      ]
+{-     div
+      [ classList
           [ ( "container", True )
           , ( "elmsh", True )
+          , ( "focus", sid == sw.id )
           ]
+      , onClick (Focus sw.id sw.occurences)
       ]
       [ div
           [ class "view-container"
@@ -428,7 +542,7 @@ viewSlice sw =
           [ toHtml renderedFragment (extractReferences sw.slice)
           ]
       , viewTextarea renderedFragment
-      ]
+      ] -}
 
 viewTextarea : String -> Html Msg
 viewTextarea codeStr =
