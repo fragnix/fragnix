@@ -519,11 +519,11 @@ function _Debug_crash_UNUSED(identifier, fact1, fact2, fact3, fact4)
 
 function _Debug_regionToString(region)
 {
-	if (region.Y.H === region.ad.H)
+	if (region.ag.Q === region._.Q)
 	{
-		return 'on line ' + region.Y.H;
+		return 'on line ' + region.ag.Q;
 	}
-	return 'on lines ' + region.Y.H + ' through ' + region.ad.H;
+	return 'on lines ' + region.ag.Q + ' through ' + region._.Q;
 }
 
 
@@ -1857,9 +1857,9 @@ var _Platform_worker = F4(function(impl, flagDecoder, debugMetadata, args)
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.aL,
-		impl.aV,
-		impl.aT,
+		impl.bm,
+		impl.bK,
+		impl.bH,
 		function() { return function() {} }
 	);
 });
@@ -2321,25 +2321,25 @@ var _Http_toTask = F3(function(router, toTask, request)
 	return _Scheduler_binding(function(callback)
 	{
 		function done(response) {
-			callback(toTask(request.aG.a(response)));
+			callback(toTask(request.be.a(response)));
 		}
 
 		var xhr = new XMLHttpRequest();
 		xhr.addEventListener('error', function() { done(elm$http$Http$NetworkError_); });
 		xhr.addEventListener('timeout', function() { done(elm$http$Http$Timeout_); });
-		xhr.addEventListener('load', function() { done(_Http_toResponse(request.aG.b, xhr)); });
-		elm$core$Maybe$isJust(request.j) && _Http_track(router, xhr, request.j.a);
+		xhr.addEventListener('load', function() { done(_Http_toResponse(request.be.b, xhr)); });
+		elm$core$Maybe$isJust(request.n) && _Http_track(router, xhr, request.n.a);
 
 		try {
-			xhr.open(request.h, request.aW, true);
+			xhr.open(request.l, request.bL, true);
 		} catch (e) {
-			return done(elm$http$Http$BadUrl_(request.aW));
+			return done(elm$http$Http$BadUrl_(request.bL));
 		}
 
 		_Http_configureRequest(xhr, request);
 
-		request.aD.a && xhr.setRequestHeader('Content-Type', request.aD.a);
-		xhr.send(request.aD.b);
+		request.a6.a && xhr.setRequestHeader('Content-Type', request.a6.a);
+		xhr.send(request.a6.b);
 
 		return function() { xhr.c = true; xhr.abort(); };
 	});
@@ -2350,13 +2350,13 @@ var _Http_toTask = F3(function(router, toTask, request)
 
 function _Http_configureRequest(xhr, request)
 {
-	for (var headers = request.e; headers.b; headers = headers.b) // WHILE_CONS
+	for (var headers = request.i; headers.b; headers = headers.b) // WHILE_CONS
 	{
 		xhr.setRequestHeader(headers.a.a, headers.a.b);
 	}
-	xhr.timeout = request.i.a || 0;
-	xhr.responseType = request.aG.d;
-	xhr.withCredentials = request.x;
+	xhr.timeout = request.m.a || 0;
+	xhr.responseType = request.be.d;
+	xhr.withCredentials = request.C;
 }
 
 
@@ -2377,10 +2377,10 @@ function _Http_toResponse(toBody, xhr)
 function _Http_toMetadata(xhr)
 {
 	return {
-		aW: xhr.responseURL,
-		ax: xhr.status,
-		aS: xhr.statusText,
-		e: _Http_parseHeaders(xhr.getAllResponseHeaders())
+		bL: xhr.responseURL,
+		aY: xhr.status,
+		by: xhr.statusText,
+		i: _Http_parseHeaders(xhr.getAllResponseHeaders())
 	};
 }
 
@@ -2475,18 +2475,148 @@ function _Http_track(router, xhr, tracker)
 	xhr.upload.addEventListener('progress', function(event) {
 		if (xhr.c) { return; }
 		_Scheduler_rawSpawn(A2(elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, elm$http$Http$Sending({
-			aR: event.loaded,
-			X: event.total
+			bx: event.loaded,
+			af: event.total
 		}))));
 	});
 	xhr.addEventListener('progress', function(event) {
 		if (xhr.c) { return; }
 		_Scheduler_rawSpawn(A2(elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, elm$http$Http$Receiving({
-			aP: event.loaded,
-			X: event.lengthComputable ? elm$core$Maybe$Just(event.total) : elm$core$Maybe$Nothing
+			bt: event.loaded,
+			af: event.lengthComputable ? elm$core$Maybe$Just(event.total) : elm$core$Maybe$Nothing
 		}))));
 	});
 }
+
+
+
+// STRINGS
+
+
+var _Parser_isSubString = F5(function(smallString, offset, row, col, bigString)
+{
+	var smallLength = smallString.length;
+	var isGood = offset + smallLength <= bigString.length;
+
+	for (var i = 0; isGood && i < smallLength; )
+	{
+		var code = bigString.charCodeAt(offset);
+		isGood =
+			smallString[i++] === bigString[offset++]
+			&& (
+				code === 0x000A /* \n */
+					? ( row++, col=1 )
+					: ( col++, (code & 0xF800) === 0xD800 ? smallString[i++] === bigString[offset++] : 1 )
+			)
+	}
+
+	return _Utils_Tuple3(isGood ? offset : -1, row, col);
+});
+
+
+
+// CHARS
+
+
+var _Parser_isSubChar = F3(function(predicate, offset, string)
+{
+	return (
+		string.length <= offset
+			? -1
+			:
+		(string.charCodeAt(offset) & 0xF800) === 0xD800
+			? (predicate(_Utils_chr(string.substr(offset, 2))) ? offset + 2 : -1)
+			:
+		(predicate(_Utils_chr(string[offset]))
+			? ((string[offset] === '\n') ? -2 : (offset + 1))
+			: -1
+		)
+	);
+});
+
+
+var _Parser_isAsciiCode = F3(function(code, offset, string)
+{
+	return string.charCodeAt(offset) === code;
+});
+
+
+
+// NUMBERS
+
+
+var _Parser_chompBase10 = F2(function(offset, string)
+{
+	for (; offset < string.length; offset++)
+	{
+		var code = string.charCodeAt(offset);
+		if (code < 0x30 || 0x39 < code)
+		{
+			return offset;
+		}
+	}
+	return offset;
+});
+
+
+var _Parser_consumeBase = F3(function(base, offset, string)
+{
+	for (var total = 0; offset < string.length; offset++)
+	{
+		var digit = string.charCodeAt(offset) - 0x30;
+		if (digit < 0 || base <= digit) break;
+		total = base * total + digit;
+	}
+	return _Utils_Tuple2(offset, total);
+});
+
+
+var _Parser_consumeBase16 = F2(function(offset, string)
+{
+	for (var total = 0; offset < string.length; offset++)
+	{
+		var code = string.charCodeAt(offset);
+		if (0x30 <= code && code <= 0x39)
+		{
+			total = 16 * total + code - 0x30;
+		}
+		else if (0x41 <= code && code <= 0x46)
+		{
+			total = 16 * total + code - 55;
+		}
+		else if (0x61 <= code && code <= 0x66)
+		{
+			total = 16 * total + code - 87;
+		}
+		else
+		{
+			break;
+		}
+	}
+	return _Utils_Tuple2(offset, total);
+});
+
+
+
+// FIND STRING
+
+
+var _Parser_findSubString = F5(function(smallString, offset, row, col, bigString)
+{
+	var newOffset = bigString.indexOf(smallString, offset);
+	var target = newOffset < 0 ? bigString.length : newOffset + smallString.length;
+
+	while (offset < target)
+	{
+		var code = bigString.charCodeAt(offset++);
+		code === 0x000A /* \n */
+			? ( col=1, row++ )
+			: ( col++, (code & 0xF800) === 0xD800 && offset++ )
+	}
+
+	return _Utils_Tuple3(newOffset, row, col);
+});
+
 
 
 
@@ -2834,9 +2964,9 @@ var _VirtualDom_mapEventTuple = F2(function(func, tuple)
 var _VirtualDom_mapEventRecord = F2(function(func, record)
 {
 	return {
-		p: func(record.p),
-		Z: record.Z,
-		W: record.W
+		t: func(record.t),
+		ah: record.ah,
+		ae: record.ae
 	}
 });
 
@@ -3104,11 +3234,11 @@ function _VirtualDom_makeCallback(eventNode, initialHandler)
 		// 3 = Custom
 
 		var value = result.a;
-		var message = !tag ? value : tag < 3 ? value.a : value.p;
-		var stopPropagation = tag == 1 ? value.b : tag == 3 && value.Z;
+		var message = !tag ? value : tag < 3 ? value.a : value.t;
+		var stopPropagation = tag == 1 ? value.b : tag == 3 && value.ah;
 		var currentEventNode = (
 			stopPropagation && event.stopPropagation(),
-			(tag == 2 ? value.b : tag == 3 && value.W) && event.preventDefault(),
+			(tag == 2 ? value.b : tag == 3 && value.ae) && event.preventDefault(),
 			eventNode
 		);
 		var tagger;
@@ -4058,11 +4188,11 @@ var _Browser_element = _Debugger_element || F4(function(impl, flagDecoder, debug
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.aL,
-		impl.aV,
-		impl.aT,
+		impl.bm,
+		impl.bK,
+		impl.bH,
 		function(sendToApp, initialModel) {
-			var view = impl.aX;
+			var view = impl.bM;
 			/**/
 			var domNode = args['node'];
 			//*/
@@ -4094,12 +4224,12 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.aL,
-		impl.aV,
-		impl.aT,
+		impl.bm,
+		impl.bK,
+		impl.bH,
 		function(sendToApp, initialModel) {
-			var divertHrefToApp = impl.I && impl.I(sendToApp)
-			var view = impl.aX;
+			var divertHrefToApp = impl.R && impl.R(sendToApp)
+			var view = impl.bM;
 			var title = _VirtualDom_doc.title;
 			var bodyNode = _VirtualDom_doc.body;
 			var currNode = _VirtualDom_virtualize(bodyNode);
@@ -4107,12 +4237,12 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 			{
 				_VirtualDom_divertHrefToApp = divertHrefToApp;
 				var doc = view(model);
-				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.aD);
+				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.a6);
 				var patches = _VirtualDom_diff(currNode, nextNode);
 				bodyNode = _VirtualDom_applyPatches(bodyNode, currNode, patches, sendToApp);
 				currNode = nextNode;
 				_VirtualDom_divertHrefToApp = 0;
-				(title !== doc.aU) && (_VirtualDom_doc.title = title = doc.aU);
+				(title !== doc.bJ) && (_VirtualDom_doc.title = title = doc.bJ);
 			});
 		}
 	);
@@ -4168,12 +4298,12 @@ function _Browser_makeAnimator(model, draw)
 
 function _Browser_application(impl)
 {
-	var onUrlChange = impl.aM;
-	var onUrlRequest = impl.aN;
+	var onUrlChange = impl.bq;
+	var onUrlRequest = impl.br;
 	var key = function() { key.a(onUrlChange(_Browser_getUrl())); };
 
 	return _Browser_document({
-		I: function(sendToApp)
+		R: function(sendToApp)
 		{
 			key.a = sendToApp;
 			_Browser_window.addEventListener('popstate', key);
@@ -4189,9 +4319,9 @@ function _Browser_application(impl)
 					var next = elm$url$Url$fromString(href).a;
 					sendToApp(onUrlRequest(
 						(next
-							&& curr.ap === next.ap
-							&& curr.ag === next.ag
-							&& curr.am.a === next.am.a
+							&& curr.aM === next.aM
+							&& curr.av === next.av
+							&& curr.aI.a === next.aI.a
 						)
 							? elm$browser$Browser$Internal(next)
 							: elm$browser$Browser$External(href)
@@ -4199,13 +4329,13 @@ function _Browser_application(impl)
 				}
 			});
 		},
-		aL: function(flags)
+		bm: function(flags)
 		{
-			return A3(impl.aL, flags, _Browser_getUrl(), key);
+			return A3(impl.bm, flags, _Browser_getUrl(), key);
 		},
-		aX: impl.aX,
-		aV: impl.aV,
-		aT: impl.aT
+		bM: impl.bM,
+		bK: impl.bK,
+		bH: impl.bH
 	});
 }
 
@@ -4271,17 +4401,17 @@ var _Browser_decodeEvent = F2(function(decoder, event)
 function _Browser_visibilityInfo()
 {
 	return (typeof _VirtualDom_doc.hidden !== 'undefined')
-		? { aJ: 'hidden', aE: 'visibilitychange' }
+		? { bi: 'hidden', a7: 'visibilitychange' }
 		:
 	(typeof _VirtualDom_doc.mozHidden !== 'undefined')
-		? { aJ: 'mozHidden', aE: 'mozvisibilitychange' }
+		? { bi: 'mozHidden', a7: 'mozvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.msHidden !== 'undefined')
-		? { aJ: 'msHidden', aE: 'msvisibilitychange' }
+		? { bi: 'msHidden', a7: 'msvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.webkitHidden !== 'undefined')
-		? { aJ: 'webkitHidden', aE: 'webkitvisibilitychange' }
-		: { aJ: 'hidden', aE: 'visibilitychange' };
+		? { bi: 'webkitHidden', a7: 'webkitvisibilitychange' }
+		: { bi: 'hidden', a7: 'visibilitychange' };
 }
 
 
@@ -4362,12 +4492,12 @@ var _Browser_call = F2(function(functionName, id)
 function _Browser_getViewport()
 {
 	return {
-		av: _Browser_getScene(),
-		aA: {
-			Q: _Browser_window.pageXOffset,
-			R: _Browser_window.pageYOffset,
-			F: _Browser_doc.documentElement.clientWidth,
-			A: _Browser_doc.documentElement.clientHeight
+		aU: _Browser_getScene(),
+		a0: {
+			Y: _Browser_window.pageXOffset,
+			Z: _Browser_window.pageYOffset,
+			M: _Browser_doc.documentElement.clientWidth,
+			E: _Browser_doc.documentElement.clientHeight
 		}
 	};
 }
@@ -4377,8 +4507,8 @@ function _Browser_getScene()
 	var body = _Browser_doc.body;
 	var elem = _Browser_doc.documentElement;
 	return {
-		F: Math.max(body.scrollWidth, body.offsetWidth, elem.scrollWidth, elem.offsetWidth, elem.clientWidth),
-		A: Math.max(body.scrollHeight, body.offsetHeight, elem.scrollHeight, elem.offsetHeight, elem.clientHeight)
+		M: Math.max(body.scrollWidth, body.offsetWidth, elem.scrollWidth, elem.offsetWidth, elem.clientWidth),
+		E: Math.max(body.scrollHeight, body.offsetHeight, elem.scrollHeight, elem.offsetHeight, elem.clientHeight)
 	};
 }
 
@@ -4401,15 +4531,15 @@ function _Browser_getViewportOf(id)
 	return _Browser_withNode(id, function(node)
 	{
 		return {
-			av: {
-				F: node.scrollWidth,
-				A: node.scrollHeight
+			aU: {
+				M: node.scrollWidth,
+				E: node.scrollHeight
 			},
-			aA: {
-				Q: node.scrollLeft,
-				R: node.scrollTop,
-				F: node.clientWidth,
-				A: node.clientHeight
+			a0: {
+				Y: node.scrollLeft,
+				Z: node.scrollTop,
+				M: node.clientWidth,
+				E: node.clientHeight
 			}
 		};
 	});
@@ -4439,18 +4569,18 @@ function _Browser_getElement(id)
 		var x = _Browser_window.pageXOffset;
 		var y = _Browser_window.pageYOffset;
 		return {
-			av: _Browser_getScene(),
-			aA: {
-				Q: x,
-				R: y,
-				F: _Browser_doc.documentElement.clientWidth,
-				A: _Browser_doc.documentElement.clientHeight
+			aU: _Browser_getScene(),
+			a0: {
+				Y: x,
+				Z: y,
+				M: _Browser_doc.documentElement.clientWidth,
+				E: _Browser_doc.documentElement.clientHeight
 			},
-			aF: {
-				Q: x + rect.left,
-				R: y + rect.top,
-				F: rect.width,
-				A: rect.height
+			bd: {
+				Y: x + rect.left,
+				Z: y + rect.top,
+				M: rect.width,
+				E: rect.height
 			}
 		};
 	});
@@ -4568,7 +4698,7 @@ var elm$core$Set$toList = function (_n0) {
 	var dict = _n0;
 	return elm$core$Dict$keys(dict);
 };
-var author$project$Main$emptyModel = {y: elm$core$Dict$empty, l: elm$core$Maybe$Nothing, O: elm$core$Maybe$Nothing, v: _List_Nil};
+var author$project$Main$emptyModel = {w: elm$core$Dict$empty, p: elm$core$Maybe$Nothing, W: elm$core$Maybe$Nothing, A: _List_Nil};
 var author$project$Main$ReceivedSlices = function (a) {
 	return {$: 2, a: a};
 };
@@ -4688,25 +4818,25 @@ var elm$core$Basics$sub = _Basics_sub;
 var elm$core$Elm$JsArray$length = _JsArray_length;
 var elm$core$Array$builderToArray = F2(
 	function (reverseNodeList, builder) {
-		if (!builder.a) {
+		if (!builder.e) {
 			return A4(
 				elm$core$Array$Array_elm_builtin,
-				elm$core$Elm$JsArray$length(builder.c),
+				elm$core$Elm$JsArray$length(builder.g),
 				elm$core$Array$shiftStep,
 				elm$core$Elm$JsArray$empty,
-				builder.c);
+				builder.g);
 		} else {
-			var treeLen = builder.a * elm$core$Array$branchFactor;
+			var treeLen = builder.e * elm$core$Array$branchFactor;
 			var depth = elm$core$Basics$floor(
 				A2(elm$core$Basics$logBase, elm$core$Array$branchFactor, treeLen - 1));
-			var correctNodeList = reverseNodeList ? elm$core$List$reverse(builder.d) : builder.d;
-			var tree = A2(elm$core$Array$treeFromBuilder, correctNodeList, builder.a);
+			var correctNodeList = reverseNodeList ? elm$core$List$reverse(builder.h) : builder.h;
+			var tree = A2(elm$core$Array$treeFromBuilder, correctNodeList, builder.e);
 			return A4(
 				elm$core$Array$Array_elm_builtin,
-				elm$core$Elm$JsArray$length(builder.c) + treeLen,
+				elm$core$Elm$JsArray$length(builder.g) + treeLen,
 				A2(elm$core$Basics$max, 5, depth * elm$core$Array$shiftStep),
 				tree,
-				builder.c);
+				builder.g);
 		}
 	});
 var elm$core$Basics$False = 1;
@@ -4721,7 +4851,7 @@ var elm$core$Array$initializeHelp = F5(
 				return A2(
 					elm$core$Array$builderToArray,
 					false,
-					{d: nodeList, a: (len / elm$core$Array$branchFactor) | 0, c: tail});
+					{h: nodeList, e: (len / elm$core$Array$branchFactor) | 0, g: tail});
 			} else {
 				var leaf = elm$core$Array$Leaf(
 					A3(elm$core$Elm$JsArray$initialize, elm$core$Array$branchFactor, fromIndex, fn));
@@ -5726,7 +5856,7 @@ var elm$http$Http$resolve = F2(
 			case 3:
 				var metadata = response.a;
 				return elm$core$Result$Err(
-					elm$http$Http$BadStatus(metadata.ax));
+					elm$http$Http$BadStatus(metadata.aY));
 			default:
 				var body = response.b;
 				return A2(
@@ -5756,7 +5886,7 @@ var elm$http$Http$Request = function (a) {
 var elm$core$Task$succeed = _Scheduler_succeed;
 var elm$http$Http$State = F2(
 	function (reqs, subs) {
-		return {as: reqs, ay: subs};
+		return {aP: reqs, aZ: subs};
 	});
 var elm$http$Http$init = elm$core$Task$succeed(
 	A2(elm$http$Http$State, elm$core$Dict$empty, _List_Nil));
@@ -5801,7 +5931,7 @@ var elm$http$Http$updateReqs = F3(
 					return A2(
 						elm$core$Task$andThen,
 						function (pid) {
-							var _n4 = req.j;
+							var _n4 = req.n;
 							if (_n4.$ === 1) {
 								return A3(elm$http$Http$updateReqs, router, otherCmds, reqs);
 							} else {
@@ -5831,7 +5961,7 @@ var elm$http$Http$onEffects = F4(
 				return elm$core$Task$succeed(
 					A2(elm$http$Http$State, reqs, subs));
 			},
-			A3(elm$http$Http$updateReqs, router, cmds, state.as));
+			A3(elm$http$Http$updateReqs, router, cmds, state.aP));
 	});
 var elm$core$List$foldrHelper = F4(
 	function (fn, acc, ctr, ls) {
@@ -5951,7 +6081,7 @@ var elm$http$Http$onSelfMsg = F3(
 				A2(
 					elm$core$List$filterMap,
 					A3(elm$http$Http$maybeSend, router, tracker, progress),
-					state.ay)));
+					state.aZ)));
 	});
 var elm$http$Http$Cancel = function (a) {
 	return {$: 0, a: a};
@@ -5965,14 +6095,14 @@ var elm$http$Http$cmdMap = F2(
 			var r = cmd.a;
 			return elm$http$Http$Request(
 				{
-					x: r.x,
-					aD: r.aD,
-					aG: A2(_Http_mapExpect, func, r.aG),
-					e: r.e,
-					h: r.h,
+					C: r.C,
+					a6: r.a6,
+					be: A2(_Http_mapExpect, func, r.be),
 					i: r.i,
-					j: r.j,
-					aW: r.aW
+					l: r.l,
+					m: r.m,
+					n: r.n,
+					bL: r.bL
 				});
 		}
 	});
@@ -5995,26 +6125,26 @@ var elm$http$Http$subscription = _Platform_leaf('Http');
 var elm$http$Http$request = function (r) {
 	return elm$http$Http$command(
 		elm$http$Http$Request(
-			{x: false, aD: r.aD, aG: r.aG, e: r.e, h: r.h, i: r.i, j: r.j, aW: r.aW}));
+			{C: false, a6: r.a6, be: r.be, i: r.i, l: r.l, m: r.m, n: r.n, bL: r.bL}));
 };
 var elm$http$Http$get = function (r) {
 	return elm$http$Http$request(
-		{aD: elm$http$Http$emptyBody, aG: r.aG, e: _List_Nil, h: 'GET', i: elm$core$Maybe$Nothing, j: elm$core$Maybe$Nothing, aW: r.aW});
+		{a6: elm$http$Http$emptyBody, be: r.be, i: _List_Nil, l: 'GET', m: elm$core$Maybe$Nothing, n: elm$core$Maybe$Nothing, bL: r.bL});
 };
 var author$project$Main$getAllSlices = elm$http$Http$get(
 	{
-		aG: A2(
+		be: A2(
 			elm$http$Http$expectJson,
 			author$project$Main$ReceivedSlices,
 			elm$json$Json$Decode$list(author$project$Main$sliceDecoder)),
-		aW: 'http://localhost:8080/contents'
+		bL: 'http://localhost:8080/contents'
 	});
 var author$project$Main$init = function (_n0) {
 	return _Utils_Tuple2(
 		_Utils_update(
 			author$project$Main$emptyModel,
 			{
-				l: elm$core$Maybe$Just('Loading and analyzing slices...')
+				p: elm$core$Maybe$Just('Loading and analyzing slices...')
 			}),
 		author$project$Main$getAllSlices);
 };
@@ -6053,7 +6183,7 @@ var author$project$Main$addOccurence = F3(
 				_Utils_update(
 					sw,
 					{
-						P: A2(elm$core$List$cons, occId, sw.P)
+						X: A2(elm$core$List$cons, occId, sw.X)
 					}),
 				dict);
 		}
@@ -6082,12 +6212,12 @@ var author$project$Main$computeOccurences = function (model) {
 	return _Utils_update(
 		model,
 		{
-			y: A3(elm$core$List$foldl, author$project$Main$addOccurences, model.y, model.v)
+			w: A3(elm$core$List$foldl, author$project$Main$addOccurences, model.w, model.A)
 		});
 };
 var elm$core$String$startsWith = _String_startsWith;
 var author$project$Main$isMain = function (sw) {
-	return A2(elm$core$String$startsWith, 'main ', sw.U);
+	return A2(elm$core$String$startsWith, 'main ', sw.ac);
 };
 var elm$core$List$filter = F2(
 	function (isGood, list) {
@@ -6101,13 +6231,13 @@ var elm$core$List$filter = F2(
 			list);
 	});
 var author$project$Main$findMain = function (model) {
-	var _n0 = A2(elm$core$List$filter, author$project$Main$isMain, model.v);
+	var _n0 = A2(elm$core$List$filter, author$project$Main$isMain, model.A);
 	if (_n0.b) {
 		var x = _n0.a;
 		return _Utils_update(
 			model,
 			{
-				O: elm$core$Maybe$Just(x.S)
+				W: elm$core$Maybe$Just(x.aa)
 			});
 	} else {
 		return model;
@@ -6117,7 +6247,7 @@ var author$project$Main$indexSlices = function (model) {
 	return _Utils_update(
 		model,
 		{
-			y: A3(
+			w: A3(
 				elm$core$List$foldl,
 				F2(
 					function (s, c) {
@@ -6126,7 +6256,7 @@ var author$project$Main$indexSlices = function (model) {
 						return A3(elm$core$Dict$insert, sid, s, c);
 					}),
 				elm$core$Dict$empty,
-				model.v)
+				model.A)
 		});
 };
 var elm$core$String$concat = function (strings) {
@@ -6155,13 +6285,13 @@ var author$project$Main$wrap = function (bare) {
 	var sid = bare.a;
 	var lines = bare.c;
 	return {
-		ab: elm$core$String$concat(
+		an: elm$core$String$concat(
 			A2(
 				elm$core$List$filter,
 				elm$core$String$startsWith('--'),
 				lines)),
-		S: sid,
-		U: function () {
+		aa: sid,
+		ac: function () {
 			var _n1 = A2(
 				elm$core$List$filter,
 				elm$core$String$contains('='),
@@ -6179,8 +6309,8 @@ var author$project$Main$wrap = function (bare) {
 				return '';
 			}
 		}(),
-		P: _List_Nil,
-		aw: function () {
+		X: _List_Nil,
+		aW: function () {
 			var _n3 = A2(
 				elm$core$List$filter,
 				elm$core$String$contains('::'),
@@ -6220,7 +6350,7 @@ var author$project$Main$insertSlices = F2(
 		return _Utils_update(
 			model,
 			{
-				v: A2(elm$core$List$map, author$project$Main$wrap, newSlices)
+				A: A2(elm$core$List$map, author$project$Main$wrap, newSlices)
 			});
 	});
 var elm$core$Set$Set_elm_builtin = elm$core$Basics$identity;
@@ -6268,9 +6398,9 @@ var author$project$Main$checkDependencies = F3(
 var author$project$Main$integrityCheck = function (model) {
 	return A3(
 		elm$core$List$foldl,
-		author$project$Main$checkDependencies(model.y),
+		author$project$Main$checkDependencies(model.w),
 		elm$core$Result$Ok(0),
-		model.v);
+		model.A);
 };
 var author$project$Main$missingSlicesToString = function (missing) {
 	return 'Missing Slices: ' + elm$core$String$concat(
@@ -6290,7 +6420,7 @@ var author$project$Main$performIntegrityCheck = function (model) {
 		return _Utils_update(
 			model,
 			{
-				l: elm$core$Maybe$Just(
+				p: elm$core$Maybe$Just(
 					author$project$Main$missingSlicesToString(missing))
 			});
 	}
@@ -6316,7 +6446,7 @@ var author$project$Main$update = F2(
 						_Utils_update(
 							model,
 							{
-								l: elm$core$Maybe$Just(
+								p: elm$core$Maybe$Just(
 									author$project$Main$httpErrorToString(e))
 							}),
 						elm$core$Platform$Cmd$none);
@@ -6328,7 +6458,7 @@ var author$project$Main$update = F2(
 							slices,
 							_Utils_update(
 								model,
-								{l: elm$core$Maybe$Nothing})),
+								{p: elm$core$Maybe$Nothing})),
 						elm$core$Platform$Cmd$none);
 				}
 			case 0:
@@ -6337,17 +6467,1796 @@ var author$project$Main$update = F2(
 					_Utils_update(
 						model,
 						{
-							l: elm$core$Maybe$Just(err)
+							p: elm$core$Maybe$Just(err)
 						}),
 					elm$core$Platform$Cmd$none);
 			default:
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{l: elm$core$Maybe$Nothing}),
+						{p: elm$core$Maybe$Nothing}),
 					elm$core$Platform$Cmd$none);
 		}
 	});
+var elm$core$List$intersperse = F2(
+	function (sep, xs) {
+		if (!xs.b) {
+			return _List_Nil;
+		} else {
+			var hd = xs.a;
+			var tl = xs.b;
+			var step = F2(
+				function (x, rest) {
+					return A2(
+						elm$core$List$cons,
+						sep,
+						A2(elm$core$List$cons, x, rest));
+				});
+			var spersed = A3(elm$core$List$foldr, step, _List_Nil, tl);
+			return A2(elm$core$List$cons, hd, spersed);
+		}
+	});
+var author$project$Main$renderFragment = function (slice) {
+	var codes = slice.c;
+	return elm$core$String$concat(
+		A2(elm$core$List$intersperse, '\n', codes));
+};
+var author$project$SyntaxHighlight$HCode = elm$core$Basics$identity;
+var author$project$SyntaxHighlight$Style$Style1 = 2;
+var author$project$SyntaxHighlight$Style$Style2 = 3;
+var author$project$SyntaxHighlight$Style$Style3 = 4;
+var author$project$SyntaxHighlight$Style$Style4 = 5;
+var author$project$SyntaxHighlight$Style$Style5 = 6;
+var author$project$SyntaxHighlight$Style$Style6 = 7;
+var author$project$SyntaxHighlight$Language$Haskell$syntaxToStyle = function (syntax) {
+	switch (syntax) {
+		case 0:
+			return _Utils_Tuple2(3, 'elm-s');
+		case 1:
+			return _Utils_Tuple2(4, 'elm-bs');
+		case 2:
+			return _Utils_Tuple2(5, 'elm-gs');
+		case 3:
+			return _Utils_Tuple2(7, 'elm-c');
+		case 4:
+			return _Utils_Tuple2(4, 'elm-k');
+		case 5:
+			return _Utils_Tuple2(6, 'elm-f');
+		case 6:
+			return _Utils_Tuple2(5, 'elm-ts');
+		default:
+			return _Utils_Tuple2(2, 'elm-n');
+	}
+};
+var author$project$SyntaxHighlight$Language$Helpers$isLineBreak = function (c) {
+	return c === '\n';
+};
+var elm$parser$Parser$Advanced$Parser = elm$core$Basics$identity;
+var elm$parser$Parser$Advanced$Good = F3(
+	function (a, b, c) {
+		return {$: 0, a: a, b: b, c: c};
+	});
+var elm$parser$Parser$Advanced$isSubChar = _Parser_isSubChar;
+var elm$parser$Parser$Advanced$chompWhileHelp = F5(
+	function (isGood, offset, row, col, s0) {
+		chompWhileHelp:
+		while (true) {
+			var newOffset = A3(elm$parser$Parser$Advanced$isSubChar, isGood, offset, s0.a);
+			if (_Utils_eq(newOffset, -1)) {
+				return A3(
+					elm$parser$Parser$Advanced$Good,
+					_Utils_cmp(s0.b, offset) < 0,
+					0,
+					{am: col, c: s0.c, d: s0.d, b: offset, aT: row, a: s0.a});
+			} else {
+				if (_Utils_eq(newOffset, -2)) {
+					var $temp$isGood = isGood,
+						$temp$offset = offset + 1,
+						$temp$row = row + 1,
+						$temp$col = 1,
+						$temp$s0 = s0;
+					isGood = $temp$isGood;
+					offset = $temp$offset;
+					row = $temp$row;
+					col = $temp$col;
+					s0 = $temp$s0;
+					continue chompWhileHelp;
+				} else {
+					var $temp$isGood = isGood,
+						$temp$offset = newOffset,
+						$temp$row = row,
+						$temp$col = col + 1,
+						$temp$s0 = s0;
+					isGood = $temp$isGood;
+					offset = $temp$offset;
+					row = $temp$row;
+					col = $temp$col;
+					s0 = $temp$s0;
+					continue chompWhileHelp;
+				}
+			}
+		}
+	});
+var elm$parser$Parser$Advanced$chompWhile = function (isGood) {
+	return function (s) {
+		return A5(elm$parser$Parser$Advanced$chompWhileHelp, isGood, s.b, s.aT, s.am, s);
+	};
+};
+var elm$parser$Parser$chompWhile = elm$parser$Parser$Advanced$chompWhile;
+var elm$core$Basics$always = F2(
+	function (a, _n0) {
+		return a;
+	});
+var elm$parser$Parser$Advanced$Bad = F2(
+	function (a, b) {
+		return {$: 1, a: a, b: b};
+	});
+var elm$parser$Parser$Advanced$map2 = F3(
+	function (func, _n0, _n1) {
+		var parseA = _n0;
+		var parseB = _n1;
+		return function (s0) {
+			var _n2 = parseA(s0);
+			if (_n2.$ === 1) {
+				var p = _n2.a;
+				var x = _n2.b;
+				return A2(elm$parser$Parser$Advanced$Bad, p, x);
+			} else {
+				var p1 = _n2.a;
+				var a = _n2.b;
+				var s1 = _n2.c;
+				var _n3 = parseB(s1);
+				if (_n3.$ === 1) {
+					var p2 = _n3.a;
+					var x = _n3.b;
+					return A2(elm$parser$Parser$Advanced$Bad, p1 || p2, x);
+				} else {
+					var p2 = _n3.a;
+					var b = _n3.b;
+					var s2 = _n3.c;
+					return A3(
+						elm$parser$Parser$Advanced$Good,
+						p1 || p2,
+						A2(func, a, b),
+						s2);
+				}
+			}
+		};
+	});
+var elm$parser$Parser$Advanced$ignorer = F2(
+	function (keepParser, ignoreParser) {
+		return A3(elm$parser$Parser$Advanced$map2, elm$core$Basics$always, keepParser, ignoreParser);
+	});
+var elm$parser$Parser$ignorer = elm$parser$Parser$Advanced$ignorer;
+var author$project$SyntaxHighlight$Language$Helpers$thenChompWhile = F2(
+	function (isNotRelevant, previousParser) {
+		return A2(
+			elm$parser$Parser$ignorer,
+			previousParser,
+			elm$parser$Parser$chompWhile(isNotRelevant));
+	});
+var author$project$SyntaxHighlight$Language$Type$Comment = {$: 1};
+var elm$core$Basics$composeL = F3(
+	function (g, f, x) {
+		return g(
+			f(x));
+	});
+var elm$core$Basics$not = _Basics_not;
+var elm$parser$Parser$Advanced$mapChompedString = F2(
+	function (func, _n0) {
+		var parse = _n0;
+		return function (s0) {
+			var _n1 = parse(s0);
+			if (_n1.$ === 1) {
+				var p = _n1.a;
+				var x = _n1.b;
+				return A2(elm$parser$Parser$Advanced$Bad, p, x);
+			} else {
+				var p = _n1.a;
+				var a = _n1.b;
+				var s1 = _n1.c;
+				return A3(
+					elm$parser$Parser$Advanced$Good,
+					p,
+					A2(
+						func,
+						A3(elm$core$String$slice, s0.b, s1.b, s0.a),
+						a),
+					s1);
+			}
+		};
+	});
+var elm$parser$Parser$Advanced$getChompedString = function (parser) {
+	return A2(elm$parser$Parser$Advanced$mapChompedString, elm$core$Basics$always, parser);
+};
+var elm$parser$Parser$getChompedString = elm$parser$Parser$Advanced$getChompedString;
+var elm$parser$Parser$Advanced$map = F2(
+	function (func, _n0) {
+		var parse = _n0;
+		return function (s0) {
+			var _n1 = parse(s0);
+			if (!_n1.$) {
+				var p = _n1.a;
+				var a = _n1.b;
+				var s1 = _n1.c;
+				return A3(
+					elm$parser$Parser$Advanced$Good,
+					p,
+					func(a),
+					s1);
+			} else {
+				var p = _n1.a;
+				var x = _n1.b;
+				return A2(elm$parser$Parser$Advanced$Bad, p, x);
+			}
+		};
+	});
+var elm$parser$Parser$map = elm$parser$Parser$Advanced$map;
+var elm$parser$Parser$ExpectingSymbol = function (a) {
+	return {$: 8, a: a};
+};
+var elm$parser$Parser$Advanced$Token = F2(
+	function (a, b) {
+		return {$: 0, a: a, b: b};
+	});
+var elm$core$String$isEmpty = function (string) {
+	return string === '';
+};
+var elm$parser$Parser$Advanced$AddRight = F2(
+	function (a, b) {
+		return {$: 1, a: a, b: b};
+	});
+var elm$parser$Parser$Advanced$DeadEnd = F4(
+	function (row, col, problem, contextStack) {
+		return {am: col, a9: contextStack, aJ: problem, aT: row};
+	});
+var elm$parser$Parser$Advanced$Empty = {$: 0};
+var elm$parser$Parser$Advanced$fromState = F2(
+	function (s, x) {
+		return A2(
+			elm$parser$Parser$Advanced$AddRight,
+			elm$parser$Parser$Advanced$Empty,
+			A4(elm$parser$Parser$Advanced$DeadEnd, s.aT, s.am, x, s.c));
+	});
+var elm$parser$Parser$Advanced$isSubString = _Parser_isSubString;
+var elm$parser$Parser$Advanced$token = function (_n0) {
+	var str = _n0.a;
+	var expecting = _n0.b;
+	var progress = !elm$core$String$isEmpty(str);
+	return function (s) {
+		var _n1 = A5(elm$parser$Parser$Advanced$isSubString, str, s.b, s.aT, s.am, s.a);
+		var newOffset = _n1.a;
+		var newRow = _n1.b;
+		var newCol = _n1.c;
+		return _Utils_eq(newOffset, -1) ? A2(
+			elm$parser$Parser$Advanced$Bad,
+			false,
+			A2(elm$parser$Parser$Advanced$fromState, s, expecting)) : A3(
+			elm$parser$Parser$Advanced$Good,
+			progress,
+			0,
+			{am: newCol, c: s.c, d: s.d, b: newOffset, aT: newRow, a: s.a});
+	};
+};
+var elm$parser$Parser$Advanced$symbol = elm$parser$Parser$Advanced$token;
+var elm$parser$Parser$symbol = function (str) {
+	return elm$parser$Parser$Advanced$symbol(
+		A2(
+			elm$parser$Parser$Advanced$Token,
+			str,
+			elm$parser$Parser$ExpectingSymbol(str)));
+};
+var author$project$SyntaxHighlight$Language$Haskell$inlineComment = A2(
+	elm$parser$Parser$map,
+	function (b) {
+		return _List_fromArray(
+			[
+				_Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Comment, b)
+			]);
+	},
+	elm$parser$Parser$getChompedString(
+		A2(
+			author$project$SyntaxHighlight$Language$Helpers$thenChompWhile,
+			A2(elm$core$Basics$composeL, elm$core$Basics$not, author$project$SyntaxHighlight$Language$Helpers$isLineBreak),
+			elm$parser$Parser$symbol('--'))));
+var author$project$SyntaxHighlight$Language$Type$LineBreak = {$: 2};
+var author$project$SyntaxHighlight$Language$Haskell$lineBreakList = A2(
+	elm$parser$Parser$map,
+	function (_n0) {
+		return _List_fromArray(
+			[
+				_Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$LineBreak, '\n')
+			]);
+	},
+	elm$parser$Parser$symbol('\n'));
+var elm$parser$Parser$Advanced$andThen = F2(
+	function (callback, _n0) {
+		var parseA = _n0;
+		return function (s0) {
+			var _n1 = parseA(s0);
+			if (_n1.$ === 1) {
+				var p = _n1.a;
+				var x = _n1.b;
+				return A2(elm$parser$Parser$Advanced$Bad, p, x);
+			} else {
+				var p1 = _n1.a;
+				var a = _n1.b;
+				var s1 = _n1.c;
+				var _n2 = callback(a);
+				var parseB = _n2;
+				var _n3 = parseB(s1);
+				if (_n3.$ === 1) {
+					var p2 = _n3.a;
+					var x = _n3.b;
+					return A2(elm$parser$Parser$Advanced$Bad, p1 || p2, x);
+				} else {
+					var p2 = _n3.a;
+					var b = _n3.b;
+					var s2 = _n3.c;
+					return A3(elm$parser$Parser$Advanced$Good, p1 || p2, b, s2);
+				}
+			}
+		};
+	});
+var elm$parser$Parser$andThen = elm$parser$Parser$Advanced$andThen;
+var author$project$SyntaxHighlight$Language$Helpers$addThen = F3(
+	function (f, list, plist) {
+		return A2(
+			elm$parser$Parser$andThen,
+			function (n) {
+				return f(
+					_Utils_ap(n, list));
+			},
+			plist);
+	});
+var author$project$SyntaxHighlight$Language$Helpers$consThen = F3(
+	function (f, list, pn) {
+		return A2(
+			elm$parser$Parser$andThen,
+			function (n) {
+				return f(
+					A2(elm$core$List$cons, n, list));
+			},
+			pn);
+	});
+var elm$parser$Parser$UnexpectedChar = {$: 11};
+var elm$parser$Parser$Advanced$chompIf = F2(
+	function (isGood, expecting) {
+		return function (s) {
+			var newOffset = A3(elm$parser$Parser$Advanced$isSubChar, isGood, s.b, s.a);
+			return _Utils_eq(newOffset, -1) ? A2(
+				elm$parser$Parser$Advanced$Bad,
+				false,
+				A2(elm$parser$Parser$Advanced$fromState, s, expecting)) : (_Utils_eq(newOffset, -2) ? A3(
+				elm$parser$Parser$Advanced$Good,
+				true,
+				0,
+				{am: 1, c: s.c, d: s.d, b: s.b + 1, aT: s.aT + 1, a: s.a}) : A3(
+				elm$parser$Parser$Advanced$Good,
+				true,
+				0,
+				{am: s.am + 1, c: s.c, d: s.d, b: newOffset, aT: s.aT, a: s.a}));
+		};
+	});
+var elm$parser$Parser$chompIf = function (isGood) {
+	return A2(elm$parser$Parser$Advanced$chompIf, isGood, elm$parser$Parser$UnexpectedChar);
+};
+var elm$parser$Parser$ExpectingEnd = {$: 10};
+var elm$parser$Parser$Advanced$end = function (x) {
+	return function (s) {
+		return _Utils_eq(
+			elm$core$String$length(s.a),
+			s.b) ? A3(elm$parser$Parser$Advanced$Good, false, 0, s) : A2(
+			elm$parser$Parser$Advanced$Bad,
+			false,
+			A2(elm$parser$Parser$Advanced$fromState, s, x));
+	};
+};
+var elm$parser$Parser$end = elm$parser$Parser$Advanced$end(elm$parser$Parser$ExpectingEnd);
+var elm$parser$Parser$Advanced$Append = F2(
+	function (a, b) {
+		return {$: 2, a: a, b: b};
+	});
+var elm$parser$Parser$Advanced$oneOfHelp = F3(
+	function (s0, bag, parsers) {
+		oneOfHelp:
+		while (true) {
+			if (!parsers.b) {
+				return A2(elm$parser$Parser$Advanced$Bad, false, bag);
+			} else {
+				var parse = parsers.a;
+				var remainingParsers = parsers.b;
+				var _n1 = parse(s0);
+				if (!_n1.$) {
+					var step = _n1;
+					return step;
+				} else {
+					var step = _n1;
+					var p = step.a;
+					var x = step.b;
+					if (p) {
+						return step;
+					} else {
+						var $temp$s0 = s0,
+							$temp$bag = A2(elm$parser$Parser$Advanced$Append, bag, x),
+							$temp$parsers = remainingParsers;
+						s0 = $temp$s0;
+						bag = $temp$bag;
+						parsers = $temp$parsers;
+						continue oneOfHelp;
+					}
+				}
+			}
+		}
+	});
+var elm$parser$Parser$Advanced$oneOf = function (parsers) {
+	return function (s) {
+		return A3(elm$parser$Parser$Advanced$oneOfHelp, s, elm$parser$Parser$Advanced$Empty, parsers);
+	};
+};
+var elm$parser$Parser$oneOf = elm$parser$Parser$Advanced$oneOf;
+var author$project$SyntaxHighlight$Language$Helpers$delimitedUnnestable = F2(
+	function (options, revAList) {
+		var defaultMap = options.ap;
+		var isNotRelevant = options.aA;
+		var end = options._;
+		var innerParsers = options.ax;
+		return elm$parser$Parser$oneOf(
+			_List_fromArray(
+				[
+					A2(
+					elm$parser$Parser$map,
+					elm$core$Basics$always(
+						A2(
+							elm$core$List$cons,
+							defaultMap(end),
+							revAList)),
+					elm$parser$Parser$symbol(end)),
+					A2(
+					elm$parser$Parser$map,
+					elm$core$Basics$always(revAList),
+					elm$parser$Parser$end),
+					A3(
+					author$project$SyntaxHighlight$Language$Helpers$addThen,
+					author$project$SyntaxHighlight$Language$Helpers$delimitedUnnestable(options),
+					revAList,
+					elm$parser$Parser$oneOf(innerParsers)),
+					A3(
+					author$project$SyntaxHighlight$Language$Helpers$consThen,
+					author$project$SyntaxHighlight$Language$Helpers$delimitedUnnestable(options),
+					revAList,
+					A2(
+						elm$parser$Parser$map,
+						defaultMap,
+						elm$parser$Parser$getChompedString(
+							A2(
+								author$project$SyntaxHighlight$Language$Helpers$thenChompWhile,
+								isNotRelevant,
+								elm$parser$Parser$chompIf(
+									elm$core$Basics$always(true))))))
+				]));
+	});
+var elm$parser$Parser$Advanced$succeed = function (a) {
+	return function (s) {
+		return A3(elm$parser$Parser$Advanced$Good, false, a, s);
+	};
+};
+var elm$parser$Parser$succeed = elm$parser$Parser$Advanced$succeed;
+var author$project$SyntaxHighlight$Language$Helpers$delimitedNestable = F3(
+	function (nestLevel, options, revAList) {
+		var defaultMap = options.ap;
+		var isNotRelevant = options.aA;
+		var start = options.ag;
+		var end = options._;
+		var innerParsers = options.ax;
+		return elm$parser$Parser$oneOf(
+			_List_fromArray(
+				[
+					A2(
+					elm$parser$Parser$andThen,
+					function (n) {
+						return (nestLevel === 1) ? elm$parser$Parser$succeed(n) : A3(author$project$SyntaxHighlight$Language$Helpers$delimitedNestable, nestLevel - 1, options, n);
+					},
+					A2(
+						elm$parser$Parser$map,
+						elm$core$Basics$always(
+							A2(
+								elm$core$List$cons,
+								defaultMap(end),
+								revAList)),
+						elm$parser$Parser$symbol(end))),
+					A3(
+					author$project$SyntaxHighlight$Language$Helpers$consThen,
+					A2(author$project$SyntaxHighlight$Language$Helpers$delimitedNestable, nestLevel + 1, options),
+					revAList,
+					A2(
+						elm$parser$Parser$map,
+						defaultMap,
+						elm$parser$Parser$getChompedString(
+							A2(
+								author$project$SyntaxHighlight$Language$Helpers$thenChompWhile,
+								isNotRelevant,
+								elm$parser$Parser$symbol(start))))),
+					A3(
+					author$project$SyntaxHighlight$Language$Helpers$addThen,
+					author$project$SyntaxHighlight$Language$Helpers$delimitedUnnestable(options),
+					revAList,
+					elm$parser$Parser$oneOf(innerParsers)),
+					A2(
+					elm$parser$Parser$map,
+					elm$core$Basics$always(revAList),
+					elm$parser$Parser$end),
+					A3(
+					author$project$SyntaxHighlight$Language$Helpers$consThen,
+					A2(author$project$SyntaxHighlight$Language$Helpers$delimitedNestable, nestLevel, options),
+					revAList,
+					A2(
+						elm$parser$Parser$map,
+						defaultMap,
+						elm$parser$Parser$getChompedString(
+							A2(
+								author$project$SyntaxHighlight$Language$Helpers$thenChompWhile,
+								isNotRelevant,
+								elm$parser$Parser$chompIf(
+									elm$core$Basics$always(true))))))
+				]));
+	});
+var elm$core$Basics$neq = _Utils_notEqual;
+var elm$parser$Parser$Problem = function (a) {
+	return {$: 12, a: a};
+};
+var elm$parser$Parser$Advanced$problem = function (x) {
+	return function (s) {
+		return A2(
+			elm$parser$Parser$Advanced$Bad,
+			false,
+			A2(elm$parser$Parser$Advanced$fromState, s, x));
+	};
+};
+var elm$parser$Parser$problem = function (msg) {
+	return elm$parser$Parser$Advanced$problem(
+		elm$parser$Parser$Problem(msg));
+};
+var author$project$SyntaxHighlight$Language$Helpers$delimitedHelp = F2(
+	function (options, revAList) {
+		var start = options.ag;
+		var end = options._;
+		var isNotRelevant = options.aA;
+		var _n0 = _Utils_Tuple2(
+			elm$core$String$uncons(options.ag),
+			elm$core$String$uncons(options._));
+		if (_n0.a.$ === 1) {
+			var _n1 = _n0.a;
+			return elm$parser$Parser$problem('Trying to parse a delimited helper, but the start token cannot be an empty string!');
+		} else {
+			if (_n0.b.$ === 1) {
+				var _n2 = _n0.b;
+				return elm$parser$Parser$problem('Trying to parse a delimited helper, but the end token cannot be an empty string!');
+			} else {
+				var _n3 = _n0.a.a;
+				var startChar = _n3.a;
+				var _n4 = _n0.b.a;
+				var endChar = _n4.a;
+				return options.az ? A3(
+					author$project$SyntaxHighlight$Language$Helpers$delimitedNestable,
+					1,
+					_Utils_update(
+						options,
+						{
+							aA: function (c) {
+								return isNotRelevant(c) && ((!_Utils_eq(c, startChar)) && (!_Utils_eq(c, endChar)));
+							}
+						}),
+					revAList) : A2(
+					author$project$SyntaxHighlight$Language$Helpers$delimitedUnnestable,
+					_Utils_update(
+						options,
+						{
+							aA: function (c) {
+								return isNotRelevant(c) && (!_Utils_eq(c, endChar));
+							}
+						}),
+					revAList);
+			}
+		}
+	});
+var author$project$SyntaxHighlight$Language$Helpers$delimited = function (options) {
+	var start = options.ag;
+	var isNotRelevant = options.aA;
+	var defaultMap = options.ap;
+	return A2(
+		elm$parser$Parser$andThen,
+		function (n) {
+			return A2(
+				author$project$SyntaxHighlight$Language$Helpers$delimitedHelp,
+				options,
+				_List_fromArray(
+					[n]));
+		},
+		A2(
+			elm$parser$Parser$map,
+			elm$core$Basics$always(
+				defaultMap(start)),
+			elm$parser$Parser$symbol(start)));
+};
+var author$project$SyntaxHighlight$Language$Haskell$multilineComment = author$project$SyntaxHighlight$Language$Helpers$delimited(
+	{
+		ap: function (b) {
+			return _Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Comment, b);
+		},
+		_: '-}',
+		ax: _List_fromArray(
+			[author$project$SyntaxHighlight$Language$Haskell$lineBreakList]),
+		az: true,
+		aA: function (c) {
+			return !author$project$SyntaxHighlight$Language$Helpers$isLineBreak(c);
+		},
+		ag: '{-'
+	});
+var author$project$SyntaxHighlight$Language$Haskell$comment = elm$parser$Parser$oneOf(
+	_List_fromArray(
+		[author$project$SyntaxHighlight$Language$Haskell$inlineComment, author$project$SyntaxHighlight$Language$Haskell$multilineComment]));
+var author$project$SyntaxHighlight$Language$Haskell$BasicSymbol = 1;
+var author$project$SyntaxHighlight$Language$Haskell$Capitalized = 3;
+var author$project$SyntaxHighlight$Language$Haskell$GroupSymbol = 2;
+var author$project$SyntaxHighlight$Language$Haskell$Keyword = 4;
+var author$project$SyntaxHighlight$Language$Haskell$Number = 7;
+var elm$core$Set$fromList = function (list) {
+	return A3(elm$core$List$foldl, elm$core$Set$insert, elm$core$Set$empty, list);
+};
+var author$project$SyntaxHighlight$Language$Haskell$basicSymbols = elm$core$Set$fromList(
+	_List_fromArray(
+		['|', '.', '=', '\\', '/', '(', ')', '-', '>', '<', ':', '+', '!', '$', '%', '&', '*']));
+var elm$core$Dict$member = F2(
+	function (key, dict) {
+		var _n0 = A2(elm$core$Dict$get, key, dict);
+		if (!_n0.$) {
+			return true;
+		} else {
+			return false;
+		}
+	});
+var elm$core$Set$member = F2(
+	function (key, _n0) {
+		var dict = _n0;
+		return A2(elm$core$Dict$member, key, dict);
+	});
+var author$project$SyntaxHighlight$Language$Haskell$isBasicSymbol = function (c) {
+	return A2(elm$core$Set$member, c, author$project$SyntaxHighlight$Language$Haskell$basicSymbols);
+};
+var author$project$SyntaxHighlight$Language$Helpers$chompIfThenWhile = function (isNotRelevant) {
+	return A2(
+		elm$parser$Parser$ignorer,
+		A2(
+			elm$parser$Parser$ignorer,
+			elm$parser$Parser$succeed(0),
+			elm$parser$Parser$chompIf(isNotRelevant)),
+		elm$parser$Parser$chompWhile(isNotRelevant));
+};
+var author$project$SyntaxHighlight$Language$Haskell$basicSymbol = elm$parser$Parser$getChompedString(
+	author$project$SyntaxHighlight$Language$Helpers$chompIfThenWhile(author$project$SyntaxHighlight$Language$Haskell$isBasicSymbol));
+var author$project$SyntaxHighlight$Language$Haskell$groupSymbols = elm$core$Set$fromList(
+	_List_fromArray(
+		[',', '[', ']', '{', '}']));
+var author$project$SyntaxHighlight$Language$Haskell$isGroupSymbol = function (c) {
+	return A2(elm$core$Set$member, c, author$project$SyntaxHighlight$Language$Haskell$groupSymbols);
+};
+var author$project$SyntaxHighlight$Language$Haskell$isStringLiteralChar = function (c) {
+	return (c === '\"') || (c === '\'');
+};
+var author$project$SyntaxHighlight$Language$Helpers$isSpace = function (c) {
+	return (c === ' ') || (c === '\t');
+};
+var author$project$SyntaxHighlight$Language$Helpers$isWhitespace = function (c) {
+	return author$project$SyntaxHighlight$Language$Helpers$isSpace(c) || author$project$SyntaxHighlight$Language$Helpers$isLineBreak(c);
+};
+var author$project$SyntaxHighlight$Language$Haskell$isVariableChar = function (c) {
+	return !(author$project$SyntaxHighlight$Language$Helpers$isWhitespace(c) || (author$project$SyntaxHighlight$Language$Haskell$isBasicSymbol(c) || (author$project$SyntaxHighlight$Language$Haskell$isGroupSymbol(c) || author$project$SyntaxHighlight$Language$Haskell$isStringLiteralChar(c))));
+};
+var author$project$SyntaxHighlight$Language$Haskell$capitalized = elm$parser$Parser$getChompedString(
+	A2(
+		author$project$SyntaxHighlight$Language$Helpers$thenChompWhile,
+		author$project$SyntaxHighlight$Language$Haskell$isVariableChar,
+		elm$parser$Parser$chompIf(elm$core$Char$isUpper)));
+var author$project$SyntaxHighlight$Language$Haskell$groupSymbol = elm$parser$Parser$getChompedString(
+	author$project$SyntaxHighlight$Language$Helpers$chompIfThenWhile(author$project$SyntaxHighlight$Language$Haskell$isGroupSymbol));
+var author$project$SyntaxHighlight$Language$Haskell$Function = 5;
+var author$project$SyntaxHighlight$Language$Haskell$infixSet = elm$core$Set$fromList(
+	_List_fromArray(
+		['+', '-', '/', '*', '=', '.', '$', '<', '>', ':', '&', '|', '^', '?', '%', '#', '@', '~', '!', ',']));
+var author$project$SyntaxHighlight$Language$Haskell$isInfixChar = function (c) {
+	return A2(elm$core$Set$member, c, author$project$SyntaxHighlight$Language$Haskell$infixSet);
+};
+var author$project$SyntaxHighlight$Language$Type$C = function (a) {
+	return {$: 3, a: a};
+};
+var elm$parser$Parser$Advanced$backtrackable = function (_n0) {
+	var parse = _n0;
+	return function (s0) {
+		var _n1 = parse(s0);
+		if (_n1.$ === 1) {
+			var x = _n1.b;
+			return A2(elm$parser$Parser$Advanced$Bad, false, x);
+		} else {
+			var a = _n1.b;
+			var s1 = _n1.c;
+			return A3(elm$parser$Parser$Advanced$Good, false, a, s1);
+		}
+	};
+};
+var elm$parser$Parser$backtrackable = elm$parser$Parser$Advanced$backtrackable;
+var author$project$SyntaxHighlight$Language$Haskell$infixParser = A2(
+	elm$parser$Parser$map,
+	function (b) {
+		return _Utils_Tuple2(
+			author$project$SyntaxHighlight$Language$Type$C(5),
+			b);
+	},
+	elm$parser$Parser$getChompedString(
+		A2(
+			elm$parser$Parser$ignorer,
+			A2(
+				elm$parser$Parser$ignorer,
+				A2(
+					elm$parser$Parser$ignorer,
+					elm$parser$Parser$succeed(0),
+					elm$parser$Parser$backtrackable(
+						elm$parser$Parser$symbol('('))),
+				elm$parser$Parser$backtrackable(
+					author$project$SyntaxHighlight$Language$Helpers$chompIfThenWhile(author$project$SyntaxHighlight$Language$Haskell$isInfixChar))),
+			elm$parser$Parser$backtrackable(
+				elm$parser$Parser$symbol(')')))));
+var author$project$SyntaxHighlight$Language$Haskell$keywordSet = elm$core$Set$fromList(
+	_List_fromArray(
+		['as', 'where', 'let', 'in', 'if', 'else', 'then', 'case', 'of', 'type', 'alias']));
+var author$project$SyntaxHighlight$Language$Haskell$isKeyword = function (str) {
+	return A2(elm$core$Set$member, str, author$project$SyntaxHighlight$Language$Haskell$keywordSet);
+};
+var author$project$SyntaxHighlight$Language$Haskell$variable = elm$parser$Parser$getChompedString(
+	A2(
+		author$project$SyntaxHighlight$Language$Helpers$thenChompWhile,
+		author$project$SyntaxHighlight$Language$Haskell$isVariableChar,
+		elm$parser$Parser$chompIf(elm$core$Char$isLower)));
+var author$project$SyntaxHighlight$Language$Haskell$weirdText = elm$parser$Parser$getChompedString(
+	author$project$SyntaxHighlight$Language$Helpers$chompIfThenWhile(author$project$SyntaxHighlight$Language$Haskell$isVariableChar));
+var author$project$SyntaxHighlight$Language$Helpers$isNumber = function (c) {
+	return elm$core$Char$isDigit(c) || (c === '.');
+};
+var author$project$SyntaxHighlight$Language$Helpers$positiveNumber = A2(
+	elm$parser$Parser$ignorer,
+	A2(
+		elm$parser$Parser$ignorer,
+		elm$parser$Parser$succeed(0),
+		elm$parser$Parser$chompIf(author$project$SyntaxHighlight$Language$Helpers$isNumber)),
+	elm$parser$Parser$chompWhile(author$project$SyntaxHighlight$Language$Helpers$isNumber));
+var author$project$SyntaxHighlight$Language$Helpers$negativeNumber = A2(
+	elm$parser$Parser$ignorer,
+	A2(
+		elm$parser$Parser$ignorer,
+		elm$parser$Parser$succeed(0),
+		elm$parser$Parser$backtrackable(
+			elm$parser$Parser$symbol('-'))),
+	author$project$SyntaxHighlight$Language$Helpers$positiveNumber);
+var author$project$SyntaxHighlight$Language$Helpers$number = elm$parser$Parser$oneOf(
+	_List_fromArray(
+		[author$project$SyntaxHighlight$Language$Helpers$positiveNumber, author$project$SyntaxHighlight$Language$Helpers$negativeNumber]));
+var author$project$SyntaxHighlight$Language$Type$Normal = {$: 0};
+var author$project$SyntaxHighlight$Language$Haskell$functionBodyContent = elm$parser$Parser$oneOf(
+	_List_fromArray(
+		[
+			A2(
+			elm$parser$Parser$map,
+			function (b) {
+				return _Utils_Tuple2(
+					author$project$SyntaxHighlight$Language$Type$C(7),
+					b);
+			},
+			elm$parser$Parser$getChompedString(author$project$SyntaxHighlight$Language$Helpers$number)),
+			A2(
+			elm$parser$Parser$map,
+			elm$core$Basics$always(
+				_Utils_Tuple2(
+					author$project$SyntaxHighlight$Language$Type$C(3),
+					'()')),
+			elm$parser$Parser$symbol('()')),
+			author$project$SyntaxHighlight$Language$Haskell$infixParser,
+			A2(
+			elm$parser$Parser$map,
+			function (b) {
+				return _Utils_Tuple2(
+					author$project$SyntaxHighlight$Language$Type$C(1),
+					b);
+			},
+			author$project$SyntaxHighlight$Language$Haskell$basicSymbol),
+			A2(
+			elm$parser$Parser$map,
+			function (b) {
+				return _Utils_Tuple2(
+					author$project$SyntaxHighlight$Language$Type$C(2),
+					b);
+			},
+			author$project$SyntaxHighlight$Language$Haskell$groupSymbol),
+			A2(
+			elm$parser$Parser$map,
+			function (b) {
+				return _Utils_Tuple2(
+					author$project$SyntaxHighlight$Language$Type$C(3),
+					b);
+			},
+			author$project$SyntaxHighlight$Language$Haskell$capitalized),
+			A2(
+			elm$parser$Parser$map,
+			function (n) {
+				return author$project$SyntaxHighlight$Language$Haskell$isKeyword(n) ? _Utils_Tuple2(
+					author$project$SyntaxHighlight$Language$Type$C(4),
+					n) : _Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, n);
+			},
+			author$project$SyntaxHighlight$Language$Haskell$variable),
+			A2(
+			elm$parser$Parser$map,
+			function (b) {
+				return _Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, b);
+			},
+			author$project$SyntaxHighlight$Language$Haskell$weirdText)
+		]));
+var author$project$SyntaxHighlight$Language$Haskell$String = 0;
+var author$project$SyntaxHighlight$Language$Helpers$escapableSet = elm$core$Set$fromList(
+	_List_fromArray(
+		['\'', '\"', '\\', 'n', 'r', 't', 'b', 'f', 'v']));
+var author$project$SyntaxHighlight$Language$Helpers$isEscapableChar = function (c) {
+	return A2(elm$core$Set$member, c, author$project$SyntaxHighlight$Language$Helpers$escapableSet);
+};
+var author$project$SyntaxHighlight$Language$Helpers$escapable = A2(
+	elm$parser$Parser$ignorer,
+	A2(
+		elm$parser$Parser$ignorer,
+		elm$parser$Parser$succeed(0),
+		elm$parser$Parser$backtrackable(
+			elm$parser$Parser$symbol('\\'))),
+	elm$parser$Parser$chompIf(author$project$SyntaxHighlight$Language$Helpers$isEscapableChar));
+var author$project$SyntaxHighlight$Language$Haskell$elmEscapable = A2(
+	elm$parser$Parser$map,
+	function (b) {
+		return _List_fromArray(
+			[
+				_Utils_Tuple2(
+				author$project$SyntaxHighlight$Language$Type$C(3),
+				b)
+			]);
+	},
+	elm$parser$Parser$getChompedString(author$project$SyntaxHighlight$Language$Helpers$escapable));
+var author$project$SyntaxHighlight$Language$Helpers$isEscapable = function (c) {
+	return c === '\\';
+};
+var author$project$SyntaxHighlight$Language$Haskell$stringDelimiter = {
+	ap: function (b) {
+		return _Utils_Tuple2(
+			author$project$SyntaxHighlight$Language$Type$C(0),
+			b);
+	},
+	_: '\"',
+	ax: _List_fromArray(
+		[author$project$SyntaxHighlight$Language$Haskell$lineBreakList, author$project$SyntaxHighlight$Language$Haskell$elmEscapable]),
+	az: false,
+	aA: function (c) {
+		return !(author$project$SyntaxHighlight$Language$Helpers$isLineBreak(c) || author$project$SyntaxHighlight$Language$Helpers$isEscapable(c));
+	},
+	ag: '\"'
+};
+var author$project$SyntaxHighlight$Language$Haskell$doubleQuote = author$project$SyntaxHighlight$Language$Helpers$delimited(author$project$SyntaxHighlight$Language$Haskell$stringDelimiter);
+var author$project$SyntaxHighlight$Language$Haskell$quote = author$project$SyntaxHighlight$Language$Helpers$delimited(
+	_Utils_update(
+		author$project$SyntaxHighlight$Language$Haskell$stringDelimiter,
+		{_: '\'', ag: '\''}));
+var author$project$SyntaxHighlight$Language$Haskell$tripleDoubleQuote = author$project$SyntaxHighlight$Language$Helpers$delimited(
+	_Utils_update(
+		author$project$SyntaxHighlight$Language$Haskell$stringDelimiter,
+		{_: '\"\"\"', ag: '\"\"\"'}));
+var author$project$SyntaxHighlight$Language$Haskell$stringLiteral = elm$parser$Parser$oneOf(
+	_List_fromArray(
+		[author$project$SyntaxHighlight$Language$Haskell$tripleDoubleQuote, author$project$SyntaxHighlight$Language$Haskell$doubleQuote, author$project$SyntaxHighlight$Language$Haskell$quote]));
+var author$project$SyntaxHighlight$Language$Haskell$lineBreak = A2(
+	elm$parser$Parser$map,
+	function (_n0) {
+		return _Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$LineBreak, '\n');
+	},
+	elm$parser$Parser$symbol('\n'));
+var author$project$SyntaxHighlight$Language$Haskell$space = A2(
+	elm$parser$Parser$map,
+	function (b) {
+		return _Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, b);
+	},
+	elm$parser$Parser$getChompedString(
+		author$project$SyntaxHighlight$Language$Helpers$chompIfThenWhile(author$project$SyntaxHighlight$Language$Helpers$isSpace)));
+var elm$parser$Parser$Done = function (a) {
+	return {$: 1, a: a};
+};
+var elm$parser$Parser$Loop = function (a) {
+	return {$: 0, a: a};
+};
+var author$project$SyntaxHighlight$Language$Haskell$checkContext = function (revTokens) {
+	return elm$parser$Parser$oneOf(
+		_List_fromArray(
+			[
+				author$project$SyntaxHighlight$Language$Haskell$whitespaceOrCommentStep(revTokens),
+				elm$parser$Parser$succeed(
+				elm$parser$Parser$Done(revTokens))
+			]));
+};
+var author$project$SyntaxHighlight$Language$Haskell$whitespaceOrCommentStep = function (revTokens) {
+	return elm$parser$Parser$oneOf(
+		_List_fromArray(
+			[
+				A2(
+				elm$parser$Parser$map,
+				function (n) {
+					return elm$parser$Parser$Loop(
+						A2(elm$core$List$cons, n, revTokens));
+				},
+				author$project$SyntaxHighlight$Language$Haskell$space),
+				A2(
+				elm$parser$Parser$andThen,
+				author$project$SyntaxHighlight$Language$Haskell$checkContext,
+				A2(
+					elm$parser$Parser$map,
+					function (n) {
+						return A2(elm$core$List$cons, n, revTokens);
+					},
+					author$project$SyntaxHighlight$Language$Haskell$lineBreak)),
+				A2(
+				elm$parser$Parser$map,
+				function (n) {
+					return elm$parser$Parser$Loop(
+						_Utils_ap(n, revTokens));
+				},
+				author$project$SyntaxHighlight$Language$Haskell$comment)
+			]));
+};
+var author$project$SyntaxHighlight$Language$Haskell$functionBody = function (revTokens) {
+	return elm$parser$Parser$oneOf(
+		_List_fromArray(
+			[
+				author$project$SyntaxHighlight$Language$Haskell$whitespaceOrCommentStep(revTokens),
+				A2(
+				elm$parser$Parser$map,
+				function (ns) {
+					return elm$parser$Parser$Loop(
+						_Utils_ap(ns, revTokens));
+				},
+				author$project$SyntaxHighlight$Language$Haskell$stringLiteral),
+				A2(
+				elm$parser$Parser$map,
+				function (n) {
+					return elm$parser$Parser$Loop(
+						A2(elm$core$List$cons, n, revTokens));
+				},
+				author$project$SyntaxHighlight$Language$Haskell$functionBodyContent),
+				elm$parser$Parser$succeed(
+				elm$parser$Parser$Done(revTokens))
+			]));
+};
+var author$project$SyntaxHighlight$Language$Haskell$TypeSignature = 6;
+var author$project$SyntaxHighlight$Language$Haskell$fnSigIsNotRelevant = function (c) {
+	return !(author$project$SyntaxHighlight$Language$Helpers$isWhitespace(c) || ((c === '(') || ((c === ')') || ((c === '-') || (c === ',')))));
+};
+var author$project$SyntaxHighlight$Language$Haskell$fnSigContentHelp = elm$parser$Parser$oneOf(
+	_List_fromArray(
+		[
+			A2(
+			elm$parser$Parser$map,
+			elm$core$Basics$always(
+				_Utils_Tuple2(
+					author$project$SyntaxHighlight$Language$Type$C(6),
+					'()')),
+			elm$parser$Parser$symbol('()')),
+			A2(
+			elm$parser$Parser$map,
+			elm$core$Basics$always(
+				_Utils_Tuple2(
+					author$project$SyntaxHighlight$Language$Type$C(1),
+					'->')),
+			elm$parser$Parser$symbol('->')),
+			A2(
+			elm$parser$Parser$map,
+			function (b) {
+				return _Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, b);
+			},
+			elm$parser$Parser$getChompedString(
+				author$project$SyntaxHighlight$Language$Helpers$chompIfThenWhile(
+					function (c) {
+						return (c === '(') || ((c === ')') || ((c === '-') || (c === ',')));
+					}))),
+			A2(
+			elm$parser$Parser$map,
+			function (b) {
+				return _Utils_Tuple2(
+					author$project$SyntaxHighlight$Language$Type$C(6),
+					b);
+			},
+			elm$parser$Parser$getChompedString(
+				A2(
+					author$project$SyntaxHighlight$Language$Helpers$thenChompWhile,
+					author$project$SyntaxHighlight$Language$Haskell$fnSigIsNotRelevant,
+					elm$parser$Parser$chompIf(elm$core$Char$isUpper)))),
+			A2(
+			elm$parser$Parser$map,
+			function (b) {
+				return _Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, b);
+			},
+			elm$parser$Parser$getChompedString(
+				author$project$SyntaxHighlight$Language$Helpers$chompIfThenWhile(author$project$SyntaxHighlight$Language$Haskell$fnSigIsNotRelevant)))
+		]));
+var author$project$SyntaxHighlight$Language$Haskell$fnSigContent = function (revTokens) {
+	return elm$parser$Parser$oneOf(
+		_List_fromArray(
+			[
+				author$project$SyntaxHighlight$Language$Haskell$whitespaceOrCommentStep(revTokens),
+				A2(
+				elm$parser$Parser$map,
+				function (n) {
+					return elm$parser$Parser$Loop(
+						A2(elm$core$List$cons, n, revTokens));
+				},
+				author$project$SyntaxHighlight$Language$Haskell$fnSigContentHelp),
+				elm$parser$Parser$succeed(
+				elm$parser$Parser$Done(revTokens))
+			]));
+};
+var elm$parser$Parser$Advanced$Done = function (a) {
+	return {$: 1, a: a};
+};
+var elm$parser$Parser$Advanced$Loop = function (a) {
+	return {$: 0, a: a};
+};
+var elm$parser$Parser$toAdvancedStep = function (step) {
+	if (!step.$) {
+		var s = step.a;
+		return elm$parser$Parser$Advanced$Loop(s);
+	} else {
+		var a = step.a;
+		return elm$parser$Parser$Advanced$Done(a);
+	}
+};
+var elm$parser$Parser$Advanced$loopHelp = F4(
+	function (p, state, callback, s0) {
+		loopHelp:
+		while (true) {
+			var _n0 = callback(state);
+			var parse = _n0;
+			var _n1 = parse(s0);
+			if (!_n1.$) {
+				var p1 = _n1.a;
+				var step = _n1.b;
+				var s1 = _n1.c;
+				if (!step.$) {
+					var newState = step.a;
+					var $temp$p = p || p1,
+						$temp$state = newState,
+						$temp$callback = callback,
+						$temp$s0 = s1;
+					p = $temp$p;
+					state = $temp$state;
+					callback = $temp$callback;
+					s0 = $temp$s0;
+					continue loopHelp;
+				} else {
+					var result = step.a;
+					return A3(elm$parser$Parser$Advanced$Good, p || p1, result, s1);
+				}
+			} else {
+				var p1 = _n1.a;
+				var x = _n1.b;
+				return A2(elm$parser$Parser$Advanced$Bad, p || p1, x);
+			}
+		}
+	});
+var elm$parser$Parser$Advanced$loop = F2(
+	function (state, callback) {
+		return function (s) {
+			return A4(elm$parser$Parser$Advanced$loopHelp, false, state, callback, s);
+		};
+	});
+var elm$parser$Parser$loop = F2(
+	function (state, callback) {
+		return A2(
+			elm$parser$Parser$Advanced$loop,
+			state,
+			function (s) {
+				return A2(
+					elm$parser$Parser$map,
+					elm$parser$Parser$toAdvancedStep,
+					callback(s));
+			});
+	});
+var author$project$SyntaxHighlight$Language$Haskell$functionSignature = function (revTokens) {
+	return elm$parser$Parser$oneOf(
+		_List_fromArray(
+			[
+				A2(
+				elm$parser$Parser$map,
+				elm$parser$Parser$Done,
+				A2(
+					elm$parser$Parser$andThen,
+					function (ns) {
+						return A2(elm$parser$Parser$loop, ns, author$project$SyntaxHighlight$Language$Haskell$fnSigContent);
+					},
+					A2(
+						elm$parser$Parser$map,
+						elm$core$Basics$always(
+							A2(
+								elm$core$List$cons,
+								_Utils_Tuple2(
+									author$project$SyntaxHighlight$Language$Type$C(1),
+									'::'),
+								revTokens)),
+						elm$parser$Parser$symbol('::')))),
+				author$project$SyntaxHighlight$Language$Haskell$whitespaceOrCommentStep(revTokens),
+				A2(
+				elm$parser$Parser$map,
+				elm$parser$Parser$Done,
+				A2(elm$parser$Parser$loop, revTokens, author$project$SyntaxHighlight$Language$Haskell$functionBody)),
+				elm$parser$Parser$succeed(
+				elm$parser$Parser$Done(revTokens))
+			]));
+};
+var author$project$SyntaxHighlight$Language$Haskell$isCommentChar = function (c) {
+	return (c === '-') || (c === '{');
+};
+var author$project$SyntaxHighlight$Language$Haskell$commentChar = elm$parser$Parser$getChompedString(
+	elm$parser$Parser$chompIf(author$project$SyntaxHighlight$Language$Haskell$isCommentChar));
+var author$project$SyntaxHighlight$Language$Haskell$modDecIsNotRelevant = function (c) {
+	return !(author$project$SyntaxHighlight$Language$Helpers$isWhitespace(c) || (author$project$SyntaxHighlight$Language$Haskell$isCommentChar(c) || (c === '(')));
+};
+var author$project$SyntaxHighlight$Language$Haskell$mdpIsNotRelevant = function (c) {
+	return !(author$project$SyntaxHighlight$Language$Helpers$isWhitespace(c) || (author$project$SyntaxHighlight$Language$Haskell$isCommentChar(c) || ((c === '(') || ((c === ')') || ((c === ',') || (c === '.'))))));
+};
+var author$project$SyntaxHighlight$Language$Haskell$mdpnIsSpecialChar = function (c) {
+	return author$project$SyntaxHighlight$Language$Helpers$isLineBreak(c) || (author$project$SyntaxHighlight$Language$Haskell$isCommentChar(c) || ((c === '(') || (c === ')')));
+};
+var author$project$SyntaxHighlight$Language$Haskell$checkContextNested = function (_n1) {
+	var nestLevel = _n1.a;
+	var revTokens = _n1.b;
+	return elm$parser$Parser$oneOf(
+		_List_fromArray(
+			[
+				author$project$SyntaxHighlight$Language$Haskell$whitespaceOrCommentStepNested(
+				_Utils_Tuple2(nestLevel, revTokens)),
+				elm$parser$Parser$succeed(
+				elm$parser$Parser$Done(revTokens))
+			]));
+};
+var author$project$SyntaxHighlight$Language$Haskell$whitespaceOrCommentStepNested = function (_n0) {
+	var nestLevel = _n0.a;
+	var revTokens = _n0.b;
+	return elm$parser$Parser$oneOf(
+		_List_fromArray(
+			[
+				A2(
+				elm$parser$Parser$map,
+				function (n) {
+					return elm$parser$Parser$Loop(
+						_Utils_Tuple2(
+							nestLevel,
+							A2(elm$core$List$cons, n, revTokens)));
+				},
+				author$project$SyntaxHighlight$Language$Haskell$space),
+				A2(
+				elm$parser$Parser$andThen,
+				author$project$SyntaxHighlight$Language$Haskell$checkContextNested,
+				A2(
+					elm$parser$Parser$map,
+					function (n) {
+						return _Utils_Tuple2(
+							nestLevel,
+							A2(elm$core$List$cons, n, revTokens));
+					},
+					author$project$SyntaxHighlight$Language$Haskell$lineBreak)),
+				A2(
+				elm$parser$Parser$map,
+				function (n) {
+					return elm$parser$Parser$Loop(
+						_Utils_Tuple2(
+							nestLevel,
+							_Utils_ap(n, revTokens)));
+				},
+				author$project$SyntaxHighlight$Language$Haskell$comment)
+			]));
+};
+var author$project$SyntaxHighlight$Language$Haskell$modDecParNest = function (_n0) {
+	var nestLevel = _n0.a;
+	var revTokens = _n0.b;
+	return elm$parser$Parser$oneOf(
+		_List_fromArray(
+			[
+				author$project$SyntaxHighlight$Language$Haskell$whitespaceOrCommentStepNested(
+				_Utils_Tuple2(nestLevel, revTokens)),
+				A2(
+				elm$parser$Parser$map,
+				function (ns) {
+					return elm$parser$Parser$Loop(
+						_Utils_Tuple2(nestLevel + 1, ns));
+				},
+				A2(
+					elm$parser$Parser$map,
+					elm$core$Basics$always(
+						A2(
+							elm$core$List$cons,
+							_Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, '('),
+							revTokens)),
+					elm$parser$Parser$symbol('('))),
+				A2(
+				elm$parser$Parser$map,
+				function (ns) {
+					return (!nestLevel) ? elm$parser$Parser$Done(ns) : elm$parser$Parser$Loop(
+						_Utils_Tuple2(nestLevel - 1, ns));
+				},
+				A2(
+					elm$parser$Parser$map,
+					elm$core$Basics$always(
+						A2(
+							elm$core$List$cons,
+							_Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, ')'),
+							revTokens)),
+					elm$parser$Parser$symbol(')'))),
+				A2(
+				elm$parser$Parser$map,
+				function (n) {
+					return elm$parser$Parser$Loop(
+						_Utils_Tuple2(
+							nestLevel,
+							A2(elm$core$List$cons, n, revTokens)));
+				},
+				elm$parser$Parser$oneOf(
+					_List_fromArray(
+						[
+							A2(
+							elm$parser$Parser$map,
+							function (b) {
+								return _Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, b);
+							},
+							author$project$SyntaxHighlight$Language$Haskell$commentChar),
+							A2(
+							elm$parser$Parser$map,
+							function (s) {
+								return _Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, s);
+							},
+							elm$parser$Parser$getChompedString(
+								author$project$SyntaxHighlight$Language$Helpers$chompIfThenWhile(
+									A2(elm$core$Basics$composeL, elm$core$Basics$not, author$project$SyntaxHighlight$Language$Haskell$mdpnIsSpecialChar))))
+						]))),
+				elm$parser$Parser$succeed(
+				elm$parser$Parser$Done(revTokens))
+			]));
+};
+var author$project$SyntaxHighlight$Language$Haskell$modDecParentheses = function (revTokens) {
+	return elm$parser$Parser$oneOf(
+		_List_fromArray(
+			[
+				author$project$SyntaxHighlight$Language$Haskell$whitespaceOrCommentStep(revTokens),
+				A2(
+				elm$parser$Parser$map,
+				elm$parser$Parser$Done,
+				A2(
+					elm$parser$Parser$map,
+					elm$core$Basics$always(
+						A2(
+							elm$core$List$cons,
+							_Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, ')'),
+							revTokens)),
+					elm$parser$Parser$symbol(')'))),
+				A2(
+				elm$parser$Parser$map,
+				function (n) {
+					return elm$parser$Parser$Loop(
+						A2(elm$core$List$cons, n, revTokens));
+				},
+				elm$parser$Parser$oneOf(
+					_List_fromArray(
+						[
+							author$project$SyntaxHighlight$Language$Haskell$infixParser,
+							A2(
+							elm$parser$Parser$map,
+							function (b) {
+								return _Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, b);
+							},
+							author$project$SyntaxHighlight$Language$Haskell$commentChar),
+							A2(
+							elm$parser$Parser$map,
+							function (b) {
+								return _Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, b);
+							},
+							elm$parser$Parser$getChompedString(
+								author$project$SyntaxHighlight$Language$Helpers$chompIfThenWhile(
+									function (c) {
+										return (c === ',') || (c === '.');
+									}))),
+							A2(
+							elm$parser$Parser$map,
+							function (b) {
+								return _Utils_Tuple2(
+									author$project$SyntaxHighlight$Language$Type$C(6),
+									b);
+							},
+							elm$parser$Parser$getChompedString(
+								A2(
+									author$project$SyntaxHighlight$Language$Helpers$thenChompWhile,
+									author$project$SyntaxHighlight$Language$Haskell$mdpIsNotRelevant,
+									elm$parser$Parser$chompIf(elm$core$Char$isUpper)))),
+							A2(
+							elm$parser$Parser$map,
+							function (b) {
+								return _Utils_Tuple2(
+									author$project$SyntaxHighlight$Language$Type$C(5),
+									b);
+							},
+							elm$parser$Parser$getChompedString(
+								author$project$SyntaxHighlight$Language$Helpers$chompIfThenWhile(author$project$SyntaxHighlight$Language$Haskell$mdpIsNotRelevant)))
+						]))),
+				A2(
+				elm$parser$Parser$map,
+				elm$parser$Parser$Loop,
+				A2(
+					elm$parser$Parser$andThen,
+					function (n) {
+						return A2(
+							elm$parser$Parser$loop,
+							_Utils_Tuple2(0, n),
+							author$project$SyntaxHighlight$Language$Haskell$modDecParNest);
+					},
+					A2(
+						elm$parser$Parser$map,
+						elm$core$Basics$always(
+							A2(
+								elm$core$List$cons,
+								_Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, '('),
+								revTokens)),
+						elm$parser$Parser$symbol('(')))),
+				elm$parser$Parser$succeed(
+				elm$parser$Parser$Done(revTokens))
+			]));
+};
+var elm$parser$Parser$ExpectingKeyword = function (a) {
+	return {$: 9, a: a};
+};
+var elm$parser$Parser$Advanced$keyword = function (_n0) {
+	var kwd = _n0.a;
+	var expecting = _n0.b;
+	var progress = !elm$core$String$isEmpty(kwd);
+	return function (s) {
+		var _n1 = A5(elm$parser$Parser$Advanced$isSubString, kwd, s.b, s.aT, s.am, s.a);
+		var newOffset = _n1.a;
+		var newRow = _n1.b;
+		var newCol = _n1.c;
+		return (_Utils_eq(newOffset, -1) || (0 <= A3(
+			elm$parser$Parser$Advanced$isSubChar,
+			function (c) {
+				return elm$core$Char$isAlphaNum(c) || (c === '_');
+			},
+			newOffset,
+			s.a))) ? A2(
+			elm$parser$Parser$Advanced$Bad,
+			false,
+			A2(elm$parser$Parser$Advanced$fromState, s, expecting)) : A3(
+			elm$parser$Parser$Advanced$Good,
+			progress,
+			0,
+			{am: newCol, c: s.c, d: s.d, b: newOffset, aT: newRow, a: s.a});
+	};
+};
+var elm$parser$Parser$keyword = function (kwd) {
+	return elm$parser$Parser$Advanced$keyword(
+		A2(
+			elm$parser$Parser$Advanced$Token,
+			kwd,
+			elm$parser$Parser$ExpectingKeyword(kwd)));
+};
+var author$project$SyntaxHighlight$Language$Haskell$importDeclaration = function (revTokens) {
+	return elm$parser$Parser$oneOf(
+		_List_fromArray(
+			[
+				author$project$SyntaxHighlight$Language$Haskell$whitespaceOrCommentStep(revTokens),
+				A2(
+				elm$parser$Parser$map,
+				elm$parser$Parser$Loop,
+				A2(
+					elm$parser$Parser$andThen,
+					function (n) {
+						return A2(elm$parser$Parser$loop, n, author$project$SyntaxHighlight$Language$Haskell$modDecParentheses);
+					},
+					A2(
+						elm$parser$Parser$map,
+						elm$core$Basics$always(
+							A2(
+								elm$core$List$cons,
+								_Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, '('),
+								revTokens)),
+						elm$parser$Parser$symbol('(')))),
+				A2(
+				elm$parser$Parser$map,
+				function (n) {
+					return elm$parser$Parser$Loop(
+						A2(elm$core$List$cons, n, revTokens));
+				},
+				elm$parser$Parser$oneOf(
+					_List_fromArray(
+						[
+							A2(
+							elm$parser$Parser$map,
+							function (b) {
+								return _Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, b);
+							},
+							author$project$SyntaxHighlight$Language$Haskell$commentChar),
+							A2(
+							elm$parser$Parser$map,
+							elm$core$Basics$always(
+								_Utils_Tuple2(
+									author$project$SyntaxHighlight$Language$Type$C(4),
+									'hiding')),
+							elm$parser$Parser$keyword('hiding')),
+							A2(
+							elm$parser$Parser$map,
+							function (b) {
+								return _Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, b);
+							},
+							elm$parser$Parser$getChompedString(
+								author$project$SyntaxHighlight$Language$Helpers$chompIfThenWhile(author$project$SyntaxHighlight$Language$Haskell$modDecIsNotRelevant)))
+						]))),
+				elm$parser$Parser$succeed(
+				elm$parser$Parser$Done(revTokens))
+			]));
+};
+var author$project$SyntaxHighlight$Language$Haskell$moduleDeclaration = function (revTokens) {
+	return elm$parser$Parser$oneOf(
+		_List_fromArray(
+			[
+				author$project$SyntaxHighlight$Language$Haskell$whitespaceOrCommentStep(revTokens),
+				A2(
+				elm$parser$Parser$map,
+				elm$parser$Parser$Loop,
+				A2(
+					elm$parser$Parser$andThen,
+					function (n) {
+						return A2(elm$parser$Parser$loop, n, author$project$SyntaxHighlight$Language$Haskell$modDecParentheses);
+					},
+					A2(
+						elm$parser$Parser$map,
+						elm$core$Basics$always(
+							A2(
+								elm$core$List$cons,
+								_Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, '('),
+								revTokens)),
+						elm$parser$Parser$symbol('(')))),
+				A2(
+				elm$parser$Parser$map,
+				function (n) {
+					return elm$parser$Parser$Loop(
+						A2(elm$core$List$cons, n, revTokens));
+				},
+				elm$parser$Parser$oneOf(
+					_List_fromArray(
+						[
+							A2(
+							elm$parser$Parser$map,
+							function (b) {
+								return _Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, b);
+							},
+							author$project$SyntaxHighlight$Language$Haskell$commentChar),
+							A2(
+							elm$parser$Parser$map,
+							elm$core$Basics$always(
+								_Utils_Tuple2(
+									author$project$SyntaxHighlight$Language$Type$C(4),
+									'where')),
+							elm$parser$Parser$keyword('where')),
+							A2(
+							elm$parser$Parser$map,
+							function (b) {
+								return _Utils_Tuple2(author$project$SyntaxHighlight$Language$Type$Normal, b);
+							},
+							elm$parser$Parser$getChompedString(
+								author$project$SyntaxHighlight$Language$Helpers$chompIfThenWhile(author$project$SyntaxHighlight$Language$Haskell$modDecIsNotRelevant)))
+						]))),
+				elm$parser$Parser$succeed(
+				elm$parser$Parser$Done(revTokens))
+			]));
+};
+var author$project$SyntaxHighlight$Language$Haskell$lineStartVariable = F2(
+	function (revTokens, n) {
+		return (n === 'module') ? A2(
+			elm$parser$Parser$loop,
+			A2(
+				elm$core$List$cons,
+				_Utils_Tuple2(
+					author$project$SyntaxHighlight$Language$Type$C(4),
+					n),
+				revTokens),
+			author$project$SyntaxHighlight$Language$Haskell$moduleDeclaration) : ((n === 'import') ? A2(
+			elm$parser$Parser$loop,
+			A2(
+				elm$core$List$cons,
+				_Utils_Tuple2(
+					author$project$SyntaxHighlight$Language$Type$C(4),
+					n),
+				revTokens),
+			author$project$SyntaxHighlight$Language$Haskell$importDeclaration) : (author$project$SyntaxHighlight$Language$Haskell$isKeyword(n) ? A2(
+			elm$parser$Parser$loop,
+			A2(
+				elm$core$List$cons,
+				_Utils_Tuple2(
+					author$project$SyntaxHighlight$Language$Type$C(4),
+					n),
+				revTokens),
+			author$project$SyntaxHighlight$Language$Haskell$functionBody) : A2(
+			elm$parser$Parser$loop,
+			A2(
+				elm$core$List$cons,
+				_Utils_Tuple2(
+					author$project$SyntaxHighlight$Language$Type$C(5),
+					n),
+				revTokens),
+			author$project$SyntaxHighlight$Language$Haskell$functionSignature)));
+	});
+var author$project$SyntaxHighlight$Language$Haskell$mainLoop = function (revTokens) {
+	return elm$parser$Parser$oneOf(
+		_List_fromArray(
+			[
+				A2(
+				elm$parser$Parser$map,
+				function (n) {
+					return elm$parser$Parser$Loop(
+						A2(elm$core$List$cons, n, revTokens));
+				},
+				author$project$SyntaxHighlight$Language$Haskell$space),
+				A2(
+				elm$parser$Parser$map,
+				function (n) {
+					return elm$parser$Parser$Loop(
+						A2(elm$core$List$cons, n, revTokens));
+				},
+				author$project$SyntaxHighlight$Language$Haskell$lineBreak),
+				A2(
+				elm$parser$Parser$map,
+				function (n) {
+					return elm$parser$Parser$Loop(
+						_Utils_ap(n, revTokens));
+				},
+				author$project$SyntaxHighlight$Language$Haskell$comment),
+				A2(
+				elm$parser$Parser$map,
+				elm$parser$Parser$Loop,
+				A2(
+					elm$parser$Parser$andThen,
+					author$project$SyntaxHighlight$Language$Haskell$lineStartVariable(revTokens),
+					author$project$SyntaxHighlight$Language$Haskell$variable)),
+				A2(
+				elm$parser$Parser$map,
+				elm$parser$Parser$Loop,
+				A2(
+					elm$parser$Parser$andThen,
+					function (s) {
+						return A2(
+							elm$parser$Parser$loop,
+							_Utils_ap(s, revTokens),
+							author$project$SyntaxHighlight$Language$Haskell$functionBody);
+					},
+					author$project$SyntaxHighlight$Language$Haskell$stringLiteral)),
+				A2(
+				elm$parser$Parser$map,
+				elm$parser$Parser$Loop,
+				A2(
+					elm$parser$Parser$andThen,
+					function (s) {
+						return A2(
+							elm$parser$Parser$loop,
+							A2(elm$core$List$cons, s, revTokens),
+							author$project$SyntaxHighlight$Language$Haskell$functionBody);
+					},
+					author$project$SyntaxHighlight$Language$Haskell$functionBodyContent)),
+				elm$parser$Parser$succeed(
+				elm$parser$Parser$Done(revTokens))
+			]));
+};
+var author$project$SyntaxHighlight$Language$Haskell$toRevTokens = A2(elm$parser$Parser$loop, _List_Nil, author$project$SyntaxHighlight$Language$Haskell$mainLoop);
+var author$project$SyntaxHighlight$Line$Helpers$newLine = function (fragments) {
+	return {bh: fragments, bj: elm$core$Maybe$Nothing};
+};
+var author$project$SyntaxHighlight$Style$Comment = 1;
+var author$project$SyntaxHighlight$Style$Default = 0;
+var author$project$SyntaxHighlight$Line$Helpers$toFragment = F2(
+	function (toStyle, _n0) {
+		var syntax = _n0.a;
+		var text = _n0.b;
+		switch (syntax.$) {
+			case 0:
+				return {a3: _List_Nil, a4: '', bu: 0, bI: text};
+			case 1:
+				return {a3: _List_Nil, a4: '', bu: 1, bI: text};
+			case 2:
+				return {a3: _List_Nil, a4: '', bu: 0, bI: text};
+			default:
+				var c = syntax.a;
+				var _n2 = toStyle(c);
+				var requiredStyle = _n2.a;
+				var additionalClass = _n2.b;
+				return {a3: _List_Nil, a4: additionalClass, bu: requiredStyle, bI: text};
+		}
+	});
+var author$project$SyntaxHighlight$Line$Helpers$toLinesHelp = F3(
+	function (toStyle, _n0, _n1) {
+		var syntax = _n0.a;
+		var text = _n0.b;
+		var lines = _n1.a;
+		var fragments = _n1.b;
+		var maybeLastSyntax = _n1.c;
+		if (_Utils_eq(syntax, author$project$SyntaxHighlight$Language$Type$LineBreak)) {
+			return _Utils_Tuple3(
+				A2(
+					elm$core$List$cons,
+					author$project$SyntaxHighlight$Line$Helpers$newLine(fragments),
+					lines),
+				_List_fromArray(
+					[
+						A2(
+						author$project$SyntaxHighlight$Line$Helpers$toFragment,
+						toStyle,
+						_Utils_Tuple2(syntax, text))
+					]),
+				elm$core$Maybe$Nothing);
+		} else {
+			if (_Utils_eq(
+				elm$core$Maybe$Just(syntax),
+				maybeLastSyntax)) {
+				if (fragments.b) {
+					var headFrag = fragments.a;
+					var tailFrags = fragments.b;
+					return _Utils_Tuple3(
+						lines,
+						A2(
+							elm$core$List$cons,
+							_Utils_update(
+								headFrag,
+								{
+									bI: _Utils_ap(text, headFrag.bI)
+								}),
+							tailFrags),
+						maybeLastSyntax);
+				} else {
+					return _Utils_Tuple3(
+						lines,
+						A2(
+							elm$core$List$cons,
+							A2(
+								author$project$SyntaxHighlight$Line$Helpers$toFragment,
+								toStyle,
+								_Utils_Tuple2(syntax, text)),
+							fragments),
+						maybeLastSyntax);
+				}
+			} else {
+				return _Utils_Tuple3(
+					lines,
+					A2(
+						elm$core$List$cons,
+						A2(
+							author$project$SyntaxHighlight$Line$Helpers$toFragment,
+							toStyle,
+							_Utils_Tuple2(syntax, text)),
+						fragments),
+					elm$core$Maybe$Just(syntax));
+			}
+		}
+	});
+var author$project$SyntaxHighlight$Line$Helpers$toLines = F2(
+	function (toStyle, revTokens) {
+		return function (_n0) {
+			var lines = _n0.a;
+			var frags = _n0.b;
+			return A2(
+				elm$core$List$cons,
+				author$project$SyntaxHighlight$Line$Helpers$newLine(frags),
+				lines);
+		}(
+			A3(
+				elm$core$List$foldl,
+				author$project$SyntaxHighlight$Line$Helpers$toLinesHelp(toStyle),
+				_Utils_Tuple3(_List_Nil, _List_Nil, elm$core$Maybe$Nothing),
+				revTokens));
+	});
+var elm$parser$Parser$DeadEnd = F3(
+	function (row, col, problem) {
+		return {am: col, aJ: problem, aT: row};
+	});
+var elm$parser$Parser$problemToDeadEnd = function (p) {
+	return A3(elm$parser$Parser$DeadEnd, p.aT, p.am, p.aJ);
+};
+var elm$parser$Parser$Advanced$bagToList = F2(
+	function (bag, list) {
+		bagToList:
+		while (true) {
+			switch (bag.$) {
+				case 0:
+					return list;
+				case 1:
+					var bag1 = bag.a;
+					var x = bag.b;
+					var $temp$bag = bag1,
+						$temp$list = A2(elm$core$List$cons, x, list);
+					bag = $temp$bag;
+					list = $temp$list;
+					continue bagToList;
+				default:
+					var bag1 = bag.a;
+					var bag2 = bag.b;
+					var $temp$bag = bag1,
+						$temp$list = A2(elm$parser$Parser$Advanced$bagToList, bag2, list);
+					bag = $temp$bag;
+					list = $temp$list;
+					continue bagToList;
+			}
+		}
+	});
+var elm$parser$Parser$Advanced$run = F2(
+	function (_n0, src) {
+		var parse = _n0;
+		var _n1 = parse(
+			{am: 1, c: _List_Nil, d: 1, b: 0, aT: 1, a: src});
+		if (!_n1.$) {
+			var value = _n1.b;
+			return elm$core$Result$Ok(value);
+		} else {
+			var bag = _n1.b;
+			return elm$core$Result$Err(
+				A2(elm$parser$Parser$Advanced$bagToList, bag, _List_Nil));
+		}
+	});
+var elm$parser$Parser$run = F2(
+	function (parser, source) {
+		var _n0 = A2(elm$parser$Parser$Advanced$run, parser, source);
+		if (!_n0.$) {
+			var a = _n0.a;
+			return elm$core$Result$Ok(a);
+		} else {
+			var problems = _n0.a;
+			return elm$core$Result$Err(
+				A2(elm$core$List$map, elm$parser$Parser$problemToDeadEnd, problems));
+		}
+	});
+var author$project$SyntaxHighlight$Language$Haskell$toLines = A2(
+	elm$core$Basics$composeR,
+	elm$parser$Parser$run(author$project$SyntaxHighlight$Language$Haskell$toRevTokens),
+	elm$core$Result$map(
+		author$project$SyntaxHighlight$Line$Helpers$toLines(author$project$SyntaxHighlight$Language$Haskell$syntaxToStyle)));
+var author$project$SyntaxHighlight$haskell = A2(
+	elm$core$Basics$composeR,
+	author$project$SyntaxHighlight$Language$Haskell$toLines,
+	elm$core$Result$map(elm$core$Basics$identity));
+var author$project$SyntaxHighlight$Line$Add = 1;
+var author$project$SyntaxHighlight$Line$Del = 2;
+var author$project$SyntaxHighlight$Line$Normal = 0;
+var author$project$SyntaxHighlight$View$requiredStyleToString = function (required) {
+	return 'elmsh' + function () {
+		switch (required) {
+			case 0:
+				return '0';
+			case 1:
+				return '-comm';
+			case 2:
+				return '1';
+			case 3:
+				return '2';
+			case 4:
+				return '3';
+			case 5:
+				return '4';
+			case 6:
+				return '5';
+			case 7:
+				return '6';
+			default:
+				return '7';
+		}
+	}();
+};
 var elm$virtual_dom$VirtualDom$toHandlerInt = function (handler) {
 	switch (handler.$) {
 		case 0:
@@ -6360,10 +8269,13 @@ var elm$virtual_dom$VirtualDom$toHandlerInt = function (handler) {
 			return 3;
 	}
 };
-var elm$html$Html$div = _VirtualDom_node('div');
-var elm$html$Html$p = _VirtualDom_node('p');
+var elm$html$Html$span = _VirtualDom_node('span');
 var elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var elm$html$Html$text = elm$virtual_dom$VirtualDom$text;
+var elm$core$Tuple$second = function (_n0) {
+	var y = _n0.b;
+	return y;
+};
 var elm$json$Json$Encode$string = _Json_wrap;
 var elm$html$Html$Attributes$stringProperty = F2(
 	function (key, string) {
@@ -6373,6 +8285,271 @@ var elm$html$Html$Attributes$stringProperty = F2(
 			elm$json$Json$Encode$string(string));
 	});
 var elm$html$Html$Attributes$class = elm$html$Html$Attributes$stringProperty('className');
+var elm$html$Html$Attributes$classList = function (classes) {
+	return elm$html$Html$Attributes$class(
+		A2(
+			elm$core$String$join,
+			' ',
+			A2(
+				elm$core$List$map,
+				elm$core$Tuple$first,
+				A2(elm$core$List$filter, elm$core$Tuple$second, classes))));
+};
+var author$project$SyntaxHighlight$View$fragmentView = function (_n0) {
+	var text = _n0.bI;
+	var requiredStyle = _n0.bu;
+	var additionalClass = _n0.a4;
+	var additionalAttributes = _n0.a3;
+	return ((!requiredStyle) && elm$core$String$isEmpty(additionalClass)) ? elm$html$Html$text(text) : A2(
+		elm$html$Html$span,
+		_Utils_ap(
+			_List_fromArray(
+				[
+					elm$html$Html$Attributes$classList(
+					_List_fromArray(
+						[
+							_Utils_Tuple2(
+							author$project$SyntaxHighlight$View$requiredStyleToString(requiredStyle),
+							requiredStyle),
+							_Utils_Tuple2('elmsh-' + additionalClass, additionalClass !== '')
+						]))
+				]),
+			additionalAttributes),
+		_List_fromArray(
+			[
+				elm$html$Html$text(text)
+			]));
+};
+var elm$html$Html$div = _VirtualDom_node('div');
+var elm$virtual_dom$VirtualDom$attribute = F2(
+	function (key, value) {
+		return A2(
+			_VirtualDom_attribute,
+			_VirtualDom_noOnOrFormAction(key),
+			_VirtualDom_noJavaScriptOrHtmlUri(value));
+	});
+var elm$html$Html$Attributes$attribute = elm$virtual_dom$VirtualDom$attribute;
+var author$project$SyntaxHighlight$View$lineView = F3(
+	function (start, index, _n0) {
+		var fragments = _n0.bh;
+		var highlight = _n0.bj;
+		return A2(
+			elm$html$Html$div,
+			_List_fromArray(
+				[
+					elm$html$Html$Attributes$classList(
+					_List_fromArray(
+						[
+							_Utils_Tuple2('elmsh-line', true),
+							_Utils_Tuple2(
+							'elmsh-hl',
+							_Utils_eq(
+								highlight,
+								elm$core$Maybe$Just(0))),
+							_Utils_Tuple2(
+							'elmsh-add',
+							_Utils_eq(
+								highlight,
+								elm$core$Maybe$Just(1))),
+							_Utils_Tuple2(
+							'elmsh-del',
+							_Utils_eq(
+								highlight,
+								elm$core$Maybe$Just(2)))
+						])),
+					A2(
+					elm$html$Html$Attributes$attribute,
+					'data-elmsh-lc',
+					elm$core$String$fromInt(start + index))
+				]),
+			A2(elm$core$List$map, author$project$SyntaxHighlight$View$fragmentView, fragments));
+	});
+var elm$core$List$append = F2(
+	function (xs, ys) {
+		if (!ys.b) {
+			return xs;
+		} else {
+			return A3(elm$core$List$foldr, elm$core$List$cons, ys, xs);
+		}
+	});
+var elm$core$List$concat = function (lists) {
+	return A3(elm$core$List$foldr, elm$core$List$append, _List_Nil, lists);
+};
+var elm$html$Html$code = _VirtualDom_node('code');
+var author$project$SyntaxHighlight$View$toInlineHtml = function (lines) {
+	return A2(
+		elm$html$Html$code,
+		_List_fromArray(
+			[
+				elm$html$Html$Attributes$class('elmsh')
+			]),
+		elm$core$List$concat(
+			A2(
+				elm$core$List$map,
+				function (_n0) {
+					var highlight = _n0.bj;
+					var fragments = _n0.bh;
+					return _Utils_eq(highlight, elm$core$Maybe$Nothing) ? A2(elm$core$List$map, author$project$SyntaxHighlight$View$fragmentView, fragments) : _List_fromArray(
+						[
+							A2(
+							elm$html$Html$span,
+							_List_fromArray(
+								[
+									elm$html$Html$Attributes$classList(
+									_List_fromArray(
+										[
+											_Utils_Tuple2(
+											'elmsh-hl',
+											_Utils_eq(
+												highlight,
+												elm$core$Maybe$Just(0))),
+											_Utils_Tuple2(
+											'elmsh-add',
+											_Utils_eq(
+												highlight,
+												elm$core$Maybe$Just(1))),
+											_Utils_Tuple2(
+											'elmsh-del',
+											_Utils_eq(
+												highlight,
+												elm$core$Maybe$Just(2)))
+										]))
+								]),
+							A2(elm$core$List$map, author$project$SyntaxHighlight$View$fragmentView, fragments))
+						]);
+				},
+				lines)));
+};
+var elm$core$List$singleton = function (value) {
+	return _List_fromArray(
+		[value]);
+};
+var elm$html$Html$pre = _VirtualDom_node('pre');
+var author$project$SyntaxHighlight$View$toBlockHtml = F2(
+	function (maybeStart, lines) {
+		if (maybeStart.$ === 1) {
+			return A2(
+				elm$html$Html$pre,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('elmsh')
+					]),
+				_List_fromArray(
+					[
+						author$project$SyntaxHighlight$View$toInlineHtml(lines)
+					]));
+		} else {
+			var start = maybeStart.a;
+			return A2(
+				elm$html$Html$pre,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('elmsh')
+					]),
+				elm$core$List$singleton(
+					A2(
+						elm$html$Html$code,
+						_List_Nil,
+						A2(
+							elm$core$List$indexedMap,
+							author$project$SyntaxHighlight$View$lineView(start),
+							lines))));
+		}
+	});
+var author$project$SyntaxHighlight$toBlockHtml = F2(
+	function (maybeStart, _n0) {
+		var lines = _n0;
+		return A2(author$project$SyntaxHighlight$View$toBlockHtml, maybeStart, lines);
+	});
+var elm$parser$Parser$deadEndsToString = function (deadEnds) {
+	return 'TODO deadEndsToString';
+};
+var author$project$Main$toHtml = function (code) {
+	return function (result) {
+		if (!result.$) {
+			var a = result.a;
+			return a;
+		} else {
+			var x = result.a;
+			return elm$html$Html$text(x);
+		}
+	}(
+		A2(
+			elm$core$Result$mapError,
+			elm$parser$Parser$deadEndsToString,
+			A2(
+				elm$core$Result$map,
+				author$project$SyntaxHighlight$toBlockHtml(elm$core$Maybe$Nothing),
+				author$project$SyntaxHighlight$haskell(code))));
+};
+var elm$html$Html$textarea = _VirtualDom_node('textarea');
+var elm$json$Json$Encode$bool = _Json_wrap;
+var elm$html$Html$Attributes$boolProperty = F2(
+	function (key, bool) {
+		return A2(
+			_VirtualDom_property,
+			key,
+			elm$json$Json$Encode$bool(bool));
+	});
+var elm$html$Html$Attributes$readonly = elm$html$Html$Attributes$boolProperty('readOnly');
+var elm$html$Html$Attributes$spellcheck = elm$html$Html$Attributes$boolProperty('spellcheck');
+var elm$html$Html$Attributes$value = elm$html$Html$Attributes$stringProperty('value');
+var author$project$Main$viewTextarea = function (codeStr) {
+	return A2(
+		elm$html$Html$textarea,
+		_List_fromArray(
+			[
+				elm$html$Html$Attributes$value(codeStr),
+				elm$html$Html$Attributes$classList(
+				_List_fromArray(
+					[
+						_Utils_Tuple2('textarea', true),
+						_Utils_Tuple2('textarea-lc', false)
+					])),
+				elm$html$Html$Attributes$spellcheck(false),
+				elm$html$Html$Attributes$readonly(true)
+			]),
+		_List_Nil);
+};
+var author$project$Main$viewSlice = function (sw) {
+	var renderedFragment = author$project$Main$renderFragment(sw.J);
+	return A2(
+		elm$html$Html$div,
+		_List_fromArray(
+			[
+				elm$html$Html$Attributes$classList(
+				_List_fromArray(
+					[
+						_Utils_Tuple2('container', true),
+						_Utils_Tuple2('elmsh', true)
+					]))
+			]),
+		_List_fromArray(
+			[
+				A2(
+				elm$html$Html$div,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('view-container')
+					]),
+				_List_fromArray(
+					[
+						author$project$Main$toHtml(renderedFragment)
+					])),
+				author$project$Main$viewTextarea(renderedFragment)
+			]));
+};
+var author$project$Main$tryViewSlice = F2(
+	function (model, sid) {
+		var _n0 = A2(elm$core$Dict$get, sid, model.w);
+		if (_n0.$ === 1) {
+			return elm$html$Html$text('Missing Slice: ' + sid);
+		} else {
+			var sw = _n0.a;
+			return author$project$Main$viewSlice(sw);
+		}
+	});
+var elm$html$Html$p = _VirtualDom_node('p');
 var author$project$Main$viewEditor = function (model) {
 	return A2(
 		elm$html$Html$div,
@@ -6381,18 +8558,12 @@ var author$project$Main$viewEditor = function (model) {
 				elm$html$Html$Attributes$class('editorContainer')
 			]),
 		function () {
-			var _n0 = model.O;
+			var _n0 = model.W;
 			if (!_n0.$) {
 				var sid = _n0.a;
 				return _List_fromArray(
 					[
-						A2(
-						elm$html$Html$p,
-						_List_Nil,
-						_List_fromArray(
-							[
-								elm$html$Html$text('Found main in Slice ' + sid)
-							]))
+						A2(author$project$Main$tryViewSlice, model, sid)
 					]);
 			} else {
 				return _List_fromArray(
@@ -6465,7 +8636,7 @@ var author$project$Main$viewError = function (err) {
 			]));
 };
 var author$project$Main$view = function (model) {
-	var _n0 = model.l;
+	var _n0 = model.p;
 	if (!_n0.$) {
 		var err = _n0.a;
 		return author$project$Main$viewError(err);
@@ -6541,9 +8712,6 @@ var elm$core$Task$perform = F2(
 	});
 var elm$url$Url$Http = 0;
 var elm$url$Url$Https = 1;
-var elm$core$String$isEmpty = function (string) {
-	return string === '';
-};
 var elm$core$String$left = F2(
 	function (n, string) {
 		return (n < 1) ? '' : A3(elm$core$String$slice, 0, n, string);
@@ -6551,7 +8719,7 @@ var elm$core$String$left = F2(
 var elm$core$String$toInt = _String_toInt;
 var elm$url$Url$Url = F6(
 	function (protocol, host, port_, path, query, fragment) {
-		return {af: fragment, ag: host, ak: path, am: port_, ap: protocol, aq: query};
+		return {at: fragment, av: host, aG: path, aI: port_, aM: protocol, aN: query};
 	});
 var elm$url$Url$chompBeforePath = F5(
 	function (protocol, path, params, frag, str) {
@@ -6658,5 +8826,5 @@ var elm$url$Url$fromString = function (str) {
 var elm$browser$Browser$element = _Browser_element;
 var elm$json$Json$Decode$value = _Json_decodeValue;
 var author$project$Main$main = elm$browser$Browser$element(
-	{aL: author$project$Main$init, aT: author$project$Main$subscriptions, aV: author$project$Main$update, aX: author$project$Main$view});
+	{bm: author$project$Main$init, bH: author$project$Main$subscriptions, bK: author$project$Main$update, bM: author$project$Main$view});
 _Platform_export({'Main':{'init':author$project$Main$main(elm$json$Json$Decode$value)(0)}});}(this));

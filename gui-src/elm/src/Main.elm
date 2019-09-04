@@ -1,14 +1,19 @@
 module Main exposing (..)
 
 import Browser
-import Html exposing (Html, button, div, text, p, h1, textarea)
-import Html.Attributes exposing (class, value, classList)
-import Html.Events exposing (onClick, on)
+
 import Json.Encode as E
 import Json.Decode as Decode
 import Dict exposing (Dict)
 import Set exposing (Set)
 import Http
+
+-- imports for view
+import Parser exposing (Parser)
+import SyntaxHighlight as SH
+import Html exposing (Html, button, div, text, p, h1, textarea)
+import Html.Attributes exposing (class, value, classList, spellcheck, readonly)
+import Html.Events exposing (onClick, on)
 
 
 main =
@@ -365,9 +370,68 @@ viewEditor model =
   div
     [ class "editorContainer" ]
     ( case model.main of
-        Just sid -> [ p [] [ text ("Found main in Slice " ++ sid) ] ]
+        Just sid -> [ tryViewSlice model sid ]
         Nothing  -> [ p [] [ text "Loading complete" ] ]
     )
+
+tryViewSlice : Model -> SliceID -> Html Msg
+tryViewSlice model sid =
+  case Dict.get sid model.cache of
+    Nothing -> text ("Missing Slice: " ++ sid)
+    Just sw -> viewSlice sw
+
+renderFragment : Slice -> String
+renderFragment slice =
+  case slice of
+    (Slice _ _ (Fragment codes) _ _) ->
+      String.concat (List.intersperse "\n" codes)
+
+viewSlice : SliceWrap -> Html Msg
+viewSlice sw =
+  let
+    renderedFragment = renderFragment sw.slice
+  in
+    div
+      [ classList
+          [ ( "container", True )
+          , ( "elmsh", True )
+          ]
+      ]
+      [ div
+          [ class "view-container"
+          ]
+          [ toHtml renderedFragment
+          ]
+      , viewTextarea renderedFragment
+      ]
+
+viewTextarea : String -> Html Msg
+viewTextarea codeStr =
+    textarea
+        [ value codeStr
+        , classList
+            [ ( "textarea", True )
+            , ( "textarea-lc", False )
+            ]
+        -- , onInput (SetText thisLang)
+        , spellcheck False
+        , readonly True
+        ]
+        []
+
+toHtml : String -> Html Msg
+toHtml code =
+  SH.haskell code
+    |> Result.map (SH.toBlockHtml Nothing)
+    |> Result.mapError Parser.deadEndsToString
+    |> (\result ->
+            case result of
+                Result.Ok a ->
+                    a
+
+                Result.Err x ->
+                    text x
+       )
 
 {- setPosition : List Slice -> Model -> Model
 setPosition slices m =
