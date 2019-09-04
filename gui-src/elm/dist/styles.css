@@ -15,52 +15,61 @@
 .focused {
   border: 2px black;
 }
+/* Custom syntax highlighting styles */
+.reference {
+  text-decoration: underline;
+}
+
+.reference:hover {
+  cursor: pointer;
+}
+
 /* Styles from the Elm-Syntax-Highlight-Demo
  * Required to make highlighted code editable
  * by overlaying an invisible textarea */
- .container {
-     position: relative;
-     overflow: hidden;
-     padding: 0;
-     margin: 0;
-     text-align: left;
- }
- .textarea, .view-container {
-     box-sizing: border-box;
-     font-size: 1rem;
-     line-height: 1.2;
-     width: 100%;
-     height: 100%;
-     height: 250px;
-     font-family: monospace;
-     letter-spacing: normal;
-     word-spacing: normal;
-     padding: 0;
-     margin: 0;
-     border: 0;
-     background: transparent;
-     white-space: pre;
- }
- .textarea {
-     color: rgba(0,0,0,0);
-     resize: none;
-     z-index: 2;
-     position: relative;
-     padding: 10px;
- }
- .textarea-lc {
-     padding-left: 70px;
- }
- .textarea:focus {
-     outline: none;
- }
- .view-container {
-     position: absolute;
-     top: 0;
-     left: 0;
-     pointer-events: none;
-     z-index:1;
- }
+.container {
+   position: relative;
+   overflow: hidden;
+   padding: 0;
+   margin: 0;
+   text-align: left;
+}
+.textarea, .view-container {
+   box-sizing: border-box;
+   font-size: 1rem;
+   line-height: 1.2;
+   width: 100%;
+   height: 100%;
+   height: 250px;
+   font-family: monospace;
+   letter-spacing: normal;
+   word-spacing: normal;
+   padding: 0;
+   margin: 0;
+   border: 0;
+   background: transparent;
+   white-space: pre;
+}
+.textarea {
+   color: rgba(0,0,0,0);
+   resize: none;
+   z-index: 2;
+   position: relative;
+   padding: 10px;
+}
+.textarea-lc {
+   padding-left: 70px;
+}
+.textarea:focus {
+   outline: none;
+}
+.view-container {
+   position: absolute;
+   top: 0;
+   left: 0;
+   pointer-events: none;
+   z-index:1;
+}
 
 /* Required Styles for Elm-Syntax-Highlight */
 pre.elmsh {
@@ -83,7 +92,8 @@ code.elmsh {
 
 /* Monokai Styles for Elm-Syntax-Highlight */
 .elmsh {
-  color: #f8f8f2;background: #23241f;
+  color: #f8f8f2;
+  background: #23241f;
 }
 .elmsh-hl {
   background: #343434;
@@ -97,7 +107,7 @@ code.elmsh {
 .elmsh4 {color: #66d9ef;}
 .elmsh5 {color: #a6e22e;}
 .elmsh6 {color: #ae81ff;}
-.elmsh7 {color: #fd971f;}
+.elmsh7 {color: #f8f8f2;} /* changed from #fd971f in order to tokenize "normal" text */
 .elmsh-elm-ts, .elmsh-js-dk, .elmsh-css-p {
   font-style: italic;
   color: #66d9ef;

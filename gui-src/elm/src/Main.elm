@@ -11,6 +11,7 @@ import Http
 -- imports for view
 import Parser exposing (Parser)
 import SyntaxHighlight as SH
+import SyntaxHighlight.Line as SHL
 import Html exposing (Html, button, div, text, p, h1, textarea)
 import Html.Attributes exposing (class, value, classList, spellcheck, readonly)
 import Html.Events exposing (onClick, on)
@@ -146,6 +147,30 @@ type alias SourceCode = String
 type alias Qualification = String
 type alias OriginalModule = String
 type alias GHCExtension = String
+
+extractReferences : Slice -> Dict String SliceID
+extractReferences slice =
+  case slice of
+    (Slice _ _ _ uses _) ->
+      List.map extractReference uses
+        |> fromMaybeList
+        |> Dict.fromList
+
+extractReference : Use -> Maybe (String, SliceID)
+extractReference use =
+  case use of
+    (Use _ _ (Builtin _)) -> Nothing
+    (Use _ name (OtherSlice sid)) ->
+      case name of
+        (ValueName n) -> Just (nameToString n, sid)
+        (TypeName n) -> Just (nameToString n, sid)
+        (ConstructorName _ n) -> Just (nameToString n, sid)
+
+nameToString : Name -> String
+nameToString name =
+  case name of
+    Identifier s -> s
+    Operator s   -> s
 
 -- | DECODERS
 
@@ -400,7 +425,7 @@ viewSlice sw =
       [ div
           [ class "view-container"
           ]
-          [ toHtml renderedFragment
+          [ toHtml renderedFragment (extractReferences sw.slice)
           ]
       , viewTextarea renderedFragment
       ]
@@ -419,9 +444,10 @@ viewTextarea codeStr =
         ]
         []
 
-toHtml : String -> Html Msg
-toHtml code =
+toHtml : String -> Dict String SliceID -> Html Msg
+toHtml code refs =
   SH.haskell code
+    |> Result.map (highlightReferences refs)
     |> Result.map (SH.toBlockHtml Nothing)
     |> Result.mapError Parser.deadEndsToString
     |> (\result ->
@@ -432,6 +458,41 @@ toHtml code =
                 Result.Err x ->
                     text x
        )
+
+highlightReferences : Dict String SliceID -> SH.HCode Msg -> SH.HCode Msg
+highlightReferences dict hcode =
+  let
+    highlightFragment frag =
+      case Dict.get frag.text dict of
+        Nothing -> frag
+        Just _  ->
+          { frag | additionalAttributes = (class "reference") :: frag.additionalAttributes }
+  in
+    mapHCodeFragments highlightFragment hcode
+
+mapHCodeFragments : (SHL.Fragment msg -> SHL.Fragment msg) -> SH.HCode msg -> SH.HCode msg
+mapHCodeFragments f hcode =
+  case hcode of
+    SH.HCode lines ->
+      List.map
+        (\l -> { l | fragments =
+          List.map
+            f
+            l.fragments
+          })
+        lines
+      |> SH.HCode
+
+-- | Helpers (should-be library functions)
+fromMaybeList : List (Maybe a) -> List a
+fromMaybeList list =
+  List.foldl
+    (\x acc ->
+      case x of
+        Nothing -> acc
+        Just b  -> b :: acc)
+    []
+    list
 
 {- setPosition : List Slice -> Model -> Model
 setPosition slices m =
