@@ -1,3 +1,14 @@
+.editorContainer {
+  background: black;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .row {
   display: block;
   overflow-x: auto;
@@ -6,21 +17,40 @@
   div {
     display: inline-block;
   }
+  border-bottom: 2px;
+  border-style: solid;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  padding-top:1em;
+  padding-bottom: 2em;
 }
 
 .elmsh {
   display: inline-block;
-  height: 100%
+  height: 100%;
   height: 250px;
-  margin: 1em;
+  margin-left: 1em;
+  border-radius: 10px;
 }
 
-.active {
-  border-color: green;
+.elmsh:hover, .elmsh:hover > .elmsh {
+  background: #33342f;
 }
 
-.focused {
-  border: 2px black;
+.focus > .elmsh {
+  border: white;
+  border-style: solid;
+  border-width: 1px;
+  background: #33342f;
+}
+.focus > .elmsh >.elmsh {
+  background: #33342f;
+}
+
+/* to prevent vertical scrollbars from producing horizontal ones */
+.elmsh > .elmsh {
+  padding-right: 2em;
 }
 /* Custom syntax highlighting styles */
 .reference {
