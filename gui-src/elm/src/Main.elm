@@ -14,7 +14,7 @@ import SyntaxHighlight as SH
 import SyntaxHighlight.Line as SHL
 import Html exposing (Html, button, div, text, p, h1, textarea)
 import Html.Attributes exposing (class, value, classList, spellcheck, readonly)
-import Html.Events exposing (onClick, on)
+import Html.Events exposing (onClick, on, onMouseEnter, onMouseLeave)
 
 
 main =
@@ -75,6 +75,7 @@ type alias Model =
 type alias Rows =
   { focus: SliceID
   , trace: List SliceID
+  , marked: Maybe SliceID
   }
 
 emptyModel : Model
@@ -155,21 +156,16 @@ type alias Qualification = String
 type alias OriginalModule = String
 type alias GHCExtension = String
 
-extractReferences : Slice -> Dict String SliceID
+extractReferences : Slice -> List (String, SliceID)
 extractReferences slice =
   case slice of
     (Slice _ _ _ uses _) ->
-      List.map extractReference uses
-        |> fromMaybeList
-        |> Dict.fromList
+      List.filterMap extractReference uses
 
 extractDependencies : Slice -> List SliceID
 extractDependencies slice =
-  case slice of
-    (Slice _ _ _ uses _) ->
-      List.map extractReference uses
-        |> fromMaybeList
-        |> List.map Tuple.second
+  extractReferences slice
+    |> List.map Tuple.second
 
 extractReference : Use -> Maybe (String, SliceID)
 extractReference use =
@@ -265,6 +261,8 @@ type Msg
   | CloseError
   | ReceivedSlices (Result Http.Error (List Slice))
   | Focus SliceID (List SliceID)
+  | Mark SliceID
+  | Unmark
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -295,14 +293,39 @@ update msg model =
       , Cmd.none
       )
 
+    Unmark ->
+      ( unmark model
+      , Cmd.none
+      )
+
+    Mark sid ->
+      ( mark sid model
+      , Cmd.none
+      )
+
+unmark : Model -> Model
+unmark model =
+  { model | rows = Maybe.map
+      (\r -> { r | marked = Nothing })
+      model.rows
+  }
+
+mark : SliceID -> Model -> Model
+mark sid model =
+  { model | rows = Maybe.map
+      (\r -> { r | marked = Just sid })
+      model.rows
+  }
+
 setFocus : SliceID -> List SliceID -> Model -> Model
 setFocus sid occs model =
   case model.rows of
-    Nothing -> { model | rows = Just {focus = sid, trace = []} }
+    Nothing -> { model | rows = Just {focus = sid, trace = [], marked = Nothing } }
     Just {focus, trace} ->
       { model | rows =
           Just { focus = sid
                , trace = pruneUntilIn occs (focus :: trace)
+               , marked = Nothing
                }
       }
 
@@ -419,25 +442,25 @@ setRows model =
       case model.slices of
         [] -> model
         x :: rst ->
-          { model | rows = Just { focus = x.id, trace = [] } }
+          { model | rows = Just { focus = x.id, trace = [], marked = Nothing } }
     Just sid ->
-      { model | rows = Just { focus = sid, trace = [] } }
+      { model | rows = Just { focus = sid, trace = [], marked = Nothing } }
 
 
 -- | VIEW
 view : Model -> Html Msg
 view model =
   case model.error of
-    Just err -> viewError err
+    Just err -> viewErrMsg err
     Nothing  -> viewEditor model
 
-viewError : String -> Html Msg
-viewError err =
+viewErrMsg : String -> Html Msg
+viewErrMsg err =
   div
     [ class "editorContainer" ]
     [ div
         [ class "row" ]
-        [ p [] [ text err ]
+        [ viewError err
         , button [ onClick CloseError ] [ text "Ignore and show editor" ]
         ]
     ]
@@ -462,7 +485,7 @@ viewRowEditor {focus, trace} model =
 
 singleRow : SliceID -> Model -> Html Msg
 singleRow sid model =
-  div [ class "row" ] [ tryViewSlice model "" sid ]
+  div [ class "row" ] [ tryViewSlice model (Just sid) References sid ]
 
 occurenceRows : List SliceID -> Model -> List (Html Msg)
 occurenceRows trace model =
@@ -476,37 +499,60 @@ occurenceRows trace model =
 
 dependenciesRow : SliceID -> Maybe SliceID -> Model -> Html Msg
 dependenciesRow parent center model =
-  let
-    foc = case center of
-      Nothing -> ""
-      Just s  -> s
-  in
-    div
-      [ class "row" ]
-      (case Dict.get parent model.cache of
-        Nothing      -> [ text ("Missing Slice: " ++ parent) ]
-        Just {slice} -> List.map (tryViewSlice model foc) (extractDependencies slice))
+  div
+    [ class "row" ]
+    (case Dict.get parent model.cache of
+      Nothing      ->
+        [ viewError ("Missing Slice: " ++ parent) ]
+      Just {slice} ->
+        List.map (tryViewSlice model center References) (reorder center (removeDuplicates (extractDependencies slice))))
 
 occurencesRow : SliceID -> Maybe SliceID -> Model -> Html Msg
 occurencesRow parent center model =
-  let
-    foc = case center of
-      Nothing -> ""
-      Just s  -> s
-  in
-    div
-      [ class "row" ]
-      (case Dict.get parent model.cache of
-        Nothing           -> [ text ("Missing Slice: " ++ parent) ]
-        Just {occurences} -> List.map (tryViewSlice model foc) occurences)
+  div
+    [ class "row" ]
+    (case Dict.get parent model.cache of
+      Nothing           ->
+        [ viewError ("Missing Slice: " ++ parent) ]
+      Just {occurences} ->
+        List.map (tryViewSlice model center (Occurences parent)) (reorder center (removeDuplicates occurences)))
 
+removeDuplicates : List comparable -> List comparable
+removeDuplicates list =
+  Set.toList (Set.fromList list)
+
+-- set foc as first element in list
+reorder : Maybe SliceID -> List SliceID -> List SliceID
+reorder foc list =
+  case foc of
+    Nothing -> list
+    Just center ->
+      center :: (List.filter (\s -> not (String.contains center s)) list)
+
+-- view an error in the style of surrounding elements
+viewError : String -> Html Msg
+viewError err =
+  p
+    [ class "error" ]
+    [ text err ]
 
 -- | viewing a single Slice
-tryViewSlice : Model -> SliceID -> SliceID -> Html Msg
-tryViewSlice model focus sid =
+type Highlight
+  = Occurences SliceID
+  | References
+  | NoHighlight
+
+tryViewSlice : Model -> Maybe SliceID -> Highlight -> SliceID -> Html Msg
+tryViewSlice model focus highlight sid =
   case Dict.get sid model.cache of
-    Nothing -> text ("Missing Slice: " ++ sid)
-    Just sw -> viewSlice focus sw
+    Nothing -> viewError ("Missing Slice: " ++ sid)
+    Just sw ->
+      let
+        marking = case model.rows of
+          Nothing -> Nothing
+          Just r -> r.marked
+      in
+        viewSlice focus highlight marking sw
 
 renderFragment : Slice -> String
 renderFragment slice =
@@ -514,19 +560,48 @@ renderFragment slice =
     (Slice _ _ (Fragment codes) _ _) ->
       String.concat (List.intersperse "\n" codes)
 
-viewSlice : SliceID -> SliceWrap -> Html Msg
-viewSlice sid sw =
+viewSlice : Maybe SliceID -> Highlight -> Maybe SliceID -> SliceWrap -> Html Msg
+viewSlice sid highlight marked sw =
   let
     renderedFragment = renderFragment sw.slice
+    focus = case sid of
+      Nothing -> False
+      Just foc -> String.contains sw.id foc
+    marking = case marked of
+      Nothing -> False
+      Just mid -> String.contains sw.id mid
+    highlightDict =
+      case highlight of
+        NoHighlight -> Dict.empty
+        References ->
+          List.map
+            (Tuple.mapSecond
+              (\mid ->
+                [ class "reference"
+                , onMouseEnter (Mark mid)
+                , onMouseLeave Unmark
+                ]
+              )
+            )
+            (extractReferences sw.slice)
+          |> Dict.fromList
+        Occurences occId ->
+          extractReferences sw.slice
+          |> List.filter (\(_, a) -> String.contains occId a)
+          |> List.map (Tuple.mapSecond (\_ -> [ class "occurence"]))
+          |> Dict.fromList
   in
     div
       [ classList
           [ ( "elmsh", True )
-          , ( "focus", String.contains sw.id sid)
+          , ( "focus", focus )
+          , ( "marked", marking )
           ]
       , onClick (Focus sw.id sw.occurences)
       ]
-      [ toHtml renderedFragment (extractReferences sw.slice)
+      [ toHtml
+          renderedFragment
+          highlightDict
       ]
 {-     div
       [ classList
@@ -558,7 +633,7 @@ viewTextarea codeStr =
         ]
         []
 
-toHtml : String -> Dict String SliceID -> Html Msg
+toHtml : String -> Dict String (List (Html.Attribute Msg)) -> Html Msg
 toHtml code refs =
   SH.haskell code
     |> Result.map (highlightReferences refs)
@@ -573,14 +648,14 @@ toHtml code refs =
                     text x
        )
 
-highlightReferences : Dict String SliceID -> SH.HCode Msg -> SH.HCode Msg
+highlightReferences : Dict String (List (Html.Attribute Msg)) -> SH.HCode Msg -> SH.HCode Msg
 highlightReferences dict hcode =
   let
     highlightFragment frag =
       case Dict.get frag.text dict of
         Nothing -> frag
-        Just _  ->
-          { frag | additionalAttributes = (class "reference") :: frag.additionalAttributes }
+        Just attrs  ->
+          { frag | additionalAttributes = attrs ++ frag.additionalAttributes }
   in
     mapHCodeFragments highlightFragment hcode
 

@@ -1,5 +1,6 @@
 .editorContainer {
   background: black;
+  min-height: 100%;
 }
 
 body {
@@ -9,14 +10,24 @@ body {
   height: 100%;
 }
 
+.error {
+  font-family: monospace;
+  letter-spacing: normal;
+  word-spacing: normal;
+  color: #f8f8f2;
+  background: #23241f;
+  display: inline-block;
+  margin-left: 1em;
+  padding: 1em;
+  border-radius: 10px;
+  border: 2px solid red;
+}
+
 .row {
   display: block;
   overflow-x: auto;
   overflow-y: hidden;
   white-space: nowrap;
-  div {
-    display: inline-block;
-  }
   border-bottom: 2px;
   border-style: solid;
   border-top: 0;
@@ -48,6 +59,13 @@ body {
   background: #33342f;
 }
 
+.marked > .elmsh {
+  background: #33342f;
+}
+.marked > .elmsh > .elmsh {
+  background: #33342f;
+}
+
 /* to prevent vertical scrollbars from producing horizontal ones */
 .elmsh > .elmsh {
   padding-right: 2em;
@@ -59,6 +77,10 @@ body {
 
 .reference:hover {
   cursor: pointer;
+}
+
+.occurence {
+  text-decoration: underline;
 }
 
 /* Styles from the Elm-Syntax-Highlight-Demo
