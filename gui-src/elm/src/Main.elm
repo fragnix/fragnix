@@ -8,6 +8,8 @@ import Dict exposing (Dict)
 import Set exposing (Set)
 import Http
 
+import Slice exposing (..)
+
 -- imports for view
 import Parser exposing (Parser)
 import SyntaxHighlight as SH
@@ -18,7 +20,7 @@ import Html.Events exposing (onClick, on, onMouseEnter, onMouseLeave)
 
 
 main =
-  Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
+  Browser.element { init = init, update = update, view = view, subscriptions = (\_ -> Sub.none) }
 
 -- | INIT
 type alias Flags = E.Value
@@ -29,10 +31,6 @@ init _ =
   ( { emptyModel | error = Just "Loading and analyzing slices..." }
   , getAllSlices
   )
-
--- | SUBSCRIPTIONS
-subscriptions : Model -> Sub Msg
-subscriptions _ = Sub.none
 
 -- | API Requests
 getAllSlices : Cmd Msg
@@ -87,179 +85,12 @@ emptyModel =
   , error = Nothing
   }
 
--- | SliceWrap and helper
-type alias SliceWrap =
-  { slice: Slice
-  , occurences: List SliceID
-  , comments: SourceCode
-  , signature: SourceCode
-  , name: SourceCode
-  , id: SliceID
-  }
-
-wrap : Slice -> SliceWrap
-wrap bare =
-  case bare of
-    (Slice sid _ (Fragment lines) _ _) ->
-      { slice = bare
-      , occurences = []
-      , comments = String.concat (List.filter (String.startsWith "--") lines)
-      , signature =
-          case (List.filter (String.contains "::") lines) of
-            l :: _ -> case (String.indexes "::" l) of
-              i :: _ -> String.dropLeft (i + 2) l
-              _      -> ""
-            _      -> ""
-      , name =
-          case (List.filter (String.contains "=") lines) of
-            l :: _ -> case (String.indexes "=" l) of
-              i :: _ -> String.dropRight i l
-              _      -> ""
-            _      -> ""
-      , id = sid
-      }
-
-
--- | Slices
-type Slice = Slice SliceID Language Fragment (List Use) (List Instance)
-
-type Language = Language (List GHCExtension)
-
-type Fragment = Fragment (List SourceCode)
-
-type Use = Use (Maybe Qualification) UsedName Reference
-
-type Instance = Instance InstancePart InstanceID
-
-type InstancePart =
-    OfThisClass |
-    OfThisClassForUnknownType |
-    ForThisType |
-    ForThisTypeOfUnknownClass
-
-type alias InstanceID = SliceID
-
-type Reference = OtherSlice SliceID | Builtin OriginalModule
-
-type UsedName =
-    ValueName Name |
-    TypeName Name |
-    ConstructorName TypeName Name
-
-type Name = Identifier String | Operator String
-
-type alias TypeName = Name
-
-type alias SliceID = String
-type alias SourceCode = String
-type alias Qualification = String
-type alias OriginalModule = String
-type alias GHCExtension = String
-
-extractReferences : Slice -> List (String, SliceID)
-extractReferences slice =
-  case slice of
-    (Slice _ _ _ uses _) ->
-      List.filterMap extractReference uses
-
-extractDependencies : Slice -> List SliceID
-extractDependencies slice =
-  extractReferences slice
-    |> List.map Tuple.second
-
-extractReference : Use -> Maybe (String, SliceID)
-extractReference use =
-  case use of
-    (Use _ _ (Builtin _)) -> Nothing
-    (Use _ name (OtherSlice sid)) ->
-      case name of
-        (ValueName n) -> Just (nameToString n, sid)
-        (TypeName n) -> Just (nameToString n, sid)
-        (ConstructorName _ n) -> Just (nameToString n, sid)
-
-nameToString : Name -> String
-nameToString name =
-  case name of
-    Identifier s -> s
-    Operator s   -> s
-
--- | DECODERS
-
--- | Slice Decoder
-sliceDecoder : Decode.Decoder Slice
-sliceDecoder =
-  Decode.map5 Slice
-    (Decode.field "sliceID" Decode.string)
-    (Decode.field "language" languageDecoder)
-    (Decode.field "fragment" fragmentDecoder)
-    (Decode.field "uses" (Decode.list useDecoder))
-    (Decode.field "instances" (Decode.list instanceDecoder))
-
-languageDecoder : Decode.Decoder Language
-languageDecoder =
-  Decode.map Language (Decode.field "extensions" (Decode.list Decode.string))
-
-fragmentDecoder : Decode.Decoder Fragment
-fragmentDecoder =
-  Decode.map Fragment (Decode.list Decode.string)
-
-useDecoder : Decode.Decoder Use
-useDecoder =
-  Decode.map3 Use
-    (Decode.field "qualification" (Decode.nullable Decode.string))
-    (Decode.field "usedName" usedNameDecoder)
-    (Decode.field "reference" referenceDecoder)
-
-usedNameDecoder : Decode.Decoder UsedName
-usedNameDecoder =
-  Decode.oneOf
-    [ (Decode.map ValueName (Decode.field "valueName" nameDecoder))
-    , (Decode.map TypeName (Decode.field "typeName" nameDecoder))
-    , (Decode.map2 ConstructorName
-        (Decode.field "constructorTypeName" nameDecoder)
-        (Decode.field "constructorName" nameDecoder))
-    ]
-
-referenceDecoder : Decode.Decoder Reference
-referenceDecoder =
-  Decode.oneOf
-    [ (Decode.map OtherSlice (Decode.field "otherSlice" Decode.string))
-    , (Decode.map Builtin (Decode.field "builtinModule" Decode.string))
-    ]
-
-nameDecoder : Decode.Decoder Name
-nameDecoder =
-  Decode.oneOf
-    [ (Decode.map Identifier (Decode.field "identifier" Decode.string))
-    , (Decode.map Operator (Decode.field "operator" Decode.string))
-    ]
-
-instanceDecoder : Decode.Decoder Instance
-instanceDecoder =
-  Decode.map2 Instance
-    (Decode.field "instancePart" instancePartDecoder)
-    (Decode.field "instanceID" Decode.string)
-
-instancePartDecoder : Decode.Decoder InstancePart
-instancePartDecoder =
-  Decode.string
-    |> Decode.andThen instancePartFromString
-
-instancePartFromString : String -> Decode.Decoder InstancePart
-instancePartFromString s =
-  case s of
-    "OfThisClass" -> Decode.succeed OfThisClass
-    "OfThisClassForUnknownType" -> Decode.succeed OfThisClassForUnknownType
-    "ForThisType" -> Decode.succeed ForThisType
-    "ForThisTypeOfUnknownClass" -> Decode.succeed ForThisTypeOfUnknownClass
-    wrong -> Decode.fail ("Bad Value for InstancePart: " ++ wrong)
-
 -- | UPDATE
 
 type Msg
-  = Error String
+  = ReceivedSlices (Result Http.Error (List Slice))
+  | Error String
   | CloseError
-  | ReceivedSlices (Result Http.Error (List Slice))
   | Focus SliceID (List SliceID)
   | Mark SliceID
   | Unmark
@@ -293,50 +124,18 @@ update msg model =
       , Cmd.none
       )
 
-    Unmark ->
-      ( unmark model
-      , Cmd.none
-      )
-
     Mark sid ->
       ( mark sid model
       , Cmd.none
       )
 
-unmark : Model -> Model
-unmark model =
-  { model | rows = Maybe.map
-      (\r -> { r | marked = Nothing })
-      model.rows
-  }
+    Unmark ->
+      ( unmark model
+      , Cmd.none
+      )
 
-mark : SliceID -> Model -> Model
-mark sid model =
-  { model | rows = Maybe.map
-      (\r -> { r | marked = Just sid })
-      model.rows
-  }
 
-setFocus : SliceID -> List SliceID -> Model -> Model
-setFocus sid occs model =
-  case model.rows of
-    Nothing -> { model | rows = Just {focus = sid, trace = [], marked = Nothing } }
-    Just {focus, trace} ->
-      { model | rows =
-          Just { focus = sid
-               , trace = pruneUntilIn occs (focus :: trace)
-               , marked = Nothing
-               }
-      }
-
-pruneUntilIn : List SliceID -> List SliceID -> List SliceID
-pruneUntilIn set xs =
-  case xs of
-    []       -> []
-    x :: rst ->
-      if List.member x set then xs else pruneUntilIn set rst
-
--- | Loading Slices
+-- | ReceivedSlices
 
 loadSlices : List Slice -> Model -> Model
 loadSlices slices model =
@@ -347,10 +146,12 @@ loadSlices slices model =
   |> findMain
   |> setRows
 
+-- | wrap new slices and add them to model
 insertSlices : List Slice -> Model -> Model
 insertSlices newSlices model =
   { model | slices = (List.map wrap newSlices) }
 
+-- | add slices to cache
 indexSlices : Model -> Model
 indexSlices model =
   { model | cache =
@@ -361,14 +162,19 @@ indexSlices model =
         model.slices
   }
 
+-- | add information about where the loaded slices are used
 computeOccurences : Model -> Model
 computeOccurences model =
-  { model | cache =
+  let
+    fullCache =
       List.foldl
         addOccurences
         model.cache
         model.slices
-  }
+    fullSlices =
+      Dict.values fullCache
+  in
+    { model | cache = fullCache, slices = fullSlices }
 
 addOccurences : SliceWrap -> (Dict SliceID SliceWrap) -> (Dict SliceID SliceWrap)
 addOccurences sw dict =
@@ -388,6 +194,7 @@ addOccurence sid occId dict =
     Nothing -> dict
     Just sw -> Dict.insert sid { sw | occurences = occId :: sw.occurences } dict
 
+-- | check if any slice references a slice that is not in the cache
 performIntegrityCheck : Model -> Model
 performIntegrityCheck model =
   case integrityCheck model of
@@ -398,7 +205,6 @@ missingSlicesToString : Set SliceID -> String
 missingSlicesToString missing =
   "Missing Slices: "
   ++ String.concat (List.map (\x -> x ++ " ") (Set.toList missing))
-
 
 integrityCheck : Model -> Result (Set SliceID) ()
 integrityCheck model =
@@ -424,6 +230,7 @@ checkDependency sid cache res =
       Ok _         -> Err (Set.insert sid Set.empty)
       Err missing  -> Err (Set.insert sid missing)
 
+-- | first main function found in the slices list
 findMain : Model -> Model
 findMain model =
   case List.filter isMain model.slices of
@@ -434,6 +241,7 @@ isMain : SliceWrap -> Bool
 isMain sw =
   String.startsWith "main " sw.name
 
+-- | set a start state for showing the editor
 setRows : Model -> Model
 setRows model =
   case model.main of
@@ -445,6 +253,48 @@ setRows model =
           { model | rows = Just { focus = x.id, trace = [], marked = Nothing } }
     Just sid ->
       { model | rows = Just { focus = sid, trace = [], marked = Nothing } }
+
+-- | Focus
+-- | Set current open slice and trace
+setFocus : SliceID -> List SliceID -> Model -> Model
+setFocus sid occs model =
+  case model.rows of
+    Nothing ->
+      { model | rows = Just {focus = sid, trace = [], marked = Nothing } }
+    Just {focus, trace} ->
+      { model | rows =
+          Just { focus = sid
+               , trace = pruneUntilIn occs (focus :: trace)
+               , marked = Nothing
+               }
+      }
+
+-- | shorten the trace until it ends with an occurence of the
+-- | new focused slice
+pruneUntilIn : List SliceID -> List SliceID -> List SliceID
+pruneUntilIn set xs =
+  case xs of
+    []       -> []
+    x :: rst ->
+      if List.member x set then xs else pruneUntilIn set rst
+
+-- | Mark
+-- | Highlight a slice
+mark : SliceID -> Model -> Model
+mark sid model =
+  { model | rows = Maybe.map
+      (\r -> { r | marked = Just sid })
+      model.rows
+  }
+
+-- | Unmark
+-- | stop highlighting any slice
+unmark : Model -> Model
+unmark model =
+  { model | rows = Maybe.map
+      (\r -> { r | marked = Nothing })
+      model.rows
+  }
 
 
 -- | VIEW
@@ -603,21 +453,6 @@ viewSlice sid highlight marked sw =
           renderedFragment
           highlightDict
       ]
-{-     div
-      [ classList
-          [ ( "container", True )
-          , ( "elmsh", True )
-          , ( "focus", sid == sw.id )
-          ]
-      , onClick (Focus sw.id sw.occurences)
-      ]
-      [ div
-          [ class "view-container"
-          ]
-          [ toHtml renderedFragment (extractReferences sw.slice)
-          ]
-      , viewTextarea renderedFragment
-      ] -}
 
 viewTextarea : String -> Html Msg
 viewTextarea codeStr =
@@ -671,191 +506,3 @@ mapHCodeFragments f hcode =
           })
         lines
       |> SH.HCode
-
--- | Helpers (should-be library functions)
-fromMaybeList : List (Maybe a) -> List a
-fromMaybeList list =
-  List.foldl
-    (\x acc ->
-      case x of
-        Nothing -> acc
-        Just b  -> b :: acc)
-    []
-    list
-
-{- setPosition : List Slice -> Model -> Model
-setPosition slices m =
-  case slices of
-    (Slice sid _ _ _ _)::_ -> {m | position = [sid]}
-    _ -> m
-
-missingSlices : Model -> List SliceID
-missingSlices model =
-  collectNeededSlices model
-  |> List.filter
-      (\s ->
-        case Dict.get s model.cache of
-          Nothing -> True
-          _       -> False)
-
-collectNeededSlices : Model -> List SliceID
-collectNeededSlices model =
-  case model.position of
-    [] -> []
-    sid :: []        -> [ sid ]
-    s1 :: s2 :: rest ->
-     dependencies model s1
-      ++ dependencies model s2
-      ++ List.concatMap (occurences model) (s2 :: rest)
-
-dependencies : Model -> SliceID -> List SliceID
-dependencies model sid =
-  case Dict.get sid model.cache of
-    Just sw -> sid :: (extractDependencies sw)
-    _ -> [ sid ]
-
-occurences : Model -> SliceID -> List SliceID
-occurences model sid =
-  case Dict.get sid model.cache of
-    Just sw -> sid :: sw.occurences
-    _ -> [ sid ]
-
-
-
--- VIEW
-
-view : Model -> Html Msg
-view model =
-  div
-    [ class "editorContainer" ]
-    ((viewError model) ++ (viewSlices model))
-
-viewError : Model -> List (Html Msg)
-viewError model =
-  case model.error of
-    Just err -> [ div [ class "row" ] [ p [] [ text err ] ] ]
-    Nothing  -> []
-
-viewSlices : Model -> List (Html Msg)
-viewSlices model =
-  case model.position of
-    []               -> []
-    sid :: []        ->
-      [ singleSliceRow model sid
-      , dependenciesRow model sid Nothing
-      ]
-    s1 :: s2 :: rest ->
-      [ div [ class "row" ] [ button [ onClick Pop ] [ text "Back " ] ]
-      , (dependenciesRow model s1 Nothing)
-      , (dependenciesRow model s2 (Just s1)) ]
-      ++ (occurenceRows model model.position)
-      |> List.reverse
-
-occurenceRows : Model -> List SliceID -> List (Html Msg)
-occurenceRows model stack =
-  case stack of
-    s1 :: s2 :: rest ->
-      (occurencesRow model s1 s2) :: (occurenceRows model (s2 :: rest))
-    _ -> []
-
-singleSliceRow : Model -> SliceID -> Html Msg
-singleSliceRow model sid =
-  div [ class "row" ] [ viewSlice model sid Focused Active ]
-
-onLoad : msg -> Html.Attribute msg
-onLoad message =
-  on "load" (Decode.succeed message)
-
-dependenciesRow : Model -> SliceID -> Maybe SliceID -> Html Msg
-dependenciesRow model root focus =
-  let
-    showSlice : SliceID -> Html Msg
-    showSlice sid =
-      case focus of
-        Just sid2 -> if sid == sid2
-          then
-            viewSlice model sid Focused Active
-          else
-            viewSlice model sid Unfocused Inactive
-
-        Nothing   ->
-          div
-            [ class "container"
-            , onClick (Push sid)
-            ]
-            [ viewSlice model sid Unfocused Inactive ]
-  in
-    case Dict.get root model.cache of
-      Just sw ->
-        div [ class "row" ] (List.map showSlice (extractDependencies sw))
-      Nothing ->
-        errorRow root "404 Slice not found"
-
-occurencesRow : Model -> SliceID -> SliceID -> Html Msg
-occurencesRow model root focus =
-  let
-    showSlice : SliceID -> Html Msg
-    showSlice sid =
-      if sid == focus then
-        viewSlice model sid Focused Inactive
-      else
-        viewSlice model sid Unfocused Inactive
-  in
-    case Dict.get root model.cache of
-      Just sw ->
-        div [ class "row" ] (List.map showSlice sw.occurences)
-      Nothing ->
-        errorRow root "404 Slice not found"
-
-errorRow :  SliceID -> String -> Html Msg
-errorRow causing error =
-  div
-    [ class "row" ]
-    [ errorHolder causing error ]
-
-errorHolder :  SliceID -> String -> Html Msg
-errorHolder causing error =
-  div
-    []
-    [ p [] [ text error ]
-    ]
-
-extractDependencies : SliceWrap -> List SliceID
-extractDependencies sw =
-  case sw.slice of
-    (Slice _ _ _ uses _) ->
-      List.foldl
-        (\u acc -> case u of
-          (Use _ _ ref) -> case ref of
-            OtherSlice sid -> sid :: acc
-            _              -> acc)
-        []
-        uses
-
-viewSlice : Model -> SliceID -> Focus -> Editing -> Html Msg
-viewSlice model sid focus editing =
-  case Dict.get sid model.cache of
-    Just sw ->
-      div
-        []
-        [ textarea
-            [ value (extractFragment sw.slice)
-            , classList
-              [ ("focused", focus == Focused)
-              , ("active", editing == Active)
-              ]
-            ]
-            []
-        ]
-    Nothing ->
-      errorHolder sid "Somehow we did not infer you need this."
-
-extractFragment : Slice -> String
-extractFragment s =
-  case s of
-    (Slice _ _ (Fragment frag) _ _) ->
-      List.foldl (\x xs -> x ++ "\n" ++ xs) "" frag
--}
-
-
--- STUBS
