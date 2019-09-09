@@ -1,6 +1,10 @@
 .editorContainer {
   background: black;
-  min-height: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  /* scroll-snap-type: x proximity; */
 }
 
 body {
@@ -24,25 +28,55 @@ body {
 }
 
 .row {
-  display: block;
-  overflow-x: auto;
-  overflow-y: hidden;
+  display: inline-block;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
   white-space: nowrap;
-  border-bottom: 2px;
-  border-style: solid;
-  border-top: 0;
-  border-left: 0;
-  border-right: 0;
   padding-top:1em;
-  padding-bottom: 2em;
+  margin-bottom: 1em;
+  padding-left:1em;
+  /* scroll-snap-align: start; */
+}
+
+/* dependencies of focus */
+.row:nth-last-of-type(1) {
+  background: #220A22;
+}
+
+/* focused row */
+.row:nth-last-of-type(2) {
+  background: #120012;
+}
+
+/* first layer occurences */
+.row:nth-last-of-type(3) {
+  background: #000022;
+}
+
+/* second layer occurences */
+.row:nth-last-of-type(4) {
+  background: #08082A;
+}
+
+/* third layer occurences */
+.row:nth-last-of-type(5) {
+  background: #101032;
+}
+
+/* following layer occurences */
+.row {
+  background: #18183A;
 }
 
 .elmsh {
-  display: inline-block;
-  height: 100%;
-  height: 250px;
-  margin-left: 1em;
+  margin-right: 1em;
+  margin-bottom: 1em;
   border-radius: 10px;
+}
+
+.row > .elmsh:last-child {
+  margin-bottom: 2em;
 }
 
 .elmsh:hover, .elmsh:hover > .elmsh {
@@ -53,10 +87,6 @@ body {
   border: white;
   border-style: solid;
   border-width: 1px;
-  background: #33342f;
-}
-.focus > .elmsh >.elmsh {
-  background: #33342f;
 }
 
 .marked > .elmsh {
