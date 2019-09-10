@@ -519,11 +519,11 @@ function _Debug_crash_UNUSED(identifier, fact1, fact2, fact3, fact4)
 
 function _Debug_regionToString(region)
 {
-	if (region.aj.V === region.ae.V)
+	if (region.aj.U === region.ae.U)
 	{
-		return 'on line ' + region.aj.V;
+		return 'on line ' + region.aj.U;
 	}
-	return 'on lines ' + region.aj.V + ' through ' + region.ae.V;
+	return 'on lines ' + region.aj.U + ' through ' + region.ae.U;
 }
 
 
@@ -2834,7 +2834,7 @@ var _VirtualDom_mapEventTuple = F2(function(func, tuple)
 var _VirtualDom_mapEventRecord = F2(function(func, record)
 {
 	return {
-		x: func(record.x),
+		y: func(record.y),
 		ak: record.ak,
 		ah: record.ah
 	}
@@ -3104,7 +3104,7 @@ function _VirtualDom_makeCallback(eventNode, initialHandler)
 		// 3 = Custom
 
 		var value = result.a;
-		var message = !tag ? value : tag < 3 ? value.a : value.x;
+		var message = !tag ? value : tag < 3 ? value.a : value.y;
 		var stopPropagation = tag == 1 ? value.b : tag == 3 && value.ak;
 		var currentEventNode = (
 			stopPropagation && event.stopPropagation(),
@@ -4228,7 +4228,7 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 		impl.bO,
 		impl.bL,
 		function(sendToApp, initialModel) {
-			var divertHrefToApp = impl.W && impl.W(sendToApp)
+			var divertHrefToApp = impl.V && impl.V(sendToApp)
 			var view = impl.bQ;
 			var title = _VirtualDom_doc.title;
 			var bodyNode = _VirtualDom_doc.body;
@@ -4303,7 +4303,7 @@ function _Browser_application(impl)
 	var key = function() { key.a(onUrlChange(_Browser_getUrl())); };
 
 	return _Browser_document({
-		W: function(sendToApp)
+		V: function(sendToApp)
 		{
 			key.a = sendToApp;
 			_Browser_window.addEventListener('popstate', key);
@@ -6185,7 +6185,7 @@ var author$project$Main$addOccurence = F3(
 	});
 var author$project$Main$addOccurences = F2(
 	function (sw, dict) {
-		var _n0 = sw.E;
+		var _n0 = sw.F;
 		var occId = _n0.a;
 		var uses = _n0.d;
 		return A3(
@@ -6242,7 +6242,7 @@ var author$project$Main$findMain = function (model) {
 		return _Utils_update(
 			model,
 			{
-				aa: elm$core$Maybe$Just(x.T)
+				aa: elm$core$Maybe$Just(x._)
 			});
 	} else {
 		return model;
@@ -6256,7 +6256,7 @@ var author$project$Main$indexSlices = function (model) {
 				elm$core$List$foldl,
 				F2(
 					function (s, c) {
-						var _n0 = s.E;
+						var _n0 = s.F;
 						var sid = _n0.a;
 						return A3(elm$core$Dict$insert, sid, s, c);
 					}),
@@ -6295,7 +6295,7 @@ var author$project$Slice$wrap = function (bare) {
 				elm$core$List$filter,
 				elm$core$String$startsWith('--'),
 				lines)),
-		T: sid,
+		_: sid,
 		bs: function () {
 			var _n1 = A2(
 				elm$core$List$filter,
@@ -6333,7 +6333,7 @@ var author$project$Slice$wrap = function (bare) {
 				return '';
 			}
 		}(),
-		E: bare
+		F: bare
 	};
 };
 var elm$core$List$map = F2(
@@ -6383,7 +6383,7 @@ var author$project$Main$checkDependency = F3(
 	});
 var author$project$Main$checkDependencies = F3(
 	function (cache, sw, res) {
-		var _n0 = sw.E;
+		var _n0 = sw.F;
 		var uses = _n0.d;
 		return A3(
 			elm$core$List$foldl,
@@ -6443,7 +6443,7 @@ var author$project$Main$setRows = function (model) {
 				model,
 				{
 					k: elm$core$Maybe$Just(
-						{A: x.T, w: elm$core$Maybe$Nothing, F: _List_Nil})
+						{w: x._, x: elm$core$Maybe$Nothing, A: _List_Nil})
 				});
 		}
 	} else {
@@ -6452,7 +6452,7 @@ var author$project$Main$setRows = function (model) {
 			model,
 			{
 				k: elm$core$Maybe$Just(
-					{A: sid, w: elm$core$Maybe$Nothing, F: _List_Nil})
+					{w: sid, x: elm$core$Maybe$Nothing, A: _List_Nil})
 			});
 	}
 };
@@ -6486,7 +6486,7 @@ var author$project$Main$mark = F2(
 						return _Utils_update(
 							r,
 							{
-								w: elm$core$Maybe$Just(sid)
+								x: elm$core$Maybe$Just(sid)
 							});
 					},
 					model.k)
@@ -6551,19 +6551,19 @@ var author$project$Main$setFocus = F3(
 				model,
 				{
 					k: elm$core$Maybe$Just(
-						{A: sid, w: elm$core$Maybe$Nothing, F: _List_Nil})
+						{w: sid, x: elm$core$Maybe$Nothing, A: _List_Nil})
 				});
 		} else {
-			var focus = _n0.a.A;
-			var trace = _n0.a.F;
+			var focus = _n0.a.w;
+			var trace = _n0.a.A;
 			return _Utils_update(
 				model,
 				{
 					k: elm$core$Maybe$Just(
 						{
-							A: sid,
-							w: elm$core$Maybe$Nothing,
-							F: A2(
+							w: sid,
+							x: elm$core$Maybe$Nothing,
+							A: A2(
 								author$project$Main$pruneUntilIn,
 								occs,
 								A2(elm$core$List$cons, focus, trace))
@@ -6580,7 +6580,7 @@ var author$project$Main$unmark = function (model) {
 				function (r) {
 					return _Utils_update(
 						r,
-						{w: elm$core$Maybe$Nothing});
+						{x: elm$core$Maybe$Nothing});
 				},
 				model.k)
 		});
@@ -6671,6 +6671,53 @@ var author$project$Main$reorder = F2(
 					list));
 		}
 	});
+var elm$core$Dict$fromList = function (assocs) {
+	return A3(
+		elm$core$List$foldl,
+		F2(
+			function (_n0, dict) {
+				var key = _n0.a;
+				var value = _n0.b;
+				return A3(elm$core$Dict$insert, key, value, dict);
+			}),
+		elm$core$Dict$empty,
+		assocs);
+};
+var author$project$Main$generateClassIndex = function (_n0) {
+	var marked = _n0.x;
+	var focus = _n0.w;
+	var trace = _n0.A;
+	return elm$core$Dict$fromList(
+		function (x) {
+			if (marked.$ === 1) {
+				return x;
+			} else {
+				var sid = marked.a;
+				return A2(
+					elm$core$List$cons,
+					_Utils_Tuple2(
+						sid,
+						_List_fromArray(
+							['marked'])),
+					x);
+			}
+		}(
+			A2(
+				elm$core$List$cons,
+				_Utils_Tuple2(
+					focus,
+					_List_fromArray(
+						['focus'])),
+				A2(
+					elm$core$List$map,
+					function (sid) {
+						return _Utils_Tuple2(
+							sid,
+							_List_fromArray(
+								['trace']));
+					},
+					trace))));
+};
 var elm$virtual_dom$VirtualDom$toHandlerInt = function (handler) {
 	switch (handler.$) {
 		case 0:
@@ -8774,18 +8821,6 @@ var author$project$Slice$extractReferences = function (slice) {
 	var uses = slice.d;
 	return A2(elm$core$List$filterMap, author$project$Slice$extractReference, uses);
 };
-var elm$core$Dict$fromList = function (assocs) {
-	return A3(
-		elm$core$List$foldl,
-		F2(
-			function (_n0, dict) {
-				var key = _n0.a;
-				var value = _n0.b;
-				return A3(elm$core$Dict$insert, key, value, dict);
-			}),
-		elm$core$Dict$empty,
-		assocs);
-};
 var elm$core$Tuple$mapSecond = F2(
 	function (func, _n0) {
 		var x = _n0.a;
@@ -8823,17 +8858,9 @@ var elm$html$Html$Events$onMouseLeave = function (msg) {
 		'mouseleave',
 		elm$json$Json$Decode$succeed(msg));
 };
-var author$project$Main$viewSlice = F4(
-	function (sid, highlight, marked, sw) {
-		var renderedFragment = author$project$Main$renderFragment(sw.E);
-		var marking = function () {
-			if (marked.$ === 1) {
-				return false;
-			} else {
-				var mid = marked.a;
-				return A2(elm$core$String$contains, sw.T, mid);
-			}
-		}();
+var author$project$Main$viewSlice = F3(
+	function (classIndex, highlight, sw) {
+		var renderedFragment = author$project$Main$renderFragment(sw.F);
 		var highlightDict = function () {
 			switch (highlight.$) {
 				case 2:
@@ -8852,7 +8879,7 @@ var author$project$Main$viewSlice = F4(
 											elm$html$Html$Events$onMouseLeave(author$project$Main$Unmark)
 										]);
 								}),
-							author$project$Slice$extractReferences(sw.E)));
+							author$project$Slice$extractReferences(sw.F)));
 				default:
 					var occId = highlight.a;
 					return elm$core$Dict$fromList(
@@ -8871,15 +8898,21 @@ var author$project$Main$viewSlice = F4(
 									var a = _n2.b;
 									return A2(elm$core$String$contains, occId, a);
 								},
-								author$project$Slice$extractReferences(sw.E))));
+								author$project$Slice$extractReferences(sw.F))));
 			}
 		}();
-		var focus = function () {
-			if (sid.$ === 1) {
-				return false;
+		var classes = function () {
+			var _n0 = A2(elm$core$Dict$get, sw._, classIndex);
+			if (_n0.$ === 1) {
+				return _List_Nil;
 			} else {
-				var foc = sid.a;
-				return A2(elm$core$String$contains, sw.T, foc);
+				var strs = _n0.a;
+				return A2(
+					elm$core$List$map,
+					function (x) {
+						return _Utils_Tuple2(x, true);
+					},
+					strs);
 			}
 		}();
 		return A2(
@@ -8887,37 +8920,35 @@ var author$project$Main$viewSlice = F4(
 			_List_fromArray(
 				[
 					elm$html$Html$Attributes$classList(
-					_List_fromArray(
-						[
-							_Utils_Tuple2('elmsh', true),
-							_Utils_Tuple2('focus', focus),
-							_Utils_Tuple2('marked', marking)
-						])),
+					A2(
+						elm$core$List$cons,
+						_Utils_Tuple2('elmsh', true),
+						classes)),
 					elm$html$Html$Events$onClick(
-					A2(author$project$Main$Focus, sw.T, sw.ab))
+					A2(author$project$Main$Focus, sw._, sw.ab))
 				]),
 			_List_fromArray(
 				[
 					A2(author$project$Main$toHtml, renderedFragment, highlightDict)
 				]));
 	});
-var author$project$Main$tryViewSlice = F4(
-	function (model, focus, highlight, sid) {
+var author$project$Main$tryViewSlice = F3(
+	function (model, highlight, sid) {
 		var _n0 = A2(elm$core$Dict$get, sid, model.q);
 		if (_n0.$ === 1) {
 			return author$project$Main$viewError('Missing Slice: ' + sid);
 		} else {
 			var sw = _n0.a;
-			var marking = function () {
+			var classIndex = function () {
 				var _n1 = model.k;
 				if (_n1.$ === 1) {
-					return elm$core$Maybe$Nothing;
+					return elm$core$Dict$empty;
 				} else {
 					var r = _n1.a;
-					return r.w;
+					return author$project$Main$generateClassIndex(r);
 				}
 			}();
-			return A4(author$project$Main$viewSlice, focus, highlight, marking, sw);
+			return A3(author$project$Main$viewSlice, classIndex, highlight, sw);
 		}
 	});
 var author$project$Slice$extractDependencies = function (slice) {
@@ -8942,10 +8973,10 @@ var author$project$Main$dependenciesRow = F3(
 							author$project$Main$viewError('Missing Slice: ' + parent)
 						]);
 				} else {
-					var slice = _n0.a.E;
+					var slice = _n0.a.F;
 					return A2(
 						elm$core$List$map,
-						A3(author$project$Main$tryViewSlice, model, center, author$project$Main$References),
+						A2(author$project$Main$tryViewSlice, model, author$project$Main$References),
 						A2(
 							author$project$Main$reorder,
 							center,
@@ -8976,10 +9007,9 @@ var author$project$Main$occurencesRow = F3(
 					var occurences = _n0.a.ab;
 					return A2(
 						elm$core$List$map,
-						A3(
+						A2(
 							author$project$Main$tryViewSlice,
 							model,
-							center,
 							author$project$Main$Occurences(parent)),
 						A2(
 							author$project$Main$reorder,
@@ -9028,18 +9058,13 @@ var author$project$Main$singleRow = F2(
 				]),
 			_List_fromArray(
 				[
-					A4(
-					author$project$Main$tryViewSlice,
-					model,
-					elm$core$Maybe$Just(sid),
-					author$project$Main$References,
-					sid)
+					A3(author$project$Main$tryViewSlice, model, author$project$Main$References, sid)
 				]));
 	});
 var author$project$Main$viewRowEditor = F2(
 	function (_n0, model) {
-		var focus = _n0.A;
-		var trace = _n0.F;
+		var focus = _n0.w;
+		var trace = _n0.A;
 		return elm$core$List$reverse(
 			_Utils_ap(
 				_List_fromArray(

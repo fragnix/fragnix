@@ -335,7 +335,7 @@ viewRowEditor {focus, trace} model =
 
 singleRow : SliceID -> Model -> Html Msg
 singleRow sid model =
-  div [ class "row" ] [ tryViewSlice model (Just sid) References sid ]
+  div [ class "row" ] [ tryViewSlice model References sid ]
 
 occurenceRows : List SliceID -> Model -> List (Html Msg)
 occurenceRows trace model =
@@ -355,7 +355,7 @@ dependenciesRow parent center model =
       Nothing      ->
         [ viewError ("Missing Slice: " ++ parent) ]
       Just {slice} ->
-        List.map (tryViewSlice model center References) (reorder center (removeDuplicates (extractDependencies slice))))
+        List.map (tryViewSlice model References) (reorder center (removeDuplicates (extractDependencies slice))))
 
 occurencesRow : SliceID -> Maybe SliceID -> Model -> Html Msg
 occurencesRow parent center model =
@@ -365,7 +365,7 @@ occurencesRow parent center model =
       Nothing           ->
         [ viewError ("Missing Slice: " ++ parent) ]
       Just {occurences} ->
-        List.map (tryViewSlice model center (Occurences parent)) (reorder center (removeDuplicates occurences)))
+        List.map (tryViewSlice model (Occurences parent)) (reorder center (removeDuplicates occurences)))
 
 removeDuplicates : List comparable -> List comparable
 removeDuplicates list =
@@ -392,17 +392,26 @@ type Highlight
   | References
   | NoHighlight
 
-tryViewSlice : Model -> Maybe SliceID -> Highlight -> SliceID -> Html Msg
-tryViewSlice model focus highlight sid =
+tryViewSlice : Model -> Highlight -> SliceID -> Html Msg
+tryViewSlice model highlight sid =
   case Dict.get sid model.cache of
     Nothing -> viewError ("Missing Slice: " ++ sid)
     Just sw ->
       let
-        marking = case model.rows of
-          Nothing -> Nothing
-          Just r -> r.marked
+        classIndex = case model.rows of
+          Nothing -> Dict.empty
+          Just r  -> generateClassIndex r
       in
-        viewSlice focus highlight marking sw
+        viewSlice classIndex highlight sw
+
+generateClassIndex : Rows -> Dict SliceID (List String)
+generateClassIndex {marked, focus, trace} =
+  (focus, ["focus"])
+  :: List.map (\sid -> (sid, ["trace"])) trace
+  |> (\x -> case marked of
+              Nothing -> x
+              Just sid -> (sid, ["marked"]) :: x )
+  |> Dict.fromList
 
 renderFragment : Slice -> String
 renderFragment slice =
@@ -410,16 +419,14 @@ renderFragment slice =
     (Slice _ _ (Fragment codes) _ _) ->
       String.concat (List.intersperse "\n" codes)
 
-viewSlice : Maybe SliceID -> Highlight -> Maybe SliceID -> SliceWrap -> Html Msg
-viewSlice sid highlight marked sw =
+viewSlice : Dict SliceID (List String) -> Highlight -> SliceWrap -> Html Msg
+viewSlice classIndex highlight sw =
   let
     renderedFragment = renderFragment sw.slice
-    focus = case sid of
-      Nothing -> False
-      Just foc -> String.contains sw.id foc
-    marking = case marked of
-      Nothing -> False
-      Just mid -> String.contains sw.id mid
+    classes =
+      case Dict.get sw.id classIndex of
+        Nothing   -> []
+        Just strs -> List.map (\x -> (x, True)) strs
     highlightDict =
       case highlight of
         NoHighlight -> Dict.empty
@@ -443,10 +450,7 @@ viewSlice sid highlight marked sw =
   in
     div
       [ classList
-          [ ( "elmsh", True )
-          , ( "focus", focus )
-          , ( "marked", marking )
-          ]
+          (( "elmsh", True ) :: classes)
       , onClick (Focus sw.id sw.occurences)
       ]
       [ toHtml

@@ -93,6 +93,12 @@ body {
   border-width: 1px;
 }
 
+.trace > .elmsh {
+  border: rgba(255,255,255,0.4);
+  border-style: solid;
+  border-width: 1px;
+}
+
 .marked > .elmsh {
   background: #33342f;
 }
