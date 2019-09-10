@@ -7410,7 +7410,7 @@ var author$project$SyntaxHighlight$Language$Haskell$isGroupSymbol = function (c)
 	return A2(elm$core$Set$member, c, author$project$SyntaxHighlight$Language$Haskell$groupSymbols);
 };
 var author$project$SyntaxHighlight$Language$Haskell$isStringLiteralChar = function (c) {
-	return (c === '\"') || (c === '\'');
+	return c === '\"';
 };
 var author$project$SyntaxHighlight$Language$Helpers$isSpace = function (c) {
 	return (c === ' ') || (c === '\t');

@@ -501,7 +501,7 @@ quote =
 
 isStringLiteralChar : Char -> Bool
 isStringLiteralChar c =
-    c == '"' || c == '\''
+    c == '"'
 
 
 
@@ -645,6 +645,6 @@ syntaxToStyle syntax =
 
         Number ->
             ( Style1, "elm-n" )
-            
+
         Variable ->
             ( Style7, "" )
