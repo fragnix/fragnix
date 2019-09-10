@@ -39,37 +39,33 @@ body {
 }
 
 /* dependencies of focus */
-/* .row:nth-last-of-type(1) {
+.row:nth-last-of-type(1) {
   background: #220A22;
 }
 
 /* focused row */
-/*.row:nth-last-of-type(2) {
+.row:nth-last-of-type(2) {
   background: #120012;
 }
 
 /* first layer occurences */
-/*.row:nth-last-of-type(3) {
+.row:nth-last-of-type(3) {
   background: #000022;
 }
 
 /* second layer occurences */
-/*.row:nth-last-of-type(4) {
+.row:nth-last-of-type(4) {
   background: #08082A;
 }
 
 /* third layer occurences */
-/*.row:nth-last-of-type(5) {
+.row:nth-last-of-type(5) {
   background: #101032;
 }
 
 /* following layer occurences */
-/*.row {
-  background: #18183A;
-}*/
-
 .row {
-  background: #23241f;
+  background: #18183A;
 }
 
 .elmsh {
