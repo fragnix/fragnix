@@ -22,7 +22,7 @@ import Network.Wai.Handler.Warp (run)
 import Api
 
 staticServer :: Server StaticAPI
-staticServer = $(createServerExp "/home/florian/Documents/Sem6/fragnix-gui/fragnix/fragnix/gui-src/elm/dist")
+staticServer = $(createServerExp "gui-src/elm/dist")
 
 dynamicServer :: Server DynamicAPI
 dynamicServer = getSlicesHandler
