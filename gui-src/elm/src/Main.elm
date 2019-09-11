@@ -18,7 +18,6 @@ import Html exposing (Html, button, div, text, p, h1, textarea)
 import Html.Attributes exposing (class, value, classList, spellcheck, readonly)
 import Html.Events exposing (onClick, on, onMouseEnter, onMouseLeave)
 
-
 main =
   Browser.element { init = init, update = update, view = view, subscriptions = (\_ -> Sub.none) }
 
@@ -64,22 +63,28 @@ httpErrorToString err =
 -- | Editor State
 type alias Model =
   { main:  Maybe SliceID
-  , rows: Maybe Rows
+  , root: Maybe Node
   , slices: List SliceWrap
   , cache: Dict SliceID SliceWrap
   , error: Maybe String
   }
 
-type alias Rows =
-  { focus: SliceID
-  , trace: List SliceID
-  , marked: Maybe SliceID
-  }
+type Node
+  = N_Collapsed SliceWrap
+  | N_Expanded SliceWrap Occurences Dependencies
+
+type Occurences
+  = O_Collapsed SliceID (List SliceWrap)
+  | O_Expanded SliceID (List Node)
+
+type Dependencies
+  = D_Collapsed SliceID (List SliceWrap)
+  | D_Expanded SliceID (List Node)
 
 emptyModel : Model
 emptyModel =
   { main = Nothing
-  , rows = Nothing
+  , root = Nothing
   , slices = []
   , cache = Dict.empty
   , error = Nothing
@@ -91,9 +96,15 @@ type Msg
   = ReceivedSlices (Result Http.Error (List Slice))
   | Error String
   | CloseError
-  | Focus SliceID (List SliceID)
-  | Mark SliceID
-  | Unmark
+  | Editor EditorAction
+
+type EditorAction
+  = ExpandNode SliceID
+  | CollapseNode SliceID
+  | ExpandOccurences SliceID
+  | CollapseOccurences SliceID
+  | ExpandDependencies SliceID
+  | CollapseDependencies SliceID
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -119,21 +130,158 @@ update msg model =
       , Cmd.none
       )
 
-    Focus sid occs ->
-      ( setFocus sid occs model
-      , Cmd.none
-      )
+    Editor action ->
+      case model.root of
+        Just r ->
+          case nodeUpdate action model.cache r of
+            Ok newRoot ->
+              ( { model | root = Just newRoot }
+              , Cmd.none
+              )
+            Err err ->
+              ( { model | error = Just err }
+              , Cmd.none
+              )
+        Nothing ->
+          ( { model | error = Just "Received editor action but no editor" }
+          , Cmd.none
+          )
 
-    Mark sid ->
-      ( mark sid model
-      , Cmd.none
-      )
+nodeUpdate: EditorAction -> Dict SliceID SliceWrap -> Node -> Result String Node
+nodeUpdate action cache node =
+  case node of
+    N_Collapsed sw ->
+      case action of
+        ExpandNode sid ->
+          if sw.id == sid then
+            expandNode sw cache
+          else
+            Ok node
+        _ ->
+          Ok node
+    N_Expanded sw occs deps ->
+      case action of
+        CollapseNode sid ->
+          if sw.id == sid then
+            Ok (N_Collapsed sw)
+          else
+            propagateNode action cache sw occs deps
+        _ ->
+          propagateNode action cache sw occs deps
 
-    Unmark ->
-      ( unmark model
-      , Cmd.none
-      )
+propagateNode : EditorAction -> Dict SliceID SliceWrap -> SliceWrap -> Occurences -> Dependencies -> Result String Node
+propagateNode action cache sw occs deps =
+  case ( occurencesUpdate action cache occs, dependenciesUpdate action cache deps ) of
+    (Err e1, Err e2) -> Err (e1 ++ e2)
+    (Err e1, _     ) -> Err e1
+    (_     , Err e2) -> Err e2
+    (Ok occ, Ok dep) -> Ok (N_Expanded sw occ dep)
 
+expandNode : SliceWrap -> Dict SliceID SliceWrap -> Result String Node
+expandNode sw cache =
+  let
+    occs =
+      List.map get sw.occurences
+    deps =
+      List.map get (extractDependencies sw.slice)
+    occLength =
+      List.length occs
+    get sid =
+      case Dict.get sid cache of
+        Nothing -> Err ("Missing Slice: " ++ sid ++ " ")
+        Just s  -> Ok s
+  in
+    case combineResults (occs ++ deps) of
+      Err errs ->
+        Err (String.concat (List.intersperse "," errs))
+      Ok xs ->
+        N_Expanded
+          sw
+          (O_Collapsed sw.id (List.take occLength xs))
+          (D_Collapsed sw.id (List.drop occLength xs))
+        |> Ok
+
+
+occurencesUpdate: EditorAction -> Dict SliceID SliceWrap -> Occurences -> Result String Occurences
+occurencesUpdate action cache occs =
+  case occs of
+    O_Collapsed sid sws ->
+      case action of
+        ExpandOccurences eid ->
+          if eid == sid then
+            Ok (O_Expanded sid (List.map N_Collapsed sws))
+          else
+            Ok occs
+        _ ->
+          Ok occs
+    O_Expanded sid nodes ->
+      case action of
+        CollapseOccurences cid ->
+          if cid == sid then
+            Ok (O_Collapsed sid (List.map nodeToSliceWrap nodes))
+          else
+            propagateOccurences action cache sid nodes
+        _ ->
+          propagateOccurences action cache sid nodes
+
+propagateOccurences : EditorAction -> Dict SliceID SliceWrap -> SliceID -> List Node -> Result String Occurences
+propagateOccurences action cache sid nodes =
+  case combineResults (List.map (nodeUpdate action cache) nodes) of
+    Ok newNodes ->
+      Ok (O_Expanded sid newNodes)
+    Err errs    ->
+      Err (String.concat (List.intersperse "," errs))
+
+nodeToSliceWrap : Node -> SliceWrap
+nodeToSliceWrap node =
+  case node of
+    N_Collapsed sw    -> sw
+    N_Expanded sw _ _ -> sw
+
+dependenciesUpdate: EditorAction -> Dict SliceID SliceWrap -> Dependencies -> Result String Dependencies
+dependenciesUpdate action cache deps =
+  case deps of
+    D_Collapsed sid sws ->
+      case action of
+        ExpandDependencies eid ->
+          if eid == sid then
+            Ok (D_Expanded sid (List.map N_Collapsed sws))
+          else
+            Ok deps
+        _ ->
+          Ok deps
+    D_Expanded sid nodes ->
+      case action of
+        CollapseDependencies cid ->
+          if cid == sid then
+            Ok (D_Collapsed sid (List.map nodeToSliceWrap nodes))
+          else
+            propagateDependencies action cache sid nodes
+        _ ->
+          propagateDependencies action cache sid nodes
+
+propagateDependencies : EditorAction -> Dict SliceID SliceWrap -> SliceID -> List Node -> Result String Dependencies
+propagateDependencies action cache sid nodes =
+  case combineResults (List.map (nodeUpdate action cache) nodes) of
+    Ok newNodes ->
+      Ok (D_Expanded sid newNodes)
+    Err errs    ->
+      Err (String.concat (List.intersperse "," errs))
+
+combineResults : List (Result a b) -> Result (List a) (List b)
+combineResults =
+  List.foldl
+    (\x acc ->
+      case acc of
+        Err errs ->
+          case x of
+            Err err -> Err (err :: errs)
+            _       -> acc
+        Ok ress ->
+          case x of
+            Err err -> Err [err]
+            Ok res  -> Ok (res :: ress))
+      (Ok [])
 
 -- | ReceivedSlices
 
@@ -144,7 +292,7 @@ loadSlices slices model =
   |> computeOccurences
   |> performIntegrityCheck
   |> findMain
-  |> setRows
+  |> setRoot
 
 -- | wrap new slices and add them to model
 insertSlices : List Slice -> Model -> Model
@@ -242,60 +390,21 @@ isMain sw =
   String.startsWith "main " sw.name
 
 -- | set a start state for showing the editor
-setRows : Model -> Model
-setRows model =
-  case model.main of
-    -- for testing purposes
-    Nothing  ->
-      case model.slices of
-        [] -> model
-        x :: rst ->
-          { model | rows = Just { focus = x.id, trace = [], marked = Nothing } }
-    Just sid ->
-      { model | rows = Just { focus = sid, trace = [], marked = Nothing } }
-
--- | Focus
--- | Set current open slice and trace
-setFocus : SliceID -> List SliceID -> Model -> Model
-setFocus sid occs model =
-  case model.rows of
-    Nothing ->
-      { model | rows = Just {focus = sid, trace = [], marked = Nothing } }
-    Just {focus, trace} ->
-      { model | rows =
-          Just { focus = sid
-               , trace = pruneUntilIn occs (focus :: trace)
-               , marked = Nothing
-               }
-      }
-
--- | shorten the trace until it ends with an occurence of the
--- | new focused slice
-pruneUntilIn : List SliceID -> List SliceID -> List SliceID
-pruneUntilIn set xs =
-  case xs of
-    []       -> []
-    x :: rst ->
-      if List.member x set then xs else pruneUntilIn set rst
-
--- | Mark
--- | Highlight a slice
-mark : SliceID -> Model -> Model
-mark sid model =
-  { model | rows = Maybe.map
-      (\r -> { r | marked = Just sid })
-      model.rows
-  }
-
--- | Unmark
--- | stop highlighting any slice
-unmark : Model -> Model
-unmark model =
-  { model | rows = Maybe.map
-      (\r -> { r | marked = Nothing })
-      model.rows
-  }
-
+setRoot : Model -> Model
+setRoot model =
+  let
+    rsw =
+      case model.main of
+        Nothing ->
+          List.head model.slices
+        Just y  ->
+          Dict.get y model.cache
+  in
+    case rsw of
+      Nothing ->
+        { model | error = Just "No slices found" }
+      Just sw ->
+        { model | root = Just (N_Collapsed sw) }
 
 -- | VIEW
 view : Model -> Html Msg
@@ -319,65 +428,17 @@ viewEditor : Model -> Html Msg
 viewEditor model =
   div
     [ class "editorContainer" ]
-    ( case model.rows of
-        Just r   -> viewRowEditor r model
-        Nothing  -> [ p [] [ text "No rows generated" ] ]
+    ( case model.root of
+        Just r   -> [ viewNode r ]
+        Nothing  -> [ p [] [ text "No slice chosen." ] ]
     )
 
-viewRowEditor : Rows -> Model -> List (Html Msg)
-viewRowEditor {focus, trace} model =
-  List.reverse
-    ([ dependenciesRow focus Nothing model
-    , (case trace of
-        parent :: _ -> dependenciesRow parent (Just focus) model
-        _           -> singleRow focus model)
-    ] ++ occurenceRows (focus :: trace) model)
-
-singleRow : SliceID -> Model -> Html Msg
-singleRow sid model =
-  div [ class "row" ] [ tryViewSlice model References sid ]
-
-occurenceRows : List SliceID -> Model -> List (Html Msg)
-occurenceRows trace model =
-  case trace of
-    x :: y :: rst ->
-      (occurencesRow x (Just y) model) :: (occurenceRows (y :: rst) model)
-    y :: [] ->
-      [ occurencesRow y Nothing model ]
-    [] ->
-      []
-
-dependenciesRow : SliceID -> Maybe SliceID -> Model -> Html Msg
-dependenciesRow parent center model =
-  div
-    [ class "row" ]
-    (case Dict.get parent model.cache of
-      Nothing      ->
-        [ viewError ("Missing Slice: " ++ parent) ]
-      Just {slice} ->
-        List.map (tryViewSlice model References) (reorder center (removeDuplicates (extractDependencies slice))))
-
-occurencesRow : SliceID -> Maybe SliceID -> Model -> Html Msg
-occurencesRow parent center model =
-  div
-    [ class "row" ]
-    (case Dict.get parent model.cache of
-      Nothing           ->
-        [ viewError ("Missing Slice: " ++ parent) ]
-      Just {occurences} ->
-        List.map (tryViewSlice model (Occurences parent)) (reorder center (removeDuplicates occurences)))
+viewNode : Node -> Html Msg
+viewNode n = text "dummy"
 
 removeDuplicates : List comparable -> List comparable
 removeDuplicates list =
   Set.toList (Set.fromList list)
-
--- set foc as first element in list
-reorder : Maybe SliceID -> List SliceID -> List SliceID
-reorder foc list =
-  case foc of
-    Nothing -> list
-    Just center ->
-      center :: (List.filter (\s -> not (String.contains center s)) list)
 
 -- view an error in the style of surrounding elements
 viewError : String -> Html Msg
@@ -397,21 +458,7 @@ tryViewSlice model highlight sid =
   case Dict.get sid model.cache of
     Nothing -> viewError ("Missing Slice: " ++ sid)
     Just sw ->
-      let
-        classIndex = case model.rows of
-          Nothing -> Dict.empty
-          Just r  -> generateClassIndex r
-      in
-        viewSlice classIndex highlight sw
-
-generateClassIndex : Rows -> Dict SliceID (List String)
-generateClassIndex {marked, focus, trace} =
-  (focus, ["focus"])
-  :: List.map (\sid -> (sid, ["trace"])) trace
-  |> (\x -> case marked of
-              Nothing -> x
-              Just sid -> (sid, ["marked"]) :: x )
-  |> Dict.fromList
+      viewSlice highlight sw
 
 renderFragment : Slice -> String
 renderFragment slice =
@@ -419,14 +466,10 @@ renderFragment slice =
     (Slice _ _ (Fragment codes) _ _) ->
       String.concat (List.intersperse "\n" codes)
 
-viewSlice : Dict SliceID (List String) -> Highlight -> SliceWrap -> Html Msg
-viewSlice classIndex highlight sw =
+viewSlice : Highlight -> SliceWrap -> Html Msg
+viewSlice highlight sw =
   let
     renderedFragment = renderFragment sw.slice
-    classes =
-      case Dict.get sw.id classIndex of
-        Nothing   -> []
-        Just strs -> List.map (\x -> (x, True)) strs
     highlightDict =
       case highlight of
         NoHighlight -> Dict.empty
@@ -434,10 +477,7 @@ viewSlice classIndex highlight sw =
           List.map
             (Tuple.mapSecond
               (\mid ->
-                [ class "reference"
-                , onMouseEnter (Mark mid)
-                , onMouseLeave Unmark
-                ]
+                [ class "reference" ]
               )
             )
             (extractReferences sw.slice)
@@ -450,8 +490,7 @@ viewSlice classIndex highlight sw =
   in
     div
       [ classList
-          (( "elmsh", True ) :: classes)
-      , onClick (Focus sw.id sw.occurences)
+          [ ( "elmsh", True ) ]
       ]
       [ toHtml
           renderedFragment
