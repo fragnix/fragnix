@@ -35,6 +35,7 @@ body {
   border-right: 0;
   padding-top:1em;
   padding-bottom: 2em;
+  scroll-snap-type: x proximity;
 }
 
 /* dependencies of focus */
@@ -72,11 +73,13 @@ body {
 }
 
 .elmsh {
+  max-height: 250px;
   display: inline-block;
-  height: 100%;
-  height: 250px;
+  vertical-align: top;
   margin-left: 1em;
   border-radius: 10px;
+  scroll-snap-align: start;
+  scroll-margin-left: 1em;
 }
 
 .row > .elmsh:last-child {
