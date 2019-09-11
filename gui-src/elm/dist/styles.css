@@ -1,10 +1,6 @@
 .editorContainer {
   background: black;
   height: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  white-space: nowrap;
-  /* scroll-snap-type: x proximity; */
 }
 
 body {
@@ -28,15 +24,17 @@ body {
 }
 
 .row {
-  display: inline-block;
-  height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
   white-space: nowrap;
+  border-bottom: 2px;
+  border-style: solid;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
   padding-top:1em;
-  margin-bottom: 1em;
-  padding-left:1em;
-  /* scroll-snap-align: start; */
+  padding-bottom: 2em;
 }
 
 /* dependencies of focus */
@@ -74,8 +72,10 @@ body {
 }
 
 .elmsh {
-  margin-right: 1em;
-  margin-bottom: 1em;
+  display: inline-block;
+  height: 100%;
+  height: 250px;
+  margin-left: 1em;
   border-radius: 10px;
 }
 
