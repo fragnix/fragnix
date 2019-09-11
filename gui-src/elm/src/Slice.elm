@@ -100,8 +100,8 @@ wrap bare =
               _      -> ""
             _      -> ""
       , name =
-          case (List.filter (String.contains "=") lines) of
-            l :: _ -> case (String.indexes "=" l) of
+          case (List.filter (String.contains "::") lines) of
+            l :: _ -> case (String.indexes "::" l) of
               i :: _ -> String.dropRight i l
               _      -> ""
             _      -> ""

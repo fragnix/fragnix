@@ -280,7 +280,7 @@ combineResults =
         Ok ress ->
           case x of
             Err err -> Err [err]
-            Ok res  -> Ok (res :: ress))
+            Ok res  -> Ok (ress ++ [res]) )
       (Ok [])
 
 -- | ReceivedSlices
@@ -434,7 +434,88 @@ viewEditor model =
     )
 
 viewNode : Node -> Html Msg
-viewNode n = text "dummy"
+viewNode node =
+  case node of
+    N_Collapsed sw ->
+      div
+        [ class "collapsed"
+        , onClick (Editor (ExpandNode sw.id))
+        ]
+        [ p
+            [ class "inline-text" ]
+            [ text "⮟ " ]
+        , toHtml (sw.name ++ " :: " ++ sw.signature) Dict.empty
+        ]
+    N_Expanded sw occs deps ->
+      div
+        [ class "expanded" ]
+        [ p
+            [ class "left-button"
+            , onClick (Editor (CollapseNode sw.id))
+            ]
+            [ text "⮝" ]
+        , div
+            [ class "right" ]
+            [ viewOccurences occs
+            , viewSlice References sw
+            , viewDependencies deps
+            ]
+        ]
+
+viewOccurences : Occurences -> Html Msg
+viewOccurences occ =
+  case occ of
+    O_Collapsed sid occs ->
+      div
+        [ class "collapsed"
+        , onClick (Editor (ExpandOccurences sid))
+        ]
+        [ p
+            [ class "inline-text" ]
+            [ text
+                ("⮟ show " ++ (String.fromInt (List.length occs))
+                  ++ " occurences") ]
+        ]
+    O_Expanded sid occs ->
+      div
+        [ class "expanded" ]
+        [ p
+            [ class "left-button"
+            , onClick (Editor (CollapseOccurences sid))
+            ]
+            [ text "⮝" ]
+        , div
+            [ class "right" ]
+            (List.map viewNode occs)
+        ]
+
+viewDependencies : Dependencies -> Html Msg
+viewDependencies dep =
+  case dep of
+    D_Collapsed sid deps ->
+      div
+        [ class "collapsed"
+        , onClick ( Editor (ExpandDependencies sid))
+        ]
+        [ p
+            [ class "inline-text" ]
+            [ text
+                ("⮟ show " ++ (String.fromInt (List.length deps))
+                  ++ " dependencies") ]
+        ]
+    D_Expanded sid deps ->
+      div
+        [ class "expanded" ]
+        [ p
+            [ class "left-button"
+            , onClick (Editor (CollapseDependencies sid))
+            ]
+            [ text "⮝" ]
+        , div
+            [ class "right" ]
+            (List.map viewNode deps)
+        ]
+
 
 removeDuplicates : List comparable -> List comparable
 removeDuplicates list =

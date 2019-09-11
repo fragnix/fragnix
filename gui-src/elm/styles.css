@@ -1,11 +1,59 @@
 .editorContainer {
-  background: black;
+  background: #23241f;
   height: 100%;
   overflow-x: auto;
-  overflow-y: hidden;
-  white-space: nowrap;
+  overflow-y: auto;
+  /* white-space: nowrap; */
   /* scroll-snap-type: x proximity; */
 }
+
+.inline-text {
+  font-family: monospace;
+  letter-spacing: normal;
+  word-spacing: normal;
+  color: #f8f8f2;
+  margin-left: 1em;
+  display: inline-block;
+  vertical-align: top;
+}
+
+.left-button {
+  display: inline-block;
+  width: 20px;
+  background: #23241f;
+  text-align: center;
+  vertical-align: top;
+  margin: 0;
+  padding-top: 2em;
+  color: #f8f8f2;
+}
+.left-button:hover {
+  cursor: pointer;
+  background: #33342f;
+}
+
+.right {
+  display: inline-block;
+  border-left: 1px solid #f8f8f2;
+}
+
+.collapsed {
+  display: block;
+  background: #23241f;
+  padding: 1px;
+  margin: 0;
+}
+
+.collapsed:hover {
+  cursor: pointer;
+  background: #33342f;
+}
+
+.expanded {
+  display: block;
+  background: #23241f;
+}
+
 
 body {
   margin: 0;
@@ -27,64 +75,14 @@ body {
   border: 2px solid red;
 }
 
-.row {
-  display: inline-block;
-  height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  white-space: nowrap;
-  padding-top:1em;
-  margin-bottom: 1em;
-  padding-left:1em;
-  /* scroll-snap-align: start; */
-}
-
-/* dependencies of focus */
-/* .row:nth-last-of-type(1) {
-  background: #220A22;
-}
-
-/* focused row */
-/*.row:nth-last-of-type(2) {
-  background: #120012;
-}
-
-/* first layer occurences */
-/*.row:nth-last-of-type(3) {
-  background: #000022;
-}
-
-/* second layer occurences */
-/*.row:nth-last-of-type(4) {
-  background: #08082A;
-}
-
-/* third layer occurences */
-/*.row:nth-last-of-type(5) {
-  background: #101032;
-}
-
-/* following layer occurences */
-/*.row {
-  background: #18183A;
-}*/
-
-.row {
-  background: #23241f;
-}
-
 .elmsh {
   margin-right: 1em;
-  margin-bottom: 1em;
   border-radius: 10px;
+  display: inline-block;
 }
 
 .row > .elmsh:last-child {
   margin-bottom: 2em;
-}
-
-.elmsh:hover, .elmsh:hover > .elmsh {
-  background: #33342f;
 }
 
 .focus > .elmsh {
