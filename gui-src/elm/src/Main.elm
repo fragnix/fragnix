@@ -387,7 +387,7 @@ findMain model =
 
 isMain : SliceWrap -> Bool
 isMain sw =
-  String.startsWith "main " sw.name
+  "main" == sw.name
 
 -- | set a start state for showing the editor
 setRoot : Model -> Model
@@ -444,7 +444,7 @@ viewNode node =
         [ p
             [ class "inline-text" ]
             [ text "⮟ " ]
-        , toHtml (sw.name ++ " :: " ++ sw.signature) Dict.empty
+        , toHtml (sw.tagline) Dict.empty
         ]
     N_Expanded sw occs deps ->
       div
@@ -515,11 +515,6 @@ viewDependencies dep =
             [ class "right" ]
             (List.map viewNode deps)
         ]
-
-
-removeDuplicates : List comparable -> List comparable
-removeDuplicates list =
-  Set.toList (Set.fromList list)
 
 -- view an error in the style of surrounding elements
 viewError : String -> Html Msg
