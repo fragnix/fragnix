@@ -1857,9 +1857,9 @@ var _Platform_worker = F4(function(impl, flagDecoder, debugMetadata, args)
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.bp,
-		impl.bO,
-		impl.bL,
+		impl.bq,
+		impl.bP,
+		impl.bM,
 		function() { return function() {} }
 	);
 });
@@ -2321,25 +2321,25 @@ var _Http_toTask = F3(function(router, toTask, request)
 	return _Scheduler_binding(function(callback)
 	{
 		function done(response) {
-			callback(toTask(request.bi.a(response)));
+			callback(toTask(request.bj.a(response)));
 		}
 
 		var xhr = new XMLHttpRequest();
 		xhr.addEventListener('error', function() { done(elm$http$Http$NetworkError_); });
 		xhr.addEventListener('timeout', function() { done(elm$http$Http$Timeout_); });
-		xhr.addEventListener('load', function() { done(_Http_toResponse(request.bi.b, xhr)); });
+		xhr.addEventListener('load', function() { done(_Http_toResponse(request.bj.b, xhr)); });
 		elm$core$Maybe$isJust(request.o) && _Http_track(router, xhr, request.o.a);
 
 		try {
-			xhr.open(request.m, request.bP, true);
+			xhr.open(request.m, request.bQ, true);
 		} catch (e) {
-			return done(elm$http$Http$BadUrl_(request.bP));
+			return done(elm$http$Http$BadUrl_(request.bQ));
 		}
 
 		_Http_configureRequest(xhr, request);
 
-		request.ba.a && xhr.setRequestHeader('Content-Type', request.ba.a);
-		xhr.send(request.ba.b);
+		request.bb.a && xhr.setRequestHeader('Content-Type', request.bb.a);
+		xhr.send(request.bb.b);
 
 		return function() { xhr.c = true; xhr.abort(); };
 	});
@@ -2355,7 +2355,7 @@ function _Http_configureRequest(xhr, request)
 		xhr.setRequestHeader(headers.a.a, headers.a.b);
 	}
 	xhr.timeout = request.n.a || 0;
-	xhr.responseType = request.bi.d;
+	xhr.responseType = request.bj.d;
 	xhr.withCredentials = request.H;
 }
 
@@ -2377,9 +2377,9 @@ function _Http_toResponse(toBody, xhr)
 function _Http_toMetadata(xhr)
 {
 	return {
-		bP: xhr.responseURL,
+		bQ: xhr.responseURL,
 		a1: xhr.status,
-		bC: xhr.statusText,
+		bD: xhr.statusText,
 		i: _Http_parseHeaders(xhr.getAllResponseHeaders())
 	};
 }
@@ -2475,14 +2475,14 @@ function _Http_track(router, xhr, tracker)
 	xhr.upload.addEventListener('progress', function(event) {
 		if (xhr.c) { return; }
 		_Scheduler_rawSpawn(A2(elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, elm$http$Http$Sending({
-			bB: event.loaded,
+			bC: event.loaded,
 			ai: event.total
 		}))));
 	});
 	xhr.addEventListener('progress', function(event) {
 		if (xhr.c) { return; }
 		_Scheduler_rawSpawn(A2(elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, elm$http$Http$Receiving({
-			bx: event.loaded,
+			by: event.loaded,
 			ai: event.lengthComputable ? elm$core$Maybe$Just(event.total) : elm$core$Maybe$Nothing
 		}))));
 	});
@@ -4188,11 +4188,11 @@ var _Browser_element = _Debugger_element || F4(function(impl, flagDecoder, debug
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.bp,
-		impl.bO,
-		impl.bL,
+		impl.bq,
+		impl.bP,
+		impl.bM,
 		function(sendToApp, initialModel) {
-			var view = impl.bQ;
+			var view = impl.bR;
 			/**/
 			var domNode = args['node'];
 			//*/
@@ -4224,12 +4224,12 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.bp,
-		impl.bO,
-		impl.bL,
+		impl.bq,
+		impl.bP,
+		impl.bM,
 		function(sendToApp, initialModel) {
 			var divertHrefToApp = impl.V && impl.V(sendToApp)
-			var view = impl.bQ;
+			var view = impl.bR;
 			var title = _VirtualDom_doc.title;
 			var bodyNode = _VirtualDom_doc.body;
 			var currNode = _VirtualDom_virtualize(bodyNode);
@@ -4237,12 +4237,12 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 			{
 				_VirtualDom_divertHrefToApp = divertHrefToApp;
 				var doc = view(model);
-				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.ba);
+				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.bb);
 				var patches = _VirtualDom_diff(currNode, nextNode);
 				bodyNode = _VirtualDom_applyPatches(bodyNode, currNode, patches, sendToApp);
 				currNode = nextNode;
 				_VirtualDom_divertHrefToApp = 0;
-				(title !== doc.bN) && (_VirtualDom_doc.title = title = doc.bN);
+				(title !== doc.bO) && (_VirtualDom_doc.title = title = doc.bO);
 			});
 		}
 	);
@@ -4298,8 +4298,8 @@ function _Browser_makeAnimator(model, draw)
 
 function _Browser_application(impl)
 {
-	var onUrlChange = impl.bu;
-	var onUrlRequest = impl.bv;
+	var onUrlChange = impl.bv;
+	var onUrlRequest = impl.bw;
 	var key = function() { key.a(onUrlChange(_Browser_getUrl())); };
 
 	return _Browser_document({
@@ -4329,13 +4329,13 @@ function _Browser_application(impl)
 				}
 			});
 		},
-		bp: function(flags)
+		bq: function(flags)
 		{
-			return A3(impl.bp, flags, _Browser_getUrl(), key);
+			return A3(impl.bq, flags, _Browser_getUrl(), key);
 		},
-		bQ: impl.bQ,
-		bO: impl.bO,
-		bL: impl.bL
+		bR: impl.bR,
+		bP: impl.bP,
+		bM: impl.bM
 	});
 }
 
@@ -4401,17 +4401,17 @@ var _Browser_decodeEvent = F2(function(decoder, event)
 function _Browser_visibilityInfo()
 {
 	return (typeof _VirtualDom_doc.hidden !== 'undefined')
-		? { bl: 'hidden', bb: 'visibilitychange' }
+		? { bm: 'hidden', bc: 'visibilitychange' }
 		:
 	(typeof _VirtualDom_doc.mozHidden !== 'undefined')
-		? { bl: 'mozHidden', bb: 'mozvisibilitychange' }
+		? { bm: 'mozHidden', bc: 'mozvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.msHidden !== 'undefined')
-		? { bl: 'msHidden', bb: 'msvisibilitychange' }
+		? { bm: 'msHidden', bc: 'msvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.webkitHidden !== 'undefined')
-		? { bl: 'webkitHidden', bb: 'webkitvisibilitychange' }
-		: { bl: 'hidden', bb: 'visibilitychange' };
+		? { bm: 'webkitHidden', bc: 'webkitvisibilitychange' }
+		: { bm: 'hidden', bc: 'visibilitychange' };
 }
 
 
@@ -4493,7 +4493,7 @@ function _Browser_getViewport()
 {
 	return {
 		aZ: _Browser_getScene(),
-		a5: {
+		a6: {
 			ac: _Browser_window.pageXOffset,
 			ad: _Browser_window.pageYOffset,
 			Q: _Browser_doc.documentElement.clientWidth,
@@ -4535,7 +4535,7 @@ function _Browser_getViewportOf(id)
 				Q: node.scrollWidth,
 				J: node.scrollHeight
 			},
-			a5: {
+			a6: {
 				ac: node.scrollLeft,
 				ad: node.scrollTop,
 				Q: node.clientWidth,
@@ -4570,13 +4570,13 @@ function _Browser_getElement(id)
 		var y = _Browser_window.pageYOffset;
 		return {
 			aZ: _Browser_getScene(),
-			a5: {
+			a6: {
 				ac: x,
 				ad: y,
 				Q: _Browser_doc.documentElement.clientWidth,
 				J: _Browser_doc.documentElement.clientHeight
 			},
-			bh: {
+			bi: {
 				ac: x + rect.left,
 				ad: y + rect.top,
 				Q: rect.width,
@@ -6096,13 +6096,13 @@ var elm$http$Http$cmdMap = F2(
 			return elm$http$Http$Request(
 				{
 					H: r.H,
-					ba: r.ba,
-					bi: A2(_Http_mapExpect, func, r.bi),
+					bb: r.bb,
+					bj: A2(_Http_mapExpect, func, r.bj),
 					i: r.i,
 					m: r.m,
 					n: r.n,
 					o: r.o,
-					bP: r.bP
+					bQ: r.bQ
 				});
 		}
 	});
@@ -6125,19 +6125,19 @@ var elm$http$Http$subscription = _Platform_leaf('Http');
 var elm$http$Http$request = function (r) {
 	return elm$http$Http$command(
 		elm$http$Http$Request(
-			{H: false, ba: r.ba, bi: r.bi, i: r.i, m: r.m, n: r.n, o: r.o, bP: r.bP}));
+			{H: false, bb: r.bb, bj: r.bj, i: r.i, m: r.m, n: r.n, o: r.o, bQ: r.bQ}));
 };
 var elm$http$Http$get = function (r) {
 	return elm$http$Http$request(
-		{ba: elm$http$Http$emptyBody, bi: r.bi, i: _List_Nil, m: 'GET', n: elm$core$Maybe$Nothing, o: elm$core$Maybe$Nothing, bP: r.bP});
+		{bb: elm$http$Http$emptyBody, bj: r.bj, i: _List_Nil, m: 'GET', n: elm$core$Maybe$Nothing, o: elm$core$Maybe$Nothing, bQ: r.bQ});
 };
 var author$project$Main$getAllSlices = elm$http$Http$get(
 	{
-		bi: A2(
+		bj: A2(
 			elm$http$Http$expectJson,
 			author$project$Main$ReceivedSlices,
 			elm$json$Json$Decode$list(author$project$Slice$sliceDecoder)),
-		bP: 'http://localhost:8080/contents'
+		bQ: 'http://localhost:8080/contents'
 	});
 var author$project$Main$init = function (_n0) {
 	return _Utils_Tuple2(
@@ -6220,9 +6220,8 @@ var author$project$Main$computeOccurences = function (model) {
 		model,
 		{q: fullCache, t: fullSlices});
 };
-var elm$core$String$startsWith = _String_startsWith;
 var author$project$Main$isMain = function (sw) {
-	return A2(elm$core$String$startsWith, 'main ', sw.bs);
+	return 'main' === sw.bt;
 };
 var elm$core$List$filter = F2(
 	function (isGood, list) {
@@ -6264,77 +6263,13 @@ var author$project$Main$indexSlices = function (model) {
 				model.t)
 		});
 };
-var elm$core$String$concat = function (strings) {
-	return A2(elm$core$String$join, '', strings);
-};
-var elm$core$String$contains = _String_contains;
-var elm$core$String$length = _String_length;
-var elm$core$String$slice = _String_slice;
-var elm$core$String$dropLeft = F2(
-	function (n, string) {
-		return (n < 1) ? string : A3(
-			elm$core$String$slice,
-			n,
-			elm$core$String$length(string),
-			string);
-	});
-var elm$core$Basics$negate = function (n) {
-	return -n;
-};
-var elm$core$String$dropRight = F2(
-	function (n, string) {
-		return (n < 1) ? string : A3(elm$core$String$slice, 0, -n, string);
-	});
-var elm$core$String$indexes = _String_indexes;
-var author$project$Slice$wrap = function (bare) {
-	var sid = bare.a;
-	var lines = bare.c;
-	return {
-		ar: elm$core$String$concat(
-			A2(
-				elm$core$List$filter,
-				elm$core$String$startsWith('--'),
-				lines)),
-		_: sid,
-		bs: function () {
-			var _n1 = A2(
-				elm$core$List$filter,
-				elm$core$String$contains('='),
-				lines);
-			if (_n1.b) {
-				var l = _n1.a;
-				var _n2 = A2(elm$core$String$indexes, '=', l);
-				if (_n2.b) {
-					var i = _n2.a;
-					return A2(elm$core$String$dropRight, i, l);
-				} else {
-					return '';
-				}
-			} else {
-				return '';
-			}
-		}(),
-		ab: _List_Nil,
-		a$: function () {
-			var _n3 = A2(
-				elm$core$List$filter,
-				elm$core$String$contains('::'),
-				lines);
-			if (_n3.b) {
-				var l = _n3.a;
-				var _n4 = A2(elm$core$String$indexes, '::', l);
-				if (_n4.b) {
-					var i = _n4.a;
-					return A2(elm$core$String$dropLeft, i + 2, l);
-				} else {
-					return '';
-				}
-			} else {
-				return '';
-			}
-		}(),
-		F: bare
-	};
+var author$project$Slice$extractDefault = function (lines) {
+	if (lines.b) {
+		var l = lines.a;
+		return _Utils_Tuple3(l, l, l);
+	} else {
+		return _Utils_Tuple3('', '', '');
+	}
 };
 var elm$core$List$map = F2(
 	function (f, xs) {
@@ -6350,6 +6285,220 @@ var elm$core$List$map = F2(
 			_List_Nil,
 			xs);
 	});
+var elm$core$String$fromList = _String_fromList;
+var elm$core$String$startsWith = _String_startsWith;
+var elm$core$String$foldr = _String_foldr;
+var elm$core$String$toList = function (string) {
+	return A3(elm$core$String$foldr, elm$core$List$cons, _List_Nil, string);
+};
+var elm$core$String$words = _String_words;
+var author$project$Slice$extractFromInstanceDeclaration = function (lines) {
+	var _n0 = A2(
+		elm$core$List$filter,
+		elm$core$String$startsWith('instance'),
+		lines);
+	if (_n0.b) {
+		var inst = _n0.a;
+		var n = function (xs) {
+			if (xs.b) {
+				if (xs.b.b) {
+					var _n3 = xs.b;
+					var a = _n3.a;
+					return elm$core$String$fromList(a);
+				} else {
+					var b = xs.a;
+					return elm$core$String$fromList(b);
+				}
+			} else {
+				return '';
+			}
+		}(
+			A2(
+				elm$core$List$filter,
+				function (xs) {
+					if (!xs.b) {
+						return false;
+					} else {
+						var x = xs.a;
+						return elm$core$Char$isUpper(x);
+					}
+				},
+				A2(
+					elm$core$List$map,
+					elm$core$String$toList,
+					elm$core$String$words(inst))));
+		return elm$core$Maybe$Just(
+			_Utils_Tuple3(n, n, inst));
+	} else {
+		return elm$core$Maybe$Nothing;
+	}
+};
+var author$project$Slice$extractFromTypeDeclaration = function (lines) {
+	var _n0 = A2(
+		elm$core$List$filter,
+		function (s) {
+			return A2(elm$core$String$startsWith, 'data', s) || (A2(elm$core$String$startsWith, 'newtype', s) || A2(elm$core$String$startsWith, 'type', s));
+		},
+		lines);
+	if (_n0.b) {
+		var typ = _n0.a;
+		var n = function (xs) {
+			if (xs.b) {
+				var b = xs.a;
+				return elm$core$String$fromList(b);
+			} else {
+				return '';
+			}
+		}(
+			A2(
+				elm$core$List$filter,
+				function (xs) {
+					if (!xs.b) {
+						return false;
+					} else {
+						var x = xs.a;
+						return elm$core$Char$isUpper(x);
+					}
+				},
+				A2(
+					elm$core$List$map,
+					elm$core$String$toList,
+					elm$core$String$words(typ))));
+		return elm$core$Maybe$Just(
+			_Utils_Tuple3(n, n, typ));
+	} else {
+		return elm$core$Maybe$Nothing;
+	}
+};
+var elm$core$List$drop = F2(
+	function (n, list) {
+		drop:
+		while (true) {
+			if (n <= 0) {
+				return list;
+			} else {
+				if (!list.b) {
+					return list;
+				} else {
+					var x = list.a;
+					var xs = list.b;
+					var $temp$n = n - 1,
+						$temp$list = xs;
+					n = $temp$n;
+					list = $temp$list;
+					continue drop;
+				}
+			}
+		}
+	});
+var elm$core$List$intersperse = F2(
+	function (sep, xs) {
+		if (!xs.b) {
+			return _List_Nil;
+		} else {
+			var hd = xs.a;
+			var tl = xs.b;
+			var step = F2(
+				function (x, rest) {
+					return A2(
+						elm$core$List$cons,
+						sep,
+						A2(elm$core$List$cons, x, rest));
+				});
+			var spersed = A3(elm$core$List$foldr, step, _List_Nil, tl);
+			return A2(elm$core$List$cons, hd, spersed);
+		}
+	});
+var elm$core$String$concat = function (strings) {
+	return A2(elm$core$String$join, '', strings);
+};
+var elm$core$String$contains = _String_contains;
+var author$project$Slice$extractFromValue = function (lines) {
+	var _n0 = A2(
+		elm$core$List$filter,
+		elm$core$String$contains('='),
+		lines);
+	if (_n0.b) {
+		var val = _n0.a;
+		var n = function () {
+			var _n2 = elm$core$String$words(val);
+			if (_n2.b) {
+				var x = _n2.a;
+				return x;
+			} else {
+				return '';
+			}
+		}();
+		var tg = function () {
+			var _n1 = A2(
+				elm$core$List$filter,
+				function (s) {
+					return A2(elm$core$String$startsWith, n, s) && A2(elm$core$String$contains, '::', s);
+				},
+				lines);
+			if (_n1.b) {
+				var t = _n1.a;
+				return t;
+			} else {
+				return '';
+			}
+		}();
+		var sig = elm$core$String$concat(
+			A2(
+				elm$core$List$intersperse,
+				' ',
+				A2(
+					elm$core$List$drop,
+					2,
+					elm$core$String$words(tg))));
+		return elm$core$Maybe$Just(
+			_Utils_Tuple3(n, sig, tg));
+	} else {
+		return elm$core$Maybe$Nothing;
+	}
+};
+var author$project$Slice$extractNameSignatureAndTagline = function (lines) {
+	var _n0 = author$project$Slice$extractFromInstanceDeclaration(lines);
+	if (!_n0.$) {
+		var x = _n0.a;
+		return x;
+	} else {
+		var _n1 = author$project$Slice$extractFromTypeDeclaration(lines);
+		if (!_n1.$) {
+			var y = _n1.a;
+			return y;
+		} else {
+			var _n2 = author$project$Slice$extractFromValue(lines);
+			if (!_n2.$) {
+				var z = _n2.a;
+				return z;
+			} else {
+				return author$project$Slice$extractDefault(lines);
+			}
+		}
+	}
+};
+var author$project$Slice$wrap = function (bare) {
+	var sid = bare.a;
+	var lines = bare.c;
+	var _n1 = author$project$Slice$extractNameSignatureAndTagline(lines);
+	var name = _n1.a;
+	var signature = _n1.b;
+	var tagline = _n1.c;
+	return {
+		ar: elm$core$String$concat(
+			A2(
+				elm$core$List$filter,
+				elm$core$String$startsWith('--'),
+				lines)),
+		_: sid,
+		bt: name,
+		ab: _List_Nil,
+		a$: signature,
+		F: bare,
+		a4: tagline
+	};
+};
 var author$project$Main$insertSlices = F2(
 	function (newSlices, model) {
 		return _Utils_update(
@@ -6762,24 +6911,6 @@ var author$project$Main$Mark = function (a) {
 	return {$: 4, a: a};
 };
 var author$project$Main$Unmark = {$: 5};
-var elm$core$List$intersperse = F2(
-	function (sep, xs) {
-		if (!xs.b) {
-			return _List_Nil;
-		} else {
-			var hd = xs.a;
-			var tl = xs.b;
-			var step = F2(
-				function (x, rest) {
-					return A2(
-						elm$core$List$cons,
-						sep,
-						A2(elm$core$List$cons, x, rest));
-				});
-			var spersed = A3(elm$core$List$foldr, step, _List_Nil, tl);
-			return A2(elm$core$List$cons, hd, spersed);
-		}
-	});
 var author$project$Main$renderFragment = function (slice) {
 	var codes = slice.c;
 	return elm$core$String$concat(
@@ -6803,7 +6934,7 @@ var author$project$Main$mapHCodeFragments = F2(
 var author$project$Main$highlightReferences = F2(
 	function (dict, hcode) {
 		var highlightFragment = function (frag) {
-			var _n0 = A2(elm$core$Dict$get, frag.bM, dict);
+			var _n0 = A2(elm$core$Dict$get, frag.bN, dict);
 			if (_n0.$ === 1) {
 				return frag;
 			} else {
@@ -6850,6 +6981,9 @@ var author$project$SyntaxHighlight$Language$Helpers$isLineBreak = function (c) {
 	return c === '\n';
 };
 var elm$parser$Parser$Advanced$Parser = elm$core$Basics$identity;
+var elm$core$Basics$negate = function (n) {
+	return -n;
+};
 var elm$parser$Parser$Advanced$Good = F3(
 	function (a, b, c) {
 		return {$: 0, a: a, b: b, c: c};
@@ -6959,6 +7093,7 @@ var elm$core$Basics$composeL = F3(
 		return g(
 			f(x));
 	});
+var elm$core$String$slice = _String_slice;
 var elm$parser$Parser$Advanced$mapChompedString = F2(
 	function (func, _n0) {
 		var parse = _n0;
@@ -7025,7 +7160,7 @@ var elm$parser$Parser$Advanced$AddRight = F2(
 	});
 var elm$parser$Parser$Advanced$DeadEnd = F4(
 	function (row, col, problem, contextStack) {
-		return {aq: col, bd: contextStack, aO: problem, aY: row};
+		return {aq: col, be: contextStack, aO: problem, aY: row};
 	});
 var elm$parser$Parser$Advanced$Empty = {$: 0};
 var elm$parser$Parser$Advanced$fromState = F2(
@@ -7159,6 +7294,7 @@ var elm$parser$Parser$chompIf = function (isGood) {
 	return A2(elm$parser$Parser$Advanced$chompIf, isGood, elm$parser$Parser$UnexpectedChar);
 };
 var elm$parser$Parser$ExpectingEnd = {$: 10};
+var elm$core$String$length = _String_length;
 var elm$parser$Parser$Advanced$end = function (x) {
 	return function (s) {
 		return _Utils_eq(
@@ -8375,7 +8511,7 @@ var author$project$SyntaxHighlight$Language$Haskell$mainLoop = function (revToke
 };
 var author$project$SyntaxHighlight$Language$Haskell$toRevTokens = A2(elm$parser$Parser$loop, _List_Nil, author$project$SyntaxHighlight$Language$Haskell$mainLoop);
 var author$project$SyntaxHighlight$Line$Helpers$newLine = function (fragments) {
-	return {ay: fragments, bm: elm$core$Maybe$Nothing};
+	return {ay: fragments, bn: elm$core$Maybe$Nothing};
 };
 var author$project$SyntaxHighlight$Style$Comment = 1;
 var author$project$SyntaxHighlight$Style$Default = 0;
@@ -8385,17 +8521,17 @@ var author$project$SyntaxHighlight$Line$Helpers$toFragment = F2(
 		var text = _n0.b;
 		switch (syntax.$) {
 			case 0:
-				return {am: _List_Nil, a8: '', by: 0, bM: text};
+				return {am: _List_Nil, a9: '', bz: 0, bN: text};
 			case 1:
-				return {am: _List_Nil, a8: '', by: 1, bM: text};
+				return {am: _List_Nil, a9: '', bz: 1, bN: text};
 			case 2:
-				return {am: _List_Nil, a8: '', by: 0, bM: text};
+				return {am: _List_Nil, a9: '', bz: 0, bN: text};
 			default:
 				var c = syntax.a;
 				var _n2 = toStyle(c);
 				var requiredStyle = _n2.a;
 				var additionalClass = _n2.b;
-				return {am: _List_Nil, a8: additionalClass, by: requiredStyle, bM: text};
+				return {am: _List_Nil, a9: additionalClass, bz: requiredStyle, bN: text};
 		}
 	});
 var author$project$SyntaxHighlight$Line$Helpers$toLinesHelp = F3(
@@ -8433,7 +8569,7 @@ var author$project$SyntaxHighlight$Line$Helpers$toLinesHelp = F3(
 							_Utils_update(
 								headFrag,
 								{
-									bM: _Utils_ap(text, headFrag.bM)
+									bN: _Utils_ap(text, headFrag.bN)
 								}),
 							tailFrags),
 						maybeLastSyntax);
@@ -8590,9 +8726,9 @@ var elm$html$Html$Attributes$classList = function (classes) {
 				A2(elm$core$List$filter, elm$core$Tuple$second, classes))));
 };
 var author$project$SyntaxHighlight$View$fragmentView = function (_n0) {
-	var text = _n0.bM;
-	var requiredStyle = _n0.by;
-	var additionalClass = _n0.a8;
+	var text = _n0.bN;
+	var requiredStyle = _n0.bz;
+	var additionalClass = _n0.a9;
 	var additionalAttributes = _n0.am;
 	return ((!requiredStyle) && elm$core$String$isEmpty(additionalClass)) ? elm$html$Html$text(text) : A2(
 		elm$html$Html$span,
@@ -8626,7 +8762,7 @@ var elm$html$Html$Attributes$attribute = elm$virtual_dom$VirtualDom$attribute;
 var author$project$SyntaxHighlight$View$lineView = F3(
 	function (start, index, _n0) {
 		var fragments = _n0.ay;
-		var highlight = _n0.bm;
+		var highlight = _n0.bn;
 		return A2(
 			elm$html$Html$div,
 			_List_fromArray(
@@ -8681,7 +8817,7 @@ var author$project$SyntaxHighlight$View$toInlineHtml = function (lines) {
 			A2(
 				elm$core$List$map,
 				function (_n0) {
-					var highlight = _n0.bm;
+					var highlight = _n0.bn;
 					var fragments = _n0.ay;
 					return _Utils_eq(highlight, elm$core$Maybe$Nothing) ? A2(elm$core$List$map, author$project$SyntaxHighlight$View$fragmentView, fragments) : _List_fromArray(
 						[
@@ -8817,9 +8953,14 @@ var author$project$Slice$extractReference = function (use) {
 		}
 	}
 };
+var author$project$Slice$removeDuplicates = function (list) {
+	return elm$core$Set$toList(
+		elm$core$Set$fromList(list));
+};
 var author$project$Slice$extractReferences = function (slice) {
 	var uses = slice.d;
-	return A2(elm$core$List$filterMap, author$project$Slice$extractReference, uses);
+	return author$project$Slice$removeDuplicates(
+		A2(elm$core$List$filterMap, author$project$Slice$extractReference, uses));
 };
 var elm$core$Tuple$mapSecond = F2(
 	function (func, _n0) {
@@ -9222,8 +9363,17 @@ var elm$core$Task$perform = F2(
 		return elm$core$Task$command(
 			A2(elm$core$Task$map, toMessage, task));
 	});
+var elm$core$String$dropLeft = F2(
+	function (n, string) {
+		return (n < 1) ? string : A3(
+			elm$core$String$slice,
+			n,
+			elm$core$String$length(string),
+			string);
+	});
 var elm$url$Url$Http = 0;
 var elm$url$Url$Https = 1;
+var elm$core$String$indexes = _String_indexes;
 var elm$core$String$left = F2(
 	function (n, string) {
 		return (n < 1) ? '' : A3(elm$core$String$slice, 0, n, string);
@@ -9341,11 +9491,11 @@ var elm$core$Platform$Sub$none = elm$core$Platform$Sub$batch(_List_Nil);
 var elm$json$Json$Decode$value = _Json_decodeValue;
 var author$project$Main$main = elm$browser$Browser$element(
 	{
-		bp: author$project$Main$init,
-		bL: function (_n0) {
+		bq: author$project$Main$init,
+		bM: function (_n0) {
 			return elm$core$Platform$Sub$none;
 		},
-		bO: author$project$Main$update,
-		bQ: author$project$Main$view
+		bP: author$project$Main$update,
+		bR: author$project$Main$view
 	});
 _Platform_export({'Main':{'init':author$project$Main$main(elm$json$Json$Decode$value)(0)}});}(this));
