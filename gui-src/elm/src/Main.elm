@@ -239,7 +239,7 @@ findMain model =
 
 isMain : SliceWrap -> Bool
 isMain sw =
-  String.startsWith "main " sw.name
+  "main" == sw.name
 
 -- | set a start state for showing the editor
 setRows : Model -> Model
