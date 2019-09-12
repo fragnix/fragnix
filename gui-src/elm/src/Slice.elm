@@ -2,6 +2,7 @@ module Slice exposing (..)
 
 import Json.Encode as E
 import Json.Decode as Decode
+import Set exposing (Set)
 
 -- | DEFINITION
 -- | Matches Slice.hs as close as possible
@@ -47,6 +48,7 @@ type alias SliceWrap =
   , comments: SourceCode
   , signature: SourceCode
   , name: SourceCode
+  , tagline: SourceCode
   , id: SliceID
   }
 
@@ -57,7 +59,7 @@ extractReferences : Slice -> List (String, SliceID)
 extractReferences slice =
   case slice of
     (Slice _ _ _ uses _) ->
-      List.filterMap extractReference uses
+      removeDuplicates (List.filterMap extractReference uses)
 
 -- | all Dependencies as SliceID
 extractDependencies : Slice -> List SliceID
@@ -84,29 +86,110 @@ nameToString name =
     Identifier s -> s
     Operator s   -> s
 
+removeDuplicates : List comparable -> List comparable
+removeDuplicates list =
+  Set.toList (Set.fromList list)
+
 -- | Collect most of the extra information needed to wrap a Slice
 -- | occurences still need to be added though!
 wrap : Slice -> SliceWrap
 wrap bare =
   case bare of
     (Slice sid _ (Fragment lines) _ _) ->
-      { slice = bare
-      , occurences = []
-      , comments = String.concat (List.filter (String.startsWith "--") lines)
-      , signature =
-          case (List.filter (String.contains "::") lines) of
-            l :: _ -> case (String.indexes "::" l) of
-              i :: _ -> String.dropLeft (i + 2) l
-              _      -> ""
-            _      -> ""
-      , name =
-          case (List.filter (String.contains "=") lines) of
-            l :: _ -> case (String.indexes "=" l) of
-              i :: _ -> String.dropRight i l
-              _      -> ""
-            _      -> ""
-      , id = sid
-      }
+      let
+        (name, signature, tagline) =
+          extractNameSignatureAndTagline lines
+      in
+        { slice = bare
+        , occurences = []
+        , comments = String.concat (List.filter (String.startsWith "--") lines)
+        , signature = signature
+        , name = name
+        , tagline = tagline
+        , id = sid
+        }
+
+extractNameSignatureAndTagline : List SourceCode -> (String, String, String)
+extractNameSignatureAndTagline lines =
+  case extractFromInstanceDeclaration lines of
+    Just x -> x
+    Nothing ->
+      case extractFromTypeDeclaration lines of
+        Just y -> y
+        Nothing ->
+          case extractFromValue lines of
+            Just z -> z
+            Nothing -> extractDefault lines
+
+extractFromInstanceDeclaration : List SourceCode -> Maybe (String, String, String)
+extractFromInstanceDeclaration lines =
+  case (List.filter (String.startsWith "instance") lines) of
+    inst :: _ ->
+      let
+        n =
+          String.words inst
+          |> List.map String.toList
+          |> List.filter (\xs -> case xs of
+                            [] -> False
+                            x::_ -> Char.isUpper x)
+          |> (\xs -> case xs of
+                _::a::_ -> String.fromList a
+                b::_    -> String.fromList b
+                []       -> "")
+      in
+        Just (n, n, inst)
+    []        -> Nothing
+
+extractFromTypeDeclaration : List SourceCode -> Maybe (String, String, String)
+extractFromTypeDeclaration lines =
+  case (List.filter (\s -> (String.startsWith "data" s) ||
+                           (String.startsWith "newtype" s) ||
+                           (String.startsWith "type" s)) lines) of
+    typ :: _ ->
+      let
+        n =
+          String.words typ
+          |> List.map String.toList
+          |> List.filter (\xs -> case xs of
+                            [] -> False
+                            x::_ -> Char.isUpper x)
+          |> (\xs -> case xs of
+                b::_    -> String.fromList b
+                []       -> "")
+      in
+        Just (n, n, typ)
+    []        -> Nothing
+
+extractFromValue : List SourceCode -> Maybe (String, String, String)
+extractFromValue lines =
+  case (List.filter (String.contains "=") lines) of
+    val :: _ ->
+      let
+        n =
+          case String.words val of
+            x :: _ -> x
+            []     -> ""
+        tg =
+          case List.filter (\s -> (String.startsWith n s)
+                                  && (String.contains "::" s)) lines of
+            t :: _ -> t
+            []     -> ""
+        sig =
+          String.words tg
+          |> List.drop 2
+          |> List.intersperse " "
+          |> String.concat
+
+      in
+        Just (n, sig, tg)
+    []        -> Nothing
+
+extractDefault : List SourceCode -> (String, String, String)
+extractDefault lines =
+  case lines of
+    l :: _ -> (l, l, l)
+    []     -> ("", "", "")
+
 
 
 -- | DECODERS
