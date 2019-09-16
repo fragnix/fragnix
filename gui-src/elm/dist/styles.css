@@ -103,6 +103,15 @@ body {
 .marked > .elmsh > .elmsh {
   background: #33342f;
 }
+.marked > .right > .elmsh {
+  background: #33342f;
+}
+.marked > .right > .elmsh >.elmsh {
+  background: #33342f;
+}
+.marked > .right > .elmsh >.elmsh > .elmsh {
+  background: #33342f;
+}
 
 /* to prevent vertical scrollbars from producing horizontal ones */
 .elmsh > .elmsh {

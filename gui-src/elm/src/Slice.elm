@@ -50,6 +50,7 @@ type alias SliceWrap =
   , name: SourceCode
   , tagline: SourceCode
   , id: SliceID
+  , marked: Bool
   }
 
 -- | HELPER FUNCTIONS
@@ -107,6 +108,7 @@ wrap bare =
         , name = name
         , tagline = tagline
         , id = sid
+        , marked = False
         }
 
 extractNameSignatureAndTagline : List SourceCode -> (String, String, String)

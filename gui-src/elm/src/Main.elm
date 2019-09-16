@@ -70,8 +70,8 @@ type alias Model =
   }
 
 type Node
-  = N_Collapsed SliceWrap
-  | N_Expanded SliceWrap Occurences Dependencies
+  = N_Collapsed SliceWrap SliceID
+  | N_Expanded SliceWrap SliceID Occurences Dependencies
 
 type Occurences
   = O_Collapsed SliceID (List SliceWrap)
@@ -105,6 +105,10 @@ type EditorAction
   | CollapseOccurences SliceID
   | ExpandDependencies SliceID
   | CollapseDependencies SliceID
+  | MarkReference SliceID
+  | UnmarkReference SliceID
+  | MarkReferenceP SliceID SliceID
+  | UnmarkReferenceP SliceID SliceID
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -150,35 +154,55 @@ update msg model =
 nodeUpdate: EditorAction -> Dict SliceID SliceWrap -> Node -> Result String Node
 nodeUpdate action cache node =
   case node of
-    N_Collapsed sw ->
+    N_Collapsed sw parentId ->
       case action of
         ExpandNode sid ->
           if sw.id == sid then
-            expandNode sw cache
+            expandNode sw parentId cache
+          else
+            Ok node
+        MarkReference sid ->
+          if sw.id == sid then
+            Ok (N_Collapsed {sw | marked = True} parentId)
+          else
+            Ok node
+        UnmarkReference sid ->
+          if sw.id == sid then
+            Ok (N_Collapsed {sw | marked = False} parentId)
           else
             Ok node
         _ ->
           Ok node
-    N_Expanded sw occs deps ->
+    N_Expanded sw parentId occs deps ->
       case action of
         CollapseNode sid ->
           if sw.id == sid then
-            Ok (N_Collapsed sw)
+            Ok (N_Collapsed sw parentId)
           else
-            propagateNode action cache sw occs deps
+            propagateNode action cache sw parentId occs deps
+        MarkReference sid ->
+          if sw.id == sid then
+            Ok <| N_Expanded {sw | marked = True} parentId occs deps
+          else
+            propagateNode action cache sw parentId occs deps
+        UnmarkReference sid ->
+          if sw.id == sid then
+            Ok <| N_Expanded {sw | marked = False} parentId occs deps
+          else
+            propagateNode action cache sw parentId occs deps
         _ ->
-          propagateNode action cache sw occs deps
+          propagateNode action cache sw parentId occs deps
 
-propagateNode : EditorAction -> Dict SliceID SliceWrap -> SliceWrap -> Occurences -> Dependencies -> Result String Node
-propagateNode action cache sw occs deps =
+propagateNode : EditorAction -> Dict SliceID SliceWrap -> SliceWrap -> SliceID -> Occurences -> Dependencies -> Result String Node
+propagateNode action cache sw parentId occs deps =
   case ( occurencesUpdate action cache occs, dependenciesUpdate action cache deps ) of
     (Err e1, Err e2) -> Err (e1 ++ e2)
     (Err e1, _     ) -> Err e1
     (_     , Err e2) -> Err e2
-    (Ok occ, Ok dep) -> Ok (N_Expanded sw occ dep)
+    (Ok occ, Ok dep) -> Ok (N_Expanded sw parentId occ dep)
 
-expandNode : SliceWrap -> Dict SliceID SliceWrap -> Result String Node
-expandNode sw cache =
+expandNode : SliceWrap -> SliceID -> Dict SliceID SliceWrap -> Result String Node
+expandNode sw parentId cache =
   let
     occs =
       List.map get sw.occurences
@@ -197,6 +221,7 @@ expandNode sw cache =
       Ok xs ->
         N_Expanded
           sw
+          parentId
           (O_Collapsed sw.id (List.take occLength xs))
           (D_Collapsed sw.id (List.drop occLength xs))
         |> Ok
@@ -209,7 +234,7 @@ occurencesUpdate action cache occs =
       case action of
         ExpandOccurences eid ->
           if eid == sid then
-            Ok (O_Expanded sid (List.map N_Collapsed sws))
+            Ok (O_Expanded sid (List.map (\n -> N_Collapsed n sid) sws))
           else
             Ok occs
         _ ->
@@ -235,8 +260,8 @@ propagateOccurences action cache sid nodes =
 nodeToSliceWrap : Node -> SliceWrap
 nodeToSliceWrap node =
   case node of
-    N_Collapsed sw    -> sw
-    N_Expanded sw _ _ -> sw
+    N_Collapsed sw _    -> sw
+    N_Expanded sw _ _ _ -> sw
 
 dependenciesUpdate: EditorAction -> Dict SliceID SliceWrap -> Dependencies -> Result String Dependencies
 dependenciesUpdate action cache deps =
@@ -245,7 +270,23 @@ dependenciesUpdate action cache deps =
       case action of
         ExpandDependencies eid ->
           if eid == sid then
-            Ok (D_Expanded sid (List.map N_Collapsed sws))
+            Ok (D_Expanded sid (List.map (\n -> N_Collapsed n sid) sws))
+          else
+            Ok deps
+        MarkReferenceP parentId childId ->
+          if parentId == sid then
+            Ok
+              (D_Expanded
+                  sid
+                  (List.map
+                    (\n -> N_Collapsed (if n.id == childId then {n | marked = True} else n) sid)
+                    sws)
+              )
+          else
+            Ok deps
+        ExpandNode nid ->
+          if List.any (\n -> n.id == nid) sws then
+            propagateDependencies action cache sid (List.map (\n -> N_Collapsed n sid) sws)
           else
             Ok deps
         _ ->
@@ -255,6 +296,16 @@ dependenciesUpdate action cache deps =
         CollapseDependencies cid ->
           if cid == sid then
             Ok (D_Collapsed sid (List.map nodeToSliceWrap nodes))
+          else
+            propagateDependencies action cache sid nodes
+        MarkReferenceP parentId childId ->
+          if sid == parentId then
+            propagateDependencies (MarkReference childId) cache sid nodes
+          else
+            propagateDependencies action cache sid nodes
+        UnmarkReferenceP parentId childId ->
+          if sid == parentId then
+            propagateDependencies (UnmarkReference childId) cache sid nodes
           else
             propagateDependencies action cache sid nodes
         _ ->
@@ -404,7 +455,7 @@ setRoot model =
       Nothing ->
         { model | error = Just "No slices found" }
       Just sw ->
-        { model | root = Just (N_Collapsed sw) }
+        { model | root = Just (N_Collapsed sw sw.id) }
 
 -- | VIEW
 view : Model -> Html Msg
@@ -436,9 +487,12 @@ viewEditor model =
 viewNode : Node -> Html Msg
 viewNode node =
   case node of
-    N_Collapsed sw ->
+    N_Collapsed sw parentId ->
       div
-        [ class "collapsed"
+        [ classList
+            [ ("collapsed", True)
+            , ("marked", sw.marked)
+            ]
         , onClick (Editor (ExpandNode sw.id))
         ]
         [ p
@@ -446,9 +500,13 @@ viewNode node =
             [ text "⮟ " ]
         , toHtml (sw.tagline) Dict.empty
         ]
-    N_Expanded sw occs deps ->
+    N_Expanded sw parentId occs deps ->
       div
-        [ class "expanded" ]
+        [ classList
+            [ ("expanded", True)
+            , ("marked", sw.marked)
+            ]
+         ]
         [ p
             [ class "left-button"
             , onClick (Editor (CollapseNode sw.id))
@@ -457,7 +515,7 @@ viewNode node =
         , div
             [ class "right" ]
             [ viewOccurences occs
-            , viewSlice References sw
+            , viewSlice References sw parentId
             , viewDependencies deps
             ]
         ]
@@ -529,21 +587,14 @@ type Highlight
   | References
   | NoHighlight
 
-tryViewSlice : Model -> Highlight -> SliceID -> Html Msg
-tryViewSlice model highlight sid =
-  case Dict.get sid model.cache of
-    Nothing -> viewError ("Missing Slice: " ++ sid)
-    Just sw ->
-      viewSlice highlight sw
-
 renderFragment : Slice -> String
 renderFragment slice =
   case slice of
     (Slice _ _ (Fragment codes) _ _) ->
       String.concat (List.intersperse "\n" codes)
 
-viewSlice : Highlight -> SliceWrap -> Html Msg
-viewSlice highlight sw =
+viewSlice : Highlight -> SliceWrap -> SliceID -> Html Msg
+viewSlice highlight sw parentId =
   let
     renderedFragment = renderFragment sw.slice
     highlightDict =
@@ -553,7 +604,11 @@ viewSlice highlight sw =
           List.map
             (Tuple.mapSecond
               (\mid ->
-                [ class "reference" ]
+                [ class "reference"
+                , onMouseEnter (Editor (MarkReferenceP parentId mid))
+                , onMouseLeave (Editor (UnmarkReferenceP parentId mid))
+                , onClick (Editor (ExpandNode mid))
+                ]
               )
             )
             (extractReferences sw.slice)
