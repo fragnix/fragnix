@@ -64,7 +64,7 @@ toInlineHtml lines =
 
 fragmentView : Fragment msg -> Html msg
 fragmentView { text, requiredStyle, additionalClass, additionalAttributes } =
-    if requiredStyle == Default && String.isEmpty additionalClass then
+    if requiredStyle == Default && String.isEmpty additionalClass && List.isEmpty additionalAttributes then
         Html.text text
 
     else
@@ -167,6 +167,7 @@ toStaticInlineHtml lines =
                         "elmsh-add "
                     , emptyIfFalse (highlight == Just Del)
                         "elmsh-del "
+                    , "\">"
                     , List.map staticFragmentView fragments
                         |> String.concat
                     , "</span>"

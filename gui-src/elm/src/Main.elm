@@ -18,6 +18,12 @@ import Html exposing (Html, button, div, text, p, h1, textarea)
 import Html.Attributes exposing (class, value, classList, spellcheck, readonly)
 import Html.Events exposing (onClick, on, onMouseEnter, onMouseLeave)
 
+import Element exposing (Element)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
+import Element.Input as Input
+
 main =
   Browser.element { init = init, update = update, view = view, subscriptions = (\_ -> Sub.none) }
 
@@ -69,17 +75,29 @@ type alias Model =
   , error: Maybe String
   }
 
-type Node
-  = N_Collapsed SliceWrap SliceID
-  | N_Expanded SliceWrap SliceID Occurences Dependencies
+type alias Node =
+  { hovered: Bool
+  , marked: Bool
+  , id: SliceID
+  , children: Children
+  , content: NodeContent
+  }
 
-type Occurences
-  = O_Collapsed SliceID (List SliceWrap)
-  | O_Expanded SliceID (List Node)
+type Children = Collapsed | Expanded (List Node)
 
-type Dependencies
-  = D_Collapsed SliceID (List SliceWrap)
-  | D_Expanded SliceID (List Node)
+defaultNode : Node
+defaultNode =
+  { hovered = False
+  , marked = False
+  , id = ""
+  , children = Collapsed
+  , content = Occurences []
+  }
+
+type NodeContent
+ = SliceNode SliceWrap
+ | Occurences (List SliceWrap)
+ | Dependencies (List SliceWrap)
 
 emptyModel : Model
 emptyModel =
@@ -97,18 +115,15 @@ type Msg
   | Error String
   | CloseError
   | Editor EditorAction
+  | Nop
 
 type EditorAction
-  = ExpandNode SliceID
-  | CollapseNode SliceID
-  | ExpandOccurences SliceID
-  | CollapseOccurences SliceID
-  | ExpandDependencies SliceID
-  | CollapseDependencies SliceID
-  | MarkReference SliceID
-  | UnmarkReference SliceID
-  | MarkReferenceP SliceID SliceID
-  | UnmarkReferenceP SliceID SliceID
+  = Expand SliceID
+  | Collapse SliceID
+  | Mark SliceID
+  | Unmark SliceID
+  | Hover SliceID
+  | Unhover SliceID
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -134,6 +149,9 @@ update msg model =
       , Cmd.none
       )
 
+    Nop ->
+      ( model, Cmd.none )
+
     Editor action ->
       case model.root of
         Just r ->
@@ -153,171 +171,124 @@ update msg model =
 
 nodeUpdate: EditorAction -> Dict SliceID SliceWrap -> Node -> Result String Node
 nodeUpdate action cache node =
-  case node of
-    N_Collapsed sw parentId ->
-      case action of
-        ExpandNode sid ->
-          if sw.id == sid then
-            expandNode sw parentId cache
-          else
-            Ok node
-        MarkReference sid ->
-          if sw.id == sid then
-            Ok (N_Collapsed {sw | marked = True} parentId)
-          else
-            Ok node
-        UnmarkReference sid ->
-          if sw.id == sid then
-            Ok (N_Collapsed {sw | marked = False} parentId)
-          else
-            Ok node
-        _ ->
-          Ok node
-    N_Expanded sw parentId occs deps ->
-      case action of
-        CollapseNode sid ->
-          if sw.id == sid then
-            Ok (N_Collapsed sw parentId)
-          else
-            propagateNode action cache sw parentId occs deps
-        MarkReference sid ->
-          if sw.id == sid then
-            Ok <| N_Expanded {sw | marked = True} parentId occs deps
-          else
-            propagateNode action cache sw parentId occs deps
-        UnmarkReference sid ->
-          if sw.id == sid then
-            Ok <| N_Expanded {sw | marked = False} parentId occs deps
-          else
-            propagateNode action cache sw parentId occs deps
-        _ ->
-          propagateNode action cache sw parentId occs deps
+  case action of
+    Mark sid ->
+      if node.id == sid then
+        Ok { node | marked = True }
+      else
+        propagateUpdate action cache node
+    Unmark sid ->
+      if node.id == sid then
+        Ok { node | marked = False }
+      else
+        propagateUpdate action cache node
+    Hover sid ->
+      if node.id == sid then
+        Ok { node | hovered = True }
+      else
+        propagateUpdate action cache node
+    Unhover sid ->
+      if node.id == sid then
+        Ok { node | hovered = False }
+      else
+        propagateUpdate action cache node
+    Expand sid ->
+      if node.id == sid then
+        expandNode cache node
+      else
+        propagateUpdate action cache node
+    Collapse sid ->
+      if node.id == sid then
+        collapseNode node
+      else
+        propagateUpdate action cache node
 
-propagateNode : EditorAction -> Dict SliceID SliceWrap -> SliceWrap -> SliceID -> Occurences -> Dependencies -> Result String Node
-propagateNode action cache sw parentId occs deps =
-  case ( occurencesUpdate action cache occs, dependenciesUpdate action cache deps ) of
-    (Err e1, Err e2) -> Err (e1 ++ e2)
+-- end nodeUpdate
+
+propagateUpdate : EditorAction -> Dict SliceID SliceWrap -> Node -> Result String Node
+propagateUpdate action cache node =
+  case node.children of
+    Collapsed ->
+      Ok node
+    Expanded cs ->
+      case combineResults (List.map (nodeUpdate action cache) cs) of
+        Ok newNodes ->
+          Ok { node | children = Expanded newNodes }
+        Err errs    ->
+          Err (String.concat (List.intersperse "," errs))
+
+collapseNode : Node -> Result String Node
+collapseNode node =
+  Ok { node | children = Collapsed }
+
+expandNode : Dict SliceID SliceWrap -> Node -> Result String Node
+expandNode cache node =
+  if node.children /= Collapsed then
+    Ok node
+  else
+    case node.content of
+      SliceNode sw ->
+        tupleCombineResults
+          ( fetchMap cache sw.occurences
+          , fetchMap cache (extractDependencies sw.slice)
+          )
+        |> Result.map (\(occs, deps) ->
+          { node | children = Expanded
+            [ { defaultNode |
+                id = sw.id ++ "occ"
+                , content = Occurences occs
+              }
+            , { defaultNode |
+                id = sw.id ++ "dep"
+                , content = Dependencies deps
+              }
+            ]
+          })
+      Occurences occs ->
+        { node | children = Expanded
+            (List.map
+              (\sw ->
+                { defaultNode |
+                    id = sw.id
+                    , content = SliceNode sw
+                }
+              )
+              occs)
+        } |> Ok
+      Dependencies deps ->
+        { node | children = Expanded
+            (List.map
+              (\sw ->
+                { defaultNode |
+                    id = sw.id
+                    , content = SliceNode sw
+                }
+              )
+              deps)
+        } |> Ok
+
+fetch : Dict SliceID SliceWrap -> SliceID -> Result String SliceWrap
+fetch cache sid =
+  case Dict.get sid cache of
+    Nothing -> Err ("Missing slice: " ++ sid)
+    Just sw -> Ok sw
+
+fetchMap : Dict SliceID SliceWrap -> List SliceID -> Result String (List SliceWrap)
+fetchMap cache sids =
+  List.map (fetch cache) sids
+  |> combineResults
+  |> Result.mapError (\x -> String.concat (List.intersperse "," x))
+
+
+-- HELPERS for working with Results
+tupleCombineResults : (Result String a, Result String b) -> Result String (a, b)
+tupleCombineResults (x, y) =
+  case (x, y) of
+    (Err e1, Err e2) -> Err (e1 ++ ", " ++ e2)
     (Err e1, _     ) -> Err e1
     (_     , Err e2) -> Err e2
-    (Ok occ, Ok dep) -> Ok (N_Expanded sw parentId occ dep)
+    (Ok  r1, Ok  r2) -> Ok (r1, r2)
 
-expandNode : SliceWrap -> SliceID -> Dict SliceID SliceWrap -> Result String Node
-expandNode sw parentId cache =
-  let
-    occs =
-      List.map get sw.occurences
-    deps =
-      List.map get (extractDependencies sw.slice)
-    occLength =
-      List.length occs
-    get sid =
-      case Dict.get sid cache of
-        Nothing -> Err ("Missing Slice: " ++ sid ++ " ")
-        Just s  -> Ok s
-  in
-    case combineResults (occs ++ deps) of
-      Err errs ->
-        Err (String.concat (List.intersperse "," errs))
-      Ok xs ->
-        N_Expanded
-          sw
-          parentId
-          (O_Collapsed sw.id (List.take occLength xs))
-          (D_Collapsed sw.id (List.drop occLength xs))
-        |> Ok
-
-
-occurencesUpdate: EditorAction -> Dict SliceID SliceWrap -> Occurences -> Result String Occurences
-occurencesUpdate action cache occs =
-  case occs of
-    O_Collapsed sid sws ->
-      case action of
-        ExpandOccurences eid ->
-          if eid == sid then
-            Ok (O_Expanded sid (List.map (\n -> N_Collapsed n sid) sws))
-          else
-            Ok occs
-        _ ->
-          Ok occs
-    O_Expanded sid nodes ->
-      case action of
-        CollapseOccurences cid ->
-          if cid == sid then
-            Ok (O_Collapsed sid (List.map nodeToSliceWrap nodes))
-          else
-            propagateOccurences action cache sid nodes
-        _ ->
-          propagateOccurences action cache sid nodes
-
-propagateOccurences : EditorAction -> Dict SliceID SliceWrap -> SliceID -> List Node -> Result String Occurences
-propagateOccurences action cache sid nodes =
-  case combineResults (List.map (nodeUpdate action cache) nodes) of
-    Ok newNodes ->
-      Ok (O_Expanded sid newNodes)
-    Err errs    ->
-      Err (String.concat (List.intersperse "," errs))
-
-nodeToSliceWrap : Node -> SliceWrap
-nodeToSliceWrap node =
-  case node of
-    N_Collapsed sw _    -> sw
-    N_Expanded sw _ _ _ -> sw
-
-dependenciesUpdate: EditorAction -> Dict SliceID SliceWrap -> Dependencies -> Result String Dependencies
-dependenciesUpdate action cache deps =
-  case deps of
-    D_Collapsed sid sws ->
-      case action of
-        ExpandDependencies eid ->
-          if eid == sid then
-            Ok (D_Expanded sid (List.map (\n -> N_Collapsed n sid) sws))
-          else
-            Ok deps
-        MarkReferenceP parentId childId ->
-          if parentId == sid then
-            Ok
-              (D_Expanded
-                  sid
-                  (List.map
-                    (\n -> N_Collapsed (if n.id == childId then {n | marked = True} else n) sid)
-                    sws)
-              )
-          else
-            Ok deps
-        ExpandNode nid ->
-          if List.any (\n -> n.id == nid) sws then
-            propagateDependencies action cache sid (List.map (\n -> N_Collapsed n sid) sws)
-          else
-            Ok deps
-        _ ->
-          Ok deps
-    D_Expanded sid nodes ->
-      case action of
-        CollapseDependencies cid ->
-          if cid == sid then
-            Ok (D_Collapsed sid (List.map nodeToSliceWrap nodes))
-          else
-            propagateDependencies action cache sid nodes
-        MarkReferenceP parentId childId ->
-          if sid == parentId then
-            propagateDependencies (MarkReference childId) cache sid nodes
-          else
-            propagateDependencies action cache sid nodes
-        UnmarkReferenceP parentId childId ->
-          if sid == parentId then
-            propagateDependencies (UnmarkReference childId) cache sid nodes
-          else
-            propagateDependencies action cache sid nodes
-        _ ->
-          propagateDependencies action cache sid nodes
-
-propagateDependencies : EditorAction -> Dict SliceID SliceWrap -> SliceID -> List Node -> Result String Dependencies
-propagateDependencies action cache sid nodes =
-  case combineResults (List.map (nodeUpdate action cache) nodes) of
-    Ok newNodes ->
-      Ok (D_Expanded sid newNodes)
-    Err errs    ->
-      Err (String.concat (List.intersperse "," errs))
 
 combineResults : List (Result a b) -> Result (List a) (List b)
 combineResults =
@@ -455,7 +426,9 @@ setRoot model =
       Nothing ->
         { model | error = Just "No slices found" }
       Just sw ->
-        { model | root = Just (N_Collapsed sw sw.id) }
+        { model | root =
+          Just { defaultNode | content = SliceNode sw, id = sw.id}
+        }
 
 -- | VIEW
 view : Model -> Html Msg
@@ -485,7 +458,8 @@ viewEditor model =
     )
 
 viewNode : Node -> Html Msg
-viewNode node =
+viewNode _ = text "helo"
+{- viewNode node =
   case node of
     N_Collapsed sw parentId ->
       div
@@ -572,7 +546,7 @@ viewDependencies dep =
         , div
             [ class "right" ]
             (List.map viewNode deps)
-        ]
+        ] -}
 
 -- view an error in the style of surrounding elements
 viewError : String -> Html Msg
@@ -583,7 +557,7 @@ viewError err =
 
 -- | viewing a single Slice
 type Highlight
-  = Occurences SliceID
+  = Occurencing SliceID
   | References
   | NoHighlight
 
@@ -593,6 +567,7 @@ renderFragment slice =
     (Slice _ _ (Fragment codes) _ _) ->
       String.concat (List.intersperse "\n" codes)
 
+{-
 viewSlice : Highlight -> SliceWrap -> SliceID -> Html Msg
 viewSlice highlight sw parentId =
   let
@@ -613,7 +588,7 @@ viewSlice highlight sw parentId =
             )
             (extractReferences sw.slice)
           |> Dict.fromList
-        Occurences occId ->
+        Occurencing occId ->
           extractReferences sw.slice
           |> List.filter (\(_, a) -> String.contains occId a)
           |> List.map (Tuple.mapSecond (\_ -> [ class "occurence"]))
@@ -627,26 +602,31 @@ viewSlice highlight sw parentId =
           renderedFragment
           highlightDict
       ]
+-}
 
-viewTextarea : String -> Html Msg
-viewTextarea codeStr =
-    textarea
-        [ value codeStr
-        , classList
-            [ ( "textarea", True )
-            , ( "textarea-lc", False )
-            ]
-        -- , onInput (SetText thisLang)
-        , spellcheck False
-        , readonly True
-        ]
-        []
+-- monokai background color
+monokai_black = (Element.rgb255 35 36 31)
+monokai_colors_css =
+  ".elmsh {color: #f8f8f2;background: #23241f;}.elmsh-hl {background: #343434;}.elmsh-add {background: #003800;}.elmsh-del {background: #380000;}.elmsh-comm {color: #75715e;}.elmsh1 {color: #ae81ff;}.elmsh2 {color: #e6db74;}.elmsh3 {color: #f92672;}.elmsh4 {color: #66d9ef;}.elmsh5 {color: #a6e22e;}.elmsh6 {color: #ae81ff;}.elmsh7 {color: #fd971f;}.elmsh-elm-ts, .elmsh-js-dk, .elmsh-css-p {font-style: italic;color: #66d9ef;}.elmsh-js-ce {font-style: italic;color: #a6e22e;}.elmsh-css-ar-i {font-weight: bold;color: #f92672;}"
 
-toHtml : String -> Dict String (List (Html.Attribute Msg)) -> Html Msg
-toHtml code refs =
-  SH.haskell code
-    |> Result.map (highlightReferences refs)
-    |> Result.map (SH.toBlockHtml Nothing)
+show_caret_css =
+  "textarea {caret-color: white;}"
+
+type alias HighlightDict = Dict String (List (Html.Attribute Msg))
+
+-- create a syntaxhighlighted, shrinkwrapped element
+syntaxHighlight : String -> HighlightDict -> Element Msg
+syntaxHighlight txt dict =
+  SH.elm (if String.endsWith "\n" txt then txt ++ " " else txt)
+    |> Result.map (SH.dictAddAttributes dict)
+    |> Result.map SH.toInlineHtml
+    |> Result.map (\h ->
+        Html.div []
+            [ Html.node "style" [] [ (Html.text monokai_colors_css) ]
+            , h
+            ] )
+    |> Result.map Element.html
+    |> Result.map (Element.el [ Background.color monokai_black ])
     |> Result.mapError Parser.deadEndsToString
     |> (\result ->
             case result of
@@ -654,29 +634,31 @@ toHtml code refs =
                     a
 
                 Result.Err x ->
-                    text x
+                    Element.text x
        )
 
-highlightReferences : Dict String (List (Html.Attribute Msg)) -> SH.HCode Msg -> SH.HCode Msg
-highlightReferences dict hcode =
-  let
-    highlightFragment frag =
-      case Dict.get frag.text dict of
-        Nothing -> frag
-        Just attrs  ->
-          { frag | additionalAttributes = attrs ++ frag.additionalAttributes }
-  in
-    mapHCodeFragments highlightFragment hcode
-
-mapHCodeFragments : (SHL.Fragment msg -> SHL.Fragment msg) -> SH.HCode msg -> SH.HCode msg
-mapHCodeFragments f hcode =
-  case hcode of
-    SH.HCode lines ->
-      List.map
-        (\l -> { l | fragments =
-          List.map
-            f
-            l.fragments
-          })
-        lines
-      |> SH.HCode
+-- create a syntaxhighlighted, shrinkwrapped textarea
+editorField : String -> (String -> Msg) -> HighlightDict -> Element Msg
+editorField txt onChange dict =
+    Element.el
+        [ Element.behindContent (syntaxHighlight txt dict)
+        , Font.family [ Font.monospace ]
+        , Font.size 16
+        ]
+        (Input.multiline
+            [ Element.height Element.shrink
+            , Element.width Element.shrink
+            , Background.color (Element.rgba 0 0 0 0)
+            , Font.color (Element.rgba 0 0 0 0)
+            , Element.spacing 0
+            , Element.padding 0
+            , Border.width 0
+            , Border.rounded 0
+            , Border.glow (Element.rgba 0 0 0 0) 0.0
+            ]
+            { onChange = onChange
+            , text = txt
+            , placeholder = Nothing
+            , label = Input.labelHidden "editing Area"
+            , spellcheck = False
+            })

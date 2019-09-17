@@ -34,7 +34,7 @@
 
 .right {
   display: inline-block;
-  border-left: 1px solid #f8f8f2;
+  border-left: 1px solid black;
 }
 
 .collapsed {

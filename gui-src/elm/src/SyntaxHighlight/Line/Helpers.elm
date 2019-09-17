@@ -19,6 +19,8 @@ toLinesHelp toStyle ( syntax, text ) ( lines, fragments, maybeLastSyntax ) =
         , Nothing
         )
 
+    {-
+    Would clash with Dictionary additional classes
     else if Just syntax == maybeLastSyntax then
         -- Concat same syntax sequence to reduce html elements.
         case fragments of
@@ -33,7 +35,7 @@ toLinesHelp toStyle ( syntax, text ) ( lines, fragments, maybeLastSyntax ) =
                 ( lines
                 , toFragment toStyle ( syntax, text ) :: fragments
                 , maybeLastSyntax
-                )
+                ) -}
 
     else
         ( lines

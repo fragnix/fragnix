@@ -30,7 +30,6 @@ type Syntax
     | Function
     | TypeSignature
     | Number
-    | Variable
 
 
 toLines : String -> Result (List DeadEnd) (List (Line msg))
@@ -292,7 +291,7 @@ functionBodyContent =
                         ( T.C Keyword, n )
 
                     else
-                        ( T.C Variable, n )
+                        ( T.Normal, n )
                 )
         , weirdText |> map (\b -> ( T.Normal, b ))
         ]
@@ -645,6 +644,3 @@ syntaxToStyle syntax =
 
         Number ->
             ( Style1, "elm-n" )
-
-        Variable ->
-            ( Style7, "" )

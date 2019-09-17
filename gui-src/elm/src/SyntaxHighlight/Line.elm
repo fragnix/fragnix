@@ -26,7 +26,7 @@ type alias Line msg =
     }
 
 
-{-| A fragment holds information about the text being styled, the style and additional class to be applied.
+{-| A fragment holds information about the text being styled, the style and additional class and additional Attributes to be applied.
 -}
 type alias Fragment msg =
     { text : String
