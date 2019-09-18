@@ -23,6 +23,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
+import Element.Events as Events
 
 main =
   Browser.element { init = init, update = update, view = view, subscriptions = (\_ -> Sub.none) }
@@ -433,133 +434,184 @@ setRoot model =
 -- | VIEW
 view : Model -> Html Msg
 view model =
-  case model.error of
+  (case model.error of
     Just err -> viewErrMsg err
-    Nothing  -> viewEditor model
+    Nothing  -> viewEditor model)
+  |> createHtml
 
-viewErrMsg : String -> Html Msg
-viewErrMsg err =
-  div
-    [ class "editorContainer" ]
-    [ div
-        [ class "row" ]
-        [ viewError err
-        , button [ onClick CloseError ] [ text "Ignore and show editor" ]
-        ]
+createHtml : Element Msg -> Html Msg
+createHtml el =
+  Element.row
+    [ Element.width Element.fill
+    , Element.height Element.fill
     ]
+    [ Element.html
+        (Html.node
+          "style"
+          []
+          [ (Html.text (monokai_colors_css ++ show_caret_css ++ reference_css)) ])
+    , el
+    ]
+  |> Element.layoutWith { options = options } []
 
-viewEditor : Model -> Html Msg
-viewEditor model =
-  div
-    [ class "editorContainer" ]
-    ( case model.root of
-        Just r   -> [ viewNode r ]
-        Nothing  -> [ p [] [ text "No slice chosen." ] ]
+options : List Element.Option
+options =
+  [ Element.focusStyle
+      { borderColor = Nothing
+      , backgroundColor = Nothing
+      , shadow = Nothing
+      }
+  ]
+
+viewErrMsg : String -> Element Msg
+viewErrMsg err =
+  Element.el
+    [ Background.color monokai_black
+    , Font.color monokai_white
+    , Element.width Element.fill
+    , Element.height Element.fill
+    ]
+    ( Element.column
+        [ Element.padding 10
+        , Element.spacing 7
+        , Element.centerX
+        , Element.centerY
+        ]
+        [ Element.el
+            [ Font.color (Element.rgb255 255 40 40) ]
+            (Element.text err)
+        , Input.button
+            [ Font.color (Element.rgb 1 1 1) ]
+            { onPress = Just CloseError, label = Element.text "Ignore and show editor"}
+        ]
     )
 
-viewNode : Node -> Html Msg
-viewNode _ = text "helo"
-{- viewNode node =
-  case node of
-    N_Collapsed sw parentId ->
-      div
-        [ classList
-            [ ("collapsed", True)
-            , ("marked", sw.marked)
-            ]
-        , onClick (Editor (ExpandNode sw.id))
-        ]
-        [ p
-            [ class "inline-text" ]
-            [ text "⮟ " ]
-        , toHtml (sw.tagline) Dict.empty
-        ]
-    N_Expanded sw parentId occs deps ->
-      div
-        [ classList
-            [ ("expanded", True)
-            , ("marked", sw.marked)
-            ]
-         ]
-        [ p
-            [ class "left-button"
-            , onClick (Editor (CollapseNode sw.id))
-            ]
-            [ text "⮝" ]
-        , div
-            [ class "right" ]
-            [ viewOccurences occs
-            , viewSlice References sw parentId
-            , viewDependencies deps
-            ]
-        ]
+viewEditor : Model -> Element Msg
+viewEditor model =
+  Element.el
+    [ Element.padding 10
+    , Background.color monokai_black
+    , Font.color monokai_white
+    , Font.family [ Font.monospace ]
+    , Font.size 16
+    , Element.scrollbars
+    , Element.width Element.fill
+    , Element.height Element.fill
+    ]
+    (case model.root of
+      Just r -> viewNode r
+      Nothing -> Element.text "No slice chosen.")
 
-viewOccurences : Occurences -> Html Msg
-viewOccurences occ =
-  case occ of
-    O_Collapsed sid occs ->
-      div
-        [ class "collapsed"
-        , onClick (Editor (ExpandOccurences sid))
+viewNode : Node -> Element Msg
+viewNode node =
+  case node.children of
+    Collapsed ->
+      viewCollapsedNode node
+    Expanded children ->
+      case node.content of
+        SliceNode sw ->
+          viewSliceNode sw node
+        Occurences occs ->
+          viewListNode children node
+        Dependencies deps ->
+          viewListNode children node
+
+viewCollapsedNode : Node -> Element Msg
+viewCollapsedNode { hovered, marked, id, content } =
+  Element.el
+    ([ Events.onClick (Editor (Expand id)) ]
+    ++ (nodeAttributes hovered marked id))
+    (viewTeaser content)
+
+viewTeaser : NodeContent -> Element Msg
+viewTeaser content =
+  case content of
+    SliceNode { tagline } ->
+      Element.row
+        [ Element.spacing 0
+        , Element.padding 0
         ]
-        [ p
-            [ class "inline-text" ]
-            [ text
-                ("⮟ show " ++ (String.fromInt (List.length occs))
-                  ++ " occurences") ]
+        [ Element.text "⮟ "
+        , inlineSH tagline
         ]
-    O_Expanded sid occs ->
-      div
-        [ class "expanded" ]
-        [ p
-            [ class "left-button"
-            , onClick (Editor (CollapseOccurences sid))
+    Occurences occs ->
+      Element.text
+        ("⮟ show " ++ (String.fromInt (List.length occs)) ++ " occurences")
+    Dependencies deps ->
+      Element.text
+        ("⮟ show " ++ (String.fromInt (List.length deps)) ++ " dependencies")
+
+viewSliceNode : SliceWrap -> Node -> Element Msg
+viewSliceNode sw { hovered, marked, id, children } =
+  case children of
+    Expanded (occs :: deps :: _) ->
+      let
+        occsOrNothing =
+          if occs.children == Collapsed && not hovered then
+            []
+          else
+            [ viewNode occs ]
+        depsOrNothing =
+          if deps.children == Collapsed && not hovered then
+            []
+          else
+            [ viewNode deps ]
+      in
+        (viewCollapsable
+          id
+          (Element.column []
+            (occsOrNothing
+            ++ [ Element.el
+                  (nodeAttributes hovered marked id)
+                  (viewSlice sw) ]
+            ++ depsOrNothing)))
+    _ -> Element.text "Faulty SliceNode: Expanded but no children"
+
+viewCollapsable : SliceID -> Element Msg -> Element Msg
+viewCollapsable sid content =
+  Element.row
+    []
+    [ (Element.column
+        [ Element.height Element.fill
+        , Events.onClick (Editor (Collapse sid))
+        , Font.color actual_black
+        , Element.padding 5
+        ]
+        [ Element.el
+            [ Element.alignTop ]
+            ( Element.text "⮟" )
+        , Element.el
+            [ Element.centerX
+            , Element.width (Element.px 1)
+            , Element.height Element.fill
+            , Border.widthEach { bottom = 0, left = 0, right = 1, top = 0 }
+            , Border.color actual_black
             ]
-            [ text "⮝" ]
-        , div
-            [ class "right" ]
-            (List.map viewNode occs)
+            Element.none
+        , Element.el
+            [ Element.alignBottom ]
+            ( Element.text "⮝" )
         ]
+      )
+    , content
+    ]
 
-viewDependencies : Dependencies -> Html Msg
-viewDependencies dep =
-  case dep of
-    D_Collapsed sid deps ->
-      div
-        [ class "collapsed"
-        , onClick ( Editor (ExpandDependencies sid))
-        ]
-        [ p
-            [ class "inline-text" ]
-            [ text
-                ("⮟ show " ++ (String.fromInt (List.length deps))
-                  ++ " dependencies") ]
-        ]
-    D_Expanded sid deps ->
-      div
-        [ class "expanded" ]
-        [ p
-            [ class "left-button"
-            , onClick (Editor (CollapseDependencies sid))
-            ]
-            [ text "⮝" ]
-        , div
-            [ class "right" ]
-            (List.map viewNode deps)
-        ] -}
+viewListNode : List Node -> Node -> Element Msg
+viewListNode nodes { hovered, marked, id } =
+  Element.el
+    []
+    (viewCollapsable
+      id
+      (Element.column
+        []
+        (List.map viewNode nodes)))
 
--- view an error in the style of surrounding elements
-viewError : String -> Html Msg
-viewError err =
-  p
-    [ class "error" ]
-    [ text err ]
 
--- | viewing a single Slice
-type Highlight
-  = Occurencing SliceID
-  | References
-  | NoHighlight
+nodeAttributes : Bool -> Bool -> SliceID -> List (Element.Attribute Msg)
+nodeAttributes hovered marked sid =
+  [ Events.onMouseEnter (Editor (Hover sid))
+  , Events.onMouseLeave (Editor (Unhover sid))
+  ] ++ (if marked || hovered then [ Background.color monokai_grey ] else [])
 
 renderFragment : Slice -> String
 renderFragment slice =
@@ -567,66 +619,58 @@ renderFragment slice =
     (Slice _ _ (Fragment codes) _ _) ->
       String.concat (List.intersperse "\n" codes)
 
-{-
-viewSlice : Highlight -> SliceWrap -> SliceID -> Html Msg
-viewSlice highlight sw parentId =
+viewSlice : SliceWrap -> Element Msg
+viewSlice sw =
   let
     renderedFragment = renderFragment sw.slice
     highlightDict =
-      case highlight of
-        NoHighlight -> Dict.empty
-        References ->
-          List.map
-            (Tuple.mapSecond
-              (\mid ->
-                [ class "reference"
-                , onMouseEnter (Editor (MarkReferenceP parentId mid))
-                , onMouseLeave (Editor (UnmarkReferenceP parentId mid))
-                , onClick (Editor (ExpandNode mid))
-                ]
-              )
-            )
-            (extractReferences sw.slice)
-          |> Dict.fromList
-        Occurencing occId ->
-          extractReferences sw.slice
-          |> List.filter (\(_, a) -> String.contains occId a)
-          |> List.map (Tuple.mapSecond (\_ -> [ class "occurence"]))
-          |> Dict.fromList
+      List.map
+        (Tuple.mapSecond
+          (\mid ->
+            [ onMouseEnter (Editor (Mark mid))
+            , onMouseLeave (Editor (Unmark mid))
+            , onClick (Editor (Expand mid))
+            , class "reference"
+            ]
+          )
+        )
+        (extractReferences sw.slice)
+      |> Dict.fromList
   in
-    div
-      [ classList
-          [ ( "elmsh", True ) ]
-      ]
-      [ toHtml
-          renderedFragment
-          highlightDict
-      ]
--}
+    editorField renderedFragment (\_ -> Nop) highlightDict
 
 -- monokai background color
 monokai_black = (Element.rgb255 35 36 31)
+monokai_grey = (Element.rgb255 51 52 47)
+monokai_white = (Element.rgb255 247 247 241)
+actual_black = Element.rgb 0 0 0
 monokai_colors_css =
-  ".elmsh {color: #f8f8f2;background: #23241f;}.elmsh-hl {background: #343434;}.elmsh-add {background: #003800;}.elmsh-del {background: #380000;}.elmsh-comm {color: #75715e;}.elmsh1 {color: #ae81ff;}.elmsh2 {color: #e6db74;}.elmsh3 {color: #f92672;}.elmsh4 {color: #66d9ef;}.elmsh5 {color: #a6e22e;}.elmsh6 {color: #ae81ff;}.elmsh7 {color: #fd971f;}.elmsh-elm-ts, .elmsh-js-dk, .elmsh-css-p {font-style: italic;color: #66d9ef;}.elmsh-js-ce {font-style: italic;color: #a6e22e;}.elmsh-css-ar-i {font-weight: bold;color: #f92672;}"
+  ".elmsh {color: #f8f8f2;}.elmsh-hl {background: #343434;}.elmsh-add {background: #003800;}.elmsh-del {background: #380000;}.elmsh-comm {color: #75715e;}.elmsh1 {color: #ae81ff;}.elmsh2 {color: #e6db74;}.elmsh3 {color: #f92672;}.elmsh4 {color: #66d9ef;}.elmsh5 {color: #a6e22e;}.elmsh6 {color: #ae81ff;}.elmsh7 {color: #fd971f;}.elmsh-elm-ts, .elmsh-js-dk, .elmsh-css-p {font-style: italic;color: #66d9ef;}.elmsh-js-ce {font-style: italic;color: #a6e22e;}.elmsh-css-ar-i {font-weight: bold;color: #f92672;}"
+{-
+monokai_colors_css =
+    ".elmsh {color: #f8f8f2;background: #23241f;}.elmsh-hl {background: #343434;}.elmsh-add {background: #003800;}.elmsh-del {background: #380000;}.elmsh-comm {color: #75715e;}.elmsh1 {color: #ae81ff;}.elmsh2 {color: #e6db74;}.elmsh3 {color: #f92672;}.elmsh4 {color: #66d9ef;}.elmsh5 {color: #a6e22e;}.elmsh6 {color: #ae81ff;}.elmsh7 {color: #fd971f;}.elmsh-elm-ts, .elmsh-js-dk, .elmsh-css-p {font-style: italic;color: #66d9ef;}.elmsh-js-ce {font-style: italic;color: #a6e22e;}.elmsh-css-ar-i {font-weight: bold;color: #f92672;}"
+-}
 
 show_caret_css =
   "textarea {caret-color: white;}"
+reference_css =
+  ".reference {text-decoration: underline;}"
 
 type alias HighlightDict = Dict String (List (Html.Attribute Msg))
 
 -- create a syntaxhighlighted, shrinkwrapped element
 syntaxHighlight : String -> HighlightDict -> Element Msg
 syntaxHighlight txt dict =
-  SH.elm (if String.endsWith "\n" txt then txt ++ " " else txt)
+  SH.haskell (if String.endsWith "\n" txt then txt ++ " " else txt)
     |> Result.map (SH.dictAddAttributes dict)
     |> Result.map SH.toInlineHtml
-    |> Result.map (\h ->
+    {- |> Result.map (\h ->
         Html.div []
             [ Html.node "style" [] [ (Html.text monokai_colors_css) ]
             , h
-            ] )
+            ] ) -}
     |> Result.map Element.html
-    |> Result.map (Element.el [ Background.color monokai_black ])
+    |> Result.map (Element.el [] )
     |> Result.mapError Parser.deadEndsToString
     |> (\result ->
             case result of
@@ -637,19 +681,29 @@ syntaxHighlight txt dict =
                     Element.text x
        )
 
+-- create inline HTML of code
+inlineSH : String -> Element Msg
+inlineSH txt =
+  SH.haskell txt
+  |> Result.map SH.toInlineHtml
+  |> Result.map Element.html
+  |> Result.mapError Parser.deadEndsToString
+  |> (\result ->
+        case result of
+          Ok a  -> a
+          Err x -> Element.text x)
+
 -- create a syntaxhighlighted, shrinkwrapped textarea
 editorField : String -> (String -> Msg) -> HighlightDict -> Element Msg
 editorField txt onChange dict =
     Element.el
         [ Element.behindContent (syntaxHighlight txt dict)
-        , Font.family [ Font.monospace ]
-        , Font.size 16
         ]
         (Input.multiline
             [ Element.height Element.shrink
             , Element.width Element.shrink
             , Background.color (Element.rgba 0 0 0 0)
-            , Font.color (Element.rgba 0 0 0 0)
+            , Font.color (Element.rgba 0 0 0 1)
             , Element.spacing 0
             , Element.padding 0
             , Border.width 0
