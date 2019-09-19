@@ -175,7 +175,7 @@ extractFromValue lines =
           case List.filter (\s -> (String.startsWith n s)
                                   && (String.contains "::" s)) lines of
             t :: _ -> t
-            []     -> ""
+            []     -> n
         sig =
           String.words tg
           |> List.drop 2

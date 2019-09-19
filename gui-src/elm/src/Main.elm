@@ -533,15 +533,17 @@ viewNode node =
 viewCollapsedNode : Node -> Element Msg
 viewCollapsedNode { hovered, marked, id, content } =
   let
-    dark =
-      case content of
-        SliceNode _ -> []
-        _ ->
-          [ Font.color actual_black ]
+    fontColor = case content of
+      SliceNode _ ->
+        []
+      _ ->
+        [ Font.color actual_black ]
   in
     Element.el
-      ([ Events.onClick (Editor (Expand id)) ]
-      ++ (nodeAttributes hovered marked id) ++ dark)
+      ([ Events.onClick (Editor (Expand id))
+       , Element.pointer
+       ]
+      ++ (nodeAttributes hovered marked id) ++ fontColor)
       (viewTeaser content)
 
 viewTeaser : NodeContent -> Element Msg
@@ -552,15 +554,25 @@ viewTeaser content =
         [ Element.spacing 0
         , Element.padding 0
         ]
-        [ Element.text "⮟ "
+        [ Element.el
+            [ Font.color actual_black ]
+            (Element.text "⮟ ")
         , inlineSH tagline
         ]
     Occurences occs ->
-      Element.text
-        ("⮟ show " ++ (String.fromInt (List.length occs)) ++ " occurences")
+      case String.fromInt (List.length occs) of
+        "0" ->
+          Element.none
+        l ->
+          Element.text
+            ("⮟ show " ++ l ++ " occurences")
     Dependencies deps ->
-      Element.text
-        ("⮟ show " ++ (String.fromInt (List.length deps)) ++ " dependencies")
+      case String.fromInt (List.length deps) of
+        "0" ->
+          Element.none
+        l ->
+          Element.text
+            ("⮟ show " ++ l ++ " dependencies")
 
 viewSliceNode : SliceWrap -> Node -> Element Msg
 viewSliceNode sw { hovered, marked, id, children, editable } =
@@ -587,7 +599,7 @@ viewSliceNode sw { hovered, marked, id, children, editable } =
           id
           (Element.column
             ([ Element.width Element.fill
-            , Element.spacing 5
+            , Element.spacing 8
             ] ++ colAttribs)
             ( occsOrNothing
             ++ [ Element.el
@@ -599,17 +611,17 @@ viewSliceNode sw { hovered, marked, id, children, editable } =
 viewCollapsable : SliceID -> Element Msg -> Element Msg
 viewCollapsable sid content =
   Element.row
-    []
+    [ Element.spacing 5 ]
     [ (Element.column
         [ Element.height Element.fill
         , Events.onClick (Editor (Collapse sid))
+        , Element.pointer
         , Font.color actual_black
-        , Element.padding 5
         ]
-        [ Element.el
+        [ {- Element.el
             [ Element.alignTop ]
             ( Element.text "⮟" )
-        , Element.el
+        ,-} Element.el
             [ Element.centerX
             , Element.width (Element.px 1)
             , Element.height Element.fill
@@ -632,7 +644,7 @@ viewListNode nodes { hovered, marked, id } =
     (viewCollapsable
       id
       (Element.column
-        [ Element.spacing 5 ]
+        [ Element.spacing 16 ]
         (List.map viewNode nodes)))
 
 
@@ -670,7 +682,9 @@ viewSlice sw editable =
       editorField renderedFragment (\_ -> Nop) highlightDict
     else
       Element.el
-        [ Events.onClick (Editor (MakeEditable sw.id)) ]
+        [ Events.onClick (Editor (MakeEditable sw.id))
+        , Element.pointer
+        ]
         (syntaxHighlight renderedFragment highlightDict)
 
 -- monokai background color
@@ -688,7 +702,7 @@ monokai_colors_css =
 show_caret_css =
   "textarea {caret-color: white;}"
 reference_css =
-  ".reference {text-decoration: underline;}"
+  ".reference {text-decoration: underline;}.reference:hover {cursor:pointer;}"
 
 type alias HighlightDict = Dict String (List (Html.Attribute Msg))
 
@@ -740,7 +754,8 @@ editorField txt onChange dict =
             , Font.color (Element.rgba 0 0 0 0)
             , Element.spacing 0
             , Element.padding 0
-            , Border.width 0
+            , Border.width 1
+            , Border.color monokai_grey
             , Border.rounded 0
             , Border.glow (Element.rgba 0 0 0 0) 0.0
             ]
