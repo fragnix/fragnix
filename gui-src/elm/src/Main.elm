@@ -82,6 +82,7 @@ type alias Node =
   , id: SliceID
   , children: Children
   , content: NodeContent
+  , editable: Bool
   }
 
 type Children = Collapsed | Expanded (List Node)
@@ -93,6 +94,7 @@ defaultNode =
   , id = ""
   , children = Collapsed
   , content = Occurences []
+  , editable = False
   }
 
 type NodeContent
@@ -125,6 +127,8 @@ type EditorAction
   | Unmark SliceID
   | Hover SliceID
   | Unhover SliceID
+  | MakeEditable SliceID
+  | MakeStatic SliceID
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -201,6 +205,16 @@ nodeUpdate action cache node =
     Collapse sid ->
       if node.id == sid then
         collapseNode node
+      else
+        propagateUpdate action cache node
+    MakeEditable sid ->
+      if node.id == sid then
+        Ok { node | editable = True }
+      else
+        propagateUpdate action cache node
+    MakeStatic sid ->
+      if node.id == sid then
+        Ok { node | editable = False }
       else
         propagateUpdate action cache node
 
@@ -518,10 +532,17 @@ viewNode node =
 
 viewCollapsedNode : Node -> Element Msg
 viewCollapsedNode { hovered, marked, id, content } =
-  Element.el
-    ([ Events.onClick (Editor (Expand id)) ]
-    ++ (nodeAttributes hovered marked id))
-    (viewTeaser content)
+  let
+    dark =
+      case content of
+        SliceNode _ -> []
+        _ ->
+          [ Font.color actual_black ]
+  in
+    Element.el
+      ([ Events.onClick (Editor (Expand id)) ]
+      ++ (nodeAttributes hovered marked id) ++ dark)
+      (viewTeaser content)
 
 viewTeaser : NodeContent -> Element Msg
 viewTeaser content =
@@ -542,28 +563,36 @@ viewTeaser content =
         ("⮟ show " ++ (String.fromInt (List.length deps)) ++ " dependencies")
 
 viewSliceNode : SliceWrap -> Node -> Element Msg
-viewSliceNode sw { hovered, marked, id, children } =
+viewSliceNode sw { hovered, marked, id, children, editable } =
   case children of
     Expanded (occs :: deps :: _) ->
       let
         occsOrNothing =
-          if occs.children == Collapsed && not hovered then
+          if occs.children == Collapsed && not hovered && not editable then
             []
           else
             [ viewNode occs ]
         depsOrNothing =
-          if deps.children == Collapsed && not hovered then
+          if deps.children == Collapsed && not hovered && not editable then
             []
           else
             [ viewNode deps ]
+        (colAttribs, nodeAttribs) =
+          if hovered && occs.children == Collapsed && deps.children == Collapsed then
+            ((nodeAttributes hovered marked id), [])
+          else
+            ([], (nodeAttributes hovered marked id))
       in
         (viewCollapsable
           id
-          (Element.column []
-            (occsOrNothing
+          (Element.column
+            ([ Element.width Element.fill
+            , Element.spacing 5
+            ] ++ colAttribs)
+            ( occsOrNothing
             ++ [ Element.el
-                  (nodeAttributes hovered marked id)
-                  (viewSlice sw) ]
+                  nodeAttribs
+                  (viewSlice sw editable) ]
             ++ depsOrNothing)))
     _ -> Element.text "Faulty SliceNode: Expanded but no children"
 
@@ -603,7 +632,7 @@ viewListNode nodes { hovered, marked, id } =
     (viewCollapsable
       id
       (Element.column
-        []
+        [ Element.spacing 5 ]
         (List.map viewNode nodes)))
 
 
@@ -619,8 +648,8 @@ renderFragment slice =
     (Slice _ _ (Fragment codes) _ _) ->
       String.concat (List.intersperse "\n" codes)
 
-viewSlice : SliceWrap -> Element Msg
-viewSlice sw =
+viewSlice : SliceWrap -> Bool -> Element Msg
+viewSlice sw editable =
   let
     renderedFragment = renderFragment sw.slice
     highlightDict =
@@ -637,7 +666,12 @@ viewSlice sw =
         (extractReferences sw.slice)
       |> Dict.fromList
   in
-    editorField renderedFragment (\_ -> Nop) highlightDict
+    if editable then
+      editorField renderedFragment (\_ -> Nop) highlightDict
+    else
+      Element.el
+        [ Events.onClick (Editor (MakeEditable sw.id)) ]
+        (syntaxHighlight renderedFragment highlightDict)
 
 -- monokai background color
 monokai_black = (Element.rgb255 35 36 31)
@@ -703,7 +737,7 @@ editorField txt onChange dict =
             [ Element.height Element.shrink
             , Element.width Element.shrink
             , Background.color (Element.rgba 0 0 0 0)
-            , Font.color (Element.rgba 0 0 0 1)
+            , Font.color (Element.rgba 0 0 0 0)
             , Element.spacing 0
             , Element.padding 0
             , Border.width 0
@@ -713,6 +747,6 @@ editorField txt onChange dict =
             { onChange = onChange
             , text = txt
             , placeholder = Nothing
-            , label = Input.labelHidden "editing Area"
+            , label = Input.labelHidden (String.left 5 txt)
             , spellcheck = False
             })
