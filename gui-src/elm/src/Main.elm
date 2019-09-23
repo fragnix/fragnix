@@ -606,7 +606,7 @@ viewNode node =
 
 -- | Collapsed
 viewCollapsedNode : Node -> Element Msg
-viewCollapsedNode { hovered, marked, id, content } =
+viewCollapsedNode { marked, id, content } =
   let
     fontColor = case content of
       SliceNode _ ->
@@ -617,8 +617,10 @@ viewCollapsedNode { hovered, marked, id, content } =
     Element.el
       ([ Events.onClick (Editor {target = id, action = Expand})
        , Element.pointer
+       , Element.mouseOver [ Background.color monokai_grey ]
        ]
-      ++ (nodeAttributes hovered marked id) ++ fontColor)
+      ++ (if marked then [ Background.color monokai_grey ] else [])
+      ++ fontColor)
       (viewTeaser content)
 
 viewTeaser : NodeContent -> Element Msg
