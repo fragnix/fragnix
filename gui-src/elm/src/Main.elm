@@ -563,33 +563,35 @@ viewSliceNode sw { hovered, marked, id, children, editable } =
   case children of
     Expanded (occs :: deps :: _) ->
       let
-        occsOrNothing =
-          if isEmptyNode occs || (occs.children == Collapsed && not hovered && not editable) then
-            []
+        (smallOccs, smallDeps) =
+          if hovered || editable then
+            ( if occs.children == Collapsed then viewIfNotEmpty occs else []
+            , if deps.children == Collapsed then viewIfNotEmpty deps else []
+            )
           else
-            [ viewNode occs ]
-        depsOrNothing =
-          if isEmptyNode deps || (deps.children == Collapsed && not hovered && not editable) then
-            []
-          else
-            [ viewNode deps ]
-        (colAttribs, nodeAttribs) =
-          if hovered && occs.children == Collapsed && deps.children == Collapsed then
-            ((nodeAttributes hovered marked id), [])
-          else
-            ([], (nodeAttributes hovered marked id))
+            ( [], [] )
+
+        (bigOccs, bigDeps) =
+          ( if occs.children /= Collapsed then viewIfNotEmpty occs else []
+          , if deps.children /= Collapsed then viewIfNotEmpty deps else []
+          )
+
+        viewIfNotEmpty n =
+          if isEmptyNode n then [] else [ viewNode n ]
       in
         (viewCollapsable
           id
           (Element.column
-            ([ Element.width Element.fill
+            [ Element.width Element.fill
             , Element.spacing 8
-            ] ++ colAttribs)
-            ( occsOrNothing
-            ++ [ Element.el
-                  nodeAttribs
-                  (viewSlice sw editable id) ]
-            ++ depsOrNothing)))
+            ]
+            ( bigOccs ++
+              [ Element.column
+                  ((Element.spacing 8) :: (nodeAttributes hovered marked id))
+                  ( smallOccs ++ [(viewSlice sw editable id)] ++ smallDeps )
+              ]
+              ++ bigDeps)))
+
     _ -> Element.text "Faulty SliceNode: Expanded but no children"
 
 viewCollapsable : SliceID -> Element Msg -> Element Msg

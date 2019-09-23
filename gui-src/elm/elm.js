@@ -16063,10 +16063,10 @@ var author$project$Main$viewSlice = F3(
 			A2(author$project$Main$syntaxHighlight, renderedFragment, highlightDict));
 	});
 var author$project$Main$viewListNode = F2(
-	function (nodes, _n7) {
-		var hovered = _n7.V;
-		var marked = _n7.W;
-		var id = _n7.g;
+	function (nodes, _n8) {
+		var hovered = _n8.V;
+		var marked = _n8.W;
+		var id = _n8.g;
 		return A2(
 			mdgriffith$elm_ui$Element$el,
 			_List_Nil,
@@ -16082,21 +16082,21 @@ var author$project$Main$viewListNode = F2(
 					A2(elm$core$List$map, author$project$Main$viewNode, nodes))));
 	});
 var author$project$Main$viewNode = function (node) {
-	var _n5 = node.m;
-	if (!_n5.$) {
+	var _n6 = node.m;
+	if (!_n6.$) {
 		return author$project$Main$viewCollapsedNode(node);
 	} else {
-		var children = _n5.a;
-		var _n6 = node.w;
-		switch (_n6.$) {
+		var children = _n6.a;
+		var _n7 = node.w;
+		switch (_n7.$) {
 			case 0:
-				var sw = _n6.a;
+				var sw = _n7.a;
 				return A2(author$project$Main$viewSliceNode, sw, node);
 			case 1:
-				var occs = _n6.a;
+				var occs = _n7.a;
 				return A2(author$project$Main$viewListNode, children, node);
 			default:
-				var deps = _n6.a;
+				var deps = _n7.a;
 				return A2(author$project$Main$viewListNode, children, node);
 		}
 	}
@@ -16113,44 +16113,53 @@ var author$project$Main$viewSliceNode = F2(
 			var occs = _n2.a;
 			var _n3 = _n2.b;
 			var deps = _n3.a;
-			var occsOrNothing = (author$project$Main$isEmptyNode(occs) || (_Utils_eq(occs.m, author$project$Main$Collapsed) && ((!hovered) && (!editable)))) ? _List_Nil : _List_fromArray(
-				[
-					author$project$Main$viewNode(occs)
-				]);
-			var depsOrNothing = (author$project$Main$isEmptyNode(deps) || (_Utils_eq(deps.m, author$project$Main$Collapsed) && ((!hovered) && (!editable)))) ? _List_Nil : _List_fromArray(
-				[
-					author$project$Main$viewNode(deps)
-				]);
-			var _n4 = (hovered && (_Utils_eq(occs.m, author$project$Main$Collapsed) && _Utils_eq(deps.m, author$project$Main$Collapsed))) ? _Utils_Tuple2(
-				A3(author$project$Main$nodeAttributes, hovered, marked, id),
-				_List_Nil) : _Utils_Tuple2(
-				_List_Nil,
-				A3(author$project$Main$nodeAttributes, hovered, marked, id));
-			var colAttribs = _n4.a;
-			var nodeAttribs = _n4.b;
+			var viewIfNotEmpty = function (n) {
+				return author$project$Main$isEmptyNode(n) ? _List_Nil : _List_fromArray(
+					[
+						author$project$Main$viewNode(n)
+					]);
+			};
+			var _n4 = (hovered || editable) ? _Utils_Tuple2(
+				_Utils_eq(occs.m, author$project$Main$Collapsed) ? viewIfNotEmpty(occs) : _List_Nil,
+				_Utils_eq(deps.m, author$project$Main$Collapsed) ? viewIfNotEmpty(deps) : _List_Nil) : _Utils_Tuple2(_List_Nil, _List_Nil);
+			var smallOccs = _n4.a;
+			var smallDeps = _n4.b;
+			var _n5 = _Utils_Tuple2(
+				(!_Utils_eq(occs.m, author$project$Main$Collapsed)) ? viewIfNotEmpty(occs) : _List_Nil,
+				(!_Utils_eq(deps.m, author$project$Main$Collapsed)) ? viewIfNotEmpty(deps) : _List_Nil);
+			var bigOccs = _n5.a;
+			var bigDeps = _n5.b;
 			return A2(
 				author$project$Main$viewCollapsable,
 				id,
 				A2(
 					mdgriffith$elm_ui$Element$column,
+					_List_fromArray(
+						[
+							mdgriffith$elm_ui$Element$width(mdgriffith$elm_ui$Element$fill),
+							mdgriffith$elm_ui$Element$spacing(8)
+						]),
 					_Utils_ap(
-						_List_fromArray(
-							[
-								mdgriffith$elm_ui$Element$width(mdgriffith$elm_ui$Element$fill),
-								mdgriffith$elm_ui$Element$spacing(8)
-							]),
-						colAttribs),
-					_Utils_ap(
-						occsOrNothing,
+						bigOccs,
 						_Utils_ap(
 							_List_fromArray(
 								[
 									A2(
-									mdgriffith$elm_ui$Element$el,
-									nodeAttribs,
-									A3(author$project$Main$viewSlice, sw, editable, id))
+									mdgriffith$elm_ui$Element$column,
+									A2(
+										elm$core$List$cons,
+										mdgriffith$elm_ui$Element$spacing(8),
+										A3(author$project$Main$nodeAttributes, hovered, marked, id)),
+									_Utils_ap(
+										smallOccs,
+										_Utils_ap(
+											_List_fromArray(
+												[
+													A3(author$project$Main$viewSlice, sw, editable, id)
+												]),
+											smallDeps)))
 								]),
-							depsOrNothing))));
+							bigDeps))));
 		} else {
 			return mdgriffith$elm_ui$Element$text('Faulty SliceNode: Expanded but no children');
 		}
