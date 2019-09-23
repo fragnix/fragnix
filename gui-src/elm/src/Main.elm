@@ -25,6 +25,8 @@ import Element.Font as Font
 import Element.Input as Input
 import Element.Events as Events
 
+import Cmd.Extra exposing (perform)
+
 main =
   Browser.element { init = init, update = update, view = view, subscriptions = (\_ -> Sub.none) }
 
@@ -34,7 +36,7 @@ type alias Flags = E.Value
 
 init : Flags -> (Model, Cmd Msg)
 init _ =
-  ( { emptyModel | error = Just "Loading and analyzing slices..." }
+  ( { emptyModel | page = Loading ["Requesting Slices..."] }
   , getAllSlices
   )
 
@@ -67,15 +69,30 @@ httpErrorToString err =
 
 -- | MODEL
 
--- | Editor State
+-- | Global State
 type alias Model =
   { main:  Maybe SliceID
-  , root: Maybe Node
+  , page: Page
   , slices: List SliceWrap
   , cache: Dict SliceID SliceWrap
   , error: Maybe String
   }
 
+emptyModel : Model
+emptyModel =
+  { main = Nothing
+  , page = Loading []
+  , slices = []
+  , cache = Dict.empty
+  , error = Nothing
+  }
+
+type Page
+  = Loading (List String)
+  | TreeView Node
+
+
+-- | Editor State
 type alias Node =
   { hovered: Bool
   , marked: Bool
@@ -104,19 +121,11 @@ type NodeContent
  | Occurences (List SliceWrap)
  | Dependencies (List SliceWrap)
 
-emptyModel : Model
-emptyModel =
-  { main = Nothing
-  , root = Nothing
-  , slices = []
-  , cache = Dict.empty
-  , error = Nothing
-  }
-
 -- | UPDATE
 
 type Msg
   = ReceivedSlices (Result Http.Error (List Slice))
+  | LoadingStep Step
   | Error String
   | CloseError
   | Editor EditorAction
@@ -139,6 +148,12 @@ type Action
   | Frame
   | Unframe
 
+type Step
+  = IndexSlices (List Slice)
+  | ComputeOccurences
+  | CheckIntegrity
+  | FindMain
+
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
@@ -149,9 +164,18 @@ update msg model =
           , Cmd.none
           )
         Ok slices ->
-          ( loadSlices slices { model | error = Nothing },
-            Cmd.none
-          )
+          case model.page of
+            Loading msgs ->
+              ( { model | page = Loading (msgs ++ ["Received Slices. Indexing..."]) },
+                perform (LoadingStep (IndexSlices slices))
+              )
+            _ ->
+              ( { model | error = Just "Received Slices but was not in a loading state."}
+              , Cmd.none
+              )
+
+    LoadingStep step ->
+      loadingUpdate step model
 
     Error err ->
       ( { model | error = Just err }
@@ -167,19 +191,19 @@ update msg model =
       ( model, Cmd.none )
 
     Editor action ->
-      case model.root of
-        Just r ->
+      case model.page of
+        TreeView r ->
           case nodeUpdate action model.cache r of
             Ok newRoot ->
-              ( { model | root = Just newRoot }
+              ( { model | page = TreeView newRoot }
               , Cmd.none
               )
             Err err ->
               ( { model | error = Just err }
               , Cmd.none
               )
-        Nothing ->
-          ( { model | error = Just "Received editor action but no editor" }
+        _ ->
+          ( { model | error = Just "How the heck did I get here? I was asked to manipulate a TreeView Page but it does not seem to exist." }
           , Cmd.none
           )
 
@@ -213,7 +237,6 @@ nodeUpdate action cache node =
   else
     Ok node
 
-
 propagateUpdate : EditorAction -> Dict SliceID SliceWrap -> Node -> Result String Node
 propagateUpdate action cache node =
   case node.children of
@@ -230,6 +253,7 @@ collapseNode : Node -> Result String Node
 collapseNode node =
   Ok { node | children = Collapsed }
 
+-- | create the children of a node
 expandNode : Dict SliceID SliceWrap -> Node -> Result String Node
 expandNode cache node =
   if node.children /= Collapsed then
@@ -276,12 +300,14 @@ expandNode cache node =
               deps)
         } |> Ok
 
+-- Load slicewrap from cache
 fetch : Dict SliceID SliceWrap -> SliceID -> Result String SliceWrap
 fetch cache sid =
   case Dict.get sid cache of
     Nothing -> Err ("Missing slice: " ++ sid)
     Just sw -> Ok sw
 
+-- Load a bunch of slicewraps from cache
 fetchMap : Dict SliceID SliceWrap -> List SliceID -> Result String (List SliceWrap)
 fetchMap cache sids =
   List.map (fetch cache) sids
@@ -315,6 +341,38 @@ combineResults =
       (Ok [])
 
 -- | ReceivedSlices
+
+loadingUpdate : Step -> Model -> (Model, Cmd Msg)
+loadingUpdate step model =
+  case model.page of
+    Loading msgs ->
+      case step of
+        IndexSlices slices ->
+          ( { model | page = Loading (msgs ++ ["Computing Occurences..."]) }
+            |> insertSlices slices
+            |> indexSlices
+          , perform (LoadingStep ComputeOccurences)
+          )
+        ComputeOccurences ->
+          ( { model | page = Loading (msgs ++ ["Performing Integrity Check..."]) }
+            |> computeOccurences
+          , perform (LoadingStep CheckIntegrity)
+          )
+        CheckIntegrity ->
+          ( { model | page = Loading (msgs ++ ["Looking for main..."]) }
+            |> performIntegrityCheck
+          , perform (LoadingStep FindMain)
+          )
+        FindMain ->
+          ( model
+            |> findMain
+            |> setRoot
+          , Cmd.none
+          )
+    _ ->
+      ( { model | error = Just "Trying to load slices but not in a loading state"}
+      , Cmd.none
+      )
 
 loadSlices : List Slice -> Model -> Model
 loadSlices slices model =
@@ -430,8 +488,8 @@ setRoot model =
       Nothing ->
         { model | error = Just "No slices found" }
       Just sw ->
-        { model | root =
-          Just { defaultNode | content = SliceNode sw, id = sw.id}
+        { model | page =
+          TreeView { defaultNode | content = SliceNode sw, id = sw.id}
         }
 
 -- | VIEW
@@ -439,9 +497,18 @@ view : Model -> Html Msg
 view model =
   (case model.error of
     Just err -> viewErrMsg err
-    Nothing  -> viewEditor model)
+    Nothing  -> viewPage model)
   |> createHtml
 
+viewPage : Model -> Element Msg
+viewPage model =
+  case model.page of
+    TreeView node ->
+      viewEditor node
+    Loading msgs ->
+      viewLoading msgs
+
+-- | Layout element and add the inescapable css
 createHtml : Element Msg -> Html Msg
 createHtml el =
   Element.row
@@ -457,6 +524,7 @@ createHtml el =
     ]
   |> Element.layoutWith { options = options } []
 
+-- | prevent any default focus styling from interfering
 options : List Element.Option
 options =
   [ Element.focusStyle
@@ -466,14 +534,10 @@ options =
       }
   ]
 
+-- | If something went fatally wrong
 viewErrMsg : String -> Element Msg
 viewErrMsg err =
-  Element.el
-    [ Background.color monokai_black
-    , Font.color monokai_white
-    , Element.width Element.fill
-    , Element.height Element.fill
-    ]
+  basicLayout
     ( Element.column
         [ Element.padding 10
         , Element.spacing 7
@@ -485,12 +549,34 @@ viewErrMsg err =
             (Element.text err)
         , Input.button
             [ Font.color (Element.rgb 1 1 1) ]
-            { onPress = Just CloseError, label = Element.text "Ignore and show editor"}
+            { onPress = Just CloseError, label = Element.text "Ignore" }
         ]
     )
 
-viewEditor : Model -> Element Msg
-viewEditor model =
+-- | Slightly nicer loading screen
+viewLoading : List String -> Element Msg
+viewLoading msgs =
+  basicLayout
+    ( Element.column
+        [ Element.padding 10
+        , Element.spacing 7
+        ]
+        (List.map Element.text msgs)
+    )
+
+basicLayout : Element Msg -> Element Msg
+basicLayout elem =
+  Element.el
+    [ Background.color monokai_black
+    , Font.color monokai_white
+    , Element.width Element.fill
+    , Element.height Element.fill
+    ]
+    elem
+
+-- | View the editor
+viewEditor : Node -> Element Msg
+viewEditor node =
   Element.el
     [ Element.padding 10
     , Background.color monokai_black
@@ -501,10 +587,9 @@ viewEditor model =
     , Element.width Element.fill
     , Element.height Element.fill
     ]
-    (case model.root of
-      Just r -> viewNode r
-      Nothing -> Element.text "No slice chosen.")
+    (viewNode node)
 
+-- | Recursively view the editor model
 viewNode : Node -> Element Msg
 viewNode node =
   case node.children of
@@ -519,6 +604,7 @@ viewNode node =
         Dependencies deps ->
           viewListNode children node
 
+-- | Collapsed
 viewCollapsedNode : Node -> Element Msg
 viewCollapsedNode { hovered, marked, id, content } =
   let
@@ -559,13 +645,7 @@ viewTeaser content =
           Element.text
             ("⮟ show " ++ l ++ " dependencies")
 
-isEmptyNode : Node -> Bool
-isEmptyNode { content } =
-  case content of
-    Occurences   [] -> True
-    Dependencies [] -> True
-    _               -> False
-
+-- Expanded - Slice
 viewSliceNode : SliceWrap -> Node -> Element Msg
 viewSliceNode sw { hovered, marked, id, children, editable, framed } =
   case children of
@@ -603,68 +683,18 @@ viewSliceNode sw { hovered, marked, id, children, editable, framed } =
 
     _ -> Element.text "Faulty SliceNode: Expanded but no children"
 
-frameIf : Bool -> List (Element.Attribute Msg)
-frameIf framed =
-  if framed then
-     [ Border.width 1, Border.color monokai_white ]
-   else
-     [ Border.width 1, Border.color monokai_black ]
-
-
-viewCollapsable : SliceID -> Element Msg -> Element Msg
-viewCollapsable sid content =
-  Element.row
-    [ Element.spacing 5 ]
-    [ (Element.column
-        [ Element.height Element.fill
-        , Events.onClick (Editor {target = sid, action = Collapse})
-        , Events.onMouseEnter (Editor {target = sid, action = Frame})
-        , Events.onMouseLeave (Editor {target = sid, action = Unframe})
-        , Element.pointer
-        , Font.color actual_black
-        , Element.mouseOver [ Background.color monokai_grey ]
-        ]
-        [ {- Element.el
-            [ Element.alignTop ]
-            ( Element.text "⮟" )
-        ,-} Element.el
-            [ Element.centerX
-            , Element.width (Element.px 1)
-            , Element.height Element.fill
-            , Border.widthEach { bottom = 0, left = 0, right = 1, top = 0 }
-            , Border.color actual_black
-            ]
-            Element.none
-        , Element.el
-            [ Element.alignBottom ]
-            ( Element.text "⮝" )
-        ]
-      )
-    , content
-    ]
-
-viewListNode : List Node -> Node -> Element Msg
-viewListNode nodes { hovered, marked, framed, id } =
-  Element.el
-    (frameIf framed)
-    (viewCollapsable
-      id
-      (Element.column
-        [ Element.spacing 16 ]
-        (List.map viewNode nodes)))
-
+isEmptyNode : Node -> Bool
+isEmptyNode { content } =
+  case content of
+    Occurences   [] -> True
+    Dependencies [] -> True
+    _               -> False
 
 nodeAttributes : Bool -> Bool -> SliceID -> List (Element.Attribute Msg)
 nodeAttributes hovered marked sid =
   [ Events.onMouseEnter (Editor {target = sid, action = Hover})
   , Events.onMouseLeave (Editor {target = sid, action = Unhover})
   ] ++ (if marked || hovered then [ Background.color monokai_grey ] else [])
-
-renderFragment : Slice -> String
-renderFragment slice =
-  case slice of
-    (Slice _ _ (Fragment codes) _ _) ->
-      String.concat (List.intersperse "\n" codes)
 
 viewSlice : SliceWrap -> Bool -> String -> Element Msg
 viewSlice sw editable nodeId =
@@ -678,8 +708,6 @@ viewSlice sw editable nodeId =
                 (Editor {target = nodeId ++ "dep" ++ mid, action = Mark})
             , onMouseLeave
                 (Editor {target = nodeId ++ "dep" ++ mid, action = Unmark})
-            , onClick
-                (Editor {target = nodeId ++ "dep" ++ mid, action = Expand})
             , class "reference"
             ]
           )
@@ -713,7 +741,62 @@ viewSlice sw editable nodeId =
         ]
         (syntaxHighlight renderedFragment highlightDict)
 
--- monokai background color
+-- | Expanded - Occurences/Dependencies
+
+viewListNode : List Node -> Node -> Element Msg
+viewListNode nodes { hovered, marked, framed, id } =
+  Element.el
+    (frameIf framed)
+    (viewCollapsable
+      id
+      (Element.column
+        [ Element.spacing 16 ]
+        (List.map viewNode nodes)))
+
+-- | Common helpers
+
+viewCollapsable : SliceID -> Element Msg -> Element Msg
+viewCollapsable sid content =
+  Element.row
+    [ Element.spacing 5 ]
+    [ (Element.column
+        [ Element.height Element.fill
+        , Events.onClick (Editor {target = sid, action = Collapse})
+        , Events.onMouseEnter (Editor {target = sid, action = Frame})
+        , Events.onMouseLeave (Editor {target = sid, action = Unframe})
+        , Element.pointer
+        , Font.color actual_black
+        , Element.mouseOver [ Background.color monokai_grey ]
+        ]
+        [ {- Element.el
+            [ Element.alignTop ]
+            ( Element.text "⮟" )
+        ,-} Element.el
+            [ Element.centerX
+            , Element.width (Element.px 1)
+            , Element.height Element.fill
+            , Border.widthEach { bottom = 0, left = 0, right = 1, top = 0 }
+            , Border.color actual_black
+            ]
+            Element.none
+        , Element.el
+            [ Element.alignBottom ]
+            ( Element.text "⮝" )
+        ]
+      )
+    , content
+    ]
+
+
+frameIf : Bool -> List (Element.Attribute Msg)
+frameIf framed =
+  if framed then
+     [ Border.width 1, Border.color monokai_white ]
+   else
+     [ Border.width 1, Border.color monokai_black ]
+
+
+-- | COLOR PALETTE
 monokai_black = (Element.rgb255 35 36 31)
 monokai_grey = (Element.rgb255 51 52 47)
 monokai_white = (Element.rgb255 247 247 241)
@@ -725,17 +808,16 @@ edges =
    , bottom = 0
    , left = 0
    }
+
+
+-- | SYNTAX HIGHLIGHTING
 monokai_colors_css =
   ".elmsh {color: #f8f8f2;}.elmsh-hl {background: #343434;}.elmsh-add {background: #003800;}.elmsh-del {background: #380000;}.elmsh-comm {color: #75715e;}.elmsh1 {color: #ae81ff;}.elmsh2 {color: #e6db74;}.elmsh3 {color: #f92672;}.elmsh4 {color: #66d9ef;}.elmsh5 {color: #a6e22e;}.elmsh6 {color: #ae81ff;}.elmsh7 {color: #fd971f;}.elmsh-elm-ts, .elmsh-js-dk, .elmsh-css-p {font-style: italic;color: #66d9ef;}.elmsh-js-ce {font-style: italic;color: #a6e22e;}.elmsh-css-ar-i {font-weight: bold;color: #f92672;}"
-{-
-monokai_colors_css =
-    ".elmsh {color: #f8f8f2;background: #23241f;}.elmsh-hl {background: #343434;}.elmsh-add {background: #003800;}.elmsh-del {background: #380000;}.elmsh-comm {color: #75715e;}.elmsh1 {color: #ae81ff;}.elmsh2 {color: #e6db74;}.elmsh3 {color: #f92672;}.elmsh4 {color: #66d9ef;}.elmsh5 {color: #a6e22e;}.elmsh6 {color: #ae81ff;}.elmsh7 {color: #fd971f;}.elmsh-elm-ts, .elmsh-js-dk, .elmsh-css-p {font-style: italic;color: #66d9ef;}.elmsh-js-ce {font-style: italic;color: #a6e22e;}.elmsh-css-ar-i {font-weight: bold;color: #f92672;}"
--}
-
 show_caret_css =
   "textarea {caret-color: white;}"
 reference_css =
   ".reference {text-decoration: underline;}.reference:hover {cursor:pointer;}"
+
 
 type alias HighlightDict = Dict String (List (Html.Attribute Msg))
 

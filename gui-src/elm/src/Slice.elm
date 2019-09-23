@@ -55,6 +55,13 @@ type alias SliceWrap =
 
 -- | HELPER FUNCTIONS
 
+-- | render the "content" of the slice
+renderFragment : Slice -> String
+renderFragment slice =
+  case slice of
+    (Slice _ _ (Fragment codes) _ _) ->
+      String.concat (List.intersperse "\n" codes)
+
 -- | all References as Tuple of used Name and referenced SliceID
 extractReferences : Slice -> List (String, SliceID)
 extractReferences slice =
