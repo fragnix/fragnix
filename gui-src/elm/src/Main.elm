@@ -592,8 +592,7 @@ viewSliceNode sw { hovered, marked, id, children, editable, framed } =
           (viewCollapsable
             id
             (Element.column
-              [ Element.width Element.fill
-              , Element.spacing 8
+              [ Element.spacing 8
               ]
               ( bigOccs ++
                 [ Element.column
@@ -727,7 +726,8 @@ syntaxHighlight txt dict =
             , h
             ] ) -}
     |> Result.map Element.html
-    |> Result.map (Element.el [] )
+    -- padding to the right is needed to prevent overlayed text from breaking too early
+    |> Result.map (Element.el [ Element.paddingEach { edges | right = 3 } ])
     |> Result.mapError Parser.deadEndsToString
     |> (\result ->
             case result of
@@ -737,6 +737,13 @@ syntaxHighlight txt dict =
                 Result.Err x ->
                     Element.text x
        )
+
+edges =
+   { top = 0
+   , right = 0
+   , bottom = 0
+   , left = 0
+   }
 
 -- create inline HTML of code
 inlineSH : String -> Element Msg
@@ -754,23 +761,27 @@ inlineSH txt =
 editorField : String -> (String -> Msg) -> HighlightDict -> Element Msg
 editorField txt onChange dict =
     Element.el
-        [ Element.behindContent (syntaxHighlight txt dict)
+        [ Element.inFront (invisibleTextarea txt onChange) 
+        , Border.width 1
+        , Border.color monokai_grey
         ]
-        (Input.multiline
-            [ Element.height Element.shrink
-            , Element.width Element.shrink
-            , Background.color (Element.rgba 0 0 0 0)
-            , Font.color (Element.rgba 0 0 0 0)
-            , Element.spacing 0
-            , Element.padding 0
-            , Border.width 1
-            , Border.color monokai_grey
-            , Border.rounded 0
-            , Border.glow (Element.rgba 0 0 0 0) 0.0
-            ]
-            { onChange = onChange
-            , text = txt
-            , placeholder = Nothing
-            , label = Input.labelHidden (String.left 5 txt)
-            , spellcheck = False
-            })
+        (syntaxHighlight txt dict)
+
+invisibleTextarea : String -> (String -> Msg) -> Element Msg
+invisibleTextarea txt onChange =
+  Input.multiline
+      [ Element.height Element.shrink
+      , Element.width Element.shrink
+      , Background.color (Element.rgba 0 0 0 0)
+      , Font.color (Element.rgba 0 0 0 0)
+      , Element.spacing 0
+      , Element.padding 0
+      , Border.rounded 0
+      , Border.glow (Element.rgba 0 0 0 0) 0.0
+      ]
+      { onChange = onChange
+      , text = txt
+      , placeholder = Nothing
+      , label = Input.labelHidden (String.left 5 txt)
+      , spellcheck = False
+      }
