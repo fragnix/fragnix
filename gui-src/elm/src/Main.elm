@@ -120,15 +120,20 @@ type Msg
   | Editor EditorAction
   | Nop
 
-type EditorAction
-  = Expand SliceID
-  | Collapse SliceID
-  | Mark SliceID
-  | Unmark SliceID
-  | Hover SliceID
-  | Unhover SliceID
-  | MakeEditable SliceID
-  | MakeStatic SliceID
+type alias EditorAction =
+  { target: String
+  , action: Action
+  }
+
+type Action
+  = Expand
+  | Collapse
+  | Mark
+  | Unmark
+  | Hover
+  | Unhover
+  | MakeEditable
+  | MakeStatic
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -176,49 +181,30 @@ update msg model =
 
 nodeUpdate: EditorAction -> Dict SliceID SliceWrap -> Node -> Result String Node
 nodeUpdate action cache node =
-  case action of
-    Mark sid ->
-      if node.id == sid then
-        Ok { node | marked = True }
-      else
-        propagateUpdate action cache node
-    Unmark sid ->
-      if node.id == sid then
-        Ok { node | marked = False }
-      else
-        propagateUpdate action cache node
-    Hover sid ->
-      if node.id == sid then
-        Ok { node | hovered = True }
-      else
-        propagateUpdate action cache node
-    Unhover sid ->
-      if node.id == sid then
-        Ok { node | hovered = False }
-      else
-        propagateUpdate action cache node
-    Expand sid ->
-      if node.id == sid then
-        expandNode cache node
-      else
-        propagateUpdate action cache node
-    Collapse sid ->
-      if node.id == sid then
-        collapseNode node
-      else
-        propagateUpdate action cache node
-    MakeEditable sid ->
-      if node.id == sid then
-        Ok { node | editable = True }
-      else
-        propagateUpdate action cache node
-    MakeStatic sid ->
-      if node.id == sid then
-        Ok { node | editable = False }
-      else
-        propagateUpdate action cache node
+  if String.startsWith node.id action.target then
+    if node.id == action.target then
+      case action.action of
+        Mark ->
+          Ok { node | marked = True }
+        Unmark ->
+          Ok { node | marked = False }
+        Hover ->
+          Ok { node | hovered = True }
+        Unhover ->
+          Ok { node | hovered = False }
+        Expand ->
+          expandNode cache node
+        Collapse ->
+          collapseNode node
+        MakeEditable ->
+          Ok { node | editable = True }
+        MakeStatic ->
+          Ok { node | editable = False }
+    else
+      propagateUpdate action cache node
+  else
+    Ok node
 
--- end nodeUpdate
 
 propagateUpdate : EditorAction -> Dict SliceID SliceWrap -> Node -> Result String Node
 propagateUpdate action cache node =
@@ -250,11 +236,11 @@ expandNode cache node =
         |> Result.map (\(occs, deps) ->
           { node | children = Expanded
             [ { defaultNode |
-                id = sw.id ++ "occ"
+                id = node.id ++ "occ"
                 , content = Occurences occs
               }
             , { defaultNode |
-                id = sw.id ++ "dep"
+                id = node.id ++ "dep"
                 , content = Dependencies deps
               }
             ]
@@ -264,7 +250,7 @@ expandNode cache node =
             (List.map
               (\sw ->
                 { defaultNode |
-                    id = sw.id
+                    id = node.id ++ sw.id
                     , content = SliceNode sw
                 }
               )
@@ -275,7 +261,7 @@ expandNode cache node =
             (List.map
               (\sw ->
                 { defaultNode |
-                    id = sw.id
+                    id = node.id ++ sw.id
                     , content = SliceNode sw
                 }
               )
@@ -362,16 +348,11 @@ computeOccurences model =
     { model | cache = fullCache, slices = fullSlices }
 
 addOccurences : SliceWrap -> (Dict SliceID SliceWrap) -> (Dict SliceID SliceWrap)
-addOccurences sw dict =
-  case sw.slice of
-    (Slice occId _ _ uses _) ->
-      List.foldl
-        (\u acc -> case u of
-          (Use _ _ ref) -> case ref of
-            OtherSlice sid -> addOccurence sid occId acc
-            _              -> acc)
-        dict
-        uses
+addOccurences { id, slice } dict =
+  List.foldl
+    (\sid acc -> addOccurence sid id acc)
+    dict
+    (extractDependencies slice)
 
 addOccurence : SliceID -> SliceID -> (Dict SliceID SliceWrap) -> (Dict SliceID SliceWrap)
 addOccurence sid occId dict =
@@ -540,7 +521,7 @@ viewCollapsedNode { hovered, marked, id, content } =
         [ Font.color actual_black ]
   in
     Element.el
-      ([ Events.onClick (Editor (Expand id))
+      ([ Events.onClick (Editor {target = id, action = Expand})
        , Element.pointer
        ]
       ++ (nodeAttributes hovered marked id) ++ fontColor)
@@ -561,18 +542,21 @@ viewTeaser content =
         ]
     Occurences occs ->
       case String.fromInt (List.length occs) of
-        "0" ->
-          Element.none
         l ->
           Element.text
             ("⮟ show " ++ l ++ " occurences")
     Dependencies deps ->
       case String.fromInt (List.length deps) of
-        "0" ->
-          Element.none
         l ->
           Element.text
             ("⮟ show " ++ l ++ " dependencies")
+
+isEmptyNode : Node -> Bool
+isEmptyNode { content } =
+  case content of
+    Occurences   [] -> True
+    Dependencies [] -> True
+    _               -> False
 
 viewSliceNode : SliceWrap -> Node -> Element Msg
 viewSliceNode sw { hovered, marked, id, children, editable } =
@@ -580,12 +564,12 @@ viewSliceNode sw { hovered, marked, id, children, editable } =
     Expanded (occs :: deps :: _) ->
       let
         occsOrNothing =
-          if occs.children == Collapsed && not hovered && not editable then
+          if isEmptyNode occs || (occs.children == Collapsed && not hovered && not editable) then
             []
           else
             [ viewNode occs ]
         depsOrNothing =
-          if deps.children == Collapsed && not hovered && not editable then
+          if isEmptyNode deps || (deps.children == Collapsed && not hovered && not editable) then
             []
           else
             [ viewNode deps ]
@@ -604,7 +588,7 @@ viewSliceNode sw { hovered, marked, id, children, editable } =
             ( occsOrNothing
             ++ [ Element.el
                   nodeAttribs
-                  (viewSlice sw editable) ]
+                  (viewSlice sw editable id) ]
             ++ depsOrNothing)))
     _ -> Element.text "Faulty SliceNode: Expanded but no children"
 
@@ -614,7 +598,7 @@ viewCollapsable sid content =
     [ Element.spacing 5 ]
     [ (Element.column
         [ Element.height Element.fill
-        , Events.onClick (Editor (Collapse sid))
+        , Events.onClick (Editor {target = sid, action = Collapse})
         , Element.pointer
         , Font.color actual_black
         ]
@@ -650,8 +634,8 @@ viewListNode nodes { hovered, marked, id } =
 
 nodeAttributes : Bool -> Bool -> SliceID -> List (Element.Attribute Msg)
 nodeAttributes hovered marked sid =
-  [ Events.onMouseEnter (Editor (Hover sid))
-  , Events.onMouseLeave (Editor (Unhover sid))
+  [ Events.onMouseEnter (Editor {target = sid, action = Hover})
+  , Events.onMouseLeave (Editor {target = sid, action = Unhover})
   ] ++ (if marked || hovered then [ Background.color monokai_grey ] else [])
 
 renderFragment : Slice -> String
@@ -660,17 +644,20 @@ renderFragment slice =
     (Slice _ _ (Fragment codes) _ _) ->
       String.concat (List.intersperse "\n" codes)
 
-viewSlice : SliceWrap -> Bool -> Element Msg
-viewSlice sw editable =
+viewSlice : SliceWrap -> Bool -> String -> Element Msg
+viewSlice sw editable nodeId =
   let
     renderedFragment = renderFragment sw.slice
     highlightDict =
       List.map
         (Tuple.mapSecond
           (\mid ->
-            [ onMouseEnter (Editor (Mark mid))
-            , onMouseLeave (Editor (Unmark mid))
-            , onClick (Editor (Expand mid))
+            [ onMouseEnter
+                (Editor {target = nodeId ++ "dep" ++ mid, action = Mark})
+            , onMouseLeave
+                (Editor {target = nodeId ++ "dep" ++ mid, action = Unmark})
+            , onClick
+                (Editor {target = nodeId ++ "dep" ++ mid, action = Expand})
             , class "reference"
             ]
           )
@@ -682,7 +669,7 @@ viewSlice sw editable =
       editorField renderedFragment (\_ -> Nop) highlightDict
     else
       Element.el
-        [ Events.onClick (Editor (MakeEditable sw.id))
+        [ Events.onClick (Editor {target = sw.id, action = MakeEditable})
         , Element.pointer
         ]
         (syntaxHighlight renderedFragment highlightDict)
