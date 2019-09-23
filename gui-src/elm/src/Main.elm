@@ -692,7 +692,7 @@ viewSlice sw editable nodeId =
       editorField renderedFragment (\_ -> Nop) highlightDict
     else
       Element.el
-        [ Events.onClick (Editor {target = sw.id, action = MakeEditable})
+        [ Events.onClick (Editor {target = nodeId, action = MakeEditable})
         ]
         (syntaxHighlight renderedFragment highlightDict)
 

@@ -16230,7 +16230,7 @@ var author$project$Main$viewSlice = F3(
 				[
 					mdgriffith$elm_ui$Element$Events$onClick(
 					author$project$Main$Editor(
-						{s: 6, r: sw.g}))
+						{s: 6, r: nodeId}))
 				]),
 			A2(author$project$Main$syntaxHighlight, renderedFragment, highlightDict));
 	});
