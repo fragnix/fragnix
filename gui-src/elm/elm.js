@@ -15157,11 +15157,12 @@ var author$project$Main$MakeEditable = 6;
 var author$project$Main$Mark = 2;
 var author$project$Main$Nop = {$: 4};
 var author$project$Main$Unmark = 3;
+var mdgriffith$elm_ui$Element$rgba = mdgriffith$elm_ui$Internal$Model$Rgba;
+var author$project$Main$glass = A4(mdgriffith$elm_ui$Element$rgba, 0, 0, 0, 0);
 var elm$core$String$left = F2(
 	function (n, string) {
 		return (n < 1) ? '' : A3(elm$core$String$slice, 0, n, string);
 	});
-var mdgriffith$elm_ui$Element$rgba = mdgriffith$elm_ui$Internal$Model$Rgba;
 var mdgriffith$elm_ui$Internal$Flag$shadows = mdgriffith$elm_ui$Internal$Flag$flag(19);
 var mdgriffith$elm_ui$Internal$Model$boxShadowClass = function (shadow) {
 	return elm$core$String$concat(
@@ -16088,17 +16089,13 @@ var author$project$Main$invisibleTextarea = F2(
 				[
 					mdgriffith$elm_ui$Element$height(mdgriffith$elm_ui$Element$shrink),
 					mdgriffith$elm_ui$Element$width(mdgriffith$elm_ui$Element$shrink),
-					mdgriffith$elm_ui$Element$Background$color(
-					A4(mdgriffith$elm_ui$Element$rgba, 0, 0, 0, 0)),
-					mdgriffith$elm_ui$Element$Font$color(
-					A4(mdgriffith$elm_ui$Element$rgba, 0, 0, 0, 0)),
+					mdgriffith$elm_ui$Element$Background$color(author$project$Main$glass),
+					mdgriffith$elm_ui$Element$Font$color(author$project$Main$glass),
 					mdgriffith$elm_ui$Element$spacing(0),
 					mdgriffith$elm_ui$Element$padding(0),
 					mdgriffith$elm_ui$Element$Border$rounded(0),
-					A2(
-					mdgriffith$elm_ui$Element$Border$glow,
-					A4(mdgriffith$elm_ui$Element$rgba, 0, 0, 0, 0),
-					0.0)
+					mdgriffith$elm_ui$Element$Border$width(0),
+					A2(mdgriffith$elm_ui$Element$Border$glow, author$project$Main$glass, 0.0)
 				]),
 			{
 				bM: mdgriffith$elm_ui$Element$Input$labelHidden(
@@ -16184,9 +16181,7 @@ var author$project$Main$editorField = F3(
 			_List_fromArray(
 				[
 					mdgriffith$elm_ui$Element$inFront(
-					A2(author$project$Main$invisibleTextarea, txt, onChange)),
-					mdgriffith$elm_ui$Element$Border$width(1),
-					mdgriffith$elm_ui$Element$Border$color(author$project$Main$monokai_grey)
+					A2(author$project$Main$invisibleTextarea, txt, onChange))
 				]),
 			A2(author$project$Main$syntaxHighlight, txt, dict));
 	});
@@ -16230,13 +16225,20 @@ var author$project$Main$viewSlice = F3(
 							]);
 					}),
 				author$project$Slice$extractReferences(sw.ao)));
-		return editable ? A3(
-			author$project$Main$editorField,
-			renderedFragment,
-			function (_n0) {
-				return author$project$Main$Nop;
-			},
-			highlightDict) : A2(
+		return editable ? A2(
+			mdgriffith$elm_ui$Element$el,
+			_List_fromArray(
+				[
+					mdgriffith$elm_ui$Element$Border$width(1),
+					mdgriffith$elm_ui$Element$Border$color(author$project$Main$monokai_grey)
+				]),
+			A3(
+				author$project$Main$editorField,
+				renderedFragment,
+				function (_n0) {
+					return author$project$Main$Nop;
+				},
+				highlightDict)) : A2(
 			mdgriffith$elm_ui$Element$el,
 			_List_fromArray(
 				[

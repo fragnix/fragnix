@@ -688,7 +688,11 @@ viewSlice sw editable nodeId =
       |> Dict.fromList
   in
     if editable then
-      editorField renderedFragment (\_ -> Nop) highlightDict
+      Element.el
+        [ Border.width 1
+        , Border.color monokai_grey
+        ]
+        (editorField renderedFragment (\_ -> Nop) highlightDict)
     else
       Element.el
         [ Events.onClick (Editor {target = nodeId, action = MakeEditable})
@@ -700,6 +704,7 @@ monokai_black = (Element.rgb255 35 36 31)
 monokai_grey = (Element.rgb255 51 52 47)
 monokai_white = (Element.rgb255 247 247 241)
 actual_black = Element.rgb 0 0 0
+glass = Element.rgba 0 0 0 0
 monokai_colors_css =
   ".elmsh {color: #f8f8f2;}.elmsh-hl {background: #343434;}.elmsh-add {background: #003800;}.elmsh-del {background: #380000;}.elmsh-comm {color: #75715e;}.elmsh1 {color: #ae81ff;}.elmsh2 {color: #e6db74;}.elmsh3 {color: #f92672;}.elmsh4 {color: #66d9ef;}.elmsh5 {color: #a6e22e;}.elmsh6 {color: #ae81ff;}.elmsh7 {color: #fd971f;}.elmsh-elm-ts, .elmsh-js-dk, .elmsh-css-p {font-style: italic;color: #66d9ef;}.elmsh-js-ce {font-style: italic;color: #a6e22e;}.elmsh-css-ar-i {font-weight: bold;color: #f92672;}"
 {-
@@ -761,9 +766,7 @@ inlineSH txt =
 editorField : String -> (String -> Msg) -> HighlightDict -> Element Msg
 editorField txt onChange dict =
     Element.el
-        [ Element.inFront (invisibleTextarea txt onChange) 
-        , Border.width 1
-        , Border.color monokai_grey
+        [ Element.inFront (invisibleTextarea txt onChange)
         ]
         (syntaxHighlight txt dict)
 
@@ -772,12 +775,13 @@ invisibleTextarea txt onChange =
   Input.multiline
       [ Element.height Element.shrink
       , Element.width Element.shrink
-      , Background.color (Element.rgba 0 0 0 0)
-      , Font.color (Element.rgba 0 0 0 0)
+      , Background.color glass
+      , Font.color glass
       , Element.spacing 0
       , Element.padding 0
       , Border.rounded 0
-      , Border.glow (Element.rgba 0 0 0 0) 0.0
+      , Border.width 0
+      , Border.glow glass 0.0
       ]
       { onChange = onChange
       , text = txt
