@@ -688,11 +688,25 @@ viewSlice sw editable nodeId =
       |> Dict.fromList
   in
     if editable then
-      Element.el
-        [ Border.width 1
-        , Border.color monokai_grey
+      Element.row
+        []
+        [ Element.el
+            [ Border.width 1
+            , Border.color monokai_grey
+            ]
+            (editorField renderedFragment (\_ -> Nop) highlightDict)
+        , Element.el
+            [ Events.onClick (Editor {target = nodeId, action = MakeStatic})
+            , Element.pointer
+            , Element.mouseOver [ Background.color monokai_black ]
+            , Font.size 32
+            , Element.height Element.fill
+            , Element.width Element.fill
+            , Element.spaceEvenly
+            , Element.paddingEach {edges | left = 5}
+            ]
+            (Element.text "✓")
         ]
-        (editorField renderedFragment (\_ -> Nop) highlightDict)
     else
       Element.el
         [ Events.onClick (Editor {target = nodeId, action = MakeEditable})
@@ -705,6 +719,12 @@ monokai_grey = (Element.rgb255 51 52 47)
 monokai_white = (Element.rgb255 247 247 241)
 actual_black = Element.rgb 0 0 0
 glass = Element.rgba 0 0 0 0
+edges =
+   { top = 0
+   , right = 0
+   , bottom = 0
+   , left = 0
+   }
 monokai_colors_css =
   ".elmsh {color: #f8f8f2;}.elmsh-hl {background: #343434;}.elmsh-add {background: #003800;}.elmsh-del {background: #380000;}.elmsh-comm {color: #75715e;}.elmsh1 {color: #ae81ff;}.elmsh2 {color: #e6db74;}.elmsh3 {color: #f92672;}.elmsh4 {color: #66d9ef;}.elmsh5 {color: #a6e22e;}.elmsh6 {color: #ae81ff;}.elmsh7 {color: #fd971f;}.elmsh-elm-ts, .elmsh-js-dk, .elmsh-css-p {font-style: italic;color: #66d9ef;}.elmsh-js-ce {font-style: italic;color: #a6e22e;}.elmsh-css-ar-i {font-weight: bold;color: #f92672;}"
 {-
@@ -742,13 +762,6 @@ syntaxHighlight txt dict =
                 Result.Err x ->
                     Element.text x
        )
-
-edges =
-   { top = 0
-   , right = 0
-   , bottom = 0
-   , left = 0
-   }
 
 -- create inline HTML of code
 inlineSH : String -> Element Msg
