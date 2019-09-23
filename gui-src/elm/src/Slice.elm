@@ -67,6 +67,7 @@ extractDependencies : Slice -> List SliceID
 extractDependencies slice =
   extractReferences slice
     |> List.map Tuple.second
+    |> removeDuplicates
 
 -- | Turn a Use into its used String name plus the referenced ID
 -- | or Nothing if it is a builtin Module
