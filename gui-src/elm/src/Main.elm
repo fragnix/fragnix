@@ -83,6 +83,7 @@ type alias Node =
   , children: Children
   , content: NodeContent
   , editable: Bool
+  , framed: Bool
   }
 
 type Children = Collapsed | Expanded (List Node)
@@ -95,6 +96,7 @@ defaultNode =
   , children = Collapsed
   , content = Occurences []
   , editable = False
+  , framed = False
   }
 
 type NodeContent
@@ -134,6 +136,8 @@ type Action
   | Unhover
   | MakeEditable
   | MakeStatic
+  | Frame
+  | Unframe
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -200,6 +204,10 @@ nodeUpdate action cache node =
           Ok { node | editable = True }
         MakeStatic ->
           Ok { node | editable = False }
+        Frame ->
+          Ok { node | framed = True }
+        Unframe ->
+          Ok { node | framed = False }
     else
       propagateUpdate action cache node
   else
@@ -559,7 +567,7 @@ isEmptyNode { content } =
     _               -> False
 
 viewSliceNode : SliceWrap -> Node -> Element Msg
-viewSliceNode sw { hovered, marked, id, children, editable } =
+viewSliceNode sw { hovered, marked, id, children, editable, framed } =
   case children of
     Expanded (occs :: deps :: _) ->
       let
@@ -579,20 +587,30 @@ viewSliceNode sw { hovered, marked, id, children, editable } =
         viewIfNotEmpty n =
           if isEmptyNode n then [] else [ viewNode n ]
       in
-        (viewCollapsable
-          id
-          (Element.column
-            [ Element.width Element.fill
-            , Element.spacing 8
-            ]
-            ( bigOccs ++
-              [ Element.column
-                  ((Element.spacing 8) :: (nodeAttributes hovered marked id))
-                  ( smallOccs ++ [(viewSlice sw editable id)] ++ smallDeps )
+        Element.el
+          (frameIf framed)
+          (viewCollapsable
+            id
+            (Element.column
+              [ Element.width Element.fill
+              , Element.spacing 8
               ]
-              ++ bigDeps)))
+              ( bigOccs ++
+                [ Element.column
+                    ((Element.spacing 8) :: (nodeAttributes hovered marked id))
+                    ( smallOccs ++ [(viewSlice sw editable id)] ++ smallDeps )
+                ]
+                ++ bigDeps)))
 
     _ -> Element.text "Faulty SliceNode: Expanded but no children"
+
+frameIf : Bool -> List (Element.Attribute Msg)
+frameIf framed =
+  if framed then
+     [ Border.width 1, Border.color monokai_white ]
+   else
+     [ Border.width 1, Border.color monokai_black ]
+
 
 viewCollapsable : SliceID -> Element Msg -> Element Msg
 viewCollapsable sid content =
@@ -601,8 +619,11 @@ viewCollapsable sid content =
     [ (Element.column
         [ Element.height Element.fill
         , Events.onClick (Editor {target = sid, action = Collapse})
+        , Events.onMouseEnter (Editor {target = sid, action = Frame})
+        , Events.onMouseLeave (Editor {target = sid, action = Unframe})
         , Element.pointer
         , Font.color actual_black
+        , Element.mouseOver [ Background.color monokai_grey ]
         ]
         [ {- Element.el
             [ Element.alignTop ]
@@ -624,9 +645,9 @@ viewCollapsable sid content =
     ]
 
 viewListNode : List Node -> Node -> Element Msg
-viewListNode nodes { hovered, marked, id } =
+viewListNode nodes { hovered, marked, framed, id } =
   Element.el
-    []
+    (frameIf framed)
     (viewCollapsable
       id
       (Element.column
@@ -672,7 +693,6 @@ viewSlice sw editable nodeId =
     else
       Element.el
         [ Events.onClick (Editor {target = sw.id, action = MakeEditable})
-        , Element.pointer
         ]
         (syntaxHighlight renderedFragment highlightDict)
 
