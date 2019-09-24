@@ -74,9 +74,11 @@ type alias Model =
   { main:  Maybe SliceID
   , page: Page
   , slices: List SliceWrap
-  , cache: Dict SliceID SliceWrap
+  , cache: Cache
   , error: Maybe String
   }
+
+type alias Cache = Dict SliceID SliceWrap
 
 emptyModel : Model
 emptyModel =
@@ -259,14 +261,14 @@ sliceUpdate model target changed =
         )
     |> computeOccurences
 
-cacheUpdate : SliceID -> SliceWrap -> (Dict SliceID SliceWrap) -> (Dict SliceID SliceWrap, List (SliceID, SliceWrap))
+cacheUpdate : SliceID -> SliceWrap -> (Cache) -> (Cache, List (SliceID, SliceWrap))
 cacheUpdate sid new cache =
   updateReferencesRec
     (List.map (\o -> (sid, new.id, o)) new.occurences)
     [(sid, new)]
     (Dict.insert new.id new cache)
 
-updateReferencesRec : List (SliceID, SliceID, SliceID) -> List (SliceID, SliceWrap) -> Dict SliceID SliceWrap -> (Dict SliceID SliceWrap, List (SliceID, SliceWrap))
+updateReferencesRec : List (SliceID, SliceID, SliceID) -> List (SliceID, SliceWrap) -> Cache -> (Cache, List (SliceID, SliceWrap))
 updateReferencesRec queue done cache =
   case queue of
     [] ->
@@ -284,7 +286,7 @@ updateReferencesRec queue done cache =
         Nothing ->
           updateReferencesRec rst done cache
 
-updateReference : SliceID -> SliceID -> SliceID -> Dict SliceID SliceWrap -> Maybe (SliceWrap, Dict SliceID SliceWrap, Bool)
+updateReference : SliceID -> SliceID -> SliceID -> Cache -> Maybe (SliceWrap, Cache, Bool)
 updateReference from to at cache =
   case Dict.get at cache of
     Nothing ->
@@ -341,7 +343,7 @@ updateNodeContents updates node =
 
 
 -- | recursively updating the editor model
-nodeUpdate: EditorAction -> Dict SliceID SliceWrap -> Node -> Result String Node
+nodeUpdate: EditorAction -> Cache -> Node -> Result String Node
 nodeUpdate action cache node =
   if String.startsWith node.id action.target then
     if node.id == action.target then
@@ -371,7 +373,7 @@ nodeUpdate action cache node =
   else
     Ok node
 
-propagateUpdate : EditorAction -> Dict SliceID SliceWrap -> Node -> Result String Node
+propagateUpdate : EditorAction -> Cache -> Node -> Result String Node
 propagateUpdate action cache node =
   case node.children of
     Collapsed ->
@@ -388,7 +390,7 @@ collapseNode node =
   Ok { node | children = Collapsed }
 
 -- | create the children of a node
-expandNode : Dict SliceID SliceWrap -> Node -> Result String Node
+expandNode : Cache -> Node -> Result String Node
 expandNode cache node =
   if node.children /= Collapsed then
     Ok node
@@ -435,14 +437,14 @@ expandNode cache node =
         } |> Ok
 
 -- Load slicewrap from cache
-fetch : Dict SliceID SliceWrap -> SliceID -> Result String SliceWrap
+fetch : Cache -> SliceID -> Result String SliceWrap
 fetch cache sid =
   case Dict.get sid cache of
     Nothing -> Err ("Missing slice: " ++ sid)
     Just sw -> Ok sw
 
 -- Load a bunch of slicewraps from cache
-fetchMap : Dict SliceID SliceWrap -> List SliceID -> Result String (List SliceWrap)
+fetchMap : Cache -> List SliceID -> Result String (List SliceWrap)
 fetchMap cache sids =
   List.map (fetch cache) sids
   |> combineResults
@@ -547,14 +549,14 @@ computeOccurences model =
   in
     { model | cache = fullCache, slices = fullSlices }
 
-addOccurences : SliceWrap -> (Dict SliceID SliceWrap) -> (Dict SliceID SliceWrap)
+addOccurences : SliceWrap -> (Cache) -> (Cache)
 addOccurences { id, slice } dict =
   List.foldl
     (\sid acc -> addOccurence sid id acc)
     dict
     (extractDependencies slice)
 
-addOccurence : SliceID -> SliceID -> (Dict SliceID SliceWrap) -> (Dict SliceID SliceWrap)
+addOccurence : SliceID -> SliceID -> (Cache) -> (Cache)
 addOccurence sid occId dict =
   case Dict.get sid dict of
     Nothing -> dict
@@ -576,7 +578,7 @@ integrityCheck : Model -> Result (Set SliceID) ()
 integrityCheck model =
   List.foldl (checkDependencies model.cache) (Ok ()) model.slices
 
-checkDependencies : (Dict SliceID SliceWrap) -> SliceWrap -> Result (Set SliceID) () -> Result (Set SliceID) ()
+checkDependencies : (Cache) -> SliceWrap -> Result (Set SliceID) () -> Result (Set SliceID) ()
 checkDependencies cache sw res =
   case sw.slice of
     (Slice _ _ _ uses _) ->
@@ -588,7 +590,7 @@ checkDependencies cache sw res =
         res
         uses
 
-checkDependency : SliceID -> (Dict SliceID SliceWrap) -> Result (Set SliceID) () -> Result (Set SliceID) ()
+checkDependency : SliceID -> (Cache) -> Result (Set SliceID) () -> Result (Set SliceID) ()
 checkDependency sid cache res =
   case Dict.get sid cache of
     Just _  -> res
