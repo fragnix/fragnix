@@ -129,6 +129,7 @@ type Msg
   | Error String
   | CloseError
   | Editor EditorAction
+  | Edit String SliceWrap
   | Nop
 
 type alias EditorAction =
@@ -190,6 +191,11 @@ update msg model =
     Nop ->
       ( model, Cmd.none )
 
+    Edit txt sw ->
+      ( editUpdate txt sw model
+      , Cmd.none
+      )
+
     Editor action ->
       case model.page of
         TreeView r ->
@@ -207,6 +213,90 @@ update msg model =
           , Cmd.none
           )
 
+editUpdate : String -> SliceWrap -> Model -> Model
+editUpdate txt sw model =
+  insertText txt sw
+  |> sliceUpdate model sw.id
+
+insertText : String -> SliceWrap -> SliceWrap
+insertText txt sw =
+  changeText txt sw
+  |> computeChangeKinds sw
+  |> markIfDirty
+
+markIfDirty : SliceWrap -> SliceWrap
+markIfDirty sw =
+  if sw.origin /= Disk && (not (String.endsWith "local" sw.id)) then
+    changeId (sw.id ++ "local") sw
+  else
+    sw
+
+sliceUpdate : Model -> SliceID -> SliceWrap -> Model
+sliceUpdate model target changed =
+  let
+    (newCache, updates) =
+      cacheUpdate target changed model.cache
+    newSlices =
+      Dict.values newCache
+    newPage =
+      case model.page of
+        TreeView node -> TreeView (updateNodeContents updates node)
+        _ -> model.page
+  in
+    { model | cache = newCache, slices = newSlices, page = newPage }
+
+cacheUpdate : SliceID -> SliceWrap -> (Dict SliceID SliceWrap) -> (Dict SliceID SliceWrap, List (SliceID, SliceWrap))
+cacheUpdate sid new cache =
+  updateReferencesRec
+    (List.map (\o -> (sid, new.id, o)) new.occurences)
+    [(sid, new)]
+    (Dict.insert new.id new cache)
+
+updateReferencesRec : List (SliceID, SliceID, SliceID) -> List (SliceID, SliceWrap) -> Dict SliceID SliceWrap -> (Dict SliceID SliceWrap, List (SliceID, SliceWrap))
+updateReferencesRec queue done cache =
+  case queue of
+    [] ->
+      (cache, done)
+    (from, to, at) :: rst ->
+      case updateReference from to at cache of
+        Just (sw, newCache, sameId) ->
+          updateReferencesRec
+              ( if sameId then
+                  rst
+                else
+                  (rst ++ (List.map (\o -> (at, sw.id, o)) sw.occurences)))
+              ((at, sw) :: done)
+              newCache
+        Nothing ->
+          updateReferencesRec rst done cache
+
+updateReference : SliceID -> SliceID -> SliceID -> Dict SliceID SliceWrap -> Maybe (SliceWrap, Dict SliceID SliceWrap, Bool)
+updateReference from to at cache =
+  case Dict.get at cache of
+    Nothing ->
+      Nothing
+    Just sw ->
+      case updateSliceReference from to sw of
+        Just newSw -> Just (newSw, Dict.insert newSw.id newSw cache, newSw.id == sw.id)
+        Nothing -> Nothing
+
+updateSliceReference : SliceID -> SliceID -> SliceWrap -> Maybe SliceWrap
+updateSliceReference from to sw =
+  if (List.member from (extractDependencies sw.slice)) then
+    updateUses from to sw
+    |> computeChangeKinds sw
+    |> markIfDirty
+    |> Just
+  else
+    Nothing
+
+-- Stubs
+updateUses _ _ sw = sw
+updateNodeContents _ node = node
+
+
+
+-- | recursively updating the editor model
 nodeUpdate: EditorAction -> Dict SliceID SliceWrap -> Node -> Result String Node
 nodeUpdate action cache node =
   if String.startsWith node.id action.target then
@@ -724,7 +814,7 @@ viewSlice sw editable nodeId =
             [ Border.width 1
             , Border.color monokai_grey
             ]
-            (editorField renderedFragment (\_ -> Nop) highlightDict)
+            (editorField renderedFragment (\txt -> Edit txt sw) highlightDict)
         , Element.el
             [ Events.onClick (Editor {target = nodeId, action = MakeStatic})
             , Element.pointer

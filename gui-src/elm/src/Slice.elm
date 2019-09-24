@@ -51,16 +51,20 @@ type alias SliceWrap =
   , tagline: SourceCode
   , id: SliceID
   , marked: Bool
+  , origin: Origin
   }
 
--- | HELPER FUNCTIONS
+type Origin
+  = Disk
+  | ChangedFrom SliceWrap (List Change)
 
--- | render the "content" of the slice
-renderFragment : Slice -> String
-renderFragment slice =
-  case slice of
-    (Slice _ _ (Fragment codes) _ _) ->
-      String.concat (List.intersperse "\n" codes)
+type Change
+  = Refactor
+  | Signature
+  | Name
+  | References
+
+-- | HELPER FUNCTIONS
 
 -- | all References as Tuple of used Name and referenced SliceID
 extractReferences : Slice -> List (String, SliceID)
@@ -99,6 +103,112 @@ removeDuplicates : List comparable -> List comparable
 removeDuplicates list =
   Set.toList (Set.fromList list)
 
+-- | render the "content" of the slice
+renderFragment : Slice -> String
+renderFragment slice =
+  case slice of
+    (Slice _ _ (Fragment codes) _ _) ->
+      String.concat (List.intersperse "\n" codes)
+
+-- | Update the text in a sliceWrap, without changing the ids
+changeText : String -> SliceWrap -> SliceWrap
+changeText codes sw =
+  case sw.slice of
+    (Slice sid lang (Fragment _) uses instances) ->
+      let
+        lines = String.lines codes
+        newSlice = Slice sid lang (Fragment lines) uses instances
+        (name, signature, tagline) =
+          extractNameSignatureAndTagline lines
+      in
+        { slice = newSlice
+        , occurences = []
+        , comments = String.concat (List.filter (String.startsWith "--") lines)
+        , signature = signature
+        , name = name
+        , tagline = tagline
+        , id = sid
+        , marked = sw.marked
+        , origin = sw.origin
+        }
+
+-- | Update diff after the text has changed (and not more!)
+computeChangeKinds : SliceWrap -> SliceWrap -> SliceWrap
+computeChangeKinds oldS new =
+  let
+    old = case new.origin of
+      ChangedFrom sw kinds ->
+        sw
+      _ ->
+        oldS
+    changes =
+      []
+      ++ (if (renderFragment old.slice) == (renderFragment new.slice) then [] else [Refactor])
+      ++ (if old.signature == new.signature then [] else [Signature])
+      ++ (if old.name == new.name then [] else [Name])
+      ++ (if (equalDependencies old.slice new.slice) then [] else [References])
+  in
+    if List.isEmpty changes then
+      old
+    else
+      { new | origin = ChangedFrom old changes }
+
+-- check if dependencies have changed
+equalDependencies : Slice -> Slice -> Bool
+equalDependencies (Slice _ _ _ usesA _) (Slice _ _ _ usesB _) =
+  (containsUses usesA usesB) && (containsUses usesB usesA)
+
+containsUses : List Use -> List Use -> Bool
+containsUses xs ys =
+  List.foldl
+    (\x acc ->
+      (List.length (List.filter (equalUse x) ys) > 0) && acc)
+      True
+      xs
+
+equalUse : Use -> Use -> Bool
+equalUse (Use qualA nameA refA) (Use qualB nameB refB) =
+  (equalMaybe qualA qualB) && (equalUsedName nameA nameB) && (equalReference refA refB)
+
+equalMaybe : Maybe comparable -> Maybe comparable -> Bool
+equalMaybe a b =
+  case (a, b) of
+    (Nothing, Nothing) -> True
+    (Nothing, _      ) -> False
+    (_      , Nothing) -> False
+    (x      , y      ) -> x == y
+
+equalUsedName : UsedName -> UsedName -> Bool
+equalUsedName a b =
+  case (a, b) of
+    (ValueName x, ValueName y) -> equalName x y
+    (TypeName  x, TypeName  y) -> equalName x y
+    ( ConstructorName x1 x2, ConstructorName y1 y2) ->
+       (equalName x1 y1) && (equalName x2 y2)
+    _                          -> False
+
+equalName : Name -> Name -> Bool
+equalName a b =
+  case (a, b) of
+     (Identifier x, Identifier y) -> x == y
+     (Operator   x, Operator   y) -> x == y
+     _                            -> False
+
+equalReference : Reference -> Reference -> Bool
+equalReference a b =
+  case (a, b) of
+    (OtherSlice x, OtherSlice y) -> x == y
+    (Builtin    x, Builtin y)    -> x == y
+    _                            -> False
+
+
+-- | Update the id of a sliceWrap
+changeId : SliceID -> SliceWrap -> SliceWrap
+changeId newId sw =
+  case sw.slice of
+    (Slice _ lang frag uses instances) ->
+      { sw | id = newId, slice = Slice newId lang frag uses instances }
+
 -- | Collect most of the extra information needed to wrap a Slice
 -- | occurences still need to be added though!
 wrap : Slice -> SliceWrap
@@ -117,6 +227,7 @@ wrap bare =
         , tagline = tagline
         , id = sid
         , marked = False
+        , origin = Disk
         }
 
 extractNameSignatureAndTagline : List SourceCode -> (String, String, String)
