@@ -65,6 +65,14 @@ type Change
   | References
 
 -- | HELPER FUNCTIONS
+mapReferenceId : (SliceID -> SliceID) -> Use -> Use
+mapReferenceId f (Use qual name ref) =
+  let
+    newRef = case ref of
+      Builtin _ -> ref
+      OtherSlice id -> OtherSlice (f id)
+  in
+    (Use qual name newRef)
 
 -- | all References as Tuple of used Name and referenced SliceID
 extractReferences : Slice -> List (String, SliceID)
@@ -122,7 +130,7 @@ changeText codes sw =
           extractNameSignatureAndTagline lines
       in
         { slice = newSlice
-        , occurences = []
+        , occurences = sw.occurences
         , comments = String.concat (List.filter (String.startsWith "--") lines)
         , signature = signature
         , name = name

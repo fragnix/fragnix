@@ -121,6 +121,14 @@ type NodeContent
  | Occurences (List SliceWrap)
  | Dependencies (List SliceWrap)
 
+mapNode : (Node -> Node) -> Node -> Node
+mapNode f node =
+  case node.children of
+    Collapsed ->
+      f node
+    Expanded nodes ->
+      f { node | children = Expanded (List.map (mapNode f) nodes) }
+
 -- | UPDATE
 
 type Msg
@@ -236,14 +244,20 @@ sliceUpdate model target changed =
   let
     (newCache, updates) =
       cacheUpdate target changed model.cache
-    newSlices =
-      Dict.values newCache
     newPage =
       case model.page of
         TreeView node -> TreeView (updateNodeContents updates node)
         _ -> model.page
   in
-    { model | cache = newCache, slices = newSlices, page = newPage }
+    { model | cache = newCache, page = newPage }
+    |> (\m ->
+          { m | cache =
+            Dict.map
+              (\_ sw -> { sw | occurences = []})
+              m.cache
+          }
+        )
+    |> computeOccurences
 
 cacheUpdate : SliceID -> SliceWrap -> (Dict SliceID SliceWrap) -> (Dict SliceID SliceWrap, List (SliceID, SliceWrap))
 cacheUpdate sid new cache =
@@ -290,9 +304,39 @@ updateSliceReference from to sw =
   else
     Nothing
 
--- Stubs
-updateUses _ _ sw = sw
-updateNodeContents _ node = node
+updateUses : SliceID -> SliceID -> SliceWrap -> SliceWrap
+updateUses from to sw =
+  case sw.slice of
+    (Slice sid lang frag uses instances) ->
+      let
+        newUses =
+          List.map
+            (mapReferenceId (\x -> if x == from then to else x))
+            uses
+        newSlice =
+          (Slice sid lang frag newUses instances)
+      in
+        { sw | slice = newSlice }
+
+updateNodeContents : List (SliceID, SliceWrap) -> Node -> Node
+updateNodeContents updates node =
+  let
+    dict = Dict.fromList updates
+    updateSw sw =
+      case Dict.get sw.id dict of
+        Just newSw -> newSw
+        Nothing -> sw
+  in
+    mapNode
+      (\n -> case n.content of
+        SliceNode sw ->
+          { n | content = SliceNode (updateSw sw)}
+        Occurences occs ->
+          { n | content = Occurences (List.map updateSw occs) }
+        Dependencies deps ->
+          { n | content = Dependencies (List.map updateSw deps) }
+      )
+      node
 
 
 
@@ -716,13 +760,15 @@ viewCollapsedNode { marked, id, content } =
 viewTeaser : NodeContent -> Element Msg
 viewTeaser content =
   case content of
-    SliceNode { tagline } ->
+    SliceNode { tagline, origin } ->
       Element.row
         [ Element.spacing 0
         , Element.padding 0
         ]
         [ Element.el
-            [ Font.color actual_black ]
+            [ Font.color
+                (if origin == Disk then actual_black else orange)
+            ]
             (Element.text "⮟ ")
         , inlineSH tagline
         ]
@@ -758,6 +804,7 @@ viewSliceNode sw { hovered, marked, id, children, editable, framed } =
 
         viewIfNotEmpty n =
           if isEmptyNode n then [] else [ viewNode n ]
+
       in
         Element.el
           (frameIf framed)
@@ -806,10 +853,17 @@ viewSlice sw editable nodeId =
         )
         (extractReferences sw.slice)
       |> Dict.fromList
+    dirtyAttribs =
+      if sw.origin == Disk then
+        []
+      else
+        [ Border.widthEach { edges | left = 1 }
+        , Border.color orange
+        ]
   in
     if editable then
       Element.row
-        []
+        dirtyAttribs
         [ Element.el
             [ Border.width 1
             , Border.color monokai_grey
@@ -829,8 +883,8 @@ viewSlice sw editable nodeId =
         ]
     else
       Element.el
-        [ Events.onClick (Editor {target = nodeId, action = MakeEditable})
-        ]
+        ([ Events.onClick (Editor {target = nodeId, action = MakeEditable})
+        ] ++ dirtyAttribs)
         (syntaxHighlight renderedFragment highlightDict)
 
 -- | Expanded - Occurences/Dependencies
@@ -894,6 +948,7 @@ monokai_grey = (Element.rgb255 51 52 47)
 monokai_white = (Element.rgb255 247 247 241)
 actual_black = Element.rgb 0 0 0
 glass = Element.rgba 0 0 0 0
+orange = Element.rgb255 255 133 51
 edges =
    { top = 0
    , right = 0
