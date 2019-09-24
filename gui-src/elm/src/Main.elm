@@ -251,15 +251,7 @@ sliceUpdate model target changed =
         TreeView node -> TreeView (updateNodeContents updates node)
         _ -> model.page
   in
-    { model | cache = newCache, page = newPage }
-    |> (\m ->
-          { m | cache =
-            Dict.map
-              (\_ sw -> { sw | occurences = []})
-              m.cache
-          }
-        )
-    |> computeOccurences
+    { model | cache = newCache, slices = Dict.values newCache, page = newPage }
 
 cacheUpdate : SliceID -> SliceWrap -> (Cache) -> (Cache, List (SliceID, SliceWrap))
 cacheUpdate sid new cache =
@@ -276,13 +268,34 @@ updateReferencesRec queue done cache =
     (from, to, at) :: rst ->
       case updateReference from to at cache of
         Just (sw, newCache, sameId) ->
-          updateReferencesRec
-              ( if sameId then
-                  rst
-                else
-                  (rst ++ (List.map (\o -> (at, sw.id, o)) sw.occurences)))
+          if sameId then
+            updateReferencesRec
+              rst
               ((at, sw) :: done)
               newCache
+          else
+            let
+              updateOccurence x =
+                if x == at then sw.id else x
+              updateOccurences xs =
+                if List.member at xs then sw.id :: xs else xs
+              updateSw w =
+                { w | occurences = updateOccurences sw.occurences }
+            in
+              updateReferencesRec
+                ( (List.map
+                    (\(from_, to_, o_) ->
+                      (from_, to_, updateOccurence o_))
+                    rst
+                  )
+                  ++ (List.map (\o -> (at, sw.id, o)) sw.occurences))
+                ((at, sw)
+                :: (List.map (Tuple.mapSecond updateSw) done))
+                (Dict.map
+                  (\k v ->
+                    updateSw v
+                  )
+                  newCache)
         Nothing ->
           updateReferencesRec rst done cache
 
