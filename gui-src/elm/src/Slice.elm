@@ -62,7 +62,7 @@ type Change
   = Refactor
   | Signature
   | Name
-  | References
+  | Reference SliceID
 
 -- | HELPER FUNCTIONS
 mapReferenceId : (SliceID -> SliceID) -> Use -> Use
@@ -154,7 +154,6 @@ computeChangeKinds oldS new =
       ++ (if (renderFragment old.slice) == (renderFragment new.slice) then [] else [Refactor])
       ++ (if old.signature == new.signature then [] else [Signature])
       ++ (if old.name == new.name then [] else [Name])
-      ++ (if (equalDependencies old.slice new.slice) then [] else [References])
   in
     if List.isEmpty changes then
       old

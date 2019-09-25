@@ -131,6 +131,22 @@ mapNode f node =
     Expanded nodes ->
       f { node | children = Expanded (List.map (mapNode f) nodes) }
 
+foldNode : (Node -> a -> a) -> a -> Node -> a
+foldNode f z node =
+    case node.children of
+      Collapsed ->
+        f node z
+      Expanded nodes ->
+        let
+          z2 =
+            List.foldl
+              (\x acc ->
+                foldNode f acc x)
+              z
+              nodes
+        in
+          f node z2
+
 -- | UPDATE
 
 type Msg
@@ -227,19 +243,124 @@ editUpdate : String -> SliceWrap -> Model -> Model
 editUpdate txt sw model =
   changeText txt sw
   |> computeChangeKinds sw
-  |> exchangeSliceWrap model sw.id
+  |> exchangeSliceWrap model sw
 
-exchangeSliceWrap : Model -> SliceID -> SliceWrap -> Model
+exchangeSliceWrap : Model -> SliceWrap -> SliceWrap -> Model
 exchangeSliceWrap model target changed =
   let
-    newCache =
-      Dict.insert target changed model.cache
+    (newCache, updates) =
+      updateCache target changed model.cache
     newPage =
       case model.page of
-        TreeView node -> TreeView (updateNodeContents [(target, changed)] node)
+        TreeView node -> TreeView (updateNodeContents updates node)
         _ -> model.page
   in
     { model | cache = newCache, slices = Dict.values newCache, page = newPage }
+
+updateCache : SliceWrap -> SliceWrap -> Cache -> (Cache, List (SliceID, SliceWrap))
+updateCache old new cache =
+  case (old.origin, new.origin) of
+    (Disk, Disk)                   ->
+      (cache, []) -- should not happen!
+    (ChangedFrom _ _, ChangedFrom _ _) ->
+      (Dict.insert old.id new cache, [(old.id, new)])
+    (Disk, ChangedFrom _ _) ->
+      dirtyRecursive
+        (List.map (\o -> (o, new.id)) new.occurences)
+        (Dict.insert old.id new cache)
+        [(old.id, new)]
+    (ChangedFrom _ _, Disk) ->
+      unDirtyRecursive
+        (List.map (\o -> (o, new.id)) new.occurences)
+        (Dict.insert old.id new cache)
+        [(old.id, new)]
+
+dirtyRecursive : List (SliceID, SliceID) -> Cache -> List (SliceID, SliceWrap) -> (Cache, List (SliceID, SliceWrap))
+dirtyRecursive queue cache updates =
+  case queue of
+    [] ->
+      (cache, updates)
+    (headQ, changed) :: tailQ ->
+      case Dict.get headQ cache of
+        Nothing ->
+          dirtyRecursive tailQ cache updates -- Silent failure
+        Just sw ->
+          let
+            (changes, oldSw) = case sw.origin of
+              Disk ->
+                ([], sw)
+              ChangedFrom ex cs ->
+                (cs, ex)
+
+            alreadyDirty =
+              (List.length
+                (List.filter
+                  (\c ->
+                    case c of
+                      Reference id -> id == changed
+                      _ -> False)
+                  changes)) > 0
+          in
+            if alreadyDirty then
+              dirtyRecursive tailQ cache updates
+            else
+              let
+                newSw =
+                  { sw | origin = ChangedFrom oldSw
+                      ((Reference changed) :: changes)}
+              in
+                dirtyRecursive
+                  (tailQ ++ (List.map (\o -> (o, sw.id)) sw.occurences))
+                  (Dict.insert sw.id newSw cache)
+                  ((sw.id, newSw) :: updates)
+
+
+unDirtyRecursive : List (SliceID, SliceID) -> Cache -> List (SliceID, SliceWrap) -> (Cache, List (SliceID, SliceWrap))
+unDirtyRecursive queue cache updates =
+  case queue of
+    [] ->
+      (cache, updates)
+    (headQ, nowClean) :: tailQ ->
+      case Dict.get headQ cache of
+        Nothing ->
+          unDirtyRecursive tailQ cache updates -- Silent failure
+        Just sw ->
+          let
+            (changes, oldSw) = case sw.origin of
+              Disk ->
+                ([], sw)
+              ChangedFrom ex cs ->
+                (cs, ex)
+
+            alreadyClean =
+              (List.length
+                (List.filter
+                  isObsoleteChange
+                  changes)) == 0
+
+            isObsoleteChange c =
+              case c of
+                Reference id -> id == nowClean
+                _ -> False
+          in
+            if alreadyClean then
+              unDirtyRecursive tailQ cache updates
+            else
+              let
+                newChanges =
+                  List.filter (\c -> not (isObsoleteChange c)) changes
+                newSw =
+                  case newChanges of
+                    [] -> { sw | origin = Disk }
+                    cs -> { sw | origin = ChangedFrom oldSw cs }
+              in
+                unDirtyRecursive
+                  (tailQ ++ (List.map (\o -> (o, sw.id)) sw.occurences))
+                  (Dict.insert sw.id newSw cache)
+                  ((sw.id, newSw) :: updates)
+
+
+
 
 updateNodeContents : List (SliceID, SliceWrap) -> Node -> Node
 updateNodeContents updates node =
