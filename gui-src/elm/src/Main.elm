@@ -349,13 +349,19 @@ unDirtyRecursive queue cache updates =
               let
                 newChanges =
                   List.filter (\c -> not (isObsoleteChange c)) changes
-                newSw =
+                (newSw, queueAdditions) =
                   case newChanges of
-                    [] -> { sw | origin = Disk }
-                    cs -> { sw | origin = ChangedFrom oldSw cs }
+                    [] ->
+                      ( { sw | origin = Disk }
+                      , (List.map (\o -> (o, sw.id)) sw.occurences)
+                      )
+                    cs ->
+                      ( { sw | origin = ChangedFrom oldSw cs }
+                      , []
+                      )
               in
                 unDirtyRecursive
-                  (tailQ ++ (List.map (\o -> (o, sw.id)) sw.occurences))
+                  (tailQ ++ queueAdditions)
                   (Dict.insert sw.id newSw cache)
                   ((sw.id, newSw) :: updates)
 

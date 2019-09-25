@@ -6445,28 +6445,32 @@ var author$project$Main$unDirtyRecursive = F3(
 								return !isObsoleteChange(c);
 							},
 							changes);
-						var newSw = function () {
+						var _n5 = function () {
 							if (!newChanges.b) {
-								return _Utils_update(
-									sw,
-									{J: author$project$Slice$Disk});
+								return _Utils_Tuple2(
+									_Utils_update(
+										sw,
+										{J: author$project$Slice$Disk}),
+									A2(
+										elm$core$List$map,
+										function (o) {
+											return _Utils_Tuple2(o, sw.c);
+										},
+										sw._));
 							} else {
 								var cs = newChanges;
-								return _Utils_update(
-									sw,
-									{
-										J: A2(author$project$Slice$ChangedFrom, oldSw, cs)
-									});
+								return _Utils_Tuple2(
+									_Utils_update(
+										sw,
+										{
+											J: A2(author$project$Slice$ChangedFrom, oldSw, cs)
+										}),
+									_List_Nil);
 							}
 						}();
-						var $temp$queue = _Utils_ap(
-							tailQ,
-							A2(
-								elm$core$List$map,
-								function (o) {
-									return _Utils_Tuple2(o, sw.c);
-								},
-								sw._)),
+						var newSw = _n5.a;
+						var queueAdditions = _n5.b;
+						var $temp$queue = _Utils_ap(tailQ, queueAdditions),
 							$temp$cache = A3(elm$core$Dict$insert, sw.c, newSw, cache),
 							$temp$updates = A2(
 							elm$core$List$cons,
