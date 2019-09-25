@@ -308,11 +308,15 @@ dirtyRecursive queue cache updates =
                 newSw =
                   { sw | origin = ChangedFrom oldSw
                       ((Reference changed) :: changes)}
+                newUpdates =
+                  List.filter
+                    (\(old, _) -> old /= sw.id)
+                    updates
               in
                 dirtyRecursive
                   (tailQ ++ (List.map (\o -> (o, sw.id)) sw.occurences))
                   (Dict.insert sw.id newSw cache)
-                  ((sw.id, newSw) :: updates)
+                  ((sw.id, newSw) :: newUpdates)
 
 
 unDirtyRecursive : List (SliceID, SliceID) -> Cache -> List (SliceID, SliceWrap) -> (Cache, List (SliceID, SliceWrap))
@@ -359,11 +363,15 @@ unDirtyRecursive queue cache updates =
                       ( { sw | origin = ChangedFrom oldSw cs }
                       , []
                       )
+                newUpdates =
+                  List.filter
+                    (\(old, _) -> old /= sw.id)
+                    updates
               in
                 unDirtyRecursive
                   (tailQ ++ queueAdditions)
                   (Dict.insert sw.id newSw cache)
-                  ((sw.id, newSw) :: updates)
+                  ((sw.id, newSw) :: newUpdates)
 
 
 

@@ -6285,6 +6285,7 @@ var author$project$Slice$ChangedFrom = F2(
 var author$project$Slice$Reference = function (a) {
 	return {$: 3, a: a};
 };
+var elm$core$Basics$neq = _Utils_notEqual;
 var elm$core$List$filter = F2(
 	function (isGood, list) {
 		return A3(
@@ -6351,6 +6352,13 @@ var author$project$Main$dirtyRecursive = F3(
 						updates = $temp$updates;
 						continue dirtyRecursive;
 					} else {
+						var newUpdates = A2(
+							elm$core$List$filter,
+							function (_n5) {
+								var old = _n5.a;
+								return !_Utils_eq(old, sw.c);
+							},
+							updates);
 						var newSw = _Utils_update(
 							sw,
 							{
@@ -6374,7 +6382,7 @@ var author$project$Main$dirtyRecursive = F3(
 							$temp$updates = A2(
 							elm$core$List$cons,
 							_Utils_Tuple2(sw.c, newSw),
-							updates);
+							newUpdates);
 						queue = $temp$queue;
 						cache = $temp$cache;
 						updates = $temp$updates;
@@ -6439,6 +6447,13 @@ var author$project$Main$unDirtyRecursive = F3(
 						updates = $temp$updates;
 						continue unDirtyRecursive;
 					} else {
+						var newUpdates = A2(
+							elm$core$List$filter,
+							function (_n7) {
+								var old = _n7.a;
+								return !_Utils_eq(old, sw.c);
+							},
+							updates);
 						var newChanges = A2(
 							elm$core$List$filter,
 							function (c) {
@@ -6475,7 +6490,7 @@ var author$project$Main$unDirtyRecursive = F3(
 							$temp$updates = A2(
 							elm$core$List$cons,
 							_Utils_Tuple2(sw.c, newSw),
-							updates);
+							newUpdates);
 						queue = $temp$queue;
 						cache = $temp$cache;
 						updates = $temp$updates;
@@ -7406,7 +7421,6 @@ var author$project$Main$tupleCombineResults = function (_n0) {
 		}
 	}
 };
-var elm$core$Basics$neq = _Utils_notEqual;
 var author$project$Main$expandNode = F2(
 	function (cache, node) {
 		if (!_Utils_eq(node.i, author$project$Main$Collapsed)) {
