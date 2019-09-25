@@ -225,113 +225,21 @@ update msg model =
 
 editUpdate : String -> SliceWrap -> Model -> Model
 editUpdate txt sw model =
-  insertText txt sw
-  |> sliceUpdate model sw.id
-
-insertText : String -> SliceWrap -> SliceWrap
-insertText txt sw =
   changeText txt sw
   |> computeChangeKinds sw
-  |> markIfDirty
+  |> exchangeSliceWrap model sw.id
 
-markIfDirty : SliceWrap -> SliceWrap
-markIfDirty sw =
-  if sw.origin /= Disk && (not (String.endsWith "local" sw.id)) then
-    changeId (sw.id ++ "local") sw
-  else
-    sw
-
-sliceUpdate : Model -> SliceID -> SliceWrap -> Model
-sliceUpdate model target changed =
+exchangeSliceWrap : Model -> SliceID -> SliceWrap -> Model
+exchangeSliceWrap model target changed =
   let
-    (newCache, updates) =
-      cacheUpdate target changed model.cache
+    newCache =
+      Dict.insert target changed model.cache
     newPage =
       case model.page of
-        TreeView node -> TreeView (updateNodeContents updates node)
+        TreeView node -> TreeView (updateNodeContents [(target, changed)] node)
         _ -> model.page
   in
     { model | cache = newCache, slices = Dict.values newCache, page = newPage }
-
-cacheUpdate : SliceID -> SliceWrap -> (Cache) -> (Cache, List (SliceID, SliceWrap))
-cacheUpdate sid new cache =
-  updateReferencesRec
-    (List.map (\o -> (sid, new.id, o)) new.occurences)
-    [(sid, new)]
-    (Dict.insert new.id new cache)
-
-updateReferencesRec : List (SliceID, SliceID, SliceID) -> List (SliceID, SliceWrap) -> Cache -> (Cache, List (SliceID, SliceWrap))
-updateReferencesRec queue done cache =
-  case queue of
-    [] ->
-      (cache, done)
-    (from, to, at) :: rst ->
-      case updateReference from to at cache of
-        Just (sw, newCache, sameId) ->
-          if sameId then
-            updateReferencesRec
-              rst
-              ((at, sw) :: done)
-              newCache
-          else
-            let
-              updateOccurence x =
-                if x == at then sw.id else x
-              updateOccurences xs =
-                if List.member at xs then sw.id :: xs else xs
-              updateSw w =
-                { w | occurences = updateOccurences sw.occurences }
-            in
-              updateReferencesRec
-                ( (List.map
-                    (\(from_, to_, o_) ->
-                      (from_, to_, updateOccurence o_))
-                    rst
-                  )
-                  ++ (List.map (\o -> (at, sw.id, o)) sw.occurences))
-                ((at, sw)
-                :: (List.map (Tuple.mapSecond updateSw) done))
-                (Dict.map
-                  (\k v ->
-                    updateSw v
-                  )
-                  newCache)
-        Nothing ->
-          updateReferencesRec rst done cache
-
-updateReference : SliceID -> SliceID -> SliceID -> Cache -> Maybe (SliceWrap, Cache, Bool)
-updateReference from to at cache =
-  case Dict.get at cache of
-    Nothing ->
-      Nothing
-    Just sw ->
-      case updateSliceReference from to sw of
-        Just newSw -> Just (newSw, Dict.insert newSw.id newSw cache, newSw.id == sw.id)
-        Nothing -> Nothing
-
-updateSliceReference : SliceID -> SliceID -> SliceWrap -> Maybe SliceWrap
-updateSliceReference from to sw =
-  if (List.member from (extractDependencies sw.slice)) then
-    updateUses from to sw
-    |> computeChangeKinds sw
-    |> markIfDirty
-    |> Just
-  else
-    Nothing
-
-updateUses : SliceID -> SliceID -> SliceWrap -> SliceWrap
-updateUses from to sw =
-  case sw.slice of
-    (Slice sid lang frag uses instances) ->
-      let
-        newUses =
-          List.map
-            (mapReferenceId (\x -> if x == from then to else x))
-            uses
-        newSlice =
-          (Slice sid lang frag newUses instances)
-      in
-        { sw | slice = newSlice }
 
 updateNodeContents : List (SliceID, SliceWrap) -> Node -> Node
 updateNodeContents updates node =
