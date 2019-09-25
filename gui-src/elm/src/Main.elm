@@ -239,12 +239,14 @@ update msg model =
           , Cmd.none
           )
 
+-- | Change the text contained in a slice and update the model accordingly
 editUpdate : String -> SliceWrap -> Model -> Model
 editUpdate txt sw model =
   changeText txt sw
   |> computeChangeKinds sw
   |> exchangeSliceWrap model sw
 
+-- | Change a SliceWrap and update the model accordingly
 exchangeSliceWrap : Model -> SliceWrap -> SliceWrap -> Model
 exchangeSliceWrap model target changed =
   let
@@ -257,6 +259,8 @@ exchangeSliceWrap model target changed =
   in
     { model | cache = newCache, slices = Dict.values newCache, page = newPage }
 
+-- | Update a SliceWrap in the Cache, propagate the changes and give back a
+--   List of SliceWraps that have changed
 updateCache : SliceWrap -> SliceWrap -> Cache -> (Cache, List (SliceID, SliceWrap))
 updateCache old new cache =
   case (old.origin, new.origin) of
@@ -275,6 +279,8 @@ updateCache old new cache =
         (Dict.insert old.id new cache)
         [(old.id, new)]
 
+-- | Propagate that a SliceWrap has changed to all its occurences and give back
+--   a list of all SliceWraps that have changed
 dirtyRecursive : List (SliceID, SliceID) -> Cache -> List (SliceID, SliceWrap) -> (Cache, List (SliceID, SliceWrap))
 dirtyRecursive queue cache updates =
   case queue of
@@ -318,7 +324,9 @@ dirtyRecursive queue cache updates =
                   (Dict.insert sw.id newSw cache)
                   ((sw.id, newSw) :: newUpdates)
 
-
+-- | Propagate that a SliceWrap has reverted back to its initial state
+--   to all its occurences and give back
+--   a list of all SliceWraps that have changed
 unDirtyRecursive : List (SliceID, SliceID) -> Cache -> List (SliceID, SliceWrap) -> (Cache, List (SliceID, SliceWrap))
 unDirtyRecursive queue cache updates =
   case queue of
@@ -372,9 +380,6 @@ unDirtyRecursive queue cache updates =
                   (tailQ ++ queueAdditions)
                   (Dict.insert sw.id newSw cache)
                   ((sw.id, newSw) :: newUpdates)
-
-
-
 
 updateNodeContents : List (SliceID, SliceWrap) -> Node -> Node
 updateNodeContents updates node =
