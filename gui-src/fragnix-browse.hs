@@ -5,27 +5,39 @@
 module Main where
 
 import Prelude hiding (writeFile,readFile)
-import Fragnix.Slice (Slice)
+
+import Fragnix.Slice (Slice(..), SliceID)
+import Fragnix.LocalSlice (LocalSlice, LocalSliceID)
+import Fragnix.HashLocalSlices (hashLocalSlices)
+
 import Data.Aeson (eitherDecode,encode)
 import Data.Either (rights)
 import Data.ByteString.Lazy (writeFile,readFile)
-import System.Directory (getCurrentDirectory, listDirectory, doesFileExist)
+import Data.Text (unpack)
+import Data.Map (Map)
+
+import System.Directory (getCurrentDirectory, listDirectory, doesFileExist, removeFile)
+import System.FilePath ((</>))
+
 import Control.Monad (forM, filterM)
 -- to prevent too many open files caused by lazy IO
 import Control.Exception (evaluate)
-
 -- | Imports for the Servant Server
 import Control.Monad.IO.Class (liftIO)
+
 import Servant -- (Server, Handler, serve, (:<|>))
 import Servant.Static.TH (createServerExp)
 import Network.Wai.Handler.Warp (run)
+
 import Api
 
 staticServer :: Server StaticAPI
 staticServer = $(createServerExp "gui-src/elm/dist")
 
 dynamicServer :: Server DynamicAPI
-dynamicServer = getSlicesHandler
+dynamicServer
+  = getSlicesHandler
+  :<|> saveSlicesHandler
 
 server :: Server API
 server
@@ -55,3 +67,26 @@ decodeSlice :: FilePath -> IO (Either String Slice)
 decodeSlice p = do
   file <- readFile p
   evaluate (eitherDecode file)
+
+-- | POST /save implementation
+saveSlicesHandler :: ([SliceID], [LocalSlice]) -> Handler (Map LocalSliceID SliceID, [Slice])
+saveSlicesHandler localSlices = liftIO (saveSlices localSlices)
+
+saveSlices :: ([SliceID], [LocalSlice]) -> IO (Map LocalSliceID SliceID, [Slice])
+saveSlices (obsoletes, localSlices) = do
+  slicesDir <- getCurrentDirectory
+  (localSliceIDMap, newSlices) <- return (hashLocalSlices localSlices)
+
+  deletePaths <- return (map (\sid -> slicesDir </> (unpack sid)) obsoletes)
+  deletePathsSafe <- filterM doesFileExist deletePaths
+  _ <- forM deletePathsSafe removeFile
+
+  _ <- forM newSlices (saveSlice slicesDir)
+
+  return (localSliceIDMap, newSlices)
+
+saveSlice :: FilePath -> Slice -> IO ()
+saveSlice path slice@(Slice sid _ _ _ _) = do
+  saveName <- return (path </> (unpack sid))
+  done <- writeFile saveName (encode slice)
+  evaluate done 
