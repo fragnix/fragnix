@@ -6,7 +6,7 @@ module Main where
 
 import Prelude hiding (writeFile,readFile)
 
-import Fragnix.Slice (Slice(..), SliceID)
+import Fragnix.Slice (Slice(..), SliceID, sliceDirectory)
 import Fragnix.LocalSlice (LocalSlice, LocalSliceID)
 import Fragnix.HashLocalSlices (hashLocalSlices)
 
@@ -55,9 +55,9 @@ getSlicesHandler = liftIO getSlices
 
 getSlices :: IO [Slice]
 getSlices = do
-  slicesDir <- getCurrentDirectory
-  allContents <- listDirectory slicesDir
-  filePaths <- filterM doesFileExist allContents
+  allContents <- listDirectory sliceDirectory
+  allPaths <- return (map (sliceDirectory </>) allContents)
+  filePaths <- filterM doesFileExist allPaths
   eitherSlices <- forM filePaths decodeSlice
   -- ignore anything that's not a valid slice - let the elm part figure
   -- out if the tree is complete
@@ -74,14 +74,14 @@ saveSlicesHandler localSlices = liftIO (saveSlices localSlices)
 
 saveSlices :: ([SliceID], [LocalSlice]) -> IO (Map LocalSliceID SliceID, [Slice])
 saveSlices (obsoletes, localSlices) = do
-  slicesDir <- getCurrentDirectory
+  -- slicesDir <- getCurrentDirectory
   (localSliceIDMap, newSlices) <- return (hashLocalSlices localSlices)
 
-  deletePaths <- return (map (\sid -> slicesDir </> (unpack sid)) obsoletes)
+  deletePaths <- return (map (\sid -> sliceDirectory </> (unpack sid)) obsoletes)
   deletePathsSafe <- filterM doesFileExist deletePaths
   _ <- forM deletePathsSafe removeFile
 
-  _ <- forM newSlices (saveSlice slicesDir)
+  _ <- forM newSlices (saveSlice sliceDirectory)
 
   return (localSliceIDMap, newSlices)
 
@@ -89,4 +89,4 @@ saveSlice :: FilePath -> Slice -> IO ()
 saveSlice path slice@(Slice sid _ _ _ _) = do
   saveName <- return (path </> (unpack sid))
   done <- writeFile saveName (encode slice)
-  evaluate done 
+  evaluate done
