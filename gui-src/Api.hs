@@ -21,9 +21,13 @@ type API
   :<|> StaticAPI
 
 type DynamicAPI
-  = "contents" :> Get '[JSON] [Slice]
-  :<|> "save" :> ReqBody '[JSON] ([SliceID], [LocalSlice])
-              :> Post '[JSON] (Map LocalSliceID SliceID, [Slice])
+  =    "contents" :> Get '[JSON] [Slice]
+
+  :<|> "save"     :> ReqBody '[JSON] ([SliceID], [LocalSlice])
+                  :> Post '[JSON] (Map LocalSliceID SliceID, [Slice])
+
+  :<|> "compile"  :> ReqBody '[JSON] SliceID
+                  :> Post '[JSON] String
 
 type StaticAPI = $(createApiType "/home/florian/Documents/Sem6/fragnix-gui/fragnix/fragnix/gui-src/elm/dist")
 

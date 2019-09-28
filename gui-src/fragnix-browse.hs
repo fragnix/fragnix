@@ -16,7 +16,7 @@ import Data.ByteString.Lazy (writeFile,readFile)
 import Data.Text (unpack)
 import Data.Map (Map)
 
-import System.Directory (getCurrentDirectory, listDirectory, doesFileExist, removeFile)
+import System.Directory (getCurrentDirectory, listDirectory, doesDirectoryExist, doesFileExist, removeFile)
 import System.FilePath ((</>))
 
 import Control.Monad (forM, filterM)
@@ -30,14 +30,16 @@ import Servant.Static.TH (createServerExp)
 import Network.Wai.Handler.Warp (run)
 
 import Api
+import Helpers (slice, compile)
 
 staticServer :: Server StaticAPI
 staticServer = $(createServerExp "gui-src/elm/dist")
 
 dynamicServer :: Server DynamicAPI
 dynamicServer
-  = getSlicesHandler
+  =    getSlicesHandler
   :<|> saveSlicesHandler
+  :<|> compileHandler
 
 server :: Server API
 server
@@ -45,14 +47,29 @@ server
   = dynamicServer
   :<|> staticServer
 
--- | Start the API Server
+-- | Slice Modules if necessary and start the API Server
 main :: IO ()
-main = run 8080 (serve api server)
+main = do
+  done <- doesDirectoryExist sliceDirectory
+  if done then
+    putStrLn "A slice directory already exists"
+  else
+    do
+      currentDirectory <- getCurrentDirectory
+      directoryContents <- listDirectory currentDirectory
+      modulePaths <-
+        return (filter (\n -> (take 3 (reverse n)) == "sh.") directoryContents)
+      slice modulePaths
+
+  putStrLn "Editor available at: http://localhost:8080/index.html"
+
+  run 8080 (serve api server)
 
 -- | GET /contents implementation
 getSlicesHandler :: Handler [Slice]
 getSlicesHandler = liftIO getSlices
 
+-- | return all slices in sliceDirectory
 getSlices :: IO [Slice]
 getSlices = do
   allContents <- listDirectory sliceDirectory
@@ -72,6 +89,7 @@ decodeSlice p = do
 saveSlicesHandler :: ([SliceID], [LocalSlice]) -> Handler (Map LocalSliceID SliceID, [Slice])
 saveSlicesHandler localSlices = liftIO (saveSlices localSlices)
 
+-- | delete obsoleted slices, hash and save new slices
 saveSlices :: ([SliceID], [LocalSlice]) -> IO (Map LocalSliceID SliceID, [Slice])
 saveSlices (obsoletes, localSlices) = do
   -- slicesDir <- getCurrentDirectory
@@ -90,3 +108,14 @@ saveSlice path slice@(Slice sid _ _ _ _) = do
   saveName <- return (path </> (unpack sid))
   done <- writeFile saveName (encode slice)
   evaluate done
+
+-- | POST /compile implementation
+compileHandler :: SliceID -> Handler String
+compileHandler sliceID = liftIO (compileVerbose sliceID)
+
+-- | stub: in the future, this should give back the command line messages sent
+--   by the compiler, so that the frontend can show them directly
+compileVerbose :: SliceID -> IO String
+compileVerbose sliceID = do
+  compile sliceID
+  return "Look at command line to see if it worked"
