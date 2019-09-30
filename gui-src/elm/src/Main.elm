@@ -9,6 +9,8 @@ import Set exposing (Set)
 import Http
 
 import Slice exposing (..)
+import LocalSlice exposing (..)
+import TupleHelper exposing (..)
 
 -- imports for view
 import Parser exposing (Parser)
@@ -42,12 +44,38 @@ init _ =
 
 -- | API Requests
 getAllSlices : Cmd Msg
-getAllSlices = Http.get
-                  { url =
-                      "http://localhost:8080/contents"
-                  , expect =
-                      Http.expectJson ReceivedSlices (Decode.list sliceDecoder)
-                  }
+getAllSlices =
+  Http.get
+    { url =
+        "http://localhost:8080/contents"
+    , expect =
+        Http.expectJson ReceivedSlices (Decode.list sliceDecoder)
+    }
+
+saveSlices : List SliceID -> List LocalSlice -> Cmd Msg
+saveSlices obsoletes localSlices =
+  Http.post
+    { url =
+        "http://localhost:8080/save"
+    , body =
+        Http.jsonBody
+          (encodeTuple
+            (E.list E.string obsoletes)
+            (E.list encodeLocalSlice localSlices))
+    , expect =
+        Http.expectJson HashedSlices (decodeTuple decodeUpdateMap (Decode.list sliceDecoder))
+    }
+
+compile : SliceID -> Cmd Msg
+compile sid =
+  Http.post
+    { url =
+        "http://localhost:8080/compile"
+    , body =
+        Http.jsonBody (E.string sid)
+    , expect =
+        Http.expectJson CompileMsg Decode.string
+    }
 
 httpErrorToString : Http.Error -> String
 httpErrorToString err =
@@ -147,6 +175,12 @@ foldNode f z node =
         in
           f node z2
 
+type alias UpdateMap = List (LocalSliceID, SliceID)
+
+decodeUpdateMap : Decode.Decoder UpdateMap
+decodeUpdateMap =
+  Decode.list (decodeTuple decodeLocalSliceID Decode.string)
+
 -- | UPDATE
 
 type Msg
@@ -157,6 +191,10 @@ type Msg
   | Editor EditorAction
   | Edit String SliceWrap
   | Nop
+  | Save
+  | HashedSlices (Result Http.Error (UpdateMap, List Slice))
+  | Compile SliceID
+  | CompileMsg (Result Http.Error String)
 
 type alias EditorAction =
   { target: String
@@ -238,6 +276,8 @@ update msg model =
           ( { model | error = Just "How the heck did I get here? I was asked to manipulate a TreeView Page but it does not seem to exist." }
           , Cmd.none
           )
+
+    _ -> (model, Cmd.none) -- TODO
 
 -- | Change the text contained in a slice and update the model accordingly
 editUpdate : String -> SliceWrap -> Model -> Model
@@ -646,7 +686,7 @@ checkDependencies cache sw res =
       List.foldl
         (\u acc -> case u of
           (Use _ _ ref) -> case ref of
-            OtherSlice sid -> checkDependency sid cache acc
+            Slice.OtherSlice sid -> checkDependency sid cache acc
             _              -> acc)
         res
         uses

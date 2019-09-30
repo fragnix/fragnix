@@ -34,7 +34,7 @@ type LocalInstance =
     LocalInstance InstancePart LocalInstanceID |
     GlobalInstance InstancePart InstanceID
 
-type LocalInstanceID = LocalSliceID
+type alias LocalInstanceID = LocalSliceID
 
 -- | HELPERS
 
@@ -59,6 +59,7 @@ toLocalSlice { slice, origin } =
                 changes)
               uses)
             (toLocalInstances instances)
+          |> Just
 
 toLocalUses : List SliceID -> List Use -> List LocalUse
 toLocalUses locals uses =
@@ -70,12 +71,12 @@ toLocalUse locals (Use qual usedName ref) =
     qual
     usedName
     (case ref of
-      OtherSlice sid ->
+      Slice.OtherSlice sid ->
         if List.member sid locals then
-          OtherLocalSlice sid
+          OtherLocalSlice (LocalSliceID sid)
         else
           OtherSlice sid
-      Builtin mod ->
+      Slice.Builtin mod ->
         Builtin mod)
 
 -- TODO: What do instances mean? / How does their dirtying propagate?
@@ -96,6 +97,9 @@ encodeLocalSlice (LocalSlice sid lang frag uses instances) =
 
 encodeLocalSliceID : LocalSliceID -> E.Value
 encodeLocalSliceID (LocalSliceID sid) = E.string sid
+
+decodeLocalSliceID : Decode.Decoder LocalSliceID
+decodeLocalSliceID = Decode.map LocalSliceID Decode.string
 
 encodeLanguage : Language -> E.Value
 encodeLanguage (Language ghcexts) =
@@ -149,7 +153,7 @@ encodeLocalReference ref =
     Builtin originalModule ->
       E.object [("builtinModule", E.string originalModule)]
     OtherLocalSlice sid ->
-      E.object [("otherLocalSlice", E.string sid)]
+      E.object [("otherLocalSlice", encodeLocalSliceID sid)]
 
 encodeLocalInstance : LocalInstance -> E.Value
 encodeLocalInstance inst =

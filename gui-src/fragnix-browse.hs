@@ -14,7 +14,7 @@ import Data.Aeson (eitherDecode,encode)
 import Data.Either (rights)
 import Data.ByteString.Lazy (writeFile,readFile)
 import Data.Text (unpack)
-import Data.Map (Map)
+import Data.Map (Map, toList)
 
 import System.Directory (getCurrentDirectory, listDirectory, doesDirectoryExist, doesFileExist, removeFile)
 import System.FilePath ((</>))
@@ -86,11 +86,11 @@ decodeSlice p = do
   evaluate (eitherDecode file)
 
 -- | POST /save implementation
-saveSlicesHandler :: ([SliceID], [LocalSlice]) -> Handler (Map LocalSliceID SliceID, [Slice])
-saveSlicesHandler localSlices = liftIO (saveSlices localSlices)
+saveSlicesHandler :: Tuple [SliceID] [LocalSlice] -> Handler (Tuple [Tuple LocalSliceID SliceID] [Slice])
+saveSlicesHandler localSlices = liftIO (saveSlices (unwrapTuple localSlices))
 
 -- | delete obsoleted slices, hash and save new slices
-saveSlices :: ([SliceID], [LocalSlice]) -> IO (Map LocalSliceID SliceID, [Slice])
+saveSlices :: ([SliceID], [LocalSlice]) -> IO (Tuple [Tuple LocalSliceID SliceID] [Slice])
 saveSlices (obsoletes, localSlices) = do
   -- slicesDir <- getCurrentDirectory
   (localSliceIDMap, newSlices) <- return (hashLocalSlices localSlices)
@@ -101,7 +101,7 @@ saveSlices (obsoletes, localSlices) = do
 
   _ <- forM newSlices (saveSlice sliceDirectory)
 
-  return (localSliceIDMap, newSlices)
+  return (Tuple (map wrapTuple (toList localSliceIDMap)) newSlices)
 
 saveSlice :: FilePath -> Slice -> IO ()
 saveSlice path slice@(Slice sid _ _ _ _) = do
