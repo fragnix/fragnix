@@ -45,21 +45,22 @@ toLocalSlice { slice, origin } =
     Disk ->
       Nothing
     ChangedFrom _ changes ->
-      case slice of
-        Slice sid lang frag uses instances ->
-          LocalSlice
-            (LocalSliceID sid)
-            lang
-            frag
-            (toLocalUses
-              (List.filterMap
-                (\c -> case c of
-                  Reference rid -> Just rid
-                  _             -> Nothing)
-                changes)
-              uses)
-            (toLocalInstances instances)
-          |> Just
+      let
+        locals =
+          List.filterMap
+            (\c -> case c of
+              Reference rid -> Just rid
+              _             -> Nothing)
+            changes
+      in
+        case slice of
+          Slice sid lang frag uses instances -> Just
+            (LocalSlice
+              (LocalSliceID sid)
+              lang
+              frag
+              (toLocalUses locals uses)
+              (toLocalInstances locals instances))
 
 toLocalUses : List SliceID -> List Use -> List LocalUse
 toLocalUses locals uses =
@@ -79,10 +80,14 @@ toLocalUse locals (Use qual usedName ref) =
       Slice.Builtin mod ->
         Builtin mod)
 
--- TODO: What do instances mean? / How does their dirtying propagate?
-toLocalInstances : List Instance -> List LocalInstance
-toLocalInstances instances =
-  List.map (\(Instance part sid) -> (GlobalInstance part sid)) instances
+toLocalInstances : List SliceID -> List Instance -> List LocalInstance
+toLocalInstances locals =
+  List.map
+    (\(Instance part sid) ->
+        if List.member sid locals then
+          LocalInstance part (LocalSliceID sid)
+        else
+          GlobalInstance part sid)
 
 -- | ENCODERS
 encodeLocalSlice : LocalSlice -> E.Value

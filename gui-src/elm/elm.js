@@ -7056,16 +7056,31 @@ var author$project$Slice$extractReferences = function (slice) {
 	return author$project$Slice$removeDuplicates(
 		A2(elm$core$List$filterMap, author$project$Slice$extractReference, uses));
 };
+var author$project$Slice$getInstances = function (_n0) {
+	var instances = _n0.e;
+	return instances;
+};
 var elm$core$Tuple$second = function (_n0) {
 	var y = _n0.b;
 	return y;
 };
 var author$project$Slice$extractDependencies = function (slice) {
 	return author$project$Slice$removeDuplicates(
-		A2(
-			elm$core$List$map,
-			elm$core$Tuple$second,
-			author$project$Slice$extractReferences(slice)));
+		function (xs) {
+			return _Utils_ap(
+				A2(
+					elm$core$List$map,
+					function (_n0) {
+						var id = _n0.b;
+						return id;
+					},
+					author$project$Slice$getInstances(slice)),
+				xs);
+		}(
+			A2(
+				elm$core$List$map,
+				elm$core$Tuple$second,
+				author$project$Slice$extractReferences(slice))));
 };
 var author$project$Main$addOccurences = F2(
 	function (_n0, dict) {

@@ -75,18 +75,22 @@ mapReferenceId f (Use qual name ref) =
     (Use qual name newRef)
 
 -- | all References as Tuple of used Name and referenced SliceID
+-- | does currently not include instances since they do not have a used name
 extractReferences : Slice -> List (String, SliceID)
 extractReferences slice =
   case slice of
     (Slice _ _ _ uses _) ->
       removeDuplicates (List.filterMap extractReference uses)
 
--- | all Dependencies as SliceID
+-- | all Dependencies as SliceID, including uses and instances
 extractDependencies : Slice -> List SliceID
 extractDependencies slice =
   extractReferences slice
     |> List.map Tuple.second
+    |> (\xs -> (List.map (\(Instance _ id) -> id) (getInstances slice)) ++ xs)
     |> removeDuplicates
+
+getInstances (Slice _ _ _ _ instances) = instances
 
 -- | Turn a Use into its used String name plus the referenced ID
 -- | or Nothing if it is a builtin Module
