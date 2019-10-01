@@ -6683,6 +6683,22 @@ var author$project$Slice$extractDefault = function (lines) {
 		return _Utils_Tuple3('', '', '');
 	}
 };
+var elm$core$String$indexes = _String_indexes;
+var elm$core$String$slice = _String_slice;
+var elm$core$String$left = F2(
+	function (n, string) {
+		return (n < 1) ? '' : A3(elm$core$String$slice, 0, n, string);
+	});
+var author$project$Slice$dropFrom = F2(
+	function (delimiter, string) {
+		var _n0 = A2(elm$core$String$indexes, delimiter, string);
+		if (!_n0.b) {
+			return string;
+		} else {
+			var x = _n0.a;
+			return A2(elm$core$String$left, x, string);
+		}
+	});
 var elm$core$String$fromList = _String_fromList;
 var elm$core$String$startsWith = _String_startsWith;
 var elm$core$String$foldr = _String_foldr;
@@ -6697,6 +6713,7 @@ var author$project$Slice$extractFromInstanceDeclaration = function (lines) {
 		lines);
 	if (_n0.b) {
 		var inst = _n0.a;
+		var tagline = A2(author$project$Slice$dropFrom, 'where', inst);
 		var n = function (xs) {
 			if (xs.b) {
 				if (xs.b.b) {
@@ -6726,7 +6743,7 @@ var author$project$Slice$extractFromInstanceDeclaration = function (lines) {
 					elm$core$String$toList,
 					elm$core$String$words(inst))));
 		return elm$core$Maybe$Just(
-			_Utils_Tuple3(n, n, inst));
+			_Utils_Tuple3(n, n, tagline));
 	} else {
 		return elm$core$Maybe$Nothing;
 	}
@@ -6740,6 +6757,7 @@ var author$project$Slice$extractFromTypeDeclaration = function (lines) {
 		lines);
 	if (_n0.b) {
 		var typ = _n0.a;
+		var tagline = A2(author$project$Slice$dropFrom, '=', typ);
 		var n = function (xs) {
 			if (xs.b) {
 				var b = xs.a;
@@ -6763,7 +6781,7 @@ var author$project$Slice$extractFromTypeDeclaration = function (lines) {
 					elm$core$String$toList,
 					elm$core$String$words(typ))));
 		return elm$core$Maybe$Just(
-			_Utils_Tuple3(n, n, typ));
+			_Utils_Tuple3(n, n, tagline));
 	} else {
 		return elm$core$Maybe$Nothing;
 	}
@@ -14198,7 +14216,6 @@ var author$project$SyntaxHighlight$Language$Helpers$thenChompWhile = F2(
 			elm$parser$Parser$chompWhile(isNotRelevant));
 	});
 var author$project$SyntaxHighlight$Language$Type$Comment = {$: 1};
-var elm$core$String$slice = _String_slice;
 var elm$parser$Parser$Advanced$mapChompedString = F2(
 	function (func, _n0) {
 		var parse = _n0;
@@ -15958,10 +15975,6 @@ var author$project$Main$Unmark = 3;
 var author$project$Main$edges = {bo: 0, aO: 0, a9: 0, ci: 0};
 var mdgriffith$elm_ui$Element$rgba = mdgriffith$elm_ui$Internal$Model$Rgba;
 var author$project$Main$glass = A4(mdgriffith$elm_ui$Element$rgba, 0, 0, 0, 0);
-var elm$core$String$left = F2(
-	function (n, string) {
-		return (n < 1) ? '' : A3(elm$core$String$slice, 0, n, string);
-	});
 var mdgriffith$elm_ui$Internal$Flag$shadows = mdgriffith$elm_ui$Internal$Flag$flag(19);
 var mdgriffith$elm_ui$Internal$Model$boxShadowClass = function (shadow) {
 	return elm$core$String$concat(
@@ -17241,7 +17254,6 @@ var elm$core$String$dropLeft = F2(
 	});
 var elm$url$Url$Http = 0;
 var elm$url$Url$Https = 1;
-var elm$core$String$indexes = _String_indexes;
 var elm$core$String$toInt = _String_toInt;
 var elm$url$Url$Url = F6(
 	function (protocol, host, port_, path, query, fragment) {

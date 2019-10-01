@@ -268,8 +268,10 @@ extractFromInstanceDeclaration lines =
                 _::a::_ -> String.fromList a
                 b::_    -> String.fromList b
                 []       -> "")
+        tagline =
+          dropFrom "where" inst
       in
-        Just (n, n, inst)
+        Just (n, n, tagline)
     []        -> Nothing
 
 extractFromTypeDeclaration : List SourceCode -> Maybe (String, String, String)
@@ -288,8 +290,10 @@ extractFromTypeDeclaration lines =
           |> (\xs -> case xs of
                 b::_    -> String.fromList b
                 []       -> "")
+        tagline =
+          dropFrom "=" typ
       in
-        Just (n, n, typ)
+        Just (n, n, tagline)
     []        -> Nothing
 
 extractFromValue : List SourceCode -> Maybe (String, String, String)
@@ -322,6 +326,13 @@ extractDefault lines =
     l :: _ -> (l, l, l)
     []     -> ("", "", "")
 
+dropFrom : String -> String -> String
+dropFrom delimiter string =
+  case String.indexes delimiter string of
+    []     ->
+       string
+    x :: _ ->
+      String.left x string
 
 
 -- | DECODERS
