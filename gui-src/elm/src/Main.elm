@@ -104,6 +104,7 @@ type alias Model =
   , slices: List SliceWrap
   , cache: Cache
   , error: Maybe String
+  , saving: Bool
   }
 
 type alias Cache = Dict SliceID SliceWrap
@@ -115,6 +116,7 @@ emptyModel =
   , slices = []
   , cache = Dict.empty
   , error = Nothing
+  , saving = False
   }
 
 type Page
@@ -280,7 +282,7 @@ update msg model =
     Save ->
       case computeLocalSlices model.slices of
         (obsoletes, localSlices) ->
-          ( model
+          ( { model | saving = True }
           , saveSlices obsoletes localSlices)
 
     HashedSlices result ->
@@ -290,7 +292,10 @@ update msg model =
           , Cmd.none
           )
         Ok (updateMap, newSlices) ->
-          ( integrateHashedSlices updateMap newSlices model
+          ( integrateHashedSlices
+              updateMap
+              newSlices
+              { model | saving = False }
           , Cmd.none
           )
 
@@ -305,19 +310,9 @@ integrateHashedSlices umap slices model =
     updateMap =
       List.map (Tuple.mapFirst (\(LocalSliceID sid) -> sid)) umap
 
-    cleanedCache =
-      List.foldl
-        (\sid acc ->
-          Dict.remove sid acc)
-        model.cache
-        (List.map Tuple.first updateMap)
-
     newCache =
-      List.foldl
-        (\sw acc ->
-          Dict.insert sw.id sw acc)
-        cleanedCache
-        sliceWraps
+      dictRemoveList (List.map Tuple.first updateMap) model.cache
+      |> insertSliceWraps sliceWraps
       |> Dict.map
           (\k sw -> { sw | occurences = [] } )
 
@@ -339,7 +334,21 @@ integrateHashedSlices umap slices model =
   in
     { newModel | page = newPage }
 
+dictRemoveList : List comparable -> Dict comparable a -> Dict comparable a
+dictRemoveList list dict =
+  List.foldl
+    (\k acc ->
+      Dict.remove k acc)
+    dict
+    list
 
+insertSliceWraps : List SliceWrap -> Cache -> Cache
+insertSliceWraps sws cache =
+  List.foldl
+    (\sw acc ->
+      Dict.insert sw.id sw acc)
+    cache
+    sws
 
 -- | compute which slices are obsolete and which are to be rehashed
 computeLocalSlices : List SliceWrap -> (List SliceID, List LocalSlice)
@@ -702,11 +711,7 @@ insertSlices newSlices model =
 indexSlices : Model -> Model
 indexSlices model =
   { model | cache =
-      List.foldl
-        (\s c -> case s.slice of
-          (Slice sid _ _ _ _) -> Dict.insert sid s c)
-        Dict.empty
-        model.slices
+      insertSliceWraps model.slices model.cache
   }
 
 -- | add information about where the loaded slices are used
@@ -811,10 +816,10 @@ view model =
   |> createHtml
 
 viewPage : Model -> Element Msg
-viewPage model =
-  case model.page of
+viewPage { page, saving } =
+  case page of
     TreeView node ->
-      viewEditor node
+      viewEditor node saving
     Loading msgs ->
       viewLoading msgs
 
@@ -885,8 +890,8 @@ basicLayout elem =
     elem
 
 -- | View the editor
-viewEditor : Node -> Element Msg
-viewEditor node =
+viewEditor : Node -> Bool -> Element Msg
+viewEditor node loading =
   Element.column
     [ Element.padding 10
     , Background.color monokai_black
@@ -896,7 +901,7 @@ viewEditor node =
     , Element.width Element.fill
     , Element.height Element.fill
     ]
-    [ viewToolbar
+    [ viewToolbar loading
     , Element.el
         [ Element.width Element.fill
         , Element.height Element.fill
@@ -905,8 +910,8 @@ viewEditor node =
         (viewNode node)
     ]
 
-viewToolbar : Element Msg
-viewToolbar =
+viewToolbar :Bool -> Element Msg
+viewToolbar saving =
   Element.row
     [ Element.width Element.fill
     ]
@@ -917,7 +922,7 @@ viewToolbar =
         , Element.pointer
         , Element.alignRight
         ]
-        (Element.text "Save")
+        (Element.text (if saving then "Saving..." else "Save"))
     ]
 
 -- | Recursively view the editor model
