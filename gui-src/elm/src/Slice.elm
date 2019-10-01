@@ -249,9 +249,12 @@ extractNameSignatureAndTagline lines =
       case extractFromTypeDeclaration lines of
         Just y -> y
         Nothing ->
-          case extractFromValue lines of
+          case extractFromClassDeclaration lines of
             Just z -> z
-            Nothing -> extractDefault lines
+            Nothing ->
+              case extractFromValue lines of
+                Just w -> w
+                Nothing -> extractDefault lines
 
 extractFromInstanceDeclaration : List SourceCode -> Maybe (String, String, String)
 extractFromInstanceDeclaration lines =
@@ -260,13 +263,10 @@ extractFromInstanceDeclaration lines =
       let
         n =
           String.words inst
-          |> List.map String.toList
-          |> List.filter (\xs -> case xs of
-                            [] -> False
-                            x::_ -> Char.isUpper x)
+          |> List.filter isCapitalized
           |> (\xs -> case xs of
-                _::a::_ -> String.fromList a
-                b::_    -> String.fromList b
+                _::a::_ -> a
+                b::_    -> b
                 []       -> "")
         tagline =
           dropFrom "where" inst
@@ -283,18 +283,37 @@ extractFromTypeDeclaration lines =
       let
         n =
           String.words typ
-          |> List.map String.toList
-          |> List.filter (\xs -> case xs of
-                            [] -> False
-                            x::_ -> Char.isUpper x)
+          |> List.filter isCapitalized
           |> (\xs -> case xs of
-                b::_    -> String.fromList b
-                []       -> "")
+                b::_  -> b
+                []    -> "")
         tagline =
           dropFrom "=" typ
       in
         Just (n, n, tagline)
     []        -> Nothing
+
+isCapitalized : String -> Bool
+isCapitalized string =
+  case String.toList string of
+    [] -> False
+    x::_ -> Char.isUpper x
+
+extractFromClassDeclaration : List SourceCode -> Maybe (String, String, String)
+extractFromClassDeclaration lines =
+  case (List.filter (\s -> String.startsWith "class" s) lines) of
+    []         -> Nothing
+    class :: _ ->
+      let
+        tagline = dropFrom "where" class
+        name =
+          String.words tagline
+          |> List.filter isCapitalized
+          |> (\xs -> case xs of
+                [] -> ""
+                c :: _ -> c)
+      in
+        Just (name, name, tagline)
 
 extractFromValue : List SourceCode -> Maybe (String, String, String)
 extractFromValue lines =

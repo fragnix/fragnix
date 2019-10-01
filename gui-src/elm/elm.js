@@ -6838,13 +6838,49 @@ var author$project$Slice$dropFrom = F2(
 			return A2(elm$core$String$left, x, string);
 		}
 	});
-var elm$core$String$fromList = _String_fromList;
-var elm$core$String$startsWith = _String_startsWith;
 var elm$core$String$foldr = _String_foldr;
 var elm$core$String$toList = function (string) {
 	return A3(elm$core$String$foldr, elm$core$List$cons, _List_Nil, string);
 };
+var author$project$Slice$isCapitalized = function (string) {
+	var _n0 = elm$core$String$toList(string);
+	if (!_n0.b) {
+		return false;
+	} else {
+		var x = _n0.a;
+		return elm$core$Char$isUpper(x);
+	}
+};
+var elm$core$String$startsWith = _String_startsWith;
 var elm$core$String$words = _String_words;
+var author$project$Slice$extractFromClassDeclaration = function (lines) {
+	var _n0 = A2(
+		elm$core$List$filter,
+		function (s) {
+			return A2(elm$core$String$startsWith, 'class', s);
+		},
+		lines);
+	if (!_n0.b) {
+		return elm$core$Maybe$Nothing;
+	} else {
+		var _class = _n0.a;
+		var tagline = A2(author$project$Slice$dropFrom, 'where', _class);
+		var name = function (xs) {
+			if (!xs.b) {
+				return '';
+			} else {
+				var c = xs.a;
+				return c;
+			}
+		}(
+			A2(
+				elm$core$List$filter,
+				author$project$Slice$isCapitalized,
+				elm$core$String$words(tagline)));
+		return elm$core$Maybe$Just(
+			_Utils_Tuple3(name, name, tagline));
+	}
+};
 var author$project$Slice$extractFromInstanceDeclaration = function (lines) {
 	var _n0 = A2(
 		elm$core$List$filter,
@@ -6856,12 +6892,12 @@ var author$project$Slice$extractFromInstanceDeclaration = function (lines) {
 		var n = function (xs) {
 			if (xs.b) {
 				if (xs.b.b) {
-					var _n3 = xs.b;
-					var a = _n3.a;
-					return elm$core$String$fromList(a);
+					var _n2 = xs.b;
+					var a = _n2.a;
+					return a;
 				} else {
 					var b = xs.a;
-					return elm$core$String$fromList(b);
+					return b;
 				}
 			} else {
 				return '';
@@ -6869,18 +6905,8 @@ var author$project$Slice$extractFromInstanceDeclaration = function (lines) {
 		}(
 			A2(
 				elm$core$List$filter,
-				function (xs) {
-					if (!xs.b) {
-						return false;
-					} else {
-						var x = xs.a;
-						return elm$core$Char$isUpper(x);
-					}
-				},
-				A2(
-					elm$core$List$map,
-					elm$core$String$toList,
-					elm$core$String$words(inst))));
+				author$project$Slice$isCapitalized,
+				elm$core$String$words(inst)));
 		return elm$core$Maybe$Just(
 			_Utils_Tuple3(n, n, tagline));
 	} else {
@@ -6900,25 +6926,15 @@ var author$project$Slice$extractFromTypeDeclaration = function (lines) {
 		var n = function (xs) {
 			if (xs.b) {
 				var b = xs.a;
-				return elm$core$String$fromList(b);
+				return b;
 			} else {
 				return '';
 			}
 		}(
 			A2(
 				elm$core$List$filter,
-				function (xs) {
-					if (!xs.b) {
-						return false;
-					} else {
-						var x = xs.a;
-						return elm$core$Char$isUpper(x);
-					}
-				},
-				A2(
-					elm$core$List$map,
-					elm$core$String$toList,
-					elm$core$String$words(typ))));
+				author$project$Slice$isCapitalized,
+				elm$core$String$words(typ)));
 		return elm$core$Maybe$Just(
 			_Utils_Tuple3(n, n, tagline));
 	} else {
@@ -7023,12 +7039,18 @@ var author$project$Slice$extractNameSignatureAndTagline = function (lines) {
 			var y = _n1.a;
 			return y;
 		} else {
-			var _n2 = author$project$Slice$extractFromValue(lines);
+			var _n2 = author$project$Slice$extractFromClassDeclaration(lines);
 			if (!_n2.$) {
 				var z = _n2.a;
 				return z;
 			} else {
-				return author$project$Slice$extractDefault(lines);
+				var _n3 = author$project$Slice$extractFromValue(lines);
+				if (!_n3.$) {
+					var w = _n3.a;
+					return w;
+				} else {
+					return author$project$Slice$extractDefault(lines);
+				}
 			}
 		}
 	}
