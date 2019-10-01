@@ -277,7 +277,80 @@ update msg model =
           , Cmd.none
           )
 
+    Save ->
+      case computeLocalSlices model.slices of
+        (obsoletes, localSlices) ->
+          ( model
+          , saveSlices obsoletes localSlices)
+
+    HashedSlices result ->
+      case result of
+        Err e ->
+          ( { model | error = Just (httpErrorToString e) }
+          , Cmd.none
+          )
+        Ok (updateMap, newSlices) ->
+          ( integrateHashedSlices updateMap newSlices model
+          , Cmd.none
+          )
+
     _ -> (model, Cmd.none) -- TODO
+
+-- | integrate newly hashed slices
+integrateHashedSlices : UpdateMap -> List Slice -> Model -> Model
+integrateHashedSlices umap slices model =
+  let
+    sliceWraps = List.map wrap slices
+
+    updateMap =
+      List.map (Tuple.mapFirst (\(LocalSliceID sid) -> sid)) umap
+
+    cleanedCache =
+      List.foldl
+        (\sid acc ->
+          Dict.remove sid acc)
+        model.cache
+        (List.map Tuple.first updateMap)
+
+    newCache =
+      List.foldl
+        (\sw acc ->
+          Dict.insert sw.id sw acc)
+        cleanedCache
+        sliceWraps
+      |> Dict.map
+          (\k sw -> { sw | occurences = [] } )
+
+    newModel =
+      computeOccurences
+        { model | cache = newCache, slices = Dict.values newCache }
+
+    nodeUpdates =
+      List.filterMap
+        (\(old, sid) ->
+            Dict.get sid newModel.cache
+            |> Maybe.map (\sw -> (old, sw)))
+        updateMap
+
+    newPage =
+      case newModel.page of
+        TreeView node -> TreeView (updateNodeContents nodeUpdates node)
+        _ -> newModel.page
+  in
+    { newModel | page = newPage }
+
+
+
+-- | compute which slices are obsolete and which are to be rehashed
+computeLocalSlices : List SliceWrap -> (List SliceID, List LocalSlice)
+computeLocalSlices slices =
+  ( List.filterMap
+      (\sw -> case sw.origin of
+          Disk -> Nothing
+          _    -> Just sw.id)
+      slices
+  , List.filterMap toLocalSlice slices
+  )
 
 -- | Change the text contained in a slice and update the model accordingly
 editUpdate : String -> SliceWrap -> Model -> Model
@@ -814,17 +887,38 @@ basicLayout elem =
 -- | View the editor
 viewEditor : Node -> Element Msg
 viewEditor node =
-  Element.el
+  Element.column
     [ Element.padding 10
     , Background.color monokai_black
     , Font.color monokai_white
     , Font.family [ Font.monospace ]
     , Font.size 16
-    , Element.scrollbars
     , Element.width Element.fill
     , Element.height Element.fill
     ]
-    (viewNode node)
+    [ viewToolbar
+    , Element.el
+        [ Element.width Element.fill
+        , Element.height Element.fill
+        , Element.scrollbars
+        ]
+        (viewNode node)
+    ]
+
+viewToolbar : Element Msg
+viewToolbar =
+  Element.row
+    [ Element.width Element.fill
+    ]
+    [ Element.el
+        [ Element.padding 10
+        , Events.onClick Save
+        , Element.mouseOver [Background.color monokai_grey ]
+        , Element.pointer
+        , Element.alignRight
+        ]
+        (Element.text "Save")
+    ]
 
 -- | Recursively view the editor model
 viewNode : Node -> Element Msg
