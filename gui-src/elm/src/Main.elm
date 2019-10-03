@@ -2,17 +2,16 @@ module Main exposing (..)
 
 import Browser
 
+import Http
 import Json.Encode as E
-import Json.Decode as Decode
 import Dict exposing (Dict)
 import Set exposing (Set)
-import Http
 
 import Slice exposing (..)
 import LocalSlice exposing (..)
-import TupleHelper exposing (..)
 import Palette exposing (..)
-import EditorField exposing (syntaxHighlight, inlineSH, editorField)
+import EditorField
+import API
 
 -- imports for view
 import SyntaxHighlight as SH
@@ -39,61 +38,8 @@ type alias Flags = E.Value
 init : Flags -> (Model, Cmd Msg)
 init _ =
   ( { emptyModel | page = Loading ["Requesting Slices..."] }
-  , getAllSlices
+  , (API.getAllSlices ReceivedSlices)
   )
-
--- | API Requests
-getAllSlices : Cmd Msg
-getAllSlices =
-  Http.get
-    { url =
-        "http://localhost:8080/contents"
-    , expect =
-        Http.expectJson ReceivedSlices (Decode.list sliceDecoder)
-    }
-
-saveSlices : List SliceID -> List LocalSlice -> Cmd Msg
-saveSlices obsoletes localSlices =
-  Http.post
-    { url =
-        "http://localhost:8080/save"
-    , body =
-        Http.jsonBody
-          (encodeTuple
-            (E.list E.string obsoletes)
-            (E.list encodeLocalSlice localSlices))
-    , expect =
-        Http.expectJson HashedSlices (decodeTuple decodeUpdateMap (Decode.list sliceDecoder))
-    }
-
-compile : SliceID -> Cmd Msg
-compile sid =
-  Http.post
-    { url =
-        "http://localhost:8080/compile"
-    , body =
-        Http.jsonBody (E.string sid)
-    , expect =
-        Http.expectJson CompileMsg Decode.string
-    }
-
-httpErrorToString : Http.Error -> String
-httpErrorToString err =
-  case err of
-    Http.Timeout ->
-        "Request timeout"
-
-    Http.NetworkError ->
-        "Network error"
-
-    Http.BadBody msg ->
-        "Bad Body: " ++ msg
-
-    Http.BadStatus s ->
-        "Bad Status: " ++ (String.fromInt s)
-
-    Http.BadUrl msg ->
-        "Bad url: " ++ msg
 
 -- | MODEL
 
@@ -177,12 +123,6 @@ foldNode f z node =
         in
           f node z2
 
-type alias UpdateMap = List (LocalSliceID, SliceID)
-
-decodeUpdateMap : Decode.Decoder UpdateMap
-decodeUpdateMap =
-  Decode.list (decodeTuple decodeLocalSliceID Decode.string)
-
 -- | UPDATE
 
 type Msg
@@ -194,7 +134,7 @@ type Msg
   | Edit String SliceWrap
   | Nop
   | Save
-  | HashedSlices (Result Http.Error (UpdateMap, List Slice))
+  | HashedSlices (Result Http.Error (API.UpdateMap, List Slice))
   | Compile SliceID
   | CompileMsg (Result Http.Error String)
 
@@ -227,7 +167,7 @@ update msg model =
     ReceivedSlices result ->
       case result of
         Err e ->
-          ( { model | error = Just (httpErrorToString e) }
+          ( { model | error = Just (API.httpErrorToString e) }
           , Cmd.none
           )
         Ok slices ->
@@ -283,12 +223,12 @@ update msg model =
       case computeLocalSlices model.slices of
         (obsoletes, localSlices) ->
           ( { model | saving = True }
-          , saveSlices obsoletes localSlices)
+          , API.saveSlices HashedSlices obsoletes localSlices)
 
     HashedSlices result ->
       case result of
         Err e ->
-          ( { model | error = Just (httpErrorToString e) }
+          ( { model | error = Just (API.httpErrorToString e) }
           , Cmd.none
           )
         Ok (updateMap, newSlices) ->
@@ -302,7 +242,7 @@ update msg model =
     _ -> (model, Cmd.none) -- TODO
 
 -- | integrate newly hashed slices
-integrateHashedSlices : UpdateMap -> List Slice -> Model -> Model
+integrateHashedSlices : API.UpdateMap -> List Slice -> Model -> Model
 integrateHashedSlices umap slices model =
   let
     sliceWraps = List.map wrap slices
@@ -972,7 +912,7 @@ viewTeaser content =
                 (if origin == Disk then actual_black else orange)
             ]
             (Element.text "⮟ ")
-        , inlineSH tagline
+        , EditorField.inlineSH tagline
         ]
     Occurences occs ->
       case String.fromInt (List.length occs) of
@@ -1070,7 +1010,7 @@ viewSlice sw editable nodeId =
             [ Border.width 1
             , Border.color monokai_grey
             ]
-            (editorField renderedFragment (\txt -> Edit txt sw) highlightDict)
+            (EditorField.editorField renderedFragment (\txt -> Edit txt sw) highlightDict)
         , Element.el
             [ Events.onClick (Editor {target = nodeId, action = MakeStatic})
             , Element.pointer
@@ -1087,7 +1027,7 @@ viewSlice sw editable nodeId =
       Element.el
         ([ Events.onClick (Editor {target = nodeId, action = MakeEditable})
         ] ++ dirtyAttribs)
-        (syntaxHighlight renderedFragment highlightDict)
+        (EditorField.syntaxHighlight renderedFragment highlightDict)
 
 -- | Expanded - Occurences/Dependencies
 
