@@ -464,18 +464,19 @@ addOccurence sid occId dict =
 -- | check if any slice references a slice that is not in the cache
 performIntegrityCheck : Model -> Model
 performIntegrityCheck model =
-  case integrityCheck model of
-    Ok _        -> model
-    Err missing -> { model | error = Just (missingSlicesToString missing) }
+  case integrityCheck model.cache model.slices of
+    Ok _    -> model
+    Err err -> { model | error = Just err }
 
 missingSlicesToString : Set SliceID -> String
 missingSlicesToString missing =
   "Missing Slices: "
   ++ String.concat (List.map (\x -> x ++ " ") (Set.toList missing))
 
-integrityCheck : Model -> Result (Set SliceID) ()
-integrityCheck model =
-  List.foldl (checkDependencies model.cache) (Ok ()) model.slices
+integrityCheck : Cache -> List SliceWrap -> Result String ()
+integrityCheck cache slices =
+  List.foldl (checkDependencies cache) (Ok ()) slices
+  |> Result.mapError missingSlicesToString
 
 checkDependencies : (Cache) -> SliceWrap -> Result (Set SliceID) () -> Result (Set SliceID) ()
 checkDependencies cache sw res =
