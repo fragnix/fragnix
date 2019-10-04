@@ -270,14 +270,14 @@ updateCache old new cache =
       walkSlices
         dirtyStep
         (insertAll new.occurences new.id Dict.empty)
-        cache
-        (Dict.insert new.id new Dict.empty)
+        (Dict.insert old.id new cache)
+        (Dict.insert old.id new Dict.empty)
     (ChangedFrom _ _, Disk) ->
       walkSlices
         unDirtyStep
         (insertAll new.occurences new.id Dict.empty)
-        cache
-        (Dict.insert new.id new Dict.empty)
+        (Dict.insert old.id new cache)
+        (Dict.insert old.id new Dict.empty)
 
 
 -- | walk the slice graph
