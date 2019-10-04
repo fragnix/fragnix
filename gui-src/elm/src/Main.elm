@@ -267,15 +267,109 @@ updateCache old new cache =
     (ChangedFrom _ _, ChangedFrom _ _) ->
       (Dict.insert old.id new cache, [(old.id, new)])
     (Disk, ChangedFrom _ _) ->
-      dirtyRecursive
-        (List.map (\o -> (o, new.id)) new.occurences)
-        (Dict.insert old.id new cache)
-        [(old.id, new)]
+      walkSlices
+        dirtyStep
+        (insertAll new.occurences new.id Dict.empty)
+        cache
+        (Dict.insert new.id new Dict.empty)
     (ChangedFrom _ _, Disk) ->
-      unDirtyRecursive
-        (List.map (\o -> (o, new.id)) new.occurences)
-        (Dict.insert old.id new cache)
-        [(old.id, new)]
+      walkSlices
+        unDirtyStep
+        (insertAll new.occurences new.id Dict.empty)
+        cache
+        (Dict.insert new.id new Dict.empty)
+
+
+-- | walk the slice graph
+type alias Queue a = Dict SliceID (Pending a)
+type alias Pending a = a
+type alias Stepper a =
+  (SliceWrap -> Pending a -> Queue a -> (SliceWrap, Queue a))
+
+walkSlices : Stepper a -> Queue a -> Cache -> Cache -> (Cache, List (SliceID, SliceWrap))
+walkSlices step queue cache updates =
+  case Dict.keys queue of
+    -- stop if queue is empty
+    [] ->
+      (cache, Dict.toList updates)
+    -- else apply first step
+    x :: _ ->
+      case (Dict.get x cache, Dict.get x queue) of
+        (Just sw, Just pending) ->
+          case step sw pending (Dict.remove x queue) of
+            (newSw, newQueue) ->
+              walkSlices
+                step
+                newQueue
+                (Dict.insert x newSw cache)
+                (Dict.insert x newSw updates)
+        -- if a key is not available, ignore pending step and move on
+        _ ->
+          walkSlices step (Dict.remove x queue) cache updates
+
+-- | step needed for propagating that a slice that was unchanged is now changed
+dirtyStep : Stepper (Set SliceID)
+dirtyStep sw changedReferences queue =
+  ( updateChangedReferences changedReferences sw
+  , if sw.origin == Disk then
+      insertAll sw.occurences sw.id queue
+    else
+      queue
+  )
+
+insertAll : List SliceID -> SliceID -> Queue (Set SliceID) -> Queue (Set SliceID)
+insertAll places sid queue =
+  List.foldl
+    (\place newQueue ->
+      insertOne place sid newQueue)
+    queue
+    places
+
+insertOne : SliceID -> SliceID -> Queue (Set SliceID) -> Queue (Set SliceID)
+insertOne key newValue queue =
+  case Dict.get key queue of
+    Nothing ->
+      Dict.insert key (Set.insert newValue Set.empty) queue
+    Just set ->
+      Dict.insert key (Set.insert newValue set) queue
+
+updateChangedReferences : (Set SliceID) -> SliceWrap -> SliceWrap
+updateChangedReferences changed sw =
+  let
+    newChanges = (List.map Reference (Set.toList changed))
+  in
+    case sw.origin of
+      Disk ->
+        { sw | origin = ChangedFrom sw newChanges }
+      ChangedFrom old existingChanges ->
+        { sw | origin = ChangedFrom sw (existingChanges ++ newChanges) }
+
+-- | step needed for propagating that a slice that was changed is now unchanged
+unDirtyStep : Stepper (Set SliceID)
+unDirtyStep sw resetReferences queue =
+  case sw.origin of
+    Disk ->
+      (sw, queue)
+    ChangedFrom old changes ->
+      let
+        newSw = updateResetReferences resetReferences changes old sw
+      in
+        ( newSw
+        , if newSw.origin == Disk then
+            insertAll newSw.occurences newSw.id queue
+          else
+            queue
+        )
+
+updateResetReferences : (Set SliceID) -> List Change -> SliceWrap -> SliceWrap -> SliceWrap
+updateResetReferences toReset changes old sw =
+  case (List.filter
+          (\c -> case c of
+            Reference id -> not (Set.member id toReset)
+            _            -> True)
+          changes) of
+    [] -> { sw | origin = Disk }
+    newChanges -> { sw | origin = ChangedFrom old newChanges}
 
 -- | Propagate that a SliceWrap has changed to all its occurences and give back
 --   a list of all SliceWraps that have changed
