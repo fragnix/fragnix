@@ -162,7 +162,7 @@ update msg model =
               )
 
     Save ->
-      case computeLocalSlices model.slices of
+      case computeLocalSlices model.slices model.cache of
         (obsoletes, localSlices) ->
           ( { model | saving = True }
           , API.saveSlices HashedSlices obsoletes localSlices)
@@ -232,17 +232,6 @@ insertSliceWraps sws cache =
     cache
     sws
 
--- | compute which slices are obsolete and which are to be rehashed
-computeLocalSlices : List SliceWrap -> (List SliceID, List LocalSlice)
-computeLocalSlices slices =
-  ( List.filterMap
-      (\sw -> case sw.origin of
-          Disk -> Nothing
-          _    -> Just sw.id)
-      slices
-  , List.filterMap toLocalSlice slices
-  )
-
 -- | Change the text contained in a slice and update the model accordingly
 editUpdate : String -> SliceWrap -> Model -> Model
 editUpdate txt sw model =
@@ -254,8 +243,10 @@ editUpdate txt sw model =
 exchangeSliceWrap : Model -> SliceWrap -> SliceWrap -> Model
 exchangeSliceWrap model target changed =
   let
-    (newCache, updates) =
-      updateCache target changed model.cache
+    newCache =
+      Dict.insert target.id changed model.cache
+    updates =
+      [(target.id, changed)]
     newPage =
       case model.page of
         TreeView node -> TreeView (Editor.updateNodeContents updates node)
@@ -263,28 +254,35 @@ exchangeSliceWrap model target changed =
   in
     { model | cache = newCache, slices = Dict.values newCache, page = newPage }
 
--- | Update a SliceWrap in the Cache, propagate the changes and give back a
---   List of SliceWraps that have changed
-updateCache : SliceWrap -> SliceWrap -> Cache -> (Cache, List (SliceID, SliceWrap))
-updateCache old new cache =
-  case (hasChanged old, hasChanged new) of
-    (False, False)                   ->
-      (cache, []) -- should not happen!
-    (True, True) ->
-      (Dict.insert old.id new cache, [(old.id, new)])
-    (False, True) ->
+
+-- | compute which slices are obsolete and which are to be rehashed
+computeLocalSlices : List SliceWrap -> Cache -> (List SliceID, List LocalSlice)
+computeLocalSlices slices cache =
+  let
+    newCache =
       walkSlices
         dirtyStep
-        (insertAll new.occurences new.id Dict.empty)
-        (Dict.insert old.id new cache)
-        (Dict.insert old.id new Dict.empty)
-    (True, False) ->
-      walkSlices
-        unDirtyStep
-        (insertAll new.occurences new.id Dict.empty)
-        (Dict.insert old.id new cache)
-        (Dict.insert old.id new Dict.empty)
+        initQueue
+        cache
 
+    initQueue =
+      List.foldl
+        (\x acc ->
+          insertAll x.occurences x.id acc)
+        Dict.empty
+        changedSlices
+
+    changedSlices =
+      List.filter (\sw -> sw.origin /= Disk) slices
+      
+    newSlices =
+      Dict.values newCache
+  in
+    ( List.filterMap
+        (\sw -> if hasChanged sw then Just sw.id else Nothing)
+        newSlices
+    , List.filterMap toLocalSlice newSlices
+    )
 
 -- | walk the slice graph
 type alias Queue a = Dict SliceID (Pending a)
@@ -292,12 +290,12 @@ type alias Pending a = a
 type alias Stepper a =
   (SliceWrap -> Pending a -> Queue a -> (SliceWrap, Queue a))
 
-walkSlices : Stepper a -> Queue a -> Cache -> Cache -> (Cache, List (SliceID, SliceWrap))
-walkSlices step queue cache updates =
+walkSlices : Stepper a -> Queue a -> Cache -> Cache
+walkSlices step queue cache =
   case Dict.keys queue of
     -- stop if queue is empty
     [] ->
-      (cache, Dict.toList updates)
+      cache
     -- else apply first step
     x :: _ ->
       case (Dict.get x cache, Dict.get x queue) of
@@ -308,10 +306,9 @@ walkSlices step queue cache updates =
                 step
                 newQueue
                 (Dict.insert x newSw cache)
-                (Dict.insert x newSw updates)
         -- if a key is not available, ignore pending step and move on
         _ ->
-          walkSlices step (Dict.remove x queue) cache updates
+          walkSlices step (Dict.remove x queue) cache
 
 -- | step needed for propagating that a slice that was unchanged is now changed
 dirtyStep : Stepper (Set SliceID)
@@ -339,18 +336,6 @@ insertOne key newValue queue =
     Just set ->
       Dict.insert key (Set.insert newValue set) queue
 
--- | step needed for propagating that a slice that was changed is now unchanged
-unDirtyStep : Stepper (Set SliceID)
-unDirtyStep sw resetReferences queue =
-  let
-    newSw = { sw | locals = Set.diff sw.locals resetReferences }
-  in
-    if (hasChanged newSw) then
-      (newSw, queue)
-    else
-      ( newSw
-      , insertAll newSw.occurences newSw.id queue
-      )
 
 -- | ReceivedSlices
 
