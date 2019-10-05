@@ -62,6 +62,8 @@ type alias Model =
   , page: Page
   , slices: List SliceWrap
   , cache: Cache
+  , changed: Set SliceID
+  , transitive: Set SliceID
   , error: Maybe String
   , saving: Bool
   }
@@ -74,15 +76,12 @@ emptyModel =
   , page = Loading []
   , slices = []
   , cache = Dict.empty
+  , changed = Set.empty
+  , transitive = Set.empty
   , error = Nothing
   , saving = False
   }
 
-type alias SliceData =
-  { slices : List Slice
-  , cache : Cache
-  , main : Maybe SliceID
-  }
 
 type Page
   = Loading (List String)
@@ -102,6 +101,8 @@ type Msg
   | Compile SliceID
   | Editor Editor.Msg
   | Edit String SliceWrap
+  | AddTransitiveChanges SliceID
+  | RemoveTransitiveChanges SliceID
 
 type Step
   = IndexSlices (List Slice)
@@ -146,22 +147,19 @@ update msg model =
       ( model, Cmd.none )
 
     Edit txt sw ->
-      ( editUpdate txt sw model
-      , Cmd.none
-      )
+      editUpdate txt sw model
 
     Editor editorMsg ->
       case editorMsg of
         Editor.Main mainAction ->
           case mainAction of
             Editor.Edit txt sw ->
-              ( editUpdate txt sw model
-              , Cmd.none
-              )
+              editUpdate txt sw model
+
         Editor.Editor editorAction ->
           case model.page of
             TreeView r ->
-              case Editor.nodeUpdate editorAction model.cache r of
+              case Editor.nodeUpdate editorAction model.cache model.transitive r of
                 Ok newRoot ->
                   ( { model | page = TreeView newRoot }
                   , Cmd.none
@@ -188,12 +186,54 @@ update msg model =
           , Cmd.none
           )
         Ok (updateMap, newSlices) ->
-          ( integrateHashedSlices
-              updateMap
-              newSlices
-              { model | saving = False }
-          , Cmd.none
-          )
+          let
+            newPage =
+              case model.page of
+                TreeView root ->
+                  TreeView (Editor.updateChanged Set.empty root)
+                p -> p
+          in
+            ( integrateHashedSlices
+                updateMap
+                newSlices
+                { model | saving = False, page = newPage, transitive = Set.empty, changed = Set.empty }
+            , Cmd.none
+            )
+
+    AddTransitiveChanges sid ->
+      let
+        newTransitive =
+          Set.union
+            model.transitive
+            (computeChangedSlicesRec model.cache [sid] Set.empty)
+        newPage =
+          case model.page of
+            TreeView root ->
+              TreeView (Editor.updateChanged newTransitive root)
+            p -> p
+      in
+        ({ model | page = newPage, transitive = newTransitive, changed = Set.insert sid model.changed }
+        , Cmd.none
+        )
+
+    RemoveTransitiveChanges sid ->
+      let
+        newChanged =
+          Set.remove sid model.changed
+        newTransitive =
+          computeChangedSlicesRec
+            model.cache
+            (Set.toList newChanged)
+            Set.empty
+        newPage =
+          case model.page of
+            TreeView root ->
+              TreeView (Editor.updateChanged newTransitive root)
+            p -> p
+      in
+        ({ model | page = newPage, transitive = newTransitive, changed = newChanged }
+        , Cmd.none
+        )
 
     _ -> (model, Cmd.none) -- TODO
 
@@ -247,11 +287,22 @@ insertSliceWraps sws cache =
     sws
 
 -- | Change the text contained in a slice and update the model accordingly
-editUpdate : String -> SliceWrap -> Model -> Model
+editUpdate : String -> SliceWrap -> Model -> (Model, Cmd Msg)
 editUpdate txt sw model =
-  changeText txt sw
-  |> computeChangeKinds sw
-  |> exchangeSliceWrap model sw
+  let
+    newSw =
+      changeText txt sw
+      |> computeChangeKinds sw
+  in
+    ( exchangeSliceWrap model sw newSw
+    , case (sw.origin, newSw.origin) of
+        (Disk, ChangedFrom _ _) ->
+          perform AddTransitiveChanges newSw.id
+        (ChangedFrom _ _, Disk) ->
+          perform RemoveTransitiveChanges newSw.id
+        _ ->
+          Cmd.none
+    )
 
 -- | Change a SliceWrap and update the model accordingly
 exchangeSliceWrap : Model -> SliceWrap -> SliceWrap -> Model
@@ -268,6 +319,31 @@ exchangeSliceWrap model target changed =
   in
     { model | cache = newCache, slices = Dict.values newCache, page = newPage }
 
+computeChangedSlices : List SliceWrap -> Cache -> Set SliceID
+computeChangedSlices slices cache =
+  computeChangedSlicesRec
+    cache
+    (List.filterMap
+      (\sw -> if sw.origin /= Disk then Just sw.id else Nothing)
+      slices)
+    Set.empty
+
+computeChangedSlicesRec : Cache -> List SliceID -> Set SliceID -> Set SliceID
+computeChangedSlicesRec cache queue visited =
+  case queue of
+    [] -> visited
+    x :: rst ->
+      if Set.member x visited then
+        computeChangedSlicesRec cache rst visited
+      else
+        case Dict.get x cache of
+          Nothing ->
+            computeChangedSlicesRec cache rst visited
+          Just {occurences} ->
+            computeChangedSlicesRec
+              cache
+              (rst ++ occurences)
+              (Set.insert x visited)
 
 -- | compute which slices are obsolete and which are to be rehashed
 computeLocalSlices : List SliceWrap -> Cache -> (List SliceID, List LocalSlice)

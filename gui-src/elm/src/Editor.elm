@@ -1,5 +1,7 @@
 module Editor exposing (..)
 
+import Set exposing (Set)
+
 import Element exposing (Element)
 import Element.Background as Background
 import Element.Border as Border
@@ -26,6 +28,7 @@ type alias Node =
   , content: NodeContent
   , editable: Bool
   , framed: Bool
+  , changed: Bool
   }
 
 type Children = Collapsed | Expanded (List Node)
@@ -39,6 +42,7 @@ defaultNode =
   , content = Occurences []
   , editable = False
   , framed = False
+  , changed = False
   }
 
 type NodeContent
@@ -123,8 +127,8 @@ type Action
 type alias Cache = Dict SliceID SliceWrap
 
 -- | recursively updating the editor model
-nodeUpdate: EditorAction -> Cache -> Node -> Result String Node
-nodeUpdate action cache node =
+nodeUpdate: EditorAction -> Cache -> Set SliceID -> Node -> Result String Node
+nodeUpdate action cache changed node =
   if String.startsWith node.id action.target then
     if node.id == action.target then
       case action.action of
@@ -137,7 +141,7 @@ nodeUpdate action cache node =
         Unhover ->
           Ok { node | hovered = False }
         Expand ->
-          expandNode cache node
+          expandNode cache node changed
         Collapse ->
           collapseNode node
         MakeEditable ->
@@ -149,17 +153,17 @@ nodeUpdate action cache node =
         Unframe ->
           Ok { node | framed = False }
     else
-      propagateUpdate action cache node
+      propagateUpdate action cache changed node
   else
     Ok node
 
-propagateUpdate : EditorAction -> Cache -> Node -> Result String Node
-propagateUpdate action cache node =
+propagateUpdate : EditorAction -> Cache -> Set SliceID -> Node -> Result String Node
+propagateUpdate action cache changed node =
   case node.children of
     Collapsed ->
       Ok node
     Expanded cs ->
-      case combineResults (List.map (nodeUpdate action cache) cs) of
+      case combineResults (List.map (nodeUpdate action cache changed) cs) of
         Ok newNodes ->
           Ok { node | children = Expanded newNodes }
         Err errs    ->
@@ -170,8 +174,8 @@ collapseNode node =
   Ok { node | children = Collapsed }
 
 -- | create the children of a node
-expandNode : Cache -> Node -> Result String Node
-expandNode cache node =
+expandNode : Cache -> Node -> Set SliceID -> Result String Node
+expandNode cache node changed =
   if node.children /= Collapsed then
     Ok node
   else
@@ -193,6 +197,7 @@ expandNode cache node =
               }
             ]
           })
+        |> Result.map (updateChanged changed)
       Occurences occs ->
         { node | children = Expanded
             (List.map
@@ -203,7 +208,9 @@ expandNode cache node =
                 }
               )
               occs)
-        } |> Ok
+        }
+        |> Ok
+        |> Result.map (updateChanged changed)
       Dependencies deps ->
         { node | children = Expanded
             (List.map
@@ -214,7 +221,9 @@ expandNode cache node =
                 }
               )
               deps)
-        } |> Ok
+        }
+        |> Ok
+        |> Result.map (updateChanged changed)
 
 -- Load slicewrap from cache
 fetch : Cache -> SliceID -> Result String SliceWrap
@@ -256,6 +265,27 @@ combineResults =
             Ok res  -> Ok (ress ++ [res]) )
       (Ok [])
 
+updateChanged : Set SliceID -> Node -> Node
+updateChanged changed =
+  mapNode
+    (\n ->
+      case n.content of
+        SliceNode sw ->
+          if Set.member sw.id changed then
+            { n | changed = True }
+          else
+            { n | changed = False }
+        Dependencies deps ->
+          if (List.any (\{id} -> Set.member id changed) deps) then
+            { n | changed = True }
+          else
+            { n | changed = False }
+        Occurences occs ->
+          if (List.any (\{id} -> Set.member id changed) occs) then
+            { n | changed = True }
+          else
+            { n | changed = False })
+
 -- VIEW
 
 -- | Recursively view the editor model
@@ -275,7 +305,7 @@ viewNode node =
 
 -- | Collapsed
 viewCollapsedNode : Node -> Element Msg
-viewCollapsedNode { marked, id, content } =
+viewCollapsedNode { marked, id, content, changed } =
   let
     fontColor = case content of
       SliceNode _ ->
@@ -290,37 +320,37 @@ viewCollapsedNode { marked, id, content } =
        ]
       ++ (if marked then [ Background.color monokai_grey ] else [])
       ++ fontColor)
-      (viewTeaser content)
+      (viewTeaser content changed)
 
-viewTeaser : NodeContent -> Element Msg
-viewTeaser content =
-  case content of
-    SliceNode sw ->
-      Element.row
-        [ Element.spacing 0
-        , Element.padding 0
+viewTeaser : NodeContent -> Bool -> Element Msg
+viewTeaser content changed =
+  Element.row
+    [ Element.spacing 0
+    , Element.padding 0
+    ]
+    [ Element.el
+        [ Font.color
+            (if changed then orange else actual_black)
         ]
-        [ Element.el
-            [ Font.color
-                (if hasChanged sw then orange else actual_black)
-            ]
-            (Element.text "⮟ ")
-        , EditorField.inlineSH sw.tagline
-        ]
-    Occurences occs ->
-      case String.fromInt (List.length occs) of
-        l ->
-          Element.text
-            ("⮟ show " ++ l ++ " occurences")
-    Dependencies deps ->
-      case String.fromInt (List.length deps) of
-        l ->
-          Element.text
-            ("⮟ show " ++ l ++ " dependencies")
+        (Element.text "⮟ ")
+    , case content of
+        SliceNode {tagline} ->
+          EditorField.inlineSH tagline
+        Occurences occs ->
+          case String.fromInt (List.length occs) of
+            l ->
+              Element.text
+                ("show " ++ l ++ " occurences")
+        Dependencies deps ->
+          case String.fromInt (List.length deps) of
+            l ->
+              Element.text
+                ("show " ++ l ++ " dependencies")
+    ]
 
 -- Expanded - Slice
 viewSliceNode : SliceWrap -> Node -> Element Msg
-viewSliceNode sw { hovered, marked, id, children, editable, framed } =
+viewSliceNode sw { hovered, marked, id, children, editable, framed, changed } =
   case children of
     Expanded (occs :: deps :: _) ->
       let
@@ -351,7 +381,7 @@ viewSliceNode sw { hovered, marked, id, children, editable, framed } =
               ( bigOccs ++
                 [ Element.column
                     ((Element.spacing 8) :: (nodeAttributes hovered marked id))
-                    ( smallOccs ++ [(viewSlice sw editable id)] ++ smallDeps )
+                    ( smallOccs ++ [(viewSlice sw editable changed id)] ++ smallDeps )
                 ]
                 ++ bigDeps)))
 
@@ -370,8 +400,8 @@ nodeAttributes hovered marked sid =
   , Events.onMouseLeave (Editor {target = sid, action = Unhover})
   ] ++ (if marked || hovered then [ Background.color monokai_grey ] else [])
 
-viewSlice : SliceWrap -> Bool -> String -> Element Msg
-viewSlice sw editable nodeId =
+viewSlice : SliceWrap -> Bool -> Bool -> String -> Element Msg
+viewSlice sw editable changed nodeId =
   let
     renderedFragment = renderFragment sw.slice
     highlightDict =
@@ -389,7 +419,7 @@ viewSlice sw editable nodeId =
         (extractReferences sw.slice)
       |> Dict.fromList
     dirtyAttribs =
-      if hasChanged sw then
+      if changed then
         [ Border.widthEach { edges | left = 1 }
         , Border.color orange
         ]
