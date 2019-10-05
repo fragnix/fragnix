@@ -25,7 +25,19 @@ import Element.Font as Font
 import Element.Input as Input
 import Element.Events as Events
 
-import Cmd.Extra exposing (perform)
+import Process
+import Task
+
+-- | asynchronously handle a command
+--   (with all other implementations, the view is not updated
+--    before the msg is processed)
+perform : (a -> Msg) -> a -> Cmd Msg
+perform toMsg content =
+  Process.sleep 1
+    |> Task.andThen (\_ -> Task.succeed content)
+    |> Task.perform toMsg
+
+
 
 main =
   Browser.element { init = init, update = update, view = view, subscriptions = (\_ -> Sub.none) }
@@ -108,7 +120,7 @@ update msg model =
           case model.page of
             Loading msgs ->
               ( { model | page = Loading (msgs ++ ["Received Slices. Indexing..."]) },
-                perform (LoadingStep (IndexSlices slices))
+                perform (\x -> (LoadingStep (IndexSlices x))) slices
               )
             _ ->
               ( { model | error = Just "Received Slices but was not in a loading state."}
@@ -214,7 +226,7 @@ integrateHashedSlices umap slices model =
         TreeView node -> TreeView (Editor.updateNodeContents nodeUpdates node)
         _ -> newModel.page
   in
-    { newModel | page = newPage }
+    performIntegrityCheck { newModel | page = newPage }
 
 dictRemoveList : List comparable -> Dict comparable a -> Dict comparable a
 dictRemoveList list dict =
@@ -274,7 +286,7 @@ computeLocalSlices slices cache =
 
     changedSlices =
       List.filter (\sw -> sw.origin /= Disk) slices
-      
+
     newSlices =
       Dict.values newCache
   in
@@ -348,17 +360,17 @@ loadingUpdate step model =
           ( { model | page = Loading (msgs ++ ["Computing Occurences..."]) }
             |> insertSlices slices
             |> indexSlices
-          , perform (LoadingStep ComputeOccurences)
+          , perform LoadingStep ComputeOccurences
           )
         ComputeOccurences ->
           ( { model | page = Loading (msgs ++ ["Performing Integrity Check..."]) }
             |> computeOccurences
-          , perform (LoadingStep CheckIntegrity)
+          , perform LoadingStep CheckIntegrity
           )
         CheckIntegrity ->
           ( { model | page = Loading (msgs ++ ["Looking for main..."]) }
             |> performIntegrityCheck
-          , perform (LoadingStep FindMain)
+          , perform LoadingStep FindMain
           )
         FindMain ->
           ( model
