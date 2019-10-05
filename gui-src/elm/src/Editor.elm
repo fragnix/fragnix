@@ -295,17 +295,17 @@ viewCollapsedNode { marked, id, content } =
 viewTeaser : NodeContent -> Element Msg
 viewTeaser content =
   case content of
-    SliceNode { tagline, origin } ->
+    SliceNode sw ->
       Element.row
         [ Element.spacing 0
         , Element.padding 0
         ]
         [ Element.el
             [ Font.color
-                (if origin == Disk then actual_black else orange)
+                (if hasChanged sw then orange else actual_black)
             ]
             (Element.text "⮟ ")
-        , EditorField.inlineSH tagline
+        , EditorField.inlineSH sw.tagline
         ]
     Occurences occs ->
       case String.fromInt (List.length occs) of
@@ -389,12 +389,12 @@ viewSlice sw editable nodeId =
         (extractReferences sw.slice)
       |> Dict.fromList
     dirtyAttribs =
-      if sw.origin == Disk then
-        []
-      else
+      if hasChanged sw then
         [ Border.widthEach { edges | left = 1 }
         , Border.color orange
         ]
+      else
+        []
   in
     if editable then
       Element.row

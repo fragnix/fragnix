@@ -87,6 +87,7 @@ type Msg
   | Save
   | Compile SliceID
   | Editor Editor.Msg
+  | Edit String SliceWrap
 
 type Step
   = IndexSlices (List Slice)
@@ -129,6 +130,11 @@ update msg model =
 
     Nop ->
       ( model, Cmd.none )
+
+    Edit txt sw ->
+      ( editUpdate txt sw model
+      , Cmd.none
+      )
 
     Editor editorMsg ->
       case editorMsg of
@@ -261,18 +267,18 @@ exchangeSliceWrap model target changed =
 --   List of SliceWraps that have changed
 updateCache : SliceWrap -> SliceWrap -> Cache -> (Cache, List (SliceID, SliceWrap))
 updateCache old new cache =
-  case (old.origin, new.origin) of
-    (Disk, Disk)                   ->
+  case (hasChanged old, hasChanged new) of
+    (False, False)                   ->
       (cache, []) -- should not happen!
-    (ChangedFrom _ _, ChangedFrom _ _) ->
+    (True, True) ->
       (Dict.insert old.id new cache, [(old.id, new)])
-    (Disk, ChangedFrom _ _) ->
+    (False, True) ->
       walkSlices
         dirtyStep
         (insertAll new.occurences new.id Dict.empty)
         (Dict.insert old.id new cache)
         (Dict.insert old.id new Dict.empty)
-    (ChangedFrom _ _, Disk) ->
+    (True, False) ->
       walkSlices
         unDirtyStep
         (insertAll new.occurences new.id Dict.empty)
@@ -310,8 +316,8 @@ walkSlices step queue cache updates =
 -- | step needed for propagating that a slice that was unchanged is now changed
 dirtyStep : Stepper (Set SliceID)
 dirtyStep sw changedReferences queue =
-  ( updateChangedReferences changedReferences sw
-  , if sw.origin == Disk then
+  ( { sw | locals = Set.union changedReferences sw.locals }
+  , if (not (hasChanged sw)) then
       insertAll sw.occurences sw.id queue
     else
       queue
@@ -333,145 +339,18 @@ insertOne key newValue queue =
     Just set ->
       Dict.insert key (Set.insert newValue set) queue
 
-updateChangedReferences : (Set SliceID) -> SliceWrap -> SliceWrap
-updateChangedReferences changed sw =
-  let
-    newChanges = (List.map Reference (Set.toList changed))
-  in
-    case sw.origin of
-      Disk ->
-        { sw | origin = ChangedFrom sw newChanges }
-      ChangedFrom old existingChanges ->
-        { sw | origin = ChangedFrom sw (existingChanges ++ newChanges) }
-
 -- | step needed for propagating that a slice that was changed is now unchanged
 unDirtyStep : Stepper (Set SliceID)
 unDirtyStep sw resetReferences queue =
-  case sw.origin of
-    Disk ->
-      (sw, queue)
-    ChangedFrom old changes ->
-      let
-        newSw = updateResetReferences resetReferences changes old sw
-      in
-        ( newSw
-        , if newSw.origin == Disk then
-            insertAll newSw.occurences newSw.id queue
-          else
-            queue
-        )
-
-updateResetReferences : (Set SliceID) -> List Change -> SliceWrap -> SliceWrap -> SliceWrap
-updateResetReferences toReset changes old sw =
-  case (List.filter
-          (\c -> case c of
-            Reference id -> not (Set.member id toReset)
-            _            -> True)
-          changes) of
-    [] -> { sw | origin = Disk }
-    newChanges -> { sw | origin = ChangedFrom old newChanges}
-
--- | Propagate that a SliceWrap has changed to all its occurences and give back
---   a list of all SliceWraps that have changed
-dirtyRecursive : List (SliceID, SliceID) -> Cache -> List (SliceID, SliceWrap) -> (Cache, List (SliceID, SliceWrap))
-dirtyRecursive queue cache updates =
-  case queue of
-    [] ->
-      (cache, updates)
-    (headQ, changed) :: tailQ ->
-      case Dict.get headQ cache of
-        Nothing ->
-          dirtyRecursive tailQ cache updates -- Silent failure
-        Just sw ->
-          let
-            (changes, oldSw) = case sw.origin of
-              Disk ->
-                ([], sw)
-              ChangedFrom ex cs ->
-                (cs, ex)
-
-            alreadyDirty =
-              (List.length
-                (List.filter
-                  (\c ->
-                    case c of
-                      Reference id -> id == changed
-                      _ -> False)
-                  changes)) > 0
-          in
-            if alreadyDirty then
-              dirtyRecursive tailQ cache updates
-            else
-              let
-                newSw =
-                  { sw | origin = ChangedFrom oldSw
-                      ((Reference changed) :: changes)}
-                newUpdates =
-                  List.filter
-                    (\(old, _) -> old /= sw.id)
-                    updates
-              in
-                dirtyRecursive
-                  (tailQ ++ (List.map (\o -> (o, sw.id)) sw.occurences))
-                  (Dict.insert sw.id newSw cache)
-                  ((sw.id, newSw) :: newUpdates)
-
--- | Propagate that a SliceWrap has reverted back to its initial state
---   to all its occurences and give back
---   a list of all SliceWraps that have changed
-unDirtyRecursive : List (SliceID, SliceID) -> Cache -> List (SliceID, SliceWrap) -> (Cache, List (SliceID, SliceWrap))
-unDirtyRecursive queue cache updates =
-  case queue of
-    [] ->
-      (cache, updates)
-    (headQ, nowClean) :: tailQ ->
-      case Dict.get headQ cache of
-        Nothing ->
-          unDirtyRecursive tailQ cache updates -- Silent failure
-        Just sw ->
-          let
-            (changes, oldSw) = case sw.origin of
-              Disk ->
-                ([], sw)
-              ChangedFrom ex cs ->
-                (cs, ex)
-
-            alreadyClean =
-              (List.length
-                (List.filter
-                  isObsoleteChange
-                  changes)) == 0
-
-            isObsoleteChange c =
-              case c of
-                Reference id -> id == nowClean
-                _ -> False
-          in
-            if alreadyClean then
-              unDirtyRecursive tailQ cache updates
-            else
-              let
-                newChanges =
-                  List.filter (\c -> not (isObsoleteChange c)) changes
-                (newSw, queueAdditions) =
-                  case newChanges of
-                    [] ->
-                      ( { sw | origin = Disk }
-                      , (List.map (\o -> (o, sw.id)) sw.occurences)
-                      )
-                    cs ->
-                      ( { sw | origin = ChangedFrom oldSw cs }
-                      , []
-                      )
-                newUpdates =
-                  List.filter
-                    (\(old, _) -> old /= sw.id)
-                    updates
-              in
-                unDirtyRecursive
-                  (tailQ ++ queueAdditions)
-                  (Dict.insert sw.id newSw cache)
-                  ((sw.id, newSw) :: newUpdates)
+  let
+    newSw = { sw | locals = Set.diff sw.locals resetReferences }
+  in
+    if (hasChanged newSw) then
+      (newSw, queue)
+    else
+      ( newSw
+      , insertAll newSw.occurences newSw.id queue
+      )
 
 -- | ReceivedSlices
 
@@ -708,7 +587,7 @@ basicLayout elem =
 
 -- | View the editor
 viewEditor : Editor.Node -> Bool -> Element Msg
-viewEditor node loading =
+viewEditor node saving =
   Element.column
     [ Element.padding 10
     , Background.color monokai_black
@@ -718,7 +597,7 @@ viewEditor node loading =
     , Element.width Element.fill
     , Element.height Element.fill
     ]
-    [ viewToolbar loading
+    [ viewToolbar saving
     , Element.el
         [ Element.width Element.fill
         , Element.height Element.fill
@@ -731,6 +610,8 @@ viewToolbar : Bool -> Element Msg
 viewToolbar saving =
   Element.row
     [ Element.width Element.fill
+    , Border.widthEach { edges | bottom = 1 }
+    , Border.color monokai_grey
     ]
     [ Element.el
         [ Element.padding 10

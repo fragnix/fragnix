@@ -40,51 +40,48 @@ type alias LocalInstanceID = LocalSliceID
 
 -- | Turn a SliceWrap into a LocalSlice if necessary
 toLocalSlice : SliceWrap -> Maybe LocalSlice
-toLocalSlice { slice, origin } =
+toLocalSlice { slice, origin, locals } =
   case origin of
     Disk ->
-      Nothing
-    ChangedFrom _ changes ->
-      let
-        locals =
-          List.filterMap
-            (\c -> case c of
-              Reference rid -> Just rid
-              _             -> Nothing)
-            changes
-      in
-        case slice of
-          Slice sid lang frag uses instances -> Just
-            (LocalSlice
-              (LocalSliceID sid)
-              lang
-              frag
-              (toLocalUses locals uses)
-              (toLocalInstances locals instances))
+      if Set.isEmpty locals then
+        Nothing
+      else
+        Just (sliceToLocalSlice slice locals)
+    ChangedFrom _ _ ->
+      Just (sliceToLocalSlice slice locals)
 
-toLocalUses : List SliceID -> List Use -> List LocalUse
+sliceToLocalSlice : Slice -> Set SliceID -> LocalSlice
+sliceToLocalSlice (Slice sid lang frag uses instances) locals =
+  LocalSlice
+    (LocalSliceID sid)
+    lang
+    frag
+    (toLocalUses locals uses)
+    (toLocalInstances locals instances)
+
+toLocalUses : Set SliceID -> List Use -> List LocalUse
 toLocalUses locals uses =
   List.map (toLocalUse locals) uses
 
-toLocalUse : List SliceID -> Use -> LocalUse
+toLocalUse : Set SliceID -> Use -> LocalUse
 toLocalUse locals (Use qual usedName ref) =
   LocalUse
     qual
     usedName
     (case ref of
       Slice.OtherSlice sid ->
-        if List.member sid locals then
+        if Set.member sid locals then
           OtherLocalSlice (LocalSliceID sid)
         else
           OtherSlice sid
       Slice.Builtin mod ->
         Builtin mod)
 
-toLocalInstances : List SliceID -> List Instance -> List LocalInstance
+toLocalInstances : Set SliceID -> List Instance -> List LocalInstance
 toLocalInstances locals =
   List.map
     (\(Instance part sid) ->
-        if List.member sid locals then
+        if Set.member sid locals then
           LocalInstance part (LocalSliceID sid)
         else
           GlobalInstance part sid)

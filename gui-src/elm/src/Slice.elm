@@ -52,6 +52,7 @@ type alias SliceWrap =
   , id: SliceID
   , marked: Bool
   , origin: Origin
+  , locals : Set SliceID
   }
 
 type Origin
@@ -62,9 +63,12 @@ type Change
   = Refactor
   | Signature
   | Name
-  | Reference SliceID
 
 -- | HELPER FUNCTIONS
+hasChanged : SliceWrap -> Bool
+hasChanged { origin, locals } =
+  not (origin == Disk && Set.isEmpty locals)
+
 mapReferenceId : (SliceID -> SliceID) -> Use -> Use
 mapReferenceId f (Use qual name ref) =
   let
@@ -133,15 +137,12 @@ changeText codes sw =
         (name, signature, tagline) =
           extractNameSignatureAndTagline lines
       in
-        { slice = newSlice
-        , occurences = sw.occurences
+        { sw | slice = newSlice
         , comments = String.concat (List.filter (String.startsWith "--") lines)
         , signature = signature
         , name = name
         , tagline = tagline
         , id = sid
-        , marked = sw.marked
-        , origin = sw.origin
         }
 
 -- | Update diff after the text has changed (and not more!)
@@ -149,7 +150,7 @@ computeChangeKinds : SliceWrap -> SliceWrap -> SliceWrap
 computeChangeKinds oldS new =
   let
     old = case new.origin of
-      ChangedFrom sw kinds ->
+      ChangedFrom sw _ ->
         sw
       _ ->
         oldS
@@ -239,6 +240,7 @@ wrap bare =
         , id = sid
         , marked = False
         , origin = Disk
+        , locals = Set.empty
         }
 
 extractNameSignatureAndTagline : List SourceCode -> (String, String, String)
