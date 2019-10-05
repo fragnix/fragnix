@@ -590,7 +590,7 @@ findMain model =
 
 isMain : SliceWrap -> Bool
 isMain sw =
-  "main" == sw.name
+  List.member "main" sw.names
 
 -- | set a start state for showing the editor
 setRoot : Model -> Model
