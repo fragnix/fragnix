@@ -28,9 +28,11 @@ import Element.Events as Events
 import Process
 import Task
 
--- | asynchronously handle a command
---   (with all other implementations, the view is not updated
---    before the msg is processed)
+-- | emit a Command that is handled asynchronously, i.e. the view is
+--   updated first
+--   (with all other implementations from packages, the view is not
+--    updated before the msg is processed)
+--   for an example, see https://ellie-app.com/6PHMfMxtFgpa1
 perform : (a -> Msg) -> a -> Cmd Msg
 perform toMsg content =
   Process.sleep 1
