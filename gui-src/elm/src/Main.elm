@@ -186,19 +186,12 @@ update msg model =
           , Cmd.none
           )
         Ok (updateMap, newSlices) ->
-          let
-            newPage =
-              case model.page of
-                TreeView root ->
-                  TreeView (Editor.updateChanged Set.empty root)
-                p -> p
-          in
-            ( integrateHashedSlices
-                updateMap
-                newSlices
-                { model | saving = False, page = newPage, transitive = Set.empty, changed = Set.empty }
-            , Cmd.none
-            )
+          ( integrateHashedSlices
+              updateMap
+              newSlices
+              { model | saving = False }
+          , Cmd.none
+          )
 
     AddTransitiveChanges sid ->
       let
@@ -246,6 +239,14 @@ integrateHashedSlices umap slices model =
     updateMap =
       List.map (Tuple.mapFirst (\(LocalSliceID sid) -> sid)) umap
 
+    newMain =
+      case model.main of
+        Nothing  -> Nothing
+        Just sid ->
+          case Dict.get sid (Dict.fromList updateMap) of
+            Nothing     -> Just sid
+            Just newSid -> Just newSid
+
     newCache =
       dictRemoveList (List.map Tuple.first updateMap) model.cache
       |> insertSliceWraps sliceWraps
@@ -265,10 +266,14 @@ integrateHashedSlices umap slices model =
 
     newPage =
       case newModel.page of
-        TreeView node -> TreeView (Editor.updateNodeContents nodeUpdates node)
+        TreeView node -> TreeView
+          (Editor.mapNode
+            (\n -> {n | changed = False})
+            (Editor.updateNodeContents nodeUpdates node))
         _ -> newModel.page
   in
-    performIntegrityCheck { newModel | page = newPage }
+    performIntegrityCheck
+      { newModel | page = newPage, changed = Set.empty, transitive = Set.empty, main = newMain }
 
 dictRemoveList : List comparable -> Dict comparable a -> Dict comparable a
 dictRemoveList list dict =
