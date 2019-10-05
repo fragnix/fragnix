@@ -18,6 +18,7 @@ import Data.Map (Map, toList)
 
 import System.Directory (getCurrentDirectory, listDirectory, doesDirectoryExist, doesFileExist, removeFile)
 import System.FilePath ((</>))
+import System.Exit (ExitCode(..))
 
 import Control.Monad (forM, filterM)
 -- to prevent too many open files caused by lazy IO
@@ -117,5 +118,7 @@ compileHandler sliceID = liftIO (compileVerbose sliceID)
 --   by the compiler, so that the frontend can show them directly
 compileVerbose :: SliceID -> IO String
 compileVerbose sliceID = do
-  compile sliceID
-  return "Look at command line to see if it worked"
+  code <- compile sliceID
+  case code of
+    ExitSuccess -> return "It worked!"
+    ExitFailure num -> return ("Error. GHC exited with code " ++ (show num))

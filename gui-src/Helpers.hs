@@ -31,6 +31,7 @@ import Data.Foldable (for_)
 import Control.Monad (forM)
 import System.Environment (getArgs)
 import Text.Printf (printf)
+import System.Exit (ExitCode)
 
 
 -- | Take a list of module paths and compile them into slices
@@ -65,14 +66,13 @@ slice modulePaths = do
   timeIt (persistEnvironment environmentPath updatedEnvironment)
 
 -- | Take a SliceID and compile it into an executable
-compile :: SliceID -> IO ()
+compile :: SliceID -> IO ExitCode
 compile mainSliceID = do
   putStrLn ("Compiling " ++ show mainSliceID)
   putStrLn ("Generating compilation units...")
   timeIt (writeSliceModules mainSliceID)
   putStrLn ("Invoking GHC")
-  _ <- timeIt (invokeGHCMain mainSliceID)
-  return ()
+  timeIt (invokeGHCMain mainSliceID)
 
 
 -- | Execute the given action and print the time it took.
