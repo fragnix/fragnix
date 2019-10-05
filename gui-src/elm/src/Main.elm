@@ -66,6 +66,7 @@ type alias Model =
   , transitive: Set SliceID
   , error: Maybe String
   , saving: Bool
+  , compiling: Bool
   , compileMsg: Maybe String
   }
 
@@ -82,6 +83,7 @@ emptyModel =
   , error = Nothing
   , saving = False
   , compileMsg = Nothing
+  , compiling = False
   }
 
 
@@ -105,6 +107,7 @@ type Msg
   | Edit String SliceWrap
   | AddTransitiveChanges SliceID
   | RemoveTransitiveChanges SliceID
+  | ClearCompileMsg
 
 type Step
   = IndexSlices (List Slice)
@@ -233,7 +236,7 @@ update msg model =
     Compile ->
       case model.main of
         Just sid ->
-          ( { model | compileMsg = Just "Compiling..." }
+          ( { model | compiling = True }
           , API.compile CompileMsg sid
           )
         Nothing ->
@@ -248,9 +251,14 @@ update msg model =
           , Cmd.none
           )
         Ok compileMsg ->
-          ( { model | compileMsg = Just compileMsg }
+          ( { model | compileMsg = Just compileMsg, compiling = False }
           , Cmd.none
           )
+
+    ClearCompileMsg ->
+      ( { model | compileMsg = Nothing }
+      , Cmd.none
+      )
 
 -- | integrate newly hashed slices
 integrateHashedSlices : API.UpdateMap -> List Slice -> Model -> Model
@@ -614,10 +622,10 @@ view model =
   |> createHtml
 
 viewPage : Model -> Element Msg
-viewPage { page, saving, compileMsg } =
-  case page of
+viewPage model =
+  case model.page of
     TreeView node ->
-      viewEditor node saving compileMsg
+      viewEditor node model
     Loading msgs ->
       viewLoading msgs
 
@@ -688,8 +696,8 @@ basicLayout elem =
     elem
 
 -- | View the editor
-viewEditor : Editor.Node -> Bool -> Maybe String -> Element Msg
-viewEditor node saving compileMsg =
+viewEditor : Editor.Node -> Model -> Element Msg
+viewEditor node { saving, compiling, compileMsg } =
   Element.column
     [ Element.padding 10
     , Element.spacing 10
@@ -706,11 +714,12 @@ viewEditor node saving compileMsg =
         , Element.scrollbars
         ]
         (Element.map Editor (Editor.viewNode node))
-    , viewToolbar saving compileMsg
+    , viewToolbar saving compiling
+    , viewCompileMsg compileMsg
     ]
 
-viewToolbar : Bool -> Maybe String -> Element Msg
-viewToolbar saving compileMsg =
+viewToolbar : Bool -> Bool -> Element Msg
+viewToolbar saving compiling =
   Element.row
     [ Element.width Element.fill
     , Border.widthEach { edges | bottom = 1 }
@@ -731,8 +740,29 @@ viewToolbar saving compileMsg =
         , Element.pointer
         , Element.alignRight
         ]
-        (Element.text
-          (case compileMsg of
-            Nothing -> "Compile main"
-            Just msg -> msg))
+        (Element.text (if compiling then "Compiling..." else "Compile"))
     ]
+
+viewCompileMsg : Maybe String -> Element Msg
+viewCompileMsg maybeMsg =
+  case maybeMsg of
+    Nothing -> Element.none
+    Just msg ->
+      Element.row
+        [ Element.width Element.fill
+        , Element.height (Element.maximum 300 Element.shrink)
+        , Element.spacing 10
+        , Element.scrollbars
+        ]
+        [ Element.el
+            [ Element.padding 10
+            , Events.onClick ClearCompileMsg
+            , Element.mouseOver [Background.color monokai_grey ]
+            , Element.pointer
+            , Border.color monokai_grey
+            , Border.widthEach { edges | right = 1 }
+            , Font.color orange
+            ]
+            (Element.text "Close")
+        , (Element.text msg)
+        ]
