@@ -66,6 +66,7 @@ type alias Model =
   , transitive: Set SliceID
   , error: Maybe String
   , saving: Bool
+  , compileMsg: Maybe String
   }
 
 type alias Cache = Dict SliceID SliceWrap
@@ -80,6 +81,7 @@ emptyModel =
   , transitive = Set.empty
   , error = Nothing
   , saving = False
+  , compileMsg = Nothing
   }
 
 
@@ -98,7 +100,7 @@ type Msg
   | CloseError
   | Nop
   | Save
-  | Compile SliceID
+  | Compile
   | Editor Editor.Msg
   | Edit String SliceWrap
   | AddTransitiveChanges SliceID
@@ -228,7 +230,27 @@ update msg model =
         , Cmd.none
         )
 
-    _ -> (model, Cmd.none) -- TODO
+    Compile ->
+      case model.main of
+        Just sid ->
+          ( { model | compileMsg = Just "Compiling..." }
+          , API.compile CompileMsg sid
+          )
+        Nothing ->
+          ( { model | compileMsg = Just "No main symbol found" }
+          , Cmd.none
+          )
+
+    CompileMsg result ->
+      case result of
+        Err e ->
+          ( { model | error = Just (API.httpErrorToString e) }
+          , Cmd.none
+          )
+        Ok compileMsg ->
+          ( { model | compileMsg = Just compileMsg }
+          , Cmd.none
+          )
 
 -- | integrate newly hashed slices
 integrateHashedSlices : API.UpdateMap -> List Slice -> Model -> Model
@@ -592,10 +614,10 @@ view model =
   |> createHtml
 
 viewPage : Model -> Element Msg
-viewPage { page, saving } =
+viewPage { page, saving, compileMsg } =
   case page of
     TreeView node ->
-      viewEditor node saving
+      viewEditor node saving compileMsg
     Loading msgs ->
       viewLoading msgs
 
@@ -666,10 +688,11 @@ basicLayout elem =
     elem
 
 -- | View the editor
-viewEditor : Editor.Node -> Bool -> Element Msg
-viewEditor node saving =
+viewEditor : Editor.Node -> Bool -> Maybe String -> Element Msg
+viewEditor node saving compileMsg =
   Element.column
     [ Element.padding 10
+    , Element.spacing 10
     , Background.color monokai_black
     , Font.color monokai_white
     , Font.family [ Font.monospace ]
@@ -677,17 +700,17 @@ viewEditor node saving =
     , Element.width Element.fill
     , Element.height Element.fill
     ]
-    [ viewToolbar saving
-    , Element.el
+    [ Element.el
         [ Element.width Element.fill
         , Element.height Element.fill
         , Element.scrollbars
         ]
         (Element.map Editor (Editor.viewNode node))
+    , viewToolbar saving compileMsg
     ]
 
-viewToolbar : Bool -> Element Msg
-viewToolbar saving =
+viewToolbar : Bool -> Maybe String -> Element Msg
+viewToolbar saving compileMsg =
   Element.row
     [ Element.width Element.fill
     , Border.widthEach { edges | bottom = 1 }
@@ -701,4 +724,15 @@ viewToolbar saving =
         , Element.alignRight
         ]
         (Element.text (if saving then "Saving..." else "Save"))
+    , Element.el
+        [ Element.padding 10
+        , Events.onClick Compile
+        , Element.mouseOver [Background.color monokai_grey ]
+        , Element.pointer
+        , Element.alignRight
+        ]
+        (Element.text
+          (case compileMsg of
+            Nothing -> "Compile main"
+            Just msg -> msg))
     ]
