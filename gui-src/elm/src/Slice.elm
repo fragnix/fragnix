@@ -3,6 +3,7 @@ module Slice exposing (..)
 import Json.Encode as E
 import Json.Decode as Decode
 import Set exposing (Set)
+import Dict exposing (Dict)
 
 -- | DEFINITION
 -- | Matches Slice.hs as close as possible
@@ -65,6 +66,93 @@ type Change
   | Name
 
 -- | HELPER FUNCTIONS
+changeNames : SliceID -> List (SourceCode, SourceCode) -> SliceWrap -> Maybe SliceWrap
+changeNames reference changes sw =
+  let
+    applicableNames =
+      List.map Tuple.first changes
+    notApplicable =
+      extractReferences sw.slice
+      |> List.filter (\(x, _) -> x == reference)
+      |> List.filter (\(_, y) -> List.member y applicableNames)
+      |> List.isEmpty
+  in
+    if notApplicable then
+      Nothing
+    else Just
+      { sw | slice = changeReferences reference changes sw.slice,
+        origin = case sw.origin of
+          Disk -> ChangedFrom sw [Refactor]
+          ChangedFrom old kinds ->
+            if List.member Refactor kinds then
+              sw.origin
+            else
+              ChangedFrom old (Refactor :: kinds)
+      }
+
+changeReferences : SliceID -> List (SourceCode, SourceCode) -> Slice -> Slice
+changeReferences refId changes (Slice id lang (Fragment frag) uses instances) =
+  let
+    changeDict =
+      Dict.fromList changes
+    (newUses, updates) =
+      List.map (changeUse refId changeDict) uses
+      |> List.unzip
+      |> Tuple.mapSecond (List.filterMap identity)
+    newFrag =
+      List.map (updateNames (Dict.fromList updates)) frag
+  in
+    (Slice id lang (Fragment newFrag) newUses instances)
+
+changeUse : SliceID -> Dict SourceCode SourceCode -> Use -> (Use, Maybe (SourceCode, SourceCode))
+changeUse refId changeDict (Use qual name ref) =
+  case ref of
+    Builtin _ ->
+      (Use qual name ref, Nothing)
+    OtherSlice sid ->
+      if sid /= refId then
+        (Use qual name ref, Nothing)
+      else
+        case Dict.get (usedNameToString name) changeDict of
+          Nothing ->
+            (Use qual name ref, Nothing)
+          Just newName ->
+            let
+              qualification = case qual of
+                Nothing -> ""
+                Just q -> q ++ "."
+            in
+              ( Use qual (changeUsedName name newName) ref
+              , Just
+                  ( qualification ++ (usedNameToString name)
+                  , qualification ++ newName)
+             )
+
+changeUsedName : UsedName -> SourceCode -> UsedName
+changeUsedName usedName newName =
+  case usedName of
+    ValueName n ->
+      ValueName (changeName n newName)
+    TypeName n ->
+      TypeName (changeName n newName)
+    ConstructorName t n ->
+      ConstructorName t (changeName n newName)
+
+changeName : Name -> SourceCode -> Name
+changeName name newName =
+  case name of
+    Identifier _ -> Identifier newName
+    Operator _   -> Operator newName
+
+updateNames : Dict SourceCode SourceCode -> SourceCode -> SourceCode
+updateNames changes line =
+  String.words line
+  |> List.map (\s -> case Dict.get s changes of
+        Nothing  -> s
+        Just new -> new)
+  |> List.intersperse " "
+  |> String.concat
+
 hasChanged : SliceWrap -> Bool
 hasChanged { origin, locals } =
   not (origin == Disk && Set.isEmpty locals)
@@ -103,10 +191,14 @@ extractReference use =
   case use of
     (Use _ _ (Builtin _)) -> Nothing
     (Use _ name (OtherSlice sid)) ->
-      case name of
-        (ValueName n) -> Just (nameToString n, sid)
-        (TypeName n) -> Just (nameToString n, sid)
-        (ConstructorName _ n) -> Just (nameToString n, sid)
+      Just (usedNameToString name, sid)
+
+usedNameToString : UsedName -> String
+usedNameToString name =
+  case name of
+    ValueName n -> nameToString n
+    TypeName n -> nameToString n
+    ConstructorName _ n -> nameToString n
 
 -- | Turn a Name into a String
 nameToString : Name -> String

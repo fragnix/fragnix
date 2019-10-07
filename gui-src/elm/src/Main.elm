@@ -343,16 +343,38 @@ editUpdate txt sw model =
 exchangeSliceWrap : Model -> SliceWrap -> SliceWrap -> Model
 exchangeSliceWrap model target changed =
   let
-    newCache =
-      Dict.insert target.id changed model.cache
-    updates =
-      [(target.id, changed)]
+    (newCache, updates) =
+      insertChangedSliceWrap target changed model.cache
     newPage =
       case model.page of
         TreeView node -> TreeView (Editor.updateNodeContents updates node)
         _ -> model.page
   in
     { model | cache = newCache, slices = Dict.values newCache, page = newPage }
+
+-- | automatically update changed names!
+insertChangedSliceWrap : SliceWrap -> SliceWrap -> Cache -> (Cache, List (SliceID, SliceWrap))
+insertChangedSliceWrap old new cache =
+  case nameChanges old.names new.names of
+    [] ->
+      (Dict.insert old.id new cache, [(old.id, new)])
+    changes ->
+      List.foldl
+        (\sid (newCache, updates) ->
+            Dict.get sid newCache
+            |> Maybe.andThen (changeNames old.id changes)
+            |> Maybe.map (\newSw ->
+              ( Dict.insert sid newSw newCache
+              , (sid, newSw) :: updates
+              ))
+            |> Maybe.withDefault (newCache, updates))
+        (Dict.insert old.id new cache, [(old.id, new)])
+        new.occurences
+
+nameChanges : List SourceCode -> List SourceCode -> List (SourceCode, SourceCode)
+nameChanges oldNames newNames =
+  List.map2 Tuple.pair oldNames newNames
+  |> List.filter (\(x, y) -> not (x == y))
 
 computeChangedSlices : List SliceWrap -> Cache -> Set SliceID
 computeChangedSlices slices cache =
