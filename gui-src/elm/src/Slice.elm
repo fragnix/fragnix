@@ -80,8 +80,19 @@ changeNames reference changes sw =
                 sw.origin
               else
                 ChangedFrom old (Refactor :: kinds)
+
+        (names, signatures, tagline) =
+          case newSlice of
+            (Slice _ _ (Fragment lines) _ _) ->
+              extractNamesSignaturesAndTagline lines
       in
-        Just { sw | slice = newSlice, origin = newOrigin }
+        Just { sw |
+               slice = newSlice
+             , origin = newOrigin
+             , names = names 
+             , signatures = signatures
+             , tagline = tagline
+             }
 
 changeReferences : SliceID -> List (SourceCode, SourceCode) -> Slice -> Maybe Slice
 changeReferences refId changes (Slice id lang (Fragment frag) uses instances) =
