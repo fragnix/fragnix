@@ -3,9 +3,9 @@ module Palette exposing (..)
 import Element
 
 -- | COLOR PALETTE
-monokai_black = (Element.rgb255 35 36 31)
-monokai_grey = (Element.rgb255 51 52 47)
-monokai_white = (Element.rgb255 247 247 241)
+monokai_black = Element.rgb255 40 44 52-- (Element.rgb255 35 36 31)
+monokai_grey = Element.rgb255 56 60 68 -- (Element.rgb255 51 52 47)
+monokai_white = Element.rgb255 171 178 191-- (Element.rgb255 247 247 241)
 actual_black = Element.rgb 0 0 0
 glass = Element.rgba 0 0 0 0
 orange = Element.rgb255 255 133 51
