@@ -370,12 +370,12 @@ viewSliceNode sw { hovered, marked, id, children, editable, framed, changed } =
         viewIfNotEmpty n =
           if isEmptyNode n then [] else [ viewNode n ]
 
-        debugInfo =
-          [ Element.row
+        debugInfo = []
+          {-[ Element.row
               [ Element.spacing 8 ] (List.map Element.text sw.names)
           , Element.row
               [ Element.spacing 8 ] (List.map Element.text sw.signatures)
-          ]
+          ]-}
 
       in
         Element.el

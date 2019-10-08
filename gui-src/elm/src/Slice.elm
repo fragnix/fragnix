@@ -68,29 +68,22 @@ type Change
 -- | HELPER FUNCTIONS
 changeNames : SliceID -> List (SourceCode, SourceCode) -> SliceWrap -> Maybe SliceWrap
 changeNames reference changes sw =
-  let
-    applicableNames =
-      List.map Tuple.first changes
-    notApplicable =
-      extractReferences sw.slice
-      |> List.filter (\(x, _) -> x == reference)
-      |> List.filter (\(_, y) -> List.member y applicableNames)
-      |> List.isEmpty
-  in
-    if notApplicable then
-      Nothing
-    else Just
-      { sw | slice = changeReferences reference changes sw.slice,
-        origin = case sw.origin of
-          Disk -> ChangedFrom sw [Refactor]
-          ChangedFrom old kinds ->
-            if List.member Refactor kinds then
-              sw.origin
-            else
-              ChangedFrom old (Refactor :: kinds)
-      }
+  case changeReferences reference changes sw.slice of
+    Nothing -> Nothing
+    Just newSlice ->
+      let
+        newOrigin =
+          case sw.origin of
+            Disk -> ChangedFrom sw [Refactor]
+            ChangedFrom old kinds ->
+              if List.member Refactor kinds then
+                sw.origin
+              else
+                ChangedFrom old (Refactor :: kinds)
+      in
+        Just { sw | slice = newSlice, origin = newOrigin }
 
-changeReferences : SliceID -> List (SourceCode, SourceCode) -> Slice -> Slice
+changeReferences : SliceID -> List (SourceCode, SourceCode) -> Slice -> Maybe Slice
 changeReferences refId changes (Slice id lang (Fragment frag) uses instances) =
   let
     changeDict =
@@ -99,10 +92,15 @@ changeReferences refId changes (Slice id lang (Fragment frag) uses instances) =
       List.map (changeUse refId changeDict) uses
       |> List.unzip
       |> Tuple.mapSecond (List.filterMap identity)
-    newFrag =
-      List.map (updateNames (Dict.fromList updates)) frag
   in
-    (Slice id lang (Fragment newFrag) newUses instances)
+    if (List.isEmpty updates) then
+      Nothing
+    else
+      let
+        newFrag =
+          List.map (updateNames (Dict.fromList updates)) frag
+      in
+        Just (Slice id lang (Fragment newFrag) newUses instances)
 
 changeUse : SliceID -> Dict SourceCode SourceCode -> Use -> (Use, Maybe (SourceCode, SourceCode))
 changeUse refId changeDict (Use qual name ref) =
@@ -428,18 +426,8 @@ extractFromClassDeclaration lines =
 extractFromValue : List SourceCode -> Maybe (List String, List String, String)
 extractFromValue lines =
   case (List.filter (String.contains "=") lines) of
-    val :: rst ->
+    _ :: _ ->
       let
-        n =
-          case String.words val of
-            x :: _ -> x
-            []     -> ""
-        tg =
-          case List.filter (\s -> (String.startsWith n s)
-                                  && (String.contains "::" s)) lines of
-            t :: _ -> t
-            []     -> n
-
         names =
           declarationLines
           |> List.map String.words
@@ -450,6 +438,13 @@ extractFromValue lines =
 
         signatures =
           List.map (keepAfter "::") declarationLines
+
+        tg =
+          [ names, signatures ]
+          |> List.map List.head
+          |> List.map (Maybe.withDefault "")
+          |> List.intersperse " :: "
+          |> String.concat
 
       in
         Just (names, signatures, tg)
