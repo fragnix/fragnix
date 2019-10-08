@@ -5,8 +5,9 @@ import Fragnix.ModuleDeclarations (
     parse,moduleDeclarationsWithEnvironment,moduleSymbols)
 import Fragnix.Declaration (writeDeclarations)
 import Fragnix.DeclarationLocalSlices (declarationLocalSlices)
-import Fragnix.HashLocalSlices (hashLocalSlices)
+import Fragnix.HashLocalSlices (hashLocalSlices,replaceSliceID)
 import Fragnix.Slice (Slice(Slice),writeSliceDefault)
+import Fragnix.LocalSlice (LocalSliceID(LocalSliceID))
 import Fragnix.Environment (
     loadEnvironment,builtinEnvironmentPath)
 import Fragnix.SliceSymbols (updateEnvironment,lookupLocalIDs)
@@ -18,6 +19,7 @@ import Test.Tasty.Golden.Manage (defaultMain)
 
 import Language.Haskell.Exts (prettyPrint)
 import Language.Haskell.Names (symbolName)
+import Data.Text as Text (append)
 
 import Control.Monad (forM_,forM,when)
 import qualified Data.Map as Map (toList)
@@ -86,8 +88,18 @@ testModules folder = do
     let successes = length [() | ExitSuccess   <- exitCodes]
         failures  = length [() | ExitFailure _ <- exitCodes]
 
+    let localSlices = map (replaceSliceID (\sliceID ->
+            LocalSliceID (Text.append "T" sliceID))) slices
+
+    let (_, rehashedLocalSlices) = hashLocalSlices localSlices
+
+    let rehashedSlicesEqual = rehashedLocalSlices == slices
+
     let result = unlines ([
             "Successes: " ++ show successes,
-            "Failures: " ++ show failures] ++
+            "Failures: " ++ show failures,
+            "Rehashing: " ++ show rehashedSlicesEqual] ++
             moduleSymbolResults)
     writeFile (folder </> "out") result
+
+

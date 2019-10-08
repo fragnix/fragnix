@@ -1,5 +1,6 @@
 Successes: 12
 Failures: 0
+Rehashing: True
 DataFamilies Vector ListLike I h
 ExportListWildcards Foo Foo1 Foo2 Foo3 c Bar x N N unN
 OtherClass HAble h

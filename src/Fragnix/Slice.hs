@@ -62,6 +62,8 @@ type GHCExtension = Text
 -- Slice instances
 
 deriving instance Show Slice
+deriving instance Eq Slice
+deriving instance Ord Slice
 deriving instance Generic Slice
 
 instance ToJSON Slice where
@@ -121,6 +123,7 @@ instance Hashable Fragment
 
 deriving instance Show Use
 deriving instance Eq Use
+deriving instance Ord Use
 deriving instance Generic Use
 
 instance ToJSON Use where
@@ -163,6 +166,7 @@ instance Hashable UsedName
 
 deriving instance Show Reference
 deriving instance Eq Reference
+deriving instance Ord Reference
 deriving instance Generic Reference
 
 instance ToJSON Reference where

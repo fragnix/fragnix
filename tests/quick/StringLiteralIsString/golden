@@ -1,3 +1,4 @@
 Successes: 7
 Failures: 0
+Rehashing: True
 StringLiteralIsString CaseInsensitive CaseInsensitive T T FoldCase mapToLower hUserAgent
