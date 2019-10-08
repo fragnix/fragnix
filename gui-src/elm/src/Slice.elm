@@ -361,7 +361,8 @@ extractFromInstanceDeclaration lines =
     inst :: _ ->
       let
         names =
-          List.filter (String.contains "=") lines
+          List.concatMap String.lines lines
+          |> List.filter (String.contains "=")
           |> List.map String.words
           |> List.filterMap List.head
         tagline =
@@ -408,12 +409,16 @@ extractFromClassDeclaration lines =
           |> (\xs -> case xs of
                 [] -> ""
                 c :: _ -> c)
+
+        declarationLines =
+          List.concatMap String.lines lines
+          |> List.filter (String.contains "::")
+
         signatures =
-          List.filter (String.contains "::") lines
-          |> List.map (dropFrom "::")
+          List.map (keepAfter "::") declarationLines
 
         names =
-          List.filter (String.contains "::") lines
+          declarationLines
           |> List.map String.words
           |> List.filterMap List.head
 
@@ -436,13 +441,15 @@ extractFromValue lines =
             []     -> n
 
         names =
-          List.filter (String.contains "::") lines
+          declarationLines
           |> List.map String.words
           |> List.filterMap List.head
 
-        signatures =
+        declarationLines =
           List.filter (String.contains "::") lines
-          |> List.map (dropFrom "::")
+
+        signatures =
+          List.map (keepAfter "::") declarationLines
 
       in
         Just (names, signatures, tg)
@@ -461,6 +468,15 @@ dropFrom delimiter string =
        string
     x :: _ ->
       String.left x string
+
+keepAfter : String -> String -> String
+keepAfter delimiter string =
+  case String.indexes delimiter string of
+    [] ->
+      string
+    x :: _ ->
+      String.dropLeft (x + (String.length delimiter)) string
+      |> String.trimLeft
 
 
 -- | DECODERS

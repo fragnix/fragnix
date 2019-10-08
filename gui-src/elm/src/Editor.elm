@@ -370,6 +370,13 @@ viewSliceNode sw { hovered, marked, id, children, editable, framed, changed } =
         viewIfNotEmpty n =
           if isEmptyNode n then [] else [ viewNode n ]
 
+        debugInfo =
+          [ Element.row
+              [ Element.spacing 8 ] (List.map Element.text sw.names)
+          , Element.row
+              [ Element.spacing 8 ] (List.map Element.text sw.signatures)
+          ]
+
       in
         Element.el
           (frameIf framed)
@@ -383,7 +390,8 @@ viewSliceNode sw { hovered, marked, id, children, editable, framed, changed } =
                     ((Element.spacing 8) :: (nodeAttributes hovered marked id))
                     ( smallOccs ++ [(viewSlice sw editable changed id)] ++ smallDeps )
                 ]
-                ++ bigDeps)))
+                ++ bigDeps
+                ++ debugInfo)))
 
     _ -> Element.text "Faulty SliceNode: Expanded but no children"
 
