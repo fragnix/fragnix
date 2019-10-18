@@ -89,7 +89,7 @@ changeNames reference changes sw =
         Just { sw |
                slice = newSlice
              , origin = newOrigin
-             , names = names 
+             , names = names
              , signatures = signatures
              , tagline = tagline
              }
@@ -246,6 +246,22 @@ changeText codes sw =
         , id = sid
         }
 
+removeDependency : SliceID -> SliceWrap -> SliceWrap
+removeDependency depId sw =
+  case sw.slice of
+    (Slice sid lang frag uses instances) ->
+      let
+        newUses =
+          List.filter
+            (\(Use _ _ ref) ->
+              case ref of
+                (OtherSlice refId) -> refId /= depId
+                _                  -> True)
+            uses
+        newSlice = Slice sid lang frag newUses instances
+      in
+        { sw | slice = newSlice }
+        
 -- | Update diff after the text has changed (and not more!)
 computeChangeKinds : SliceWrap -> SliceWrap -> SliceWrap
 computeChangeKinds oldS new =

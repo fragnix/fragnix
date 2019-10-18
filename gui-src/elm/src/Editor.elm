@@ -76,25 +76,91 @@ foldNode f z node =
           f node z2
 
 
-updateNodeContents : List (SliceID, SliceWrap) -> Node -> Node
-updateNodeContents updates node =
-  let
-    dict = Dict.fromList updates
-    updateSw sw =
-      case Dict.get sw.id dict of
-        Just newSw -> newSw
-        Nothing -> sw
-  in
-    mapNode
-      (\n -> case n.content of
-        SliceNode sw ->
-          { n | content = SliceNode (updateSw sw)}
-        Occurences occs ->
-          { n | content = Occurences (List.map updateSw occs) }
-        Dependencies deps ->
-          { n | content = Dependencies (List.map updateSw deps) }
-      )
-      node
+updateNodeContents : Dict SliceID SliceWrap -> Cache -> Node -> Result String Node
+updateNodeContents updates cache node =
+  case node.content of
+    SliceNode sw ->
+      case Dict.get sw.id updates of
+        Nothing ->
+          updateNodeChildren updates cache node
+        Just newSw ->
+          updateOccsDeps newSw cache node
+          |> Result.andThen (updateNodeChildren updates cache)
+    Occurences occs ->
+      updateWhichChildren occs node
+      |> updateNodeChildren updates cache
+    Dependencies deps ->
+      updateWhichChildren deps node
+      |> updateNodeChildren updates cache
+
+updateNodeChildren : Dict SliceID SliceWrap -> Cache -> Node -> Result String Node
+updateNodeChildren updates cache node =
+  case node.children of
+    Collapsed ->
+      Ok node
+    Expanded children ->
+      List.map (updateNodeContents updates cache) children
+      |> combineResults
+      |> Result.mapError String.concat
+      |> Result.map (\newKids -> { node | children = Expanded newKids })
+
+updateOccsDeps : SliceWrap -> Cache -> Node -> Result String Node
+updateOccsDeps { occurences, slice } cache node =
+  case node.children of
+    Collapsed -> Ok node
+    Expanded children ->
+      let
+        replaceChild n =
+          case n.content of
+            Occurences _ ->
+              fetchMap cache occurences
+              |> Result.map (\occs -> { n | content = Occurences occs} )
+            Dependencies _ ->
+              fetchMap cache (extractDependencies slice)
+              |> Result.map (\deps -> { n | content = Dependencies deps} )
+            _ -> Ok n
+      in
+        List.map replaceChild children
+        |> combineResults
+        |> Result.mapError String.concat
+        |> Result.map (\newChildren -> { node | children = Expanded newChildren })
+
+updateWhichChildren : List SliceWrap -> Node -> Node
+updateWhichChildren children node =
+  case node.children of
+    Collapsed -> node
+    Expanded cs ->
+      let
+        currentChildIds =
+          List.filterMap
+            (\n ->
+              case node.content of
+                SliceNode {id} -> Just id
+                _              -> Nothing)
+            cs
+
+        additionalChildren =
+          List.filter (\{id} -> not (List.member id currentChildIds)) children
+          |> List.map
+              (\sw ->
+                { defaultNode |
+                    id = node.id ++ sw.id
+                    , content = SliceNode sw
+                }
+              )
+
+        newChildIds =
+          List.map .id children
+
+        filteredChildren =
+          List.filter
+            (\{content} -> case content of
+              SliceNode {id} -> List.member id newChildIds
+              _               -> False )
+            cs
+      in
+        { node | children = Expanded (additionalChildren ++ filteredChildren) }
+
 
 
 -- | UPDATE
@@ -105,7 +171,8 @@ type Msg
   | Editor EditorAction
 
 type MainAction
-  = Edit String SliceWrap
+  = TextEdit String SliceWrap
+  | DependencyRemove SliceID SliceWrap
 
 type alias EditorAction =
   { target: String
@@ -443,7 +510,7 @@ viewSlice sw editable changed nodeId =
             ]
             (EditorField.editorField
               renderedFragment
-              (\txt -> Main (Edit txt sw))
+              (\txt -> Main (TextEdit txt sw))
               highlightDict)
         , Element.el
             [ Events.onClick (Editor {target = nodeId, action = MakeStatic})

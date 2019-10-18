@@ -104,7 +104,7 @@ type Msg
   | Save
   | Compile
   | Editor Editor.Msg
-  | Edit String SliceWrap
+  | TextEdit String SliceWrap
   | AddTransitiveChanges SliceID
   | RemoveTransitiveChanges SliceID
   | ClearCompileMsg
@@ -151,15 +151,17 @@ update msg model =
     Nop ->
       ( model, Cmd.none )
 
-    Edit txt sw ->
-      editUpdate txt sw model
+    TextEdit txt sw ->
+      textEditUpdate txt sw model
 
     Editor editorMsg ->
       case editorMsg of
         Editor.Main mainAction ->
           case mainAction of
-            Editor.Edit txt sw ->
-              editUpdate txt sw model
+            Editor.TextEdit txt sw ->
+              textEditUpdate txt sw model
+            Editor.DependencyRemove sid sw ->
+              removeDependencyUpdate sid sw model
 
         Editor.Editor editorAction ->
           case model.page of
@@ -296,14 +298,21 @@ integrateHashedSlices umap slices model =
 
     newPage =
       case newModel.page of
-        TreeView node -> TreeView
-          (Editor.mapNode
-            (\n -> {n | changed = False})
-            (Editor.updateNodeContents nodeUpdates node))
-        _ -> newModel.page
+        TreeView node ->
+          Editor.updateNodeContents
+            (Dict.fromList nodeUpdates)
+            newModel.cache
+            node
+          |> Result.map (Editor.mapNode (\n -> {n | changed = False}))
+          |> Result.map TreeView
+        _ -> Ok newModel.page
   in
-    performIntegrityCheck
-      { newModel | page = newPage, changed = Set.empty, transitive = Set.empty, main = newMain }
+    case newPage of
+      Ok page ->
+        performIntegrityCheck
+          { newModel | page = page, changed = Set.empty, transitive = Set.empty, main = newMain }
+      Err err ->
+        { model | error = Just ("Something went wrong while saving, the result does not make any sense: " ++ err ++ "\n Please restart the editor!") }
 
 dictRemoveList : List comparable -> Dict comparable a -> Dict comparable a
 dictRemoveList list dict =
@@ -321,13 +330,22 @@ insertSliceWraps sws cache =
     cache
     sws
 
+-- | Remove a dependency from a slice
+removeDependencyUpdate : SliceID -> SliceWrap -> Model -> (Model, Cmd Msg)
+removeDependencyUpdate sid sw model =
+  editUpdate (removeDependency sid) sw model
+
 -- | Change the text contained in a slice and update the model accordingly
-editUpdate : String -> SliceWrap -> Model -> (Model, Cmd Msg)
-editUpdate txt sw model =
+textEditUpdate : String -> SliceWrap -> Model -> (Model, Cmd Msg)
+textEditUpdate txt sw model =
+  editUpdate (changeText txt) sw model
+
+-- | Change something in a slice and apply all resulting updates
+editUpdate : (SliceWrap -> SliceWrap) -> SliceWrap -> Model -> (Model, Cmd Msg)
+editUpdate f sw model =
   let
     newSw =
-      changeText txt sw
-      |> computeChangeKinds sw
+      computeChangeKinds sw (f sw)
   in
     ( exchangeSliceWrap model sw newSw
     , case (sw.origin, newSw.origin) of
@@ -347,10 +365,16 @@ exchangeSliceWrap model target changed =
       insertChangedSliceWrap target changed model.cache
     newPage =
       case model.page of
-        TreeView node -> TreeView (Editor.updateNodeContents updates node)
-        _ -> model.page
+        TreeView node ->
+          Editor.updateNodeContents (Dict.fromList updates) newCache node
+          |> Result.map TreeView
+        _ -> Ok model.page
   in
-    { model | cache = newCache, slices = Dict.values newCache, page = newPage }
+    case newPage of
+      Ok page ->
+        { model | cache = newCache, slices = Dict.values newCache, page = page }
+      Err err ->
+        { model | error = Just ("Trying to apply your change to the view layer, I got the following error: " ++ err) }
 
 -- | automatically update changed names!
 insertChangedSliceWrap : SliceWrap -> SliceWrap -> Cache -> (Cache, List (SliceID, SliceWrap))
