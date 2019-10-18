@@ -84,14 +84,20 @@ updateNodeContents updates cache node =
         Nothing ->
           updateNodeChildren updates cache node
         Just newSw ->
-          updateOccsDeps newSw cache node
-          |> Result.andThen (updateNodeChildren updates cache)
+          let
+            newContent = SliceNode newSw
+            newId =
+              (String.dropRight (String.length sw.id) node.id)
+              ++ newSw.id
+          in
+            updateOccsDeps newSw cache { node | content = newContent, id = newId }
+            |> Result.andThen (updateNodeChildren updates cache)
     Occurences occs ->
-      updateWhichChildren occs node
-      |> updateNodeChildren updates cache
+      updateNodeChildren updates cache node
+      |> Result.map (updateWhichChildren occs)
     Dependencies deps ->
-      updateWhichChildren deps node
-      |> updateNodeChildren updates cache
+      updateNodeChildren updates cache node
+      |> Result.map (updateWhichChildren deps)
 
 updateNodeChildren : Dict SliceID SliceWrap -> Cache -> Node -> Result String Node
 updateNodeChildren updates cache node =
@@ -131,16 +137,8 @@ updateWhichChildren children node =
     Collapsed -> node
     Expanded cs ->
       let
-        currentChildIds =
-          List.filterMap
-            (\n ->
-              case node.content of
-                SliceNode {id} -> Just id
-                _              -> Nothing)
-            cs
-
         additionalChildren =
-          List.filter (\{id} -> not (List.member id currentChildIds)) children
+          List.filter (\{id} -> not (List.any (\n -> String.endsWith id n.id) cs)) children
           |> List.map
               (\sw ->
                 { defaultNode |
