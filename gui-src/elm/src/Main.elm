@@ -249,7 +249,7 @@ update msg model =
     CompileMsg result ->
       case result of
         Err e ->
-          ( { model | error = Just (API.httpErrorToString e) }
+          ( { model | compileMsg = Just (API.httpErrorToString e), compiling = False }
           , Cmd.none
           )
         Ok compileMsg ->
@@ -792,11 +792,12 @@ viewToolbar saving compiling =
 viewCompileMsg : Maybe String -> Element Msg
 viewCompileMsg maybeMsg =
   case maybeMsg of
-    Nothing -> Element.none
+    Nothing ->
+      Element.none
     Just msg ->
       Element.row
         [ Element.width Element.fill
-        , Element.height (Element.maximum 300 Element.shrink)
+        , Element.height (Element.px 100) -- (Element.maximum 300 Element.shrink)
         , Element.spacing 10
         , Element.scrollbars
         ]
