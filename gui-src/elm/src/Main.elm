@@ -330,10 +330,38 @@ insertSliceWraps sws cache =
     cache
     sws
 
+removeOccurence : SliceID -> SliceID -> Model -> Model
+removeOccurence sid at model =
+  let
+    newDep =
+      Dict.get at model.cache
+      |> Maybe.map (\sw ->
+        { sw | occurences = List.filter (\o -> o /= sid) sw.occurences })
+    newCache =
+      case newDep of
+        Nothing -> model.cache
+        Just sw -> Dict.insert at sw model.cache
+    newPage =
+      case model.page of
+        TreeView node ->
+          Editor.updateNodeContents (case newDep of
+            Just sw -> Dict.insert at sw Dict.empty
+            _       -> Dict.empty) newCache node
+          |> Result.map TreeView
+        _ -> Ok model.page
+  in
+    case newPage of
+      Ok page ->
+        { model | page = page, cache = newCache, slices = Dict.values newCache }
+      Err e ->
+        { model | cache = newCache, slices = Dict.values newCache, error = Just "Error while updating view model"}
+
+
 -- | Remove a dependency from a slice
 removeDependencyUpdate : SliceID -> SliceWrap -> Model -> (Model, Cmd Msg)
 removeDependencyUpdate sid sw model =
-  editUpdate (removeDependency sid) sw model
+  removeOccurence sw.id sid model
+  |> editUpdate (removeDependency sid) sw
 
 -- | Change the text contained in a slice and update the model accordingly
 textEditUpdate : String -> SliceWrap -> Model -> (Model, Cmd Msg)
