@@ -16,6 +16,7 @@ import GHC.Generics (Generic)
 
 
 -- | A local ID before slices have been hashed.
+-- It has to be a valid Haskell module name.
 newtype LocalSliceID = LocalSliceID Text
 
 -- | A Slice with a local ID that may use slices with local IDs as well as global

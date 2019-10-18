@@ -1,5 +1,6 @@
 Successes: 7
 Failures: 0
+Rehashing: True
 SameTypeDifferentInstance1 SameTypeDifferentInstance SameTypeDifferentInstance
 SameTypeDifferentInstance2 SameTypeDifferentInstance SameTypeDifferentInstance
 Value value
