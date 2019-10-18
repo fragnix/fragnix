@@ -89,8 +89,16 @@ updateNodeContents updates cache node =
             newId =
               (String.dropRight (String.length sw.id) node.id)
               ++ newSw.id
+            newChildren = case node.children of
+              Collapsed -> Collapsed
+              Expanded cs -> Expanded
+                (List.map
+                  (mapNode (\n ->
+                    {n | id = newId ++ (String.dropLeft ((String.length node.id) + 1) n.id)}
+                  ))
+                  cs)
           in
-            updateOccsDeps newSw cache { node | content = newContent, id = newId }
+            updateOccsDeps newSw cache { node | content = newContent, id = newId, children = newChildren }
             |> Result.andThen (updateNodeChildren updates cache)
     Occurences occs ->
       updateNodeChildren updates cache node
