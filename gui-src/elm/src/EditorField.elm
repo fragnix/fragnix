@@ -14,18 +14,67 @@ import Element.Input as Input
 import Palette exposing (..)
 
 -- | SYNTAX HIGHLIGHTING
-css =
-  --monokai_colors_css
-  onedark_colors_css ++ show_caret_css ++ reference_css
+css : Bool -> String
+css dark =
+  if dark then
+    onedark_colors_css ++ light_caret_css ++ reference_css
+  else
+    onedark_colors_inverted_css ++ reference_css
 
-monokai_colors_css =
-  ".elmsh {color: #f8f8f2;}.elmsh-hl {background: #343434;}.elmsh-add {background: #003800;}.elmsh-del {background: #380000;}.elmsh-comm {color: #75715e;}.elmsh1 {color: #ae81ff;}.elmsh2 {color: #e6db74;}.elmsh3 {color: #f92672;}.elmsh4 {color: #66d9ef;}.elmsh5 {color: #a6e22e;}.elmsh6 {color: #ae81ff;}.elmsh7 {color: #fd971f;}.elmsh-elm-ts, .elmsh-js-dk, .elmsh-css-p {font-style: italic;color: #66d9ef;}.elmsh-js-ce {font-style: italic;color: #a6e22e;}.elmsh-css-ar-i {font-weight: bold;color: #f92672;}"
+{-monokai_colors_css =
+  ".elmsh {color: #f8f8f2;}.elmsh-hl {background: #343434;}.elmsh-add {background: #003800;}.elmsh-del {background: #380000;}.elmsh-comm {color: #75715e;}.elmsh1 {color: #ae81ff;}.elmsh2 {color: #e6db74;}.elmsh3 {color: #f92672;}.elmsh4 {color: #66d9ef;}.elmsh5 {color: #a6e22e;}.elmsh6 {color: #ae81ff;}.elmsh7 {color: #fd971f;}.elmsh-elm-ts, .elmsh-js-dk, .elmsh-css-p {font-style: italic;color: #66d9ef;}.elmsh-js-ce {font-style: italic;color: #a6e22e;}.elmsh-css-ar-i {font-weight: bold;color: #f92672;}" -}
+
 onedark_colors_css =
   ".elmsh {color: #abb2bf;}.elmsh-hl {background: rgba(229, 231,235, 0.1);}.elmsh-add {background: rgba(40, 124,82, 0.4);}.elmsh-del {background: rgba(136, 64,67, 0.4);}.elmsh-comm {font-style: italic;color: #5c6370;}.elmsh1 {color: #d19a66;}.elmsh2 {color: #98c379;}.elmsh3 {color: #c678dd;}.elmsh4 {color: #c678dd;}.elmsh5 {color: #61aeee;}.elmsh6 {color: #d19a66;}.elmsh7 {color: #abb2bf;}.elmsh-elm-ts, .elmsh-js-dk, .elmsh-css-p {font-style: italic;color: #66d9ef;}.elmsh-js-ce {font-style: italic;color: #a6e22e;}.elmsh-css-ar-i {font-weight: bold;color: #f92672;}"
-show_caret_css =
+light_caret_css =
   "textarea {caret-color: white;}"
 reference_css =
   ".reference {text-decoration: underline;}.reference:hover {cursor:pointer;}"
+
+-- light colors:
+-- (mirrored lightness (30% -> 70% etc.))
+onedark_colors_inverted_css =
+  """.elmsh {
+    color: rgb(67, 74, 85);
+  }
+  .elmsh-hl { background: rgba(229, 231,235, 0.1);}.elmsh-add { background: rgba(40, 124,82, 0.4);  }.elmsh-del { background: rgba(136, 64,67, 0.4);  }
+  .elmsh-comm {
+    font-style: italic;
+    color: hsl(218, 9%, 60%);
+  }
+  .elmsh1 {
+    color: hsl(29, 53%, 40%);
+  }
+  .elmsh2 {
+    color: hsl(94, 38%, 39%);
+  }
+  .elmsh3 {
+    color: hsl(286, 59%, 34%);
+  }
+  .elmsh4 {
+    color: hsl(286, 59%, 34%);
+  }
+  .elmsh5 {
+    color: hsl(207, 80%, 35%);
+  }
+  .elmsh6 {
+    color: hsl(29, 53%, 40%);
+  }
+  .elmsh7 {
+    color: hsl(218, 13%, 30%);
+  }
+  .elmsh-elm-ts, .elmsh-js-dk, .elmsh-css-p {
+    font-style: italic;
+    color: hsl(189, 80%, 34%);
+  }
+  .elmsh-js-ce {
+    font-style: italic;
+    color: hsl(80, 75%, 47%);
+  }
+  .elmsh-css-ar-i {
+    font-weight: bold;
+    color: hsl(338, 94%, 44%);
+  }"""
 
 
 type alias HighlightDict msg = Dict String (List (Html.Attribute msg))

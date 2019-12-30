@@ -68,6 +68,7 @@ type alias Model =
   , saving: Bool
   , compiling: Bool
   , compileMsg: Maybe String
+  , dark: Bool
   }
 
 type alias Cache = Dict SliceID SliceWrap
@@ -84,6 +85,7 @@ emptyModel =
   , saving = False
   , compileMsg = Nothing
   , compiling = False
+  , dark = True
   }
 
 
@@ -108,6 +110,7 @@ type Msg
   | AddTransitiveChanges SliceID
   | RemoveTransitiveChanges SliceID
   | ClearCompileMsg
+  | LightSwitch
 
 type Step
   = IndexSlices (List Slice)
@@ -145,6 +148,11 @@ update msg model =
 
     CloseError ->
       ( { model | error = Nothing }
+      , Cmd.none
+      )
+
+    LightSwitch ->
+      ( { model | dark = not model.dark }
       , Cmd.none
       )
 
@@ -691,21 +699,21 @@ defaultNode = Editor.defaultNode
 view : Model -> Html Msg
 view model =
   (case model.error of
-    Just err -> viewErrMsg err
+    Just err -> viewErrMsg model.dark err
     Nothing  -> viewPage model)
-  |> createHtml
+  |> (createHtml model.dark)
 
 viewPage : Model -> Element Msg
 viewPage model =
   case model.page of
     TreeView node ->
-      viewEditor node model
+      viewEditor model.dark node model
     Loading msgs ->
-      viewLoading msgs
+      viewLoading model.dark msgs
 
 -- | Layout element and add the inescapable css
-createHtml : Element Msg -> Html Msg
-createHtml el =
+createHtml : Bool -> Element Msg -> Html Msg
+createHtml dark el =
   Element.row
     [ Element.width Element.fill
     , Element.height Element.fill
@@ -714,7 +722,7 @@ createHtml el =
         (Html.node
           "style"
           []
-          [ (Html.text (EditorField.css)) ])
+          [ (Html.text (EditorField.css dark)) ])
     , el
     ]
   |> Element.layoutWith { options = options } []
@@ -730,9 +738,9 @@ options =
   ]
 
 -- | If something went fatally wrong
-viewErrMsg : String -> Element Msg
-viewErrMsg err =
-  basicLayout
+viewErrMsg : Bool -> String -> Element Msg
+viewErrMsg dark err =
+  basicLayout dark
     ( Element.column
         [ Element.padding 10
         , Element.spacing 7
@@ -749,9 +757,9 @@ viewErrMsg err =
     )
 
 -- | Slightly nicer loading screen
-viewLoading : List String -> Element Msg
-viewLoading msgs =
-  basicLayout
+viewLoading : Bool -> List String -> Element Msg
+viewLoading dark msgs =
+  basicLayout dark
     ( Element.column
         [ Element.padding 10
         , Element.spacing 7
@@ -759,24 +767,24 @@ viewLoading msgs =
         (List.map Element.text msgs)
     )
 
-basicLayout : Element Msg -> Element Msg
-basicLayout elem =
+basicLayout : Bool -> Element Msg -> Element Msg
+basicLayout dark elem =
   Element.el
-    [ Background.color monokai_black
-    , Font.color monokai_white
+    [ Background.color (black dark)
+    , Font.color (white dark)
     , Element.width Element.fill
     , Element.height Element.fill
     ]
     elem
 
 -- | View the editor
-viewEditor : Editor.Node -> Model -> Element Msg
-viewEditor node { saving, compiling, compileMsg } =
+viewEditor : Bool -> Editor.Node -> Model -> Element Msg
+viewEditor dark node { saving, compiling, compileMsg } =
   Element.column
     [ Element.padding 10
     , Element.spacing 10
-    , Background.color monokai_black
-    , Font.color monokai_white
+    , Background.color (black dark)
+    , Font.color (white dark)
     , Font.family [ Font.monospace ]
     , Font.size 16
     , Element.width Element.fill
@@ -787,22 +795,30 @@ viewEditor node { saving, compiling, compileMsg } =
         , Element.height Element.fill
         , Element.scrollbars
         ]
-        (Element.map Editor (Editor.viewNode node))
-    , viewToolbar saving compiling
-    , viewCompileMsg compileMsg
+        (Element.map Editor (Editor.viewNode dark node))
+    , viewToolbar dark saving compiling
+    , viewCompileMsg dark compileMsg
     ]
 
-viewToolbar : Bool -> Bool -> Element Msg
-viewToolbar saving compiling =
+viewToolbar : Bool -> Bool -> Bool -> Element Msg
+viewToolbar dark saving compiling =
   Element.row
     [ Element.width Element.fill
     , Border.widthEach { edges | bottom = 1 }
-    , Border.color monokai_grey
+    , Border.color (grey dark)
     ]
     [ Element.el
         [ Element.padding 10
+        , Events.onClick LightSwitch
+        , Element.mouseOver [Background.color (grey dark) ]
+        , Element.pointer
+        , Element.alignLeft
+        ]
+        (Element.text (if dark then "Lights on" else "Lights off"))
+    , Element.el
+        [ Element.padding 10
         , Events.onClick Save
-        , Element.mouseOver [Background.color monokai_grey ]
+        , Element.mouseOver [Background.color (grey dark) ]
         , Element.pointer
         , Element.alignRight
         ]
@@ -810,15 +826,15 @@ viewToolbar saving compiling =
     , Element.el
         [ Element.padding 10
         , Events.onClick Compile
-        , Element.mouseOver [Background.color monokai_grey ]
+        , Element.mouseOver [Background.color (grey dark) ]
         , Element.pointer
         , Element.alignRight
         ]
         (Element.text (if compiling then "Compiling..." else "Compile"))
     ]
 
-viewCompileMsg : Maybe String -> Element Msg
-viewCompileMsg maybeMsg =
+viewCompileMsg : Bool -> Maybe String -> Element Msg
+viewCompileMsg dark maybeMsg =
   case maybeMsg of
     Nothing ->
       Element.none
@@ -832,11 +848,11 @@ viewCompileMsg maybeMsg =
         [ Element.el
             [ Element.padding 10
             , Events.onClick ClearCompileMsg
-            , Element.mouseOver [Background.color monokai_grey ]
+            , Element.mouseOver [Background.color (grey dark) ]
             , Element.pointer
-            , Border.color monokai_grey
+            , Border.color (grey dark)
             , Border.widthEach { edges | right = 1 }
-            , Font.color orange
+            , Font.color (signal_color dark)
             ]
             (Element.text "Close")
         , (Element.text msg)

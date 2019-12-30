@@ -362,48 +362,48 @@ updateChanged changed =
 -- VIEW
 
 -- | Recursively view the editor model
-viewNode : Node -> Element Msg
-viewNode node =
+viewNode : Bool -> Node -> Element Msg
+viewNode dark node =
   case node.children of
     Collapsed ->
-      viewCollapsedNode node
+      viewCollapsedNode dark node
     Expanded children ->
       case node.content of
         SliceNode sw ->
-          viewSliceNode sw node
+          viewSliceNode dark sw node
         Occurences occs ->
-          viewListNode children node
+          viewListNode dark children node
         Dependencies deps ->
-          viewListNode children node
+          viewListNode dark children node
 
 -- | Collapsed
-viewCollapsedNode : Node -> Element Msg
-viewCollapsedNode { marked, id, content, changed } =
+viewCollapsedNode : Bool -> Node -> Element Msg
+viewCollapsedNode dark { marked, id, content, changed } =
   let
     fontColor = case content of
       SliceNode _ ->
         []
       _ ->
-        [ Font.color actual_black ]
+        [ Font.color (real_black dark) ]
   in
     Element.el
       ([ Events.onClick (Editor {target = id, action = Expand})
        , Element.pointer
-       , Element.mouseOver [ Background.color monokai_grey ]
+       , Element.mouseOver [ Background.color (grey dark) ]
        ]
-      ++ (if marked then [ Background.color monokai_grey ] else [])
+      ++ (if marked then [ Background.color (grey dark) ] else [])
       ++ fontColor)
-      (viewTeaser content changed)
+      (viewTeaser dark content changed)
 
-viewTeaser : NodeContent -> Bool -> Element Msg
-viewTeaser content changed =
+viewTeaser : Bool -> NodeContent -> Bool -> Element Msg
+viewTeaser dark content changed =
   Element.row
     [ Element.spacing 0
     , Element.padding 0
     ]
     [ Element.el
         [ Font.color
-            (if changed then orange else actual_black)
+            (if changed then (signal_color dark) else (real_black dark))
         ]
         (Element.text "⮟ ")
     , case content of
@@ -422,8 +422,8 @@ viewTeaser content changed =
     ]
 
 -- Expanded - Slice
-viewSliceNode : SliceWrap -> Node -> Element Msg
-viewSliceNode sw { hovered, marked, id, children, editable, framed, changed } =
+viewSliceNode : Bool -> SliceWrap -> Node -> Element Msg
+viewSliceNode dark sw { hovered, marked, id, children, editable, framed, changed } =
   case children of
     Expanded (occs :: deps :: _) ->
       let
@@ -441,7 +441,7 @@ viewSliceNode sw { hovered, marked, id, children, editable, framed, changed } =
           )
 
         viewIfNotEmpty n =
-          if isEmptyNode n then [] else [ viewNode n ]
+          if isEmptyNode n then [] else [ viewNode dark n ]
 
         debugInfo = []
           {-[ Element.row
@@ -452,16 +452,16 @@ viewSliceNode sw { hovered, marked, id, children, editable, framed, changed } =
 
       in
         Element.el
-          (frameIf framed)
-          (viewCollapsable
+          (frameIf dark framed)
+          (viewCollapsable dark
             id
             (Element.column
               [ Element.spacing 8
               ]
               ( bigOccs ++
                 [ Element.column
-                    ((Element.spacing 8) :: (nodeAttributes hovered marked id))
-                    ( smallOccs ++ [(viewSlice sw editable changed id)] ++ smallDeps )
+                    ((Element.spacing 8) :: (nodeAttributes dark hovered marked id))
+                    ( smallOccs ++ [(viewSlice dark sw editable changed id)] ++ smallDeps )
                 ]
                 ++ bigDeps
                 ++ debugInfo)))
@@ -475,14 +475,14 @@ isEmptyNode { content } =
     Dependencies [] -> True
     _               -> False
 
-nodeAttributes : Bool -> Bool -> SliceID -> List (Element.Attribute Msg)
-nodeAttributes hovered marked sid =
+nodeAttributes : Bool -> Bool -> Bool -> SliceID -> List (Element.Attribute Msg)
+nodeAttributes dark hovered marked sid =
   [ Events.onMouseEnter (Editor {target = sid, action = Hover})
   , Events.onMouseLeave (Editor {target = sid, action = Unhover})
-  ] ++ (if marked || hovered then [ Background.color monokai_grey ] else [])
+  ] ++ (if marked || hovered then [ Background.color (grey dark) ] else [])
 
-viewSlice : SliceWrap -> Bool -> Bool -> String -> Element Msg
-viewSlice sw editable changed nodeId =
+viewSlice : Bool -> SliceWrap -> Bool -> Bool -> String -> Element Msg
+viewSlice dark sw editable changed nodeId =
   let
     renderedFragment = renderFragment sw.slice
     highlightDict =
@@ -502,7 +502,7 @@ viewSlice sw editable changed nodeId =
     dirtyAttribs =
       if changed then
         [ Border.widthEach { edges | left = 1 }
-        , Border.color orange
+        , Border.color (signal_color dark)
         ]
       else
         []
@@ -512,7 +512,7 @@ viewSlice sw editable changed nodeId =
         dirtyAttribs
         [ Element.el
             [ Border.width 1
-            , Border.color monokai_grey
+            , Border.color (grey dark)
             ]
             (EditorField.editorField
               renderedFragment
@@ -521,7 +521,7 @@ viewSlice sw editable changed nodeId =
         , Element.el
             [ Events.onClick (Editor {target = nodeId, action = MakeStatic})
             , Element.pointer
-            , Element.mouseOver [ Background.color monokai_black ]
+            , Element.mouseOver [ Background.color (black dark) ]
             , Font.size 32
             , Element.height Element.fill
             , Element.width Element.fill
@@ -538,20 +538,20 @@ viewSlice sw editable changed nodeId =
 
 -- | Expanded - Occurences/Dependencies
 
-viewListNode : List Node -> Node -> Element Msg
-viewListNode nodes { hovered, marked, framed, id } =
+viewListNode : Bool -> List Node -> Node -> Element Msg
+viewListNode dark nodes { hovered, marked, framed, id } =
   Element.el
-    (frameIf framed)
-    (viewCollapsable
+    (frameIf dark framed)
+    (viewCollapsable dark
       id
       (Element.column
         [ Element.spacing 16 ]
-        (List.map viewNode nodes)))
+        (List.map (viewNode dark) nodes)))
 
 -- | Common helpers
 
-viewCollapsable : SliceID -> Element Msg -> Element Msg
-viewCollapsable sid content =
+viewCollapsable : Bool -> SliceID -> Element Msg -> Element Msg
+viewCollapsable dark sid content =
   Element.row
     [ Element.spacing 5 ]
     [ (Element.column
@@ -560,8 +560,8 @@ viewCollapsable sid content =
         , Events.onMouseEnter (Editor {target = sid, action = Frame})
         , Events.onMouseLeave (Editor {target = sid, action = Unframe})
         , Element.pointer
-        , Font.color actual_black
-        , Element.mouseOver [ Background.color monokai_grey ]
+        , Font.color (real_black dark)
+        , Element.mouseOver [ Background.color (grey dark) ]
         ]
         [ {- Element.el
             [ Element.alignTop ]
@@ -571,7 +571,7 @@ viewCollapsable sid content =
             , Element.width (Element.px 1)
             , Element.height Element.fill
             , Border.widthEach { bottom = 0, left = 0, right = 1, top = 0 }
-            , Border.color actual_black
+            , Border.color (real_black dark)
             ]
             Element.none
         , Element.el
@@ -583,9 +583,9 @@ viewCollapsable sid content =
     ]
 
 
-frameIf : Bool -> List (Element.Attribute Msg)
-frameIf framed =
+frameIf : Bool -> Bool -> List (Element.Attribute Msg)
+frameIf dark framed =
   if framed then
-     [ Border.width 1, Border.color monokai_white ]
+     [ Border.width 1, Border.color (white dark) ]
    else
-     [ Border.width 1, Border.color monokai_black ]
+     [ Border.width 1, Border.color (black dark) ]
