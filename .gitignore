@@ -1,0 +1,10 @@
+.cabal-sandbox/*
+dist/*
+cabal.sandbox.config
+main
+fragnix/cbits/*.o
+fragnix/environment/*
+fragnix/slices/*
+fragnix/temp/*
+gui-src/elm/elm-stuff
+tests/*/*/fragnix/*

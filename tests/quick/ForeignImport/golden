@@ -1,3 +1,4 @@
 Successes: 2
 Failures: 0
+Rehashing: True
 ForeignImport c_memcpy c_sendfile

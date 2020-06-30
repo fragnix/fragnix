@@ -1,5 +1,6 @@
 Successes: 4
 Failures: 0
+Rehashing: True
 CyclesClass C f
 CyclesData D D
 CyclesInstance 
