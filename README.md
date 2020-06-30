@@ -10,7 +10,7 @@ Installation
 Follow the following steps to get a development version of fragnix. You need at least GHC 8.0.
 
 ```
-> git clone https://github.com/phischu/fragnix
+> git clone --recurse-submodules https://github.com/phischu/fragnix
 > cd fragnix
 > cabal sandbox init
 > cabal install
