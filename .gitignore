@@ -1,6 +1,9 @@
 .cabal-sandbox/*
 dist/*
+dist-newstyle/
+.stack-work/
 cabal.sandbox.config
+.ghc.environment.*
 main
 fragnix/cbits/*.o
 fragnix/environment/*
@@ -8,3 +11,4 @@ fragnix/slices/*
 fragnix/temp/*
 gui-src/elm/elm-stuff
 tests/*/*/fragnix/*
+tests/quick/**/out

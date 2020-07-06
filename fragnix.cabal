@@ -27,19 +27,19 @@ library
                        Fragnix.SliceCompiler,
                        Fragnix.Environment,
                        Fragnix.SliceSymbols
-  -- other-extensions:
-  build-depends:       base >=4.6 && <4.10,
+  -- other-extensions:    
+  build-depends:       base >=4.6 && <4.15,
                        text >=1.2 && < 1.3,
                        filepath >=1.3 && < 1.6,
                        directory >=1.3 && < 1.4,
-                       process >=1.4 && <1.5,
-                       containers >=0.5.0.0 && <0.6,
-                       haskell-src-exts >=1.19.1 && <1.20,
+                       process >=1.6 && <1.7,
+                       containers >=0.6 && <0.7,
+                       haskell-src-exts >=1.23 && <1.24,
                        haskell-names >=0.9.0 && <0.10,
                        tagged >=0.7.2 && <0.10,
-                       aeson >=0.8.0.0 && <1.3,
+                       aeson >=1.4 && <1.5,
                        bytestring >=0.10.4.0 && <0.11,
-                       hashable >=1.2.2.0 && <1.3,
+                       hashable >=1.3 && <1.4,
                        transformers >=0.3.0.0 && <0.6
   hs-source-dirs:      src
   default-language:    Haskell2010
@@ -50,19 +50,19 @@ executable fragnix
   main-is:             Main.hs
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.6 && <4.10,
+  build-depends:       base >=4.6 && <4.15,
                        text >=1.2 && < 1.3,
                        filepath >=1.3 && < 1.6,
                        directory >=1.3 && < 1.4,
-                       process >=1.4 && <1.5,
-                       containers >=0.5.0.0 && <0.6,
-                       haskell-src-exts >=1.19.1 && <1.20,
+                       process >=1.6 && <1.7,
+                       containers >=0.6 && <0.7,
+                       haskell-src-exts >=1.23 && <1.24,
                        haskell-names >=0.9.0 && <0.10,
-                       clock >=0.7.2 && <0.8,
+                       clock >=0.8 && <0.9,
                        tagged >=0.7.2 && <0.10,
-                       aeson >=0.8.0.0 && <1.3,
+                       aeson >=1.4 && <1.5,
                        bytestring >=0.10.4.0 && <0.11,
-                       hashable >=1.2.2.0 && <1.3,
+                       hashable >=1.3 && <1.4,
                        transformers >=0.3.0.0 && <0.6,
                        fragnix
   hs-source-dirs:      executable-src
@@ -74,47 +74,47 @@ executable fragnix_hash_local_slices
   main-is:             fragnix_hash_local_slices.hs
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.6 && <4.10,
+  build-depends:       base >=4.6 && <4.15,
                        bytestring >=0.10.4.0 && <0.11,
                        filepath >=1.3 && < 1.6,
-                       aeson >=0.8.0.0 && <1.3,
+                       aeson >=1.4 && <1.5,
                        fragnix
   hs-source-dirs:      utilities-src
   default-language:    Haskell2010
   ghc-options:         -O2 -threaded -rtsopts
 
 
-executable fragnix-browse
-  main-is:             fragnix-browse.hs
-  other-modules:       Api, Helpers
-  -- other-extensions:
-  build-depends:       base >=4.6 && <4.10,
-                       bytestring >=0.10.4.0 && <0.11,
-                       filepath >=1.3 && < 1.6,
-                       aeson >=0.8.0.0 && < 1.3,
-                       containers >=0.5.0.0 && <0.6,
-                       clock >=0.7.2 && <0.8,
-                       directory >=1.3 && < 1.4,
-                       either >= 4.5 && < 4.6,
-                       servant >= 0.13 && < 0.14,
-                       servant-server >= 0.13 && < 0.14,
-                       servant-static-th >= 0.2.2 && < 0.2.3,
-                       text >=1.2 && < 1.3,
-                       warp>=3.2.13 && <3.3,
-                       fragnix
-  hs-source-dirs:      gui-src
-  default-language:    Haskell2010
-  ghc-options:         -O2 -threaded -rtsopts
+-- executable fragnix-browse
+--   main-is:             fragnix-browse.hs
+--   other-modules:       Api, Helpers
+--   -- other-extensions:
+--   build-depends:       base >=4.6 && <4.15,
+--                        bytestring >=0.10.4.0 && <0.11,
+--                        filepath >=1.3 && < 1.6,
+--                        aeson >=1.4 && < 1.5,
+--                        containers >=0.6 && <0.7,
+--                        clock >=0.8 && <0.9,
+--                        directory >=1.3 && < 1.4,
+--                        either >= 5.0 && < 5.1,
+--                        servant >= 0.16 && < 0.17,
+--                        servant-server >= 0.16 && < 0.17,
+--                        servant-static-th >= 0.2.2 && < 0.2.3,
+--                        text >=1.2 && < 1.3,
+--                        warp>=3.2.13 && <3.3,
+--                        fragnix
+--   hs-source-dirs:      gui-src
+--   default-language:    Haskell2010
+--   ghc-options:         -O2 -threaded -rtsopts
 
 
 executable create_builtin_environment
   main-is:             create_builtin_environment.hs
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.6 && <4.10,
+  build-depends:       base >=4.6 && <4.15,
                        directory >=1.3 && < 1.4,
-                       containers >=0.5.0.0 && <0.6,
-                       haskell-src-exts >=1.19.1 && <1.20,
+                       containers >=0.6 && <0.7,
+                       haskell-src-exts >=1.23 && <1.24,
                        haskell-names >=0.9.0 && <0.10,
                        fragnix
   hs-source-dirs:      utilities-src
@@ -126,20 +126,20 @@ test-suite test
   main-is:             Main.hs
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.6 && <4.10,
+  build-depends:       base >=4.6 && <4.15,
                        text >=1.2 && < 1.3,
                        filepath >=1.3 && < 1.6,
                        directory >=1.3 && < 1.4,
-                       process >=1.4 && <1.5,
-                       containers >=0.5.0.0 && <0.6,
-                       haskell-src-exts >=1.19.1 && <1.20,
+                       process >=1.6 && <1.7,
+                       containers >=0.6 && <0.7,
+                       haskell-src-exts >=1.23 && <1.24,
                        haskell-names >=0.9.0 && <0.10,
                        tagged >=0.7.2 && <0.10,
-                       aeson >=0.8.0.0 && <1.3,
+                       aeson >=1.4 && <1.5,
                        bytestring >=0.10.4.0 && <0.11,
-                       hashable >=1.2.2.0 && <1.3,
+                       hashable >=1.3 && <1.4,
                        transformers >=0.3.0.0 && <0.6,
-                       tasty >=0.11.0.3 && <0.12,
+                       tasty >=1.2 && <1.4,
                        tasty-golden >=2.2.2.4 && <2.4,
                        fragnix
   hs-source-dirs:      tests-src
@@ -150,12 +150,12 @@ test-suite test
 
 benchmark benchmark
   main-is:             Main.hs
-  build-depends:       base >=4.6 && <4.10,
-                       containers >=0.5.0.0 && <0.6,
+  build-depends:       base >=4.6 && <4.15,
+                       containers >=0.6 && <0.7,
                        directory >=1.3 && <1.4,
-                       criterion >=1.1.0.0 && <1.2,
+                       criterion >=1.5 && <1.6,
                        deepseq >=1.4.1.2 && <1.6,
-                       haskell-src-exts >=1.19.1 && <1.20,
+                       haskell-src-exts >=1.23 && <1.24,
                        haskell-names >=0.9.0 && <0.10,
                        fragnix
   hs-source-dirs:      benchmarks-src
