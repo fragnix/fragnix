@@ -189,10 +189,10 @@ bootDecl :: Decl a -> [Decl a]
 bootDecl (InstDecl annotation overlap instRule _) =
     [InstDecl annotation overlap instRule Nothing]
 bootDecl (DataDecl annotation dataOrNew context declHead constructors _) =
-    [DataDecl annotation dataOrNew context declHead constructors Nothing]
+    [DataDecl annotation dataOrNew context declHead constructors []]
 bootDecl (GDataDecl annotation dataOrNew context declHead kind constructors _) =
-    [GDataDecl annotation dataOrNew context declHead kind constructors Nothing]
-bootDecl (DerivDecl annotation overlap instRule) =
+    [GDataDecl annotation dataOrNew context declHead kind constructors []]
+bootDecl (DerivDecl annotation _ overlap instRule) = -- Ignoring the deriving strategy.
     [InstDecl annotation overlap instRule Nothing]
 bootDecl (PatBind _ _ _ _) =
     []
