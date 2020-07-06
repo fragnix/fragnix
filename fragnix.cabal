@@ -33,13 +33,13 @@ library
                        filepath >=1.3 && < 1.6,
                        directory >=1.3 && < 1.4,
                        process >=1.6 && <1.7,
-                       containers >=0.5.0.0 && <0.6,
+                       containers >=0.6 && <0.7,
                        haskell-src-exts >=1.23 && <1.24,
                        haskell-names >=0.9.0 && <0.10,
                        tagged >=0.7.2 && <0.10,
                        aeson >=1.4 && <1.5,
                        bytestring >=0.10.4.0 && <0.11,
-                       hashable >=1.2.2.0 && <1.3,
+                       hashable >=1.3 && <1.4,
                        transformers >=0.3.0.0 && <0.6
   hs-source-dirs:      src
   default-language:    Haskell2010
@@ -55,14 +55,14 @@ executable fragnix
                        filepath >=1.3 && < 1.6,
                        directory >=1.3 && < 1.4,
                        process >=1.6 && <1.7,
-                       containers >=0.5.0.0 && <0.6,
+                       containers >=0.6 && <0.7,
                        haskell-src-exts >=1.23 && <1.24,
                        haskell-names >=0.9.0 && <0.10,
-                       clock >=0.7.2 && <0.8,
+                       clock >=0.8 && <0.9,
                        tagged >=0.7.2 && <0.10,
                        aeson >=1.4 && <1.5,
                        bytestring >=0.10.4.0 && <0.11,
-                       hashable >=1.2.2.0 && <1.3,
+                       hashable >=1.3 && <1.4,
                        transformers >=0.3.0.0 && <0.6,
                        fragnix
   hs-source-dirs:      executable-src
@@ -92,8 +92,8 @@ executable fragnix_hash_local_slices
 --                        bytestring >=0.10.4.0 && <0.11,
 --                        filepath >=1.3 && < 1.6,
 --                        aeson >=1.4 && < 1.5,
---                        containers >=0.5.0.0 && <0.6,
---                        clock >=0.7.2 && <0.8,
+--                        containers >=0.6 && <0.7,
+--                        clock >=0.8 && <0.9,
 --                        directory >=1.3 && < 1.4,
 --                        either >= 5.0 && < 5.1,
 --                        servant >= 0.16 && < 0.17,
@@ -113,7 +113,7 @@ executable create_builtin_environment
   -- other-extensions:
   build-depends:       base >=4.6 && <4.15,
                        directory >=1.3 && < 1.4,
-                       containers >=0.5.0.0 && <0.6,
+                       containers >=0.6 && <0.7,
                        haskell-src-exts >=1.23 && <1.24,
                        haskell-names >=0.9.0 && <0.10,
                        fragnix
@@ -131,15 +131,15 @@ test-suite test
                        filepath >=1.3 && < 1.6,
                        directory >=1.3 && < 1.4,
                        process >=1.6 && <1.7,
-                       containers >=0.5.0.0 && <0.6,
+                       containers >=0.6 && <0.7,
                        haskell-src-exts >=1.23 && <1.24,
                        haskell-names >=0.9.0 && <0.10,
                        tagged >=0.7.2 && <0.10,
                        aeson >=1.4 && <1.5,
                        bytestring >=0.10.4.0 && <0.11,
-                       hashable >=1.2.2.0 && <1.3,
+                       hashable >=1.3 && <1.4,
                        transformers >=0.3.0.0 && <0.6,
-                       tasty >=1.3 && <1.4,
+                       tasty >=1.2 && <1.4,
                        tasty-golden >=2.2.2.4 && <2.4,
                        fragnix
   hs-source-dirs:      tests-src
@@ -151,9 +151,9 @@ test-suite test
 benchmark benchmark
   main-is:             Main.hs
   build-depends:       base >=4.6 && <4.15,
-                       containers >=0.5.0.0 && <0.6,
+                       containers >=0.6 && <0.7,
                        directory >=1.3 && <1.4,
-                       criterion >=1.1.0.0 && <1.2,
+                       criterion >=1.5 && <1.6,
                        deepseq >=1.4.1.2 && <1.6,
                        haskell-src-exts >=1.23 && <1.24,
                        haskell-names >=0.9.0 && <0.10,
