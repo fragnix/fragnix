@@ -1,35 +1,48 @@
 
-Fragnix [![Build Status](https://travis-ci.org/phischu/fragnix.svg?branch=master)](https://travis-ci.org/phischu/fragnix)
-=======
+# Fragnix [![Build Status](https://travis-ci.org/phischu/fragnix.svg?branch=master)](https://travis-ci.org/phischu/fragnix)
 
 Fragnix is an experimental code package manager for Haskell. The central idea is that we should share and reuse code in units of small code fragments instead of in units of packages. The current state of development is technology preview, not even alpha.
 
-Installation
-------------
+## Installation
 
 Follow the following steps to get a development version of fragnix. You need at least GHC 8.0.
 
+```console
+git clone https://github.com/phischu/fragnix
+cd fragnix
 ```
-> git clone --recurse-submodules https://github.com/phischu/fragnix
-> cd fragnix
-> cabal sandbox init
-> cabal install
+### Building with cabal < 3.0
+
+```console
+cabal new-build
+cabal new-run fragnix
+```
+You can install fragnix on your system with:
+
+```console
+cabal new-install exe:fragnix
+```
+This should place a `fragnix` executable in `~/.cabal/bin`.
+
+###  Building with cabal >= 3.0
+
+You can use the same cabal instructions as above, omitting the "new-" prefixes.
+
+### Building with stack
+
+```console
+stack build
+stack exec fragnix
+```
+You can install fragnix on your system with:
+
+```console
+stack install fragnix
 ```
 
-This should place a `fragnix` executable in `.cabal-sandbox/bin/`.
+The `fragnix` executable is then in `~/.local/bin`.
 
-
-Building with `stack` should work too:
-
-```
-> stack install
-```
-
-The `fragnix` executable is then in `.stack-work/bin/`.
-
-
-Example
--------
+## Example
 
 If you have completed the installation you have a `fragnix` executable. The following assumes you have it somewhere in your `PATH`. You also have to have GHC 8.0 in your `PATH`.
 
