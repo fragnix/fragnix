@@ -1,6 +1,0 @@
-[submodule "haskell-src-exts"]
-	path = haskell-src-exts
-	url = https://github.com/phischu/haskell-src-exts
-[submodule "haskell-names"]
-	path = haskell-names
-	url = https://github.com/phischu/haskell-names
