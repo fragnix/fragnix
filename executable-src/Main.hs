@@ -84,6 +84,17 @@ main = do
 
     return ()
 
+{- Zum Kompilieren:
+putStrLn ("Compiling " ++ show mainSliceID)
+putStrLn ("Generating compilation units...")
+timeIt (writeSliceModules mainSliceID)
+putStrLn ("Invoking GHC")
+_ <- timeIt (invokeGHCMain mainSliceID)
+return ()
+-}
+
+{- Zum Slicen: Alles bis aufs Kompilieren -}
+
 
 -- | Execute the given action and print the time it took.
 timeIt :: IO a -> IO a
@@ -94,4 +105,3 @@ timeIt action = do
     let timeDifference = fromIntegral (toNanoSecs (diffTimeSpec timeBefore timeAfter)) * 1e-9 :: Double
     printf "Took %6.2fs\n" timeDifference
     return result
-

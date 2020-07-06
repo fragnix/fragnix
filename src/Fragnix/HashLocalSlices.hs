@@ -35,7 +35,7 @@ hashLocalSlices localSlices = let
 
     localSliceIDMap = hashSlices2 localSliceMap
 
-    slices = map (replaceSliceID (localSliceIDMap Map.!)) localSlices
+    slices = map (replaceLocalSliceID (localSliceIDMap Map.!)) localSlices
 
     in (localSliceIDMap, slices)
 
@@ -74,7 +74,7 @@ hashSlice2 localSliceMap hash1IDMap localSliceID = do
             let Just (LocalSlice _ language fragment localUses localInstances) =
                     Map.lookup localSliceID localSliceMap
             uses <- for localUses (hashUse2 localSliceMap hash1IDMap)
-            let instances = map (replaceInstanceID (hash1IDMap Map.!)) localInstances
+            let instances = map (replaceLocalInstanceID (hash1IDMap Map.!)) localInstances
             let sliceID = hash2 (language,fragment,uses,instances)
             put (Map.insert localSliceID sliceID localSliceIDMap)
             return sliceID
@@ -140,25 +140,43 @@ hash1Use localSliceMap localUse = case localUse of
 
 
 -- | Replace every occurence of a local ID in the given slice with its slice ID.
-replaceSliceID :: (LocalSliceID -> SliceID) -> LocalSlice -> Slice
-replaceSliceID f (LocalSlice localSliceID language fragment localUses localInstances) =
-    Slice (f localSliceID) language fragment (map (replaceUseID f) localUses) (map (replaceInstanceID f) localInstances)
+replaceLocalSliceID :: (LocalSliceID -> SliceID) -> LocalSlice -> Slice
+replaceLocalSliceID f (LocalSlice localSliceID language fragment localUses localInstances) =
+    Slice (f localSliceID) language fragment (map (replaceLocalUseID f) localUses) (map (replaceLocalInstanceID f) localInstances)
 
 -- | Replace every occurence of a local ID in the given use with its slice ID.
-replaceUseID :: (LocalSliceID -> SliceID) -> LocalUse -> Use
-replaceUseID f (LocalUse qualification usedName (OtherLocalSlice localSliceID))
+replaceLocalUseID :: (LocalSliceID -> SliceID) -> LocalUse -> Use
+replaceLocalUseID f (LocalUse qualification usedName (OtherLocalSlice localSliceID))
     = Use qualification usedName (OtherSlice (f localSliceID))
-replaceUseID _ (LocalUse qualification usedName (LocalSlice.OtherSlice sliceID))
+replaceLocalUseID _ (LocalUse qualification usedName (LocalSlice.OtherSlice sliceID))
     = Use qualification usedName (OtherSlice sliceID)
-replaceUseID _ (LocalUse qualification usedName (LocalSlice.Builtin originalModule))
+replaceLocalUseID _ (LocalUse qualification usedName (LocalSlice.Builtin originalModule))
     = Use qualification usedName (Builtin originalModule)
 
 -- | Replace every occurence of a local ID in the given Instance with its slice ID.
-replaceInstanceID :: (LocalSliceID -> SliceID) -> LocalInstance -> Instance
-replaceInstanceID f (LocalInstance instancePart localInstanceID) =
+replaceLocalInstanceID :: (LocalSliceID -> SliceID) -> LocalInstance -> Instance
+replaceLocalInstanceID f (LocalInstance instancePart localInstanceID) =
     Instance instancePart (f localInstanceID)
-replaceInstanceID _ (GlobalInstance instancePart instanceID) =
+replaceLocalInstanceID _ (GlobalInstance instancePart instanceID) =
     Instance instancePart instanceID
+
+
+-- | Replace every occurence of a slice ID in the given slice with its local ID.
+replaceSliceID :: (SliceID -> LocalSliceID) -> Slice -> LocalSlice
+replaceSliceID f (Slice sliceID language fragment uses instances) =
+    LocalSlice (f sliceID) language fragment (map (replaceUseID f) uses) (map (replaceInstanceID f) instances)
+
+-- | Replace every occurence of a slice ID in the given use with its local ID.
+replaceUseID :: (SliceID -> LocalSliceID) -> Use -> LocalUse
+replaceUseID f (Use qualification usedName (OtherSlice sliceID))
+    = LocalUse qualification usedName (OtherLocalSlice (f sliceID))
+replaceUseID _ (Use qualification usedName (Builtin originalModule))
+    = LocalUse qualification usedName (LocalSlice.Builtin originalModule)
+
+-- | Replace every occurence of a local ID in the given Instance with its slice ID.
+replaceInstanceID :: (SliceID -> LocalSliceID) -> Instance -> LocalInstance
+replaceInstanceID f (Instance instancePart instanceID) =
+    LocalInstance instancePart (f instanceID)
 
 
 
