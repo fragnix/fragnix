@@ -36,6 +36,26 @@ import Data.Maybe (mapMaybe)
 import Data.Text (pack)
 import Data.Foldable (toList)
 
+-------------------------------------------------------------
+-- NEW IMPORTS
+------------------------------------------------------------
+
+import SrcLoc (Located, mkRealSrcLoc)
+import HsSyn (HsModule)
+import HsExtension (GhcPs)
+import FastString (mkFastString)
+import StringBuffer (stringToStringBuffer)
+import Parser (parseModule)
+import Lexer (mkPState, P(..), ParseResult(..))
+import DynFlags (DynFlags, Settings(..), defaultDynFlags)
+import Bag (bagToList)
+
+
+
+-------------------------------------------------------------
+-- NEW IMPORTS END
+------------------------------------------------------------
+
 -- | Given a list of filepaths to valid Haskell modules produces a list of all
 -- declarations in those modules. The default environment loaded and used.
 moduleDeclarations :: [FilePath] -> IO [Declaration]
@@ -93,6 +113,29 @@ parse path = do
             "line: " ++ show line,
             "column: " ++ show column,
             "error: " ++ message])
+
+
+-- We need the complete dynflags, even though most of them are completely irrelevant for the frontend.
+defDynFlags :: DynFlags
+defDynFlags = defaultDynFlags settings llvmconfig
+  where
+    settings = Settings {} -- We hope that the frontend doesn't force any of the settings. Otherwise, fill in as needed.
+    llvmconfig = ([],[])
+
+parseNEW :: FilePath -> IO (Located (HsModule GhcPs))
+parseNEW path = do
+  fileContents <- readFile path
+  let location = mkRealSrcLoc (mkFastString path) 1 1
+  let buffer = stringToStringBuffer fileContents
+  let parseState = mkPState defDynFlags buffer location
+  case unP parseModule parseState of
+    POk _ a -> return a
+    PFailed messages _ _ -> do
+      let (warnings, errors) = messages defDynFlags
+      forM (bagToList warnings) print
+      forM (bagToList errors) print
+      error $ "Could not parse module: " <> path
+
 
 globalExtensions :: [Extension]
 globalExtensions = [
