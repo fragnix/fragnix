@@ -1,68 +1,58 @@
-# This file has been generated -- see https://github.com/hvr/multi-ghc-travis
-language: c
-sudo: false
+# This file has been copied from: https://kodimensional.dev/posts/2019-02-25-haskell-travis
+sudo: true
+language: haskell
+
+git:
+  depth: 5
+
+cabal: "2.4"
 
 cache:
   directories:
-    - $HOME/.cabsnap
-    - $HOME/.cabal/packages
-
-before_cache:
-  - rm -fv $HOME/.cabal/packages/hackage.haskell.org/build-reports.log
-  - rm -fv $HOME/.cabal/packages/hackage.haskell.org/00-index.tar
+  - "$HOME/.cabal/store"
+  - "$HOME/.stack"
+  - "$TRAVIS_BUILD_DIR/.stack-work"
 
 matrix:
   include:
-    - env: CABALVER=1.24 GHCVER=8.0.2
-      compiler: ": #GHC 8.0.2"
-      addons: {apt: {packages: [cabal-install-1.24,ghc-8.0.2,alex-3.1.7,happy-1.19.5], sources: [hvr-ghc]}}
 
-before_install:
- - unset CC
- - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:/opt/alex/3.1.7/bin:/opt/happy/1.19.5/bin:$PATH
+  # Cabal
+  - ghc: 8.4.4
+  - ghc: 8.6.5
+  - ghc: 8.8.3
+
+  # Stack
+  - ghc: 8.8.3
+    env: STACK_YAML="$TRAVIS_BUILD_DIR/stack.yaml"
 
 install:
- - cabal --version
- - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
- - if [ -f $HOME/.cabal/packages/hackage.haskell.org/00-index.tar.gz ];
-   then
-     zcat $HOME/.cabal/packages/hackage.haskell.org/00-index.tar.gz >
-          $HOME/.cabal/packages/hackage.haskell.org/00-index.tar;
-   fi
- - travis_retry cabal update -v
- - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config
- - cabal install --only-dependencies --enable-tests --dry -v > installplan.txt
- - sed -i -e '1,/^Resolving /d' installplan.txt; cat installplan.txt
+  - |
+    if [ -z "$STACK_YAML" ]; then
+      ghc --version
+      cabal --version
+      cabal new-update
+      # cabal new-build --enable-tests --enable-benchmarks
+      cabal new-build
+    else
+      # install stack
+      curl -sSL https://get.haskellstack.org/ | sh
 
-# check whether current requested install-plan matches cached package-db snapshot
- - if diff -u installplan.txt $HOME/.cabsnap/installplan.txt;
-   then
-     echo "cabal build-cache HIT";
-     rm -rfv .ghc;
-     cp -a $HOME/.cabsnap/ghc $HOME/.ghc;
-     cp -a $HOME/.cabsnap/lib $HOME/.cabsnap/share $HOME/.cabsnap/bin $HOME/.cabal/;
-   else
-     echo "cabal build-cache MISS";
-     rm -rf $HOME/.cabsnap;
-     mkdir -p $HOME/.ghc $HOME/.cabal/lib $HOME/.cabal/share $HOME/.cabal/bin;
-     cabal install --only-dependencies --enable-tests;
-   fi
+      # build project with stack
+      stack --version
+      # stack build --system-ghc --test --bench --no-run-tests --no-run-benchmarks
+      stack build --system-ghc
+    fi
 
-# snapshot package-db on cache miss
- - if [ ! -d $HOME/.cabsnap ];
-   then
-      echo "snapshotting package-db to build-cache";
-      mkdir $HOME/.cabsnap;
-      cp -a $HOME/.ghc $HOME/.cabsnap/ghc;
-      cp -a $HOME/.cabal/lib $HOME/.cabal/share $HOME/.cabal/bin installplan.txt $HOME/.cabsnap/;
-   fi
-
-# Here starts the actual work to be performed for the package under test;
-# any command which exits with a non-zero exit code causes the build to fail.
 script:
- - if [ -f configure.ac ]; then autoreconf -i; fi
- - cabal configure --enable-tests -v2  # -v2 provides useful information for debugging
- - cabal build   # this builds all libraries and executables (including tests)
- - ./dist/build/test/test -p quick
+  - |
+    if [ -z "$STACK_YAML" ]; then
+      # cabal new-test --enable-tests
+      echo "Enable tests!"
+    else
+      # stack test --system-ghc
+      echo "Enable tests!"
+    fi
 
-# EOF
+notifications:
+  email: false
+
