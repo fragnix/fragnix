@@ -48,7 +48,8 @@ library
 
 executable fragnix
   main-is:             Main.hs
-  other-modules:       Build
+  other-modules:       Build,
+                       Paths_fragnix
   -- other-extensions:
   build-depends:       base >=4.6 && <4.15,
                        text >=1.2 && < 1.3,
