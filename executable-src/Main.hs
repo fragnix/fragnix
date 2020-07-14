@@ -3,7 +3,7 @@ module Main where
 import Fragnix.Declaration (
     writeDeclarations)
 import Fragnix.Slice (
-    writeSliceDefault)
+    writeSlice)
 import Fragnix.Environment (
     loadEnvironment,persistEnvironment,
     environmentPath,builtinEnvironmentPath)
@@ -64,7 +64,7 @@ main = do
     let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
     let (localSliceIDMap, slices) = hashLocalSlices localSlices
     let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
-    timeIt (for_ slices writeSliceDefault)
+    timeIt (for_ slices writeSlice)
 
     putStrLn "Updating environment ..."
 

@@ -13,8 +13,8 @@ module Fragnix.Slice
   , Instance(..)
   , InstancePart(..)
   , InstanceID
-  , readSliceDefault
-  , writeSliceDefault
+  , readSlice
+  , writeSlice
   ) where
 
 import Prelude hiding (writeFile,readFile)
@@ -28,6 +28,7 @@ import GHC.Generics (Generic)
 import Data.Hashable (Hashable)
 
 import Data.Text (Text, unpack)
+import qualified Data.Text as Text
 
 import Control.Applicative ((<$>),(<*>),(<|>),empty)
 
@@ -266,24 +267,31 @@ deriving instance Show SliceParseError
 
 instance Exception SliceParseError
 
-writeSlice :: FilePath -> Slice -> IO ()
-writeSlice slicePath slice = do
-    createDirectoryIfMissing True (dropFileName slicePath)
-    writeFile slicePath (encode slice)
+-- Reading and writing slices to disk
 
-writeSliceDefault :: Slice -> IO ()
-writeSliceDefault slice@(Slice sliceID _ _ _ _) = writeSlice (sliceDefaultPath sliceID) slice
+writeSlice :: Slice -> IO ()
+writeSlice slice@(Slice sliceID _ _ _ _) = writeSlice' (sliceDefaultPath sliceID) slice
+  where
+    writeSlice' slicePath slice = do
+      createDirectoryIfMissing True (dropFileName slicePath)
+      writeFile slicePath (encode slice)
 
-readSlice :: FilePath -> IO Slice
-readSlice slicePath = do
-    sliceFile <- readFile slicePath
-    either (throwIO . SliceParseError slicePath) return (eitherDecode sliceFile)
+readSlice :: SliceID -> IO Slice
+readSlice sliceID = readSlice' (sliceDefaultPath sliceID)
+  where
+    readSlice' slicePath = do
+      sliceFile <- readFile slicePath
+      either (throwIO . SliceParseError slicePath) return (eitherDecode sliceFile)
 
-readSliceDefault :: SliceID -> IO Slice
-readSliceDefault sliceID = readSlice (sliceDefaultPath sliceID)
-
+-- Map the SliceID "12345" to the FilePath "sliceDirectory </> 1 </> 2 </> 12345"
 sliceDefaultPath :: SliceID -> FilePath
-sliceDefaultPath sliceID = sliceDirectory </> (unpack sliceID)
+sliceDefaultPath sliceID | Text.length sliceID < 2 = error $ "sliceID \"" <> unpack sliceID <> "\" has less than 2 characters"
+                         | otherwise =
+                             let
+                                 sliceDirectory = "fragnix" </> "slices"
+                                 a = Text.head sliceID
+                                 b = Text.head (Text.tail sliceID)
+                             in
+                               sliceDirectory </> [a] </> [b] </> (unpack sliceID)
 
-sliceDirectory :: FilePath
-sliceDirectory = "fragnix" </> "slices"
+

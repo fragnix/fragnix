@@ -9,7 +9,7 @@ import Fragnix.Slice (
     UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
     InstanceID,Instance(Instance),
     InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass),
-    readSliceDefault)
+    readSlice)
 
 import Prelude hiding (writeFile)
 
@@ -382,7 +382,7 @@ writeFileStrict filePath content = (do
 loadSlicesTransitive :: SliceID -> IO [Slice]
 loadSlicesTransitive sliceID = do
     sliceIDs <- loadSliceIDsTransitive sliceID
-    forM sliceIDs readSliceDefault
+    forM sliceIDs readSlice
 
 
 -- | Given a slice ID find all IDs of all the slices needed
@@ -398,7 +398,7 @@ loadSliceIDsStateful sliceID = do
     seenSliceIDs <- get
     unless (elem sliceID seenSliceIDs) (do
         put (sliceID : seenSliceIDs)
-        slice <- liftIO (readSliceDefault sliceID)
+        slice <- liftIO (readSlice sliceID)
         let recursiveSliceIDs = usedSliceIDs slice
             recursiveInstanceSliceIDs = sliceInstanceIDs slice
         forM_ recursiveSliceIDs loadSliceIDsStateful
