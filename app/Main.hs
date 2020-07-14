@@ -5,19 +5,19 @@ import Build (build)
 import Options.Applicative (
   ParserInfo, Parser, execParser,
   subparser, command, info,
-  progDesc, header, metavar,
-  many, argument, str, auto)
+  progDesc, header, metavar, helper, (<**>),
+  many, argument, str, auto, fullDesc)
 
 
 data Command = Build [FilePath]
 
 commandParserInfo :: ParserInfo Command
 commandParserInfo =
-  info commandParser (header "fragnix - fragment-based code distribution")
+  info (commandParser  <**> helper) (fullDesc <> header "fragnix - fragment-based code distribution")
 
 commandParser :: Parser Command
 commandParser = subparser (mconcat [
-  command "build" (info buildParser (
+  command "build" (info (buildParser <**> helper) (
     progDesc "Build the given list of modules."))
   ])
 
