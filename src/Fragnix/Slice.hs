@@ -22,7 +22,8 @@ import Prelude hiding (writeFile,readFile)
 import Data.Aeson (
     ToJSON(toJSON),object,(.=),
     FromJSON(parseJSON),withObject,(.:),withText,
-    encode,eitherDecode)
+    eitherDecode)
+import Data.Aeson.Encode.Pretty (encodePretty)
 
 import GHC.Generics (Generic)
 import Data.Hashable (Hashable)
@@ -269,7 +270,7 @@ instance Exception SliceParseError
 writeSlice :: FilePath -> Slice -> IO ()
 writeSlice slicePath slice = do
     createDirectoryIfMissing True (dropFileName slicePath)
-    writeFile slicePath (encode slice)
+    writeFile slicePath (encodePretty slice)
 
 writeSliceDefault :: Slice -> IO ()
 writeSliceDefault slice@(Slice sliceID _ _ _ _) = writeSlice (sliceDefaultPath sliceID) slice
