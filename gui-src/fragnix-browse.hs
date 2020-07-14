@@ -6,7 +6,7 @@ module Main where
 
 import Prelude hiding (writeFile,readFile)
 
-import Fragnix.Slice (Slice(..), SliceID, sliceDirectory)
+import Fragnix.Slice (Slice(..), SliceID, getSlices)
 import Fragnix.LocalSlice (LocalSlice, LocalSliceID)
 import Fragnix.HashLocalSlices (hashLocalSlices)
 
@@ -69,22 +69,6 @@ main = do
 -- | GET /contents implementation
 getSlicesHandler :: Handler [Slice]
 getSlicesHandler = liftIO getSlices
-
--- | return all slices in sliceDirectory
-getSlices :: IO [Slice]
-getSlices = do
-  allContents <- listDirectory sliceDirectory
-  allPaths <- return (map (sliceDirectory </>) allContents)
-  filePaths <- filterM doesFileExist allPaths
-  eitherSlices <- forM filePaths decodeSlice
-  -- ignore anything that's not a valid slice - let the elm part figure
-  -- out if the tree is complete
-  return (rights eitherSlices)
-
-decodeSlice :: FilePath -> IO (Either String Slice)
-decodeSlice p = do
-  file <- readFile p
-  evaluate (eitherDecode file)
 
 -- | POST /save implementation
 saveSlicesHandler :: Tuple [SliceID] [LocalSlice] -> Handler (Tuple [Tuple LocalSliceID SliceID] [Slice])

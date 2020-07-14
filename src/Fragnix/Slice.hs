@@ -15,6 +15,7 @@ module Fragnix.Slice
   , InstanceID
   , readSlice
   , writeSlice
+  , getSlices
   ) where
 
 import Prelude hiding (writeFile,readFile)
@@ -32,13 +33,13 @@ import qualified Data.Text as Text
 
 import Control.Applicative ((<$>),(<*>),(<|>),empty)
 
+import Control.Monad (forM, filterM)
 import Control.Exception (Exception,throwIO)
 import Data.Typeable(Typeable)
 
 import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>),dropFileName)
-import System.Directory (createDirectoryIfMissing)
-
+import System.Directory (createDirectoryIfMissing, doesFileExist, doesDirectoryExist, listDirectory)
 
 data Slice = Slice SliceID Language Fragment [Use] [Instance]
 
@@ -269,6 +270,9 @@ instance Exception SliceParseError
 
 -- Reading and writing slices to disk
 
+sliceDirectory :: FilePath
+sliceDirectory = "fragnix" </> "slices"
+
 writeSlice :: Slice -> IO ()
 writeSlice slice@(Slice sliceID _ _ _ _) = writeSlice' (sliceDefaultPath sliceID) slice
   where
@@ -288,10 +292,34 @@ sliceDefaultPath :: SliceID -> FilePath
 sliceDefaultPath sliceID | Text.length sliceID < 2 = error $ "sliceID \"" <> unpack sliceID <> "\" has less than 2 characters"
                          | otherwise =
                              let
-                                 sliceDirectory = "fragnix" </> "slices"
                                  a = Text.head sliceID
                                  b = Text.head (Text.tail sliceID)
                              in
                                sliceDirectory </> [a] </> [b] </> (unpack sliceID)
 
+-- | Return all slices in sliceDirectory
+getSlices :: IO [Slice]
+getSlices = do
+  sliceIDs <- getSliceIDs
+  forM sliceIDs readSlice
+
+-- | Return a list of all subdirectories of a given directory.
+getSubDirs :: FilePath -> IO [FilePath]
+getSubDirs fp = do
+  filesAndDirs <- map (fp </>) <$> listDirectory fp
+  filterM doesDirectoryExist filesAndDirs
+
+-- | Return a list of all files of a given directory
+getDirFiles :: FilePath -> IO [FilePath]
+getDirFiles fp = do
+  filesAndDirs <- map (fp </>) <$> listDirectory fp
+  filterM doesFileExist filesAndDirs
+
+-- | Return all sliceIDs in the sliceDirectory
+getSliceIDs :: IO [SliceID]
+getSliceIDs = do
+  fstLvlDirs <- getSubDirs sliceDirectory
+  sndLvlDirs <- concat <$> forM fstLvlDirs getSubDirs
+  files <- concat <$> forM sndLvlDirs getDirFiles
+  return $ map Text.pack files
 
