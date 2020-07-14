@@ -43,14 +43,13 @@ import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put)
 import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
 import qualified Data.Map.Strict as Map (
-    fromList,toList,lookup,(!),keys,map,mapWithKey)
+    fromList,toList,(!),keys,map,mapWithKey)
 import Data.Set (Set)
 import qualified Data.Set as Set (
-    fromList,toList,map,filter,insert,delete,
+    fromList,toList,map,filter,delete,
     empty,singleton,union,intersection,unions,difference)
 import Control.Monad (forM,forM_,unless)
 import Data.Maybe (mapMaybe, isJust)
-import Data.List (partition)
 import Data.Char (isDigit)
 
 

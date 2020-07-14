@@ -35,8 +35,6 @@ import Control.Monad (forM)
 import Data.Maybe (mapMaybe)
 import Data.Text (pack)
 import Data.Foldable (toList)
-import Data.List (isPrefixOf)
-
 
 -- | Given a list of filepaths to valid Haskell modules produces a list of all
 -- declarations in those modules. The default environment loaded and used.
