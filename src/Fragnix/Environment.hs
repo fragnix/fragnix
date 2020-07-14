@@ -1,4 +1,9 @@
-module Fragnix.Environment where
+module Fragnix.Environment
+ ( loadEnvironment
+ , environmentPath
+ , builtinEnvironmentPath
+ , persistEnvironment
+ ) where
 
 import Language.Haskell.Names.Environment (
     Environment, readSymbols, writeSymbols)

@@ -1,5 +1,9 @@
 {-# LANGUAGE TypeFamilies,GeneralizedNewtypeDeriving #-}
-module Fragnix.ModuleDeclarations where
+module Fragnix.ModuleDeclarations
+  ( parse
+  , moduleDeclarationsWithEnvironment
+  , moduleSymbols
+  ) where
 
 import Fragnix.Declaration (
     Declaration(Declaration),Genre(..))

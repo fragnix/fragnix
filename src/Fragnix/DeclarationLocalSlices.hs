@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Fragnix.DeclarationLocalSlices where
+module Fragnix.DeclarationLocalSlices
+  ( declarationLocalSlices
+  ) where
 
 import Fragnix.Declaration (
     Declaration(Declaration),

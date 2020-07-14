@@ -1,5 +1,21 @@
 {-# LANGUAGE OverloadedStrings,StandaloneDeriving,DeriveGeneric,DeriveDataTypeable #-}
-module Fragnix.Slice where
+module Fragnix.Slice
+  ( SliceID
+  , Slice(..)
+  , Use(..)
+  , Reference(..)
+  , OriginalModule
+  , Language(..)
+  , Fragment(..)
+  , Qualification
+  , Name(..)
+  , UsedName(..)
+  , Instance(..)
+  , InstancePart(..)
+  , InstanceID
+  , readSliceDefault
+  , writeSliceDefault
+  ) where
 
 import Prelude hiding (writeFile,readFile)
 

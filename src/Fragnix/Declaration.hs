@@ -1,5 +1,9 @@
 {-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
-module Fragnix.Declaration where
+module Fragnix.Declaration
+  ( Declaration(..)
+  , Genre(..)
+  , writeDeclarations
+  ) where
 
 import Language.Haskell.Exts (
   ModuleName(ModuleName),prettyPrint,Extension)

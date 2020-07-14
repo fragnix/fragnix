@@ -1,4 +1,7 @@
-module Fragnix.SliceCompiler where
+module Fragnix.SliceCompiler
+  ( writeSliceModules
+  , invokeGHCMain
+  ) where
 
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Use(Use),

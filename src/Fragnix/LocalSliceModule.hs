@@ -1,4 +1,4 @@
-module Fragnix.LocalSliceModule where
+module Fragnix.LocalSliceModule () where
 
 import Fragnix.LocalSlice (
     LocalSlice(LocalSlice),LocalSliceID(LocalSliceID),LocalUse(LocalUse),

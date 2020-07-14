@@ -1,4 +1,8 @@
-module Fragnix.SliceSymbols where
+module Fragnix.SliceSymbols
+  ( updateEnvironment
+  , findMainSliceIDs
+  , lookupLocalIDs
+  ) where
 
 import Fragnix.Slice (SliceID)
 import Fragnix.LocalSlice (LocalSliceID)

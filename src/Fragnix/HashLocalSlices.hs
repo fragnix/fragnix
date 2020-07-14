@@ -1,4 +1,6 @@
-module Fragnix.HashLocalSlices where
+module Fragnix.HashLocalSlices
+  ( hashLocalSlices
+  ) where
 
 import Fragnix.Slice (
     Slice(Slice),SliceID,

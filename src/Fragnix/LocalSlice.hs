@@ -1,5 +1,12 @@
 {-# LANGUAGE OverloadedStrings,StandaloneDeriving,DeriveGeneric,GeneralizedNewtypeDeriving #-}
-module Fragnix.LocalSlice where
+module Fragnix.LocalSlice
+  ( LocalSlice(..)
+  , LocalSliceID(..)
+  , LocalUse(..)
+  , LocalReference(..)
+  , LocalInstance(..)
+  , LocalInstanceID
+  ) where
 
 import Fragnix.Slice (
     SliceID, OriginalModule, Language, Fragment, Qualification, UsedName,
