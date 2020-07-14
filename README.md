@@ -67,10 +67,10 @@ main :: IO ()
 main = putHello "Fragnix!"
 ```
 
-When we provide `fragnix` with a list of Haskell module files and there is a `Main` module that contains a definition for `main` it will build a program.
+When we provide `fragnix build` with a list of Haskell module files and there is a `Main` module that contains a definition for `main` it will build a program.
 
 ```
-> fragnix ./tests/quick/HelloFragnix/Greet.hs ./tests/quick/HelloFragnix/Main.hs
+> fragnix build ./tests/quick/HelloFragnix/Greet.hs ./tests/quick/HelloFragnix/Main.hs
 Loading environment ...
 Took   0.38s
 Parsing modules ...
