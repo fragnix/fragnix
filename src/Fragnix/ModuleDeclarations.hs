@@ -47,9 +47,9 @@ import FastString (mkFastString)
 import StringBuffer (stringToStringBuffer)
 import Parser (parseModule)
 import Lexer (mkPState, P(..), ParseResult(..))
-import DynFlags (DynFlags, Settings(..), defaultDynFlags)
+import DynFlags (DynFlags, Settings(..), defaultDynFlags, PlatformConstants(..))
 import Bag (bagToList)
-
+import Platform (Platform(..), Arch(..), OS(..))
 
 
 -------------------------------------------------------------
@@ -119,7 +119,10 @@ parse path = do
 defDynFlags :: DynFlags
 defDynFlags = defaultDynFlags settings llvmconfig
   where
-    settings = Settings {} -- We hope that the frontend doesn't force any of the settings. Otherwise, fill in as needed.
+    settings = Settings
+      { sTargetPlatform = Platform ArchUnknown OSUnknown 64 False False False False False
+      , sPlatformConstants = PlatformConstants { pc_DYNAMIC_BY_DEFAULT = False }
+      } -- We hope that the frontend doesn't force the rest of the settings. Otherwise, fill in as needed.
     llvmconfig = ([],[])
 
 parseNEW :: FilePath -> IO (Located (HsModule GhcPs))
