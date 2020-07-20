@@ -279,7 +279,7 @@ writeSlice slice@(Slice sliceID _ _ _ _) = writeSlice' (sliceDefaultPath sliceID
   where
     writeSlice' slicePath slice = do
       createDirectoryIfMissing True (dropFileName slicePath)
-      writeFile slicePath (encode slice)
+      writeFile slicePath (encodePretty slice)
 
 readSlice :: SliceID -> IO Slice
 readSlice sliceID = readSlice' (sliceDefaultPath sliceID)
