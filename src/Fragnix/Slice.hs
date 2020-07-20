@@ -13,8 +13,9 @@ module Fragnix.Slice
   , Instance(..)
   , InstancePart(..)
   , InstanceID
-  , readSliceDefault
-  , writeSliceDefault
+  , readSlice
+  , writeSlice
+  , getSlices
   ) where
 
 import Prelude hiding (writeFile,readFile)
@@ -29,16 +30,17 @@ import GHC.Generics (Generic)
 import Data.Hashable (Hashable)
 
 import Data.Text (Text, unpack)
+import qualified Data.Text as Text
 
 import Control.Applicative ((<$>),(<*>),(<|>),empty)
 
+import Control.Monad (forM, filterM)
 import Control.Exception (Exception,throwIO)
 import Data.Typeable(Typeable)
 
 import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>),dropFileName)
-import System.Directory (createDirectoryIfMissing)
-
+import System.Directory (createDirectoryIfMissing, doesFileExist, doesDirectoryExist, listDirectory)
 
 data Slice = Slice SliceID Language Fragment [Use] [Instance]
 
@@ -267,24 +269,58 @@ deriving instance Show SliceParseError
 
 instance Exception SliceParseError
 
-writeSlice :: FilePath -> Slice -> IO ()
-writeSlice slicePath slice = do
-    createDirectoryIfMissing True (dropFileName slicePath)
-    writeFile slicePath (encodePretty slice)
-
-writeSliceDefault :: Slice -> IO ()
-writeSliceDefault slice@(Slice sliceID _ _ _ _) = writeSlice (sliceDefaultPath sliceID) slice
-
-readSlice :: FilePath -> IO Slice
-readSlice slicePath = do
-    sliceFile <- readFile slicePath
-    either (throwIO . SliceParseError slicePath) return (eitherDecode sliceFile)
-
-readSliceDefault :: SliceID -> IO Slice
-readSliceDefault sliceID = readSlice (sliceDefaultPath sliceID)
-
-sliceDefaultPath :: SliceID -> FilePath
-sliceDefaultPath sliceID = sliceDirectory </> (unpack sliceID)
+-- Reading and writing slices to disk
 
 sliceDirectory :: FilePath
 sliceDirectory = "fragnix" </> "slices"
+
+writeSlice :: Slice -> IO ()
+writeSlice slice@(Slice sliceID _ _ _ _) = writeSlice' (sliceDefaultPath sliceID) slice
+  where
+    writeSlice' slicePath slice = do
+      createDirectoryIfMissing True (dropFileName slicePath)
+      writeFile slicePath (encode slice)
+
+readSlice :: SliceID -> IO Slice
+readSlice sliceID = readSlice' (sliceDefaultPath sliceID)
+  where
+    readSlice' slicePath = do
+      sliceFile <- readFile slicePath
+      either (throwIO . SliceParseError slicePath) return (eitherDecode sliceFile)
+
+-- Map the SliceID "12345" to the FilePath "sliceDirectory </> 1 </> 2 </> 12345"
+sliceDefaultPath :: SliceID -> FilePath
+sliceDefaultPath sliceID | Text.length sliceID < 2 = error $ "sliceID \"" <> unpack sliceID <> "\" has less than 2 characters"
+                         | otherwise =
+                             let
+                                 a = Text.head sliceID
+                                 b = Text.head (Text.tail sliceID)
+                             in
+                               sliceDirectory </> [a] </> [b] </> (unpack sliceID)
+
+-- | Return all slices in sliceDirectory
+getSlices :: IO [Slice]
+getSlices = do
+  sliceIDs <- getSliceIDs
+  forM sliceIDs readSlice
+
+-- | Return a list of all subdirectories of a given directory.
+getSubDirs :: FilePath -> IO [FilePath]
+getSubDirs fp = do
+  filesAndDirs <- map (fp </>) <$> listDirectory fp
+  filterM doesDirectoryExist filesAndDirs
+
+-- | Return a list of all files of a given directory
+getDirFiles :: FilePath -> IO [FilePath]
+getDirFiles fp = do
+  filesAndDirs <- map (fp </>) <$> listDirectory fp
+  filterM doesFileExist filesAndDirs
+
+-- | Return all sliceIDs in the sliceDirectory
+getSliceIDs :: IO [SliceID]
+getSliceIDs = do
+  fstLvlDirs <- getSubDirs sliceDirectory
+  sndLvlDirs <- concat <$> forM fstLvlDirs getSubDirs
+  files <- concat <$> forM sndLvlDirs getDirFiles
+  return $ map Text.pack files
+
