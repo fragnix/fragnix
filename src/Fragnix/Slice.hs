@@ -2,6 +2,7 @@
 module Fragnix.Slice
   ( SliceID
   , Slice(..)
+  , SliceI(..)
   , Use(..)
   , Reference(..)
   , OriginalModule
@@ -43,6 +44,8 @@ import System.FilePath ((</>),dropFileName)
 import System.Directory (createDirectoryIfMissing, doesFileExist, doesDirectoryExist, listDirectory)
 
 data Slice = Slice SliceID Language Fragment [Use] [Instance]
+
+data SliceI = SliceI Slice [InstanceID]
 
 data Language = Language [GHCExtension]
 

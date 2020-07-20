@@ -4,7 +4,7 @@ module Fragnix.SliceCompiler
   ) where
 
 import Fragnix.Slice (
-    Slice(Slice),SliceID,Language(Language),Fragment(Fragment),Use(Use),
+    Slice(Slice),SliceI(SliceI),SliceID,Language(Language),Fragment(Fragment),Use(Use),
     Reference(OtherSlice,Builtin),
     UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
     InstanceID,Instance(Instance),
@@ -76,28 +76,32 @@ invokeGHCMain sliceID = rawSystem "ghc" ([
     sliceModulePath sliceID])
 
 
+resolveSlices :: [Slice] -> [SliceI]
+resolveSlices slices = map annotSlice slices
+  where
+    annotSlice slice@(Slice sliceID _ _ _ _) = SliceI slice (Set.toList (sliceInstancesMap Map.! sliceID))
+    sliceInstancesMap = sliceInstances slices
+
 -- | Generate and write all modules necessary to compile the slice with the given ID.
 writeSliceModules :: SliceID -> IO ()
 writeSliceModules sliceID = do
     createDirectoryIfMissing True sliceModuleDirectory
     slices <- loadSlicesTransitive sliceID
-    let sliceModules = map (sliceModule sliceInstancesMap) slices
+    let slicesI = resolveSlices slices
+        sliceModules = map sliceModule slicesI
         sliceHSBoots = map bootModule sliceModules
-        sliceInstancesMap = sliceInstances slices
-    _ <- evaluate sliceInstancesMap
     forM_ sliceModules writeModule
     forM_ sliceHSBoots writeHSBoot
 
-
 -- | Given a slice generate the corresponding module.
-sliceModule :: Map SliceID (Set InstanceID) -> Slice -> Module ()
-sliceModule sliceInstancesMap (Slice sliceID language fragment uses _) =
+sliceModule :: SliceI -> Module ()
+sliceModule (SliceI (Slice sliceID language fragment uses _) instanceIDs) =
     let Fragment declarations = fragment
         moduleHead = ModuleHead () moduleName Nothing maybeExportSpecList
         pragmas = [LanguagePragma () languagepragmas]
         imports =
             map useImport uses ++
-            map instanceImport (Set.toList (sliceInstancesMap Map.! sliceID))
+            map instanceImport instanceIDs
         decls = map (parseDeclaration sliceID ghcextensions) declarations
         moduleName = ModuleName () (sliceModuleName sliceID)
         -- We need an export list to export the data family even
