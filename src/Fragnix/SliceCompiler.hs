@@ -60,6 +60,7 @@ invokeGHC :: SliceID -> IO ExitCode
 invokeGHC sliceID = rawSystem "ghc" [
     "-v0","-w",
     "-ifragnix/temp/compilationunits",
+    "-outputdir fragnix/build",
     sliceModulePath sliceID]
 
 -- | Invoke GHC to compile the slice with the given ID. The slice with the
@@ -73,6 +74,7 @@ invokeGHCMain sliceID = rawSystem "ghc" ([
     "-Ifragnix/include"] ++
     (map (\filename -> "fragnix/cbits/" ++ filename) cFiles) ++ [
     "-lpthread","-lz","-lutil",
+    "-outputdir fragnix/build",
     sliceModulePath sliceID])
 
 
