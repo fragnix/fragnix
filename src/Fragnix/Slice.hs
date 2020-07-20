@@ -23,7 +23,8 @@ import Prelude hiding (writeFile,readFile)
 import Data.Aeson (
     ToJSON(toJSON),object,(.=),
     FromJSON(parseJSON),withObject,(.:),withText,
-    encode,eitherDecode)
+    eitherDecode)
+import Data.Aeson.Encode.Pretty (encodePretty)
 
 import GHC.Generics (Generic)
 import Data.Hashable (Hashable)
