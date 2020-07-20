@@ -34,7 +34,7 @@ import Data.Text.IO (writeFile)
 import Data.Text (Text,pack,unpack)
 
 import System.FilePath ((</>),(<.>))
-import System.Directory (createDirectoryIfMissing,doesFileExist)
+import System.Directory (createDirectoryIfMissing,doesFileExist,listDirectory)
 import System.Process (rawSystem)
 import System.Exit (ExitCode)
 import Control.Exception (SomeException,catch,evaluate)
@@ -48,9 +48,10 @@ import Data.Set (Set)
 import qualified Data.Set as Set (
     fromList,toList,map,filter,delete,
     empty,singleton,union,intersection,unions,difference)
-import Control.Monad (forM,forM_,unless)
+import Control.Monad (forM,forM_,unless,filterM)
 import Data.Maybe (mapMaybe, isJust)
 import Data.Char (isDigit)
+import Data.List (isSuffixOf)
 
 
 -- | Compile the slice with the given slice ID. Set verbosity to zero and
@@ -66,15 +67,29 @@ invokeGHC sliceID = rawSystem "ghc" [
 -- given ID has to contain a definition for 'main :: IO ()'.
 -- Asssumes that all necessary compilation units have been generated.
 invokeGHCMain :: SliceID -> IO ExitCode
-invokeGHCMain sliceID = rawSystem "ghc" ([
+invokeGHCMain sliceID = do
+  cfiles <- getCFiles
+  rawSystem "ghc" ([
     "-o","main",
     "-ifragnix/temp/compilationunits",
     "-main-is",sliceModuleName sliceID,
     "-Ifragnix/include"] ++
-    (map (\filename -> "fragnix/cbits/" ++ filename) cFiles) ++ [
+    cfiles ++ [
     "-lpthread","-lz","-lutil",
     sliceModulePath sliceID])
 
+
+-- | Return a list of all files of a given directory
+getDirFiles :: FilePath -> IO [FilePath]
+getDirFiles fp = do
+  filesAndDirs <- map (fp </>) <$> listDirectory fp
+  filterM doesFileExist filesAndDirs
+
+-- | Return a list of all the files ending in "*.c" in fragnix/cbits/
+getCFiles :: IO [FilePath]
+getCFiles = do
+  files <- getDirFiles ("fragnix" </> "cbits")
+  return (filter (isSuffixOf ".c") files)
 
 -- | Generate and write all modules necessary to compile the slice with the given ID.
 writeSliceModules :: SliceID -> IO ()
@@ -419,23 +434,3 @@ doesSliceModuleExist :: SliceID -> IO Bool
 doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)
 
 
--- | List of gathered C-files.
-cFiles :: [FilePath]
-cFiles = [
-    "ancilData.c",
-    "conv.c",
-    "fnv.c",
-    "HsNet.c",
-    "HsUnix.c",
-    "itoa.c",
-    "primitive-memops.c",
-    "text-helper.c",
-    "zlib-helper.c",
-    "cbits.c",
-    "execvpe.c",
-    "fpstring.c",
-    "HsTime.c",
-    "HsUnixCompat.c",
-    "myfree.c",
-    "runProcess.c",
-    "timeUtils.c"]
