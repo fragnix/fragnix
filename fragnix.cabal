@@ -61,15 +61,6 @@ executable fragnix
   default-language:    Haskell2010
   ghc-options:         -O2 -threaded -rtsopts
 
-
-executable fragnix_hash_local_slices
-  import:              shared-build-depends
-  main-is:             fragnix_hash_local_slices.hs
-  build-depends:       fragnix
-  hs-source-dirs:      utilities-src
-  ghc-options:         -O2 -threaded -rtsopts
-
-
 -- executable fragnix-browse
 --   import:              shared-build-depends
 --   main-is:             fragnix-browse.hs
