@@ -11,8 +11,9 @@ import Language.Haskell.Names (
   Symbol)
 
 import Data.Aeson (
-    ToJSON(toJSON),object,(.=),encode,
+    ToJSON(toJSON),object,(.=),
     FromJSON(parseJSON),withObject,(.:),decode)
+import Data.Aeson.Encode.Pretty (encodePretty)
 import qualified Data.ByteString.Lazy as ByteString (readFile,writeFile)
 import Data.Text (Text)
 import System.Directory (createDirectoryIfMissing)
@@ -49,7 +50,7 @@ readDeclarations declarationspath = do
 writeDeclarations :: FilePath -> [Declaration] -> IO ()
 writeDeclarations declarationspath declarations = do
     createDirectoryIfMissing True (dropFileName declarationspath)
-    ByteString.writeFile declarationspath (encode declarations)
+    ByteString.writeFile declarationspath (encodePretty declarations)
 
 instance ToJSON Declaration where
     toJSON (Declaration declarationgenre extensions declarationast declaredsymbols mentionedsymbols) = object [
