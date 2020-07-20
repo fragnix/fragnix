@@ -1,4 +1,4 @@
-module Main where
+module Build where
 
 import Fragnix.Declaration (
     writeDeclarations)
@@ -29,17 +29,13 @@ import qualified Data.Map as Map (union)
 
 import Data.Foldable (for_)
 import Control.Monad (forM)
-import System.Environment (getArgs)
 import Text.Printf (printf)
 
 
 -- | Take a list of module paths on the command line and compile the 'main' symbol
 -- to an executable.
-main :: IO ()
-main = do
-
-    modulePaths <- getArgs
-
+build :: [FilePath] -> IO ()
+build modulePaths = do
     putStrLn "Loading environment ..."
 
     environment <- timeIt (do
