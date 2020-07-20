@@ -9,6 +9,7 @@ fragnix/cbits/*.o
 fragnix/environment/*
 fragnix/slices/*
 fragnix/temp/*
+fragnix/build/*
 gui-src/elm/elm-stuff
 tests/*/*/fragnix/*
 tests/quick/**/out
