@@ -1,1 +1,0 @@
-[{"name":"STRef","module":"GHC.STRef","entity":"data"},{"name":"STRef","module":"GHC.STRef","type":"STRef","entity":"constructor"},{"name":"newSTRef","module":"GHC.STRef","entity":"value"},{"name":"readSTRef","module":"GHC.STRef","entity":"value"},{"name":"writeSTRef","module":"GHC.STRef","entity":"value"}]
