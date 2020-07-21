@@ -16,10 +16,12 @@ import Language.Haskell.Names (
 
 import qualified Data.Map as Map (
   empty, adjust)
+import Data.List (isSuffixOf)
 import System.Directory (
-  listDirectory)
+  listDirectory, doesFileExist, copyFile, createDirectoryIfMissing)
+import System.FilePath ((</>), takeFileName)
 import Control.Monad (
-  forM)
+  forM, filterM)
 
 
 {-
@@ -40,8 +42,31 @@ rename 's/.hspp$/.hs/' *.hspp
 
 -}
 
+-- | Return a list of all files of a given directory
+getDirFiles :: FilePath -> IO [FilePath]
+getDirFiles fp = do
+  filesAndDirs <- map (fp </>) <$> listDirectory fp
+  filterM doesFileExist filesAndDirs
+
+-- | Return a list of all the files ending in "*.c" in fragnix/cbits/
+getCFiles :: IO [FilePath]
+getCFiles = do
+  files <- getDirFiles ("builtins" </> "cbits")
+  return $ takeFileName <$> (filter (isSuffixOf ".c") files)
+
 createEnv :: IO ()
 createEnv = do
+  putStrLn "Initializing .fragnix/cbits ..."
+  cfiles <- getCFiles
+  createDirectoryIfMissing True ("fragnix" </> "cbits")
+  forM cfiles $ \file -> do
+    putStrLn $ "   Copying " ++ file ++ "..."
+    copyFile ("builtins" </> "cbits" </> file) ("fragnix" </> "cbits" </> file)
+
+  putStrLn "Initializing .fragnix/include ..."
+  -- TODO
+
+  putStrLn "Initializing builtin environment ..."
 
   baseFiles <- listDirectory "tests/packages/base/" >>= return . Prelude.map ("tests/packages/base/" ++)
   ghcPrimFiles <- listDirectory "tests/packages/ghc-prim/" >>= return . Prelude.map ("tests/packages/ghc-prim/" ++)
