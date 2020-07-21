@@ -21,7 +21,7 @@ import Fragnix.SliceSymbols (
 import Fragnix.SliceCompiler (
     writeSliceModules, invokeGHCMain)
 import Fragnix.Utils (
-    listFilesRecursively)
+    listFilesRecursive)
 
 -- import Language.Haskell.Names (ppError)
 
@@ -49,7 +49,7 @@ build directory = do
     putStrLn "Parsing modules ..."
 
     modules <- timeIt (do
-        filePaths <- listFilesRecursively directory
+        filePaths <- listFilesRecursive directory
         let modulePaths = filter (\path -> takeExtension path == ".hs") filePaths
         forM modulePaths parse)
 

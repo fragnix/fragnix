@@ -41,7 +41,7 @@ import Data.Typeable(Typeable)
 import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>),dropFileName)
 import System.Directory (createDirectoryIfMissing)
-import Fragnix.Utils (listFilesRecursively)
+import Fragnix.Utils (listFilesRecursive)
 
 
 data Slice = Slice SliceID Language Fragment [Use] [Instance]
@@ -305,6 +305,6 @@ sliceDefaultPath sliceID | Text.length sliceID < 2 = error $ "sliceID \"" <> unp
 -- | Return all slices in sliceDirectory
 getSlices :: IO [Slice]
 getSlices = do
-  slicePaths <- listFilesRecursively sliceDirectory
+  slicePaths <- listFilesRecursive sliceDirectory
   forM slicePaths readSliceFromPath
 
