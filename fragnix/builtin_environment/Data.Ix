@@ -1,1 +1,0 @@
-[{"name":"Ix","module":"GHC.Arr","entity":"class"},{"name":"range","module":"GHC.Arr","entity":"method","class":"Ix"},{"name":"index","module":"GHC.Arr","entity":"method","class":"Ix"},{"name":"inRange","module":"GHC.Arr","entity":"method","class":"Ix"},{"name":"rangeSize","module":"GHC.Arr","entity":"method","class":"Ix"}]

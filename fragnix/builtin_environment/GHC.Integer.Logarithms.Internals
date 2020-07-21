@@ -1,1 +1,0 @@
-[{"name":"wordLog2#","module":"GHC.Integer.Logarithms","entity":"value"},{"name":"integerLog2IsPowerOf2#","module":"GHC.Integer.Logarithms.Internals","entity":"value"},{"name":"integerLog2#","module":"GHC.Integer.Logarithms","entity":"value"},{"name":"roundingMode#","module":"GHC.Integer.Logarithms.Internals","entity":"value"}]

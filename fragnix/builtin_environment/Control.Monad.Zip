@@ -1,1 +1,0 @@
-[{"name":"MonadZip","module":"Control.Monad.Zip","entity":"class"},{"name":"mzip","module":"Control.Monad.Zip","entity":"method","class":"MonadZip"},{"name":"mzipWith","module":"Control.Monad.Zip","entity":"method","class":"MonadZip"},{"name":"munzip","module":"Control.Monad.Zip","entity":"method","class":"MonadZip"}]

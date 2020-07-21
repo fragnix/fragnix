@@ -1,1 +1,0 @@
-[{"name":"Proxy","module":"Data.Proxy","entity":"data"},{"name":"Proxy","module":"Data.Proxy","type":"Proxy","entity":"constructor"},{"name":"asProxyTypeOf","module":"Data.Proxy","entity":"value"},{"name":"KProxy","module":"Data.Proxy","entity":"data"},{"name":"KProxy","module":"Data.Proxy","type":"KProxy","entity":"constructor"}]

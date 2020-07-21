@@ -1,1 +1,0 @@
-[{"name":"Compose","module":"Data.Functor.Compose","entity":"newtype"},{"name":"Compose","module":"Data.Functor.Compose","type":"Compose","entity":"constructor"},{"constructors":["Compose"],"name":"getCompose","module":"Data.Functor.Compose","type":"Compose","entity":"selector"}]
