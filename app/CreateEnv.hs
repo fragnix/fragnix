@@ -1,4 +1,6 @@
-module Main where
+module CreateEnv
+  ( createEnv
+  ) where
 
 import Fragnix.Environment (
   persistEnvironment)
@@ -38,8 +40,8 @@ rename 's/.hspp$/.hs/' *.hspp
 
 -}
 
-main :: IO ()
-main = do
+createEnv :: IO ()
+createEnv = do
 
   baseFiles <- listDirectory "tests/packages/base/" >>= return . Prelude.map ("tests/packages/base/" ++)
   ghcPrimFiles <- listDirectory "tests/packages/ghc-prim/" >>= return . Prelude.map ("tests/packages/ghc-prim/" ++)
