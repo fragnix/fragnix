@@ -5,10 +5,7 @@ dist-newstyle/
 cabal.sandbox.config
 .ghc.environment.*
 main
-fragnix/cbits/*.o
-fragnix/environment/*
-fragnix/slices/*
-fragnix/temp/*
+fragnix/*
 gui-src/elm/elm-stuff
 tests/*/*/fragnix/*
 tests/quick/**/out
