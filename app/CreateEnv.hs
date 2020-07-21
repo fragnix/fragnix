@@ -23,24 +23,11 @@ import System.FilePath ((</>), takeFileName)
 import Control.Monad (
   forM, filterM)
 
-
-{-
-
-Steps to extract preprocessed module files from base, ghc-prim and integer-gmp
-delete non-source files and folders
-Do those before invoking this executable
-
-find */ -type f -exec bash -c 'file=${1#./}; mv "$file" "${file//\//.}"' _ '{}' \;
-
-delete now-empty folders
-
-rm *.hs-boot
-rm *.hsc
-ghc -E * -I../../../../base-4.9.1.0/include -optP -P -optL -P
-rm *.hs
-rename 's/.hspp$/.hs/' *.hspp
-
--}
+createEnv :: IO ()
+createEnv = do
+  createCbits
+  createInclude
+  createPackageEnv
 
 -- | Return a list of all files of a given directory
 getDirFiles :: FilePath -> IO [FilePath]
@@ -48,20 +35,16 @@ getDirFiles fp = do
   filesAndDirs <- map (fp </>) <$> listDirectory fp
   filterM doesFileExist filesAndDirs
 
+-- Include the correct cbits in the fragnix folder
+
 -- | Return a list of all the files ending in "*.c" in builtins/cbits/
 getCFiles :: IO [FilePath]
 getCFiles = do
   files <- getDirFiles ("builtins" </> "cbits")
   return $ takeFileName <$> (filter (isSuffixOf ".c") files)
 
--- | Return a list of all the files ending in "*.h" in builtins/include/
-getHFiles :: IO [FilePath]
-getHFiles = do
-  files <- getDirFiles ("builtins" </> "include")
-  return $ takeFileName <$> (filter (isSuffixOf ".h") files)
-  
-createEnv :: IO ()
-createEnv = do
+createCbits :: IO ()
+createCbits = do
   putStrLn "Initializing .fragnix/cbits ..."
   cfiles <- getCFiles
   createDirectoryIfMissing True ("fragnix" </> "cbits")
@@ -69,6 +52,16 @@ createEnv = do
     putStrLn $ "   Copying " ++ file ++ "..."
     copyFile ("builtins" </> "cbits" </> file) ("fragnix" </> "cbits" </> file)
 
+-- Include the correct includes in the fragnix folder
+
+-- | Return a list of all the files ending in "*.h" in builtins/include/
+getHFiles :: IO [FilePath]
+getHFiles = do
+  files <- getDirFiles ("builtins" </> "include")
+  return $ takeFileName <$> (filter (isSuffixOf ".h") files)
+
+createInclude :: IO ()
+createInclude = do
   putStrLn "Initializing .fragnix/include ..."
   hfiles <- getHFiles
   createDirectoryIfMissing True ("fragnix" </> "include")
@@ -76,6 +69,9 @@ createEnv = do
     putStrLn $ "   Copying " ++ file ++ "..."
     copyFile ("builtins" </> "include" </> file) ("fragnix" </> "include" </> file)
 
+-- Include the correct Builtin environment
+createPackageEnv :: IO ()
+createPackageEnv = do
   putStrLn "Initializing builtin environment ..."
 
   baseFiles <- listDirectory "tests/packages/base/" >>= return . Prelude.map ("tests/packages/base/" ++)
@@ -89,7 +85,7 @@ createEnv = do
   let builtinEnvironment = resolve (baseModules ++ ghcPrimModules ++ integerGmpModules) Map.empty
       patchedBuiltinEnvironment = patchBuiltinEnvironment builtinEnvironment
 
-  persistEnvironment "fragnix/new_builtin_environment" patchedBuiltinEnvironment
+  persistEnvironment "fragnix/builtin_environment" patchedBuiltinEnvironment
 
 
 parse :: FilePath -> IO (Module SrcSpan)
