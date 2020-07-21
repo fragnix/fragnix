@@ -48,12 +48,18 @@ getDirFiles fp = do
   filesAndDirs <- map (fp </>) <$> listDirectory fp
   filterM doesFileExist filesAndDirs
 
--- | Return a list of all the files ending in "*.c" in fragnix/cbits/
+-- | Return a list of all the files ending in "*.c" in builtins/cbits/
 getCFiles :: IO [FilePath]
 getCFiles = do
   files <- getDirFiles ("builtins" </> "cbits")
   return $ takeFileName <$> (filter (isSuffixOf ".c") files)
 
+-- | Return a list of all the files ending in "*.h" in builtins/include/
+getHFiles :: IO [FilePath]
+getHFiles = do
+  files <- getDirFiles ("builtins" </> "include")
+  return $ takeFileName <$> (filter (isSuffixOf ".h") files)
+  
 createEnv :: IO ()
 createEnv = do
   putStrLn "Initializing .fragnix/cbits ..."
@@ -64,7 +70,11 @@ createEnv = do
     copyFile ("builtins" </> "cbits" </> file) ("fragnix" </> "cbits" </> file)
 
   putStrLn "Initializing .fragnix/include ..."
-  -- TODO
+  hfiles <- getHFiles
+  createDirectoryIfMissing True ("fragnix" </> "include")
+  forM hfiles $ \file -> do
+    putStrLn $ "   Copying " ++ file ++ "..."
+    copyFile ("builtins" </> "include" </> file) ("fragnix" </> "include" </> file)
 
   putStrLn "Initializing builtin environment ..."
 
