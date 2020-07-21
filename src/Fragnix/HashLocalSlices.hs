@@ -1,5 +1,6 @@
 module Fragnix.HashLocalSlices
   ( hashLocalSlices
+  , replaceSliceID
   ) where
 
 import Fragnix.Slice (
