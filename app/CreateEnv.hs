@@ -51,6 +51,7 @@ createCbits = do
   forM cfiles $ \file -> do
     putStrLn $ "   Copying " ++ file ++ "..."
     copyFile ("builtins" </> "cbits" </> file) ("fragnix" </> "cbits" </> file)
+  return ()
 
 -- Include the correct includes in the fragnix folder
 
@@ -68,6 +69,7 @@ createInclude = do
   forM hfiles $ \file -> do
     putStrLn $ "   Copying " ++ file ++ "..."
     copyFile ("builtins" </> "include" </> file) ("fragnix" </> "include" </> file)
+  return ()
 
 -- Include the correct Builtin environment
 createPackageEnv :: IO ()
