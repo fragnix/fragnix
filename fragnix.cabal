@@ -44,7 +44,8 @@ library
                        Fragnix.LocalSliceModule,
                        Fragnix.SliceCompiler,
                        Fragnix.Environment,
-                       Fragnix.SliceSymbols
+                       Fragnix.SliceSymbols,
+                       Fragnix.Utils
   hs-source-dirs:      src
   ghc-options:         -O2 -Wall
 
@@ -54,6 +55,7 @@ executable fragnix
   main-is:             Main.hs
   other-modules:       Build,
                        CreateEnv,
+                       Preprocess,
                        Paths_fragnix
   build-depends:       clock >=0.8 && <0.9,
                        optparse-applicative >=0.15 && <0.16,

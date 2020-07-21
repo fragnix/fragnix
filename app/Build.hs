@@ -20,6 +20,8 @@ import Fragnix.SliceSymbols (
     lookupLocalIDs)
 import Fragnix.SliceCompiler (
     writeSliceModules, invokeGHCMain)
+import Fragnix.Utils (
+    listFilesRecursive)
 
 -- import Language.Haskell.Names (ppError)
 
@@ -29,13 +31,14 @@ import qualified Data.Map as Map (union)
 
 import Data.Foldable (for_)
 import Control.Monad (forM)
+import System.FilePath (takeExtension)
 import Text.Printf (printf)
 
 
 -- | Take a list of module paths on the command line and compile the 'main' symbol
 -- to an executable.
-build :: [FilePath] -> IO ()
-build modulePaths = do
+build :: FilePath -> IO ()
+build directory = do
     putStrLn "Loading environment ..."
 
     environment <- timeIt (do
@@ -45,7 +48,10 @@ build modulePaths = do
 
     putStrLn "Parsing modules ..."
 
-    modules <- timeIt (forM modulePaths parse)
+    modules <- timeIt (do
+        filePaths <- listFilesRecursive directory
+        let modulePaths = filter (\path -> takeExtension path == ".hs") filePaths
+        forM modulePaths parse)
 
     putStrLn "Extracting declarations ..."
 
@@ -79,17 +85,6 @@ build modulePaths = do
         _ -> putStrLn "Multiple main symbols in modules."
 
     return ()
-
-{- Zum Kompilieren:
-putStrLn ("Compiling " ++ show mainSliceID)
-putStrLn ("Generating compilation units...")
-timeIt (writeSliceModules mainSliceID)
-putStrLn ("Invoking GHC")
-_ <- timeIt (invokeGHCMain mainSliceID)
-return ()
--}
-
-{- Zum Slicen: Alles bis aufs Kompilieren -}
 
 
 -- | Execute the given action and print the time it took.
