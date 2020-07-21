@@ -74,9 +74,9 @@ createPackageEnv :: IO ()
 createPackageEnv = do
   putStrLn "Initializing builtin environment ..."
 
-  baseFiles <- listDirectory "tests/packages/base/" >>= return . Prelude.map ("tests/packages/base/" ++)
-  ghcPrimFiles <- listDirectory "tests/packages/ghc-prim/" >>= return . Prelude.map ("tests/packages/ghc-prim/" ++)
-  integerGmpFiles <- listDirectory "tests/packages/integer-gmp/" >>= return . Prelude.map ("tests/packages/integer-gmp/" ++)
+  baseFiles <- listDirectory "builtins/base/" >>= return . Prelude.map ("builtins/base/" ++)
+  ghcPrimFiles <- listDirectory "builtins/ghc-prim/" >>= return . Prelude.map ("builtins/ghc-prim/" ++)
+  integerGmpFiles <- listDirectory "builtins/integer-gmp/" >>= return . Prelude.map ("builtins/integer-gmp/" ++)
 
   baseModules <- forM baseFiles parse
   ghcPrimModules <- forM ghcPrimFiles parse
