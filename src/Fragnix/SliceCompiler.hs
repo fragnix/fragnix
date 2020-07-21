@@ -1,5 +1,7 @@
 module Fragnix.SliceCompiler
   ( writeSliceModules
+  , sliceModuleDirectory
+  , invokeGHC
   , invokeGHCMain
   ) where
 
@@ -58,7 +60,7 @@ import Data.List (isSuffixOf)
 -- turn all warnings off.
 -- Assumes that all necessary compilation units have been written to disk.
 invokeGHC :: SliceID -> IO ExitCode
-invokeGHC sliceID = rawSystem "ghc" [
+invokeGHC sliceID = rawSystem "ghc-8.0.2" [
     "-v0","-w",
     "-ifragnix/temp/compilationunits",
     sliceModulePath sliceID]
@@ -69,7 +71,7 @@ invokeGHC sliceID = rawSystem "ghc" [
 invokeGHCMain :: SliceID -> IO ExitCode
 invokeGHCMain sliceID = do
   cfiles <- getCFiles
-  rawSystem "ghc" ([
+  rawSystem "ghc-8.0.2" ([
     "-o","main",
     "-ifragnix/temp/compilationunits",
     "-main-is",sliceModuleName sliceID,

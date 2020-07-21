@@ -6,7 +6,7 @@ import Fragnix.ModuleDeclarations (
 import Fragnix.Declaration (writeDeclarations)
 import Fragnix.DeclarationLocalSlices (declarationLocalSlices)
 import Fragnix.HashLocalSlices (hashLocalSlices,replaceSliceID)
-import Fragnix.Slice (Slice(Slice),writeSliceDefault)
+import Fragnix.Slice (Slice(Slice),writeSlice)
 import Fragnix.LocalSlice (LocalSliceID(LocalSliceID))
 import Fragnix.Environment (
     loadEnvironment,builtinEnvironmentPath)
@@ -71,7 +71,7 @@ testModules folder = do
     let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
     let (localSliceIDMap, slices) = hashLocalSlices localSlices
     let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
-    forM_ slices writeSliceDefault
+    forM_ slices writeSlice
 
     let environment = updateEnvironment symbolSliceIDs (moduleSymbols builtinEnvironment modules)
         moduleSymbolResults = do
