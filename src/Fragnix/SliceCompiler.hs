@@ -1,5 +1,5 @@
 module Fragnix.SliceCompiler
-  ( writeSliceModules
+  ( writeSlicesModules
   , invokeGHC
   , invokeGHCMain
   ) where
@@ -10,7 +10,7 @@ import Fragnix.Slice (
     UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
     InstanceID,Instance(Instance),
     InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass),
-    sliceModuleName,isSliceModuleName,readSlice)
+    sliceModuleName,moduleNameSliceID,readSlice)
 import Fragnix.Paths (
     slicesPath,cbitsPath,includePath,compilationunitsPath,buildPath)
 
@@ -56,15 +56,14 @@ import Data.Maybe (mapMaybe, isJust)
 import Data.List (isSuffixOf)
 
 
--- | Compile the slice with the given slice ID. Set verbosity to zero and
--- turn all warnings off.
+-- | Compile all slices with the given slice IDs. Turn all warnings off.
 -- Assumes that all necessary compilation units have been written to disk.
-invokeGHC :: SliceID -> IO ExitCode
-invokeGHC sliceID = rawSystem "ghc-8.0.2" [
+invokeGHC :: [SliceID] -> IO ExitCode
+invokeGHC sliceIDs = rawSystem "ghc-8.0.2" ([
     "-w",
     "-i" ++ compilationunitsPath,
-    "-outputdir",buildPath,
-    sliceModulePath sliceID]
+    "-outputdir",buildPath] ++
+    map sliceModulePath sliceIDs)
 
 -- | Invoke GHC to compile the slice with the given ID. The slice with the
 -- given ID has to contain a definition for 'main :: IO ()'.
@@ -96,10 +95,10 @@ getCFiles = do
   return (filter (isSuffixOf ".c") files)
 
 -- | Generate and write all modules necessary to compile the slice with the given ID.
-writeSliceModules :: SliceID -> IO ()
-writeSliceModules sliceID = do
+writeSlicesModules :: [SliceID] -> IO ()
+writeSlicesModules sliceIDs = do
     createDirectoryIfMissing True compilationunitsPath
-    slices <- loadSlicesTransitive sliceID
+    slices <- loadSlicesTransitive sliceIDs
     let sliceModules = map (sliceModule sliceInstancesMap) slices
         sliceHSBoots = map bootModule sliceModules
         sliceInstancesMap = sliceInstances slices
@@ -355,7 +354,7 @@ sliceModulePath sliceID = compilationunitsPath </> sliceModuleName sliceID <.> "
 
 -- | Is the module name from a fragnix generated module
 isSliceModule :: ModuleName a -> Bool
-isSliceModule (ModuleName _ moduleName) = isSliceModuleName moduleName
+isSliceModule (ModuleName _ moduleName) = isJust (moduleNameSliceID moduleName)
 
 
 writeModule :: Module a -> IO ()
@@ -383,18 +382,18 @@ writeFileStrict filePath content = (do
         `catch` (print :: SomeException -> IO ())
 
 
--- | Given a slice ID load all slices and all instance slices nedded
+-- | Given slice IDs load all slices and all instance slices nedded
 -- for compilation.
-loadSlicesTransitive :: SliceID -> IO [Slice]
-loadSlicesTransitive sliceID = do
-    sliceIDs <- loadSliceIDsTransitive sliceID
+loadSlicesTransitive :: [SliceID] -> IO [Slice]
+loadSlicesTransitive sliceIDs = do
+    sliceIDs <- loadSliceIDsTransitive sliceIDs
     forM sliceIDs (readSlice slicesPath)
 
 
--- | Given a slice ID find all IDs of all the slices needed
+-- | Given slice IDs find all IDs of all the slices needed
 -- for compilation.
-loadSliceIDsTransitive :: SliceID -> IO [SliceID]
-loadSliceIDsTransitive sliceID = execStateT (loadSliceIDsStateful sliceID) []
+loadSliceIDsTransitive :: [SliceID] -> IO [SliceID]
+loadSliceIDsTransitive sliceIDs = execStateT (forM sliceIDs loadSliceIDsStateful) []
 
 
 -- | Given a slice ID load all IDs of all the slices needed for

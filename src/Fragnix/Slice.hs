@@ -14,7 +14,7 @@ module Fragnix.Slice
   , InstancePart(..)
   , InstanceID
   , sliceModuleName
-  , isSliceModuleName
+  , moduleNameSliceID
   , readSlice
   , writeSlice
   , getSlices
@@ -32,7 +32,7 @@ import GHC.Generics (Generic)
 import Data.Hashable (Hashable)
 
 import Data.Text (Text)
-import qualified Data.Text as Text
+import qualified Data.Text as Text (unpack,pack,length,index)
 
 import Control.Applicative ((<|>),empty)
 
@@ -281,9 +281,11 @@ sliceModuleName :: SliceID -> String
 sliceModuleName sliceID = "F" ++ Text.unpack sliceID
 
 -- | Is the module name from a fragnix generated module
-isSliceModuleName :: String -> Bool
-isSliceModuleName ('F':rest) = all isDigit rest
-isSliceModuleName _ = False
+moduleNameSliceID :: String -> Maybe SliceID
+moduleNameSliceID ('F':rest)
+  | all isDigit rest = Just (Text.pack rest)
+  | otherwise = Nothing
+moduleNameSliceID _ = Nothing
 
 -- | Write the given slice to the given directory
 writeSlice :: FilePath -> Slice -> IO ()

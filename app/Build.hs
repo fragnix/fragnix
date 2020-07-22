@@ -18,7 +18,7 @@ import Fragnix.HashLocalSlices (
 import Fragnix.SliceSymbols (
     lookupLocalIDs)
 import Fragnix.SliceCompiler (
-    writeSliceModules, invokeGHCMain, invokeGHC)
+    writeSlicesModules, invokeGHCMain, invokeGHC)
 import Fragnix.Utils (
     listFilesRecursive)
 import Fragnix.Paths (
@@ -32,7 +32,7 @@ import qualified Data.Map as Map (union,elems)
 
 import Data.Foldable (for_)
 import Control.Monad (forM)
-import Data.List (intersperse)
+import Data.List (intersperse,nub)
 import System.Directory (removeDirectoryRecursive, createDirectoryIfMissing)
 import System.FilePath ((</>), takeExtension, splitDirectories, joinPath)
 import System.Process (rawSystem)
@@ -105,14 +105,14 @@ build shouldPreprocess directory = do
             putStrLn "Compiling all slices."
             let sliceIDs = Map.elems symbolSliceIDs
             putStrLn "Generating compilation units..."
-            timeIt (for_ sliceIDs writeSliceModules)
+            timeIt (writeSlicesModules sliceIDs)
             putStrLn "Invoking GHC"
-            _ <- timeIt (for_ sliceIDs invokeGHC)
+            _ <- timeIt (invokeGHC (nub sliceIDs))
             return ()
         [mainSliceID] -> do
             putStrLn ("Compiling " ++ show mainSliceID)
             putStrLn "Generating compilation units..."
-            timeIt (writeSliceModules mainSliceID)
+            timeIt (writeSlicesModules [mainSliceID])
             putStrLn "Invoking GHC"
             _ <- timeIt (invokeGHCMain mainSliceID)
             return ()
