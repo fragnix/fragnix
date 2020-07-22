@@ -11,7 +11,7 @@ import Fragnix.LocalSlice (LocalSliceID(LocalSliceID))
 import Fragnix.Environment (loadEnvironment)
 import Fragnix.SliceSymbols (updateEnvironment,lookupLocalIDs)
 import Fragnix.SliceCompiler (writeSliceModules,invokeGHC)
-import Fragnix.Paths (slicesPath,builtinEnvironmentPath,compilationunitsPath)
+import Fragnix.Paths (slicesPath,builtinEnvironmentPath,compilationunitsPath,declarationsPath)
 
 import Test.Tasty (testGroup,TestTree)
 import Test.Tasty.Golden (goldenVsFileDiff)
@@ -66,7 +66,7 @@ testModules folder = do
     modules <- forM modulepaths parse
 
     let declarations = moduleDeclarationsWithEnvironment builtinEnvironment modules
-    writeDeclarations "fragnix/temp/declarations/declarations.json" declarations
+    writeDeclarations declarationsPath declarations
 
     let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
     let (localSliceIDMap, slices) = hashLocalSlices localSlices

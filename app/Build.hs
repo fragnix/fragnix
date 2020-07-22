@@ -22,7 +22,7 @@ import Fragnix.SliceCompiler (
 import Fragnix.Utils (
     listFilesRecursive)
 import Fragnix.Paths (
-    slicesPath,builtinEnvironmentPath,environmentPath)
+    slicesPath,builtinEnvironmentPath,environmentPath,declarationsPath)
 
 -- import Language.Haskell.Names (ppError)
 
@@ -57,7 +57,7 @@ build directory = do
     putStrLn "Extracting declarations ..."
 
     let declarations = moduleDeclarationsWithEnvironment environment modules
-    timeIt (writeDeclarations "fragnix/temp/declarations/declarations.json" declarations)
+    timeIt (writeDeclarations declarationsPath declarations)
 
 --    let nameErrors = moduleNameErrors environment modules
 --    forM_ nameErrors (\nameError -> putStrLn ("Warning: " ++ ppError nameError))
