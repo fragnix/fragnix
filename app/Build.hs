@@ -22,7 +22,7 @@ import Fragnix.SliceCompiler (
 import Fragnix.Utils (
     listFilesRecursive)
 import Fragnix.Paths (
-    slicesPath,builtinEnvironmentPath,environmentPath,declarationsPath)
+    slicesPath,builtinEnvironmentPath,environmentPath,declarationsPath,preprocessedPath)
 
 -- import Language.Haskell.Names (ppError)
 
@@ -32,14 +32,17 @@ import qualified Data.Map as Map (union)
 
 import Data.Foldable (for_)
 import Control.Monad (forM)
-import System.FilePath (takeExtension)
+import Data.List (intersperse)
+import System.Directory (removeDirectoryRecursive, createDirectoryIfMissing)
+import System.FilePath ((</>), takeExtension, splitDirectories, joinPath)
+import System.Process (rawSystem)
 import Text.Printf (printf)
 
 
 -- | Take a list of module paths on the command line and compile the 'main' symbol
 -- to an executable.
-build :: FilePath -> IO ()
-build directory = do
+build :: ShouldPreprocess -> FilePath -> IO ()
+build shouldPreprocess directory = do
     putStrLn "Loading environment ..."
 
     environment <- timeIt (do
@@ -47,11 +50,33 @@ build directory = do
         userEnvironment <- loadEnvironment environmentPath
         return (Map.union builtinEnvironment userEnvironment))
 
+    modulePaths <- case shouldPreprocess of
+
+      DoPreprocess -> do
+        putStrLn "Preprocessing ..."
+        timeIt (do
+          createDirectoryIfMissing True preprocessedPath
+          removeDirectoryRecursive preprocessedPath
+          createDirectoryIfMissing True preprocessedPath
+          filePaths <- listFilesRecursive directory
+          let modulePaths = filter isHaskellFile filePaths
+          forM modulePaths (\path -> do
+            rawSystem "ghc-8.0.2" [
+              "-E",
+              "-optP","-P",
+              "-optL","-P",
+              "-Iinclude",
+              "-o", modulePreprocessedPath path,
+              path]
+            return (modulePreprocessedPath path)))
+
+      NoPreprocess -> do
+        filePaths <- listFilesRecursive directory
+        return (filter isHaskellFile filePaths)
+
     putStrLn "Parsing modules ..."
 
     modules <- timeIt (do
-        filePaths <- listFilesRecursive directory
-        let modulePaths = filter (\path -> takeExtension path == ".hs") filePaths
         forM modulePaths parse)
 
     putStrLn "Extracting declarations ..."
@@ -87,6 +112,18 @@ build directory = do
 
     return ()
 
+data ShouldPreprocess
+  = DoPreprocess
+  | NoPreprocess
+
+-- | Replace slashes by dots.
+modulePreprocessedPath :: FilePath -> FilePath
+modulePreprocessedPath path = joinPath [
+  preprocessedPath,
+  concat (intersperse "." (splitDirectories path))]
+
+isHaskellFile :: FilePath -> Bool
+isHaskellFile path = takeExtension path == ".hs"
 
 -- | Execute the given action and print the time it took.
 timeIt :: IO a -> IO a
