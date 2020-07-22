@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Fragnix.Update where
 
 import Prelude hiding (writeFile,readFile)
@@ -61,4 +62,12 @@ readUpdate upid = do
 createUpdate :: Text -> [(SliceID, SliceID)] -> Update
 createUpdate desc upd = Update upid desc upd
   where
-    upid = Text.pack $ show $ hash (desc, upd)
+    upid = (Text.pack . show . abs . hash) (desc, upd)
+
+-- | Return all updates available in the fragnix folder. (Dummy implementation)
+getUpdates :: IO [Update]
+getUpdates = return [upd1, upd2, upd3]
+  where
+    upd1 = createUpdate "containers-4.2.13-to-containers-4.12.14" [("123123123","141241241")]
+    upd2 = createUpdate "containers-4.2.14-to-containers-4.12.15" [("123122354","141241241")]
+    upd3 = createUpdate "base-4.2.13-to-base-4.12.14" [("123123123","141241241")]

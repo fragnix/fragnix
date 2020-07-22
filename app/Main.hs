@@ -1,5 +1,6 @@
 module Main where
 
+import Update (update)
 import Build (build)
 import CreateEnv (createEnv)
 import Preprocess (preprocess)
@@ -17,6 +18,7 @@ data Command
   = Build FilePath
   | CreateEnv
   | Preprocess FilePath
+  | Update
 
 commandParserInfo :: ParserInfo Command
 commandParserInfo =
@@ -26,7 +28,10 @@ commandParser :: Parser Command
 commandParser = subparser (mconcat [
     command "build" (info (buildParser <**> helper) (progDesc "Build all Haskell files in the given directory and subdirectories.")),
     command "create-env" (info (createEnvParser <**> helper) (progDesc "Create the builtin environment.")),
-    command "preprocess" (info (preprocessParser <**> helper) (progDesc "Preprocess Haskell files in the given directory and subdirectories."))])
+    command "preprocess" (info (preprocessParser <**> helper) (progDesc "Preprocess Haskell files in the given directory and subdirectories.")),
+    command "update" (info (updateParser <**> helper) (progDesc "List all available updates."))
+    ])
+
 
 versionOption :: Parser (a -> a)
 versionOption = infoOption versionText (long "version" <> help "Show version")
@@ -42,6 +47,9 @@ createEnvParser = pure CreateEnv
 preprocessParser :: Parser Command
 preprocessParser = Preprocess <$> argument str (metavar "TARGET")
 
+updateParser :: Parser Command
+updateParser = pure Update
+
 main :: IO ()
 main = do
    command <- execParser commandParserInfo
@@ -49,4 +57,5 @@ main = do
      Build path -> build path
      CreateEnv -> createEnv
      Preprocess path -> preprocess path
+     Update -> update
 
