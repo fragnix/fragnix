@@ -10,7 +10,7 @@ import Fragnix.Slice (
     UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
     InstanceID,Instance(Instance),
     InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass),
-    readSlice)
+    sliceModuleName,isSliceModuleName,readSlice)
 import Fragnix.Paths (
     slicesPath,cbitsPath,includePath,compilationunitsPath,buildPath)
 
@@ -53,7 +53,6 @@ import qualified Data.Set as Set (
     empty,singleton,union,intersection,unions,difference)
 import Control.Monad (forM,forM_,unless,filterM)
 import Data.Maybe (mapMaybe, isJust)
-import Data.Char (isDigit)
 import Data.List (isSuffixOf)
 
 
@@ -354,14 +353,9 @@ moduleHSBootPath _ =
 sliceModulePath :: SliceID -> FilePath
 sliceModulePath sliceID = compilationunitsPath </> sliceModuleName sliceID <.> "hs"
 
--- | The name we give to the module generated for a slice with the given ID.
-sliceModuleName :: SliceID -> String
-sliceModuleName sliceID = "F" ++ unpack sliceID
-
 -- | Is the module name from a fragnix generated module
 isSliceModule :: ModuleName a -> Bool
-isSliceModule (ModuleName _ ('F':rest)) = all isDigit rest
-isSliceModule _ = False
+isSliceModule (ModuleName _ moduleName) = isSliceModuleName moduleName
 
 
 writeModule :: Module a -> IO ()
