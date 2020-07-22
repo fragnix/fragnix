@@ -1,7 +1,5 @@
 module Fragnix.Environment
  ( loadEnvironment
- , environmentPath
- , builtinEnvironmentPath
  , persistEnvironment
  ) where
 
@@ -47,8 +45,3 @@ persistEnvironment path environment = do
         let modulpath = path </> prettyPrint modulname
         writeSymbols modulpath symbols)
 
-environmentPath :: FilePath
-environmentPath = "fragnix" </> "environment"
-
-builtinEnvironmentPath :: FilePath
-builtinEnvironmentPath = "fragnix" </> "builtin_environment"

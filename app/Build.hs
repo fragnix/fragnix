@@ -5,8 +5,7 @@ import Fragnix.Declaration (
 import Fragnix.Slice (
     writeSlice)
 import Fragnix.Environment (
-    loadEnvironment,persistEnvironment,
-    environmentPath,builtinEnvironmentPath)
+    loadEnvironment,persistEnvironment)
 import Fragnix.SliceSymbols (
     updateEnvironment,findMainSliceIDs)
 import Fragnix.ModuleDeclarations (
@@ -22,6 +21,8 @@ import Fragnix.SliceCompiler (
     writeSliceModules, invokeGHCMain)
 import Fragnix.Utils (
     listFilesRecursive)
+import Fragnix.Paths (
+    slicesPath,builtinEnvironmentPath,environmentPath)
 
 -- import Language.Haskell.Names (ppError)
 
@@ -66,7 +67,7 @@ build directory = do
     let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
     let (localSliceIDMap, slices) = hashLocalSlices localSlices
     let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
-    timeIt (for_ slices writeSlice)
+    timeIt (for_ slices (\slice -> writeSlice slicesPath slice))
 
     putStrLn "Updating environment ..."
 

@@ -45,6 +45,7 @@ library
                        Fragnix.SliceCompiler,
                        Fragnix.Environment,
                        Fragnix.SliceSymbols,
+                       Fragnix.Paths,
                        Fragnix.Utils
   hs-source-dirs:      src
   ghc-options:         -O2 -Wall
