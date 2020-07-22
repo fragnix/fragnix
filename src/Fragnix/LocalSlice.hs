@@ -17,7 +17,7 @@ import Data.Aeson (
     FromJSON(parseJSON),withObject,(.:),
     ToJSONKey,FromJSONKey)
 
-import Control.Applicative ((<$>),(<*>),(<|>))
+import Control.Applicative ((<|>))
 import Data.Text (Text)
 import GHC.Generics (Generic)
 

@@ -1,6 +1,7 @@
 module Preprocess where
 
 import Fragnix.Utils (listFilesRecursive)
+import Fragnix.Paths (preprocessedPath)
 
 import System.Process (rawSystem)
 import System.Directory (removeDirectoryRecursive, createDirectoryIfMissing)
@@ -13,9 +14,9 @@ import Control.Monad (forM_)
 -- Output is in fragnix folder.
 preprocess :: FilePath -> IO ()
 preprocess directory = do
-  createDirectoryIfMissing True fragnixPreprocessedPath
-  removeDirectoryRecursive fragnixPreprocessedPath
-  createDirectoryIfMissing True fragnixPreprocessedPath
+  createDirectoryIfMissing True preprocessedPath
+  removeDirectoryRecursive preprocessedPath
+  createDirectoryIfMissing True preprocessedPath
   filePaths <- listFilesRecursive directory
   let modulePaths = filter (\path -> takeExtension path == ".hs") filePaths
   forM_ modulePaths (\path -> do
@@ -30,9 +31,6 @@ preprocess directory = do
 -- | Replace slashes by dots.
 modulePreprocessedPath :: FilePath -> FilePath
 modulePreprocessedPath path = joinPath [
-  fragnixPreprocessedPath,
+  preprocessedPath,
   concat (intersperse "." (splitDirectories path))]
-
-fragnixPreprocessedPath :: FilePath
-fragnixPreprocessedPath = "fragnix" </> "temp" </> "preprocessed"
 

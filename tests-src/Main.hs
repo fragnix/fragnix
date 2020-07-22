@@ -8,10 +8,10 @@ import Fragnix.DeclarationLocalSlices (declarationLocalSlices)
 import Fragnix.HashLocalSlices (hashLocalSlices,replaceSliceID)
 import Fragnix.Slice (Slice(Slice),writeSlice)
 import Fragnix.LocalSlice (LocalSliceID(LocalSliceID))
-import Fragnix.Environment (
-    loadEnvironment,builtinEnvironmentPath)
+import Fragnix.Environment (loadEnvironment)
 import Fragnix.SliceSymbols (updateEnvironment,lookupLocalIDs)
-import Fragnix.SliceCompiler (writeSliceModules,invokeGHC,sliceModuleDirectory)
+import Fragnix.SliceCompiler (writeSliceModules,invokeGHC)
+import Fragnix.Paths (slicesPath,builtinEnvironmentPath,compilationunitsPath)
 
 import Test.Tasty (testGroup,TestTree)
 import Test.Tasty.Golden (goldenVsFileDiff)
@@ -71,15 +71,15 @@ testModules folder = do
     let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
     let (localSliceIDMap, slices) = hashLocalSlices localSlices
     let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
-    forM_ slices writeSlice
+    forM_ slices (\slice -> writeSlice slicesPath slice)
 
     let environment = updateEnvironment symbolSliceIDs (moduleSymbols builtinEnvironment modules)
         moduleSymbolResults = do
             (moduleName,symbols) <- Map.toList environment
             return (prettyPrint moduleName ++ " " ++ unwords (map (prettyPrint . symbolName) symbols))
 
-    sliceModuleDirectoryExists <- doesDirectoryExist sliceModuleDirectory
-    when sliceModuleDirectoryExists (removeDirectoryRecursive sliceModuleDirectory)
+    sliceModuleDirectoryExists <- doesDirectoryExist compilationunitsPath
+    when sliceModuleDirectoryExists (removeDirectoryRecursive compilationunitsPath)
 
     let sliceIDs = [sliceID | Slice sliceID _ _ _ _ <- toList slices]
     exitCodes <- forM sliceIDs (\sliceID -> do

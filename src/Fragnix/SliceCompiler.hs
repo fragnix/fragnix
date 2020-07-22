@@ -1,6 +1,5 @@
 module Fragnix.SliceCompiler
   ( writeSliceModules
-  , sliceModuleDirectory
   , invokeGHC
   , invokeGHCMain
   ) where
@@ -12,6 +11,8 @@ import Fragnix.Slice (
     InstanceID,Instance(Instance),
     InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass),
     readSlice)
+import Fragnix.Paths (
+    slicesPath,cbitsPath,includePath,compilationunitsPath,buildPath)
 
 import Prelude hiding (writeFile)
 
@@ -62,8 +63,8 @@ import Data.List (isSuffixOf)
 invokeGHC :: SliceID -> IO ExitCode
 invokeGHC sliceID = rawSystem "ghc-8.0.2" [
     "-v0","-w",
-    "-ifragnix/temp/compilationunits",
-    "-outputdir fragnix/build",
+    "-i" ++ compilationunitsPath,
+    "-outputdir",buildPath,
     sliceModulePath sliceID]
 
 -- | Invoke GHC to compile the slice with the given ID. The slice with the
@@ -74,12 +75,12 @@ invokeGHCMain sliceID = do
   cfiles <- getCFiles
   rawSystem "ghc-8.0.2" ([
     "-o","main",
-    "-ifragnix/temp/compilationunits",
+    "-i" ++ compilationunitsPath,
     "-main-is",sliceModuleName sliceID,
-    "-Ifragnix/include"] ++
+    "-I" ++ includePath] ++
     cfiles ++ [
     "-lpthread","-lz","-lutil",
-    "-outputdir fragnix/build",
+    "-outputdir",buildPath,
     sliceModulePath sliceID])
 
 
@@ -89,16 +90,16 @@ getDirFiles fp = do
   filesAndDirs <- map (fp </>) <$> listDirectory fp
   filterM doesFileExist filesAndDirs
 
--- | Return a list of all the files ending in "*.c" in fragnix/cbits/
+-- | Return a list of all the files ending in "*.c" in .fragnix/cbits/
 getCFiles :: IO [FilePath]
 getCFiles = do
-  files <- getDirFiles ("fragnix" </> "cbits")
+  files <- getDirFiles cbitsPath
   return (filter (isSuffixOf ".c") files)
 
 -- | Generate and write all modules necessary to compile the slice with the given ID.
 writeSliceModules :: SliceID -> IO ()
 writeSliceModules sliceID = do
-    createDirectoryIfMissing True sliceModuleDirectory
+    createDirectoryIfMissing True compilationunitsPath
     slices <- loadSlicesTransitive sliceID
     let sliceModules = map (sliceModule sliceInstancesMap) slices
         sliceHSBoots = map bootModule sliceModules
@@ -331,39 +332,31 @@ instancesPlayingPart desiredInstancePart =
         getInstanceID (Instance _ instanceID) = instanceID
 
 
--- | Directory for generated modules
-sliceModuleDirectory :: FilePath
-sliceModuleDirectory = "fragnix" </> "temp" </> "compilationunits"
-
 -- | The path where we put a generated module for GHC to find it.
 modulePath :: Module a -> FilePath
 modulePath (Module _ (Just (ModuleHead _ (ModuleName _ moduleName) _ _)) _ _ _) =
-    sliceModuleDirectory </> moduleName <.> "hs"
+    compilationunitsPath </> moduleName <.> "hs"
 modulePath (Module _ Nothing _ _ _) =
-    sliceModuleDirectory </> "Main" <.> "hs"
+    compilationunitsPath </> "Main" <.> "hs"
 modulePath _ =
     error "XML module not supported."
 
 -- | The path where we put a generated boot module for GHC to find it.
 moduleHSBootPath :: Module a -> FilePath
 moduleHSBootPath (Module _ (Just (ModuleHead _ (ModuleName _ moduleName) _ _)) _ _ _) =
-    sliceModuleDirectory </> moduleName <.> "hs-boot"
+    compilationunitsPath </> moduleName <.> "hs-boot"
 moduleHSBootPath (Module _ Nothing _ _ _) =
-    sliceModuleDirectory </> "Main" <.> "hs-boot"
+    compilationunitsPath </> "Main" <.> "hs-boot"
 moduleHSBootPath _ =
     error "XML module not supported."
 
 -- | The path for the module generated for the slice with the given ID
 sliceModulePath :: SliceID -> FilePath
-sliceModulePath sliceID = sliceModuleDirectory </> sliceModuleName sliceID <.> "hs"
+sliceModulePath sliceID = compilationunitsPath </> sliceModuleName sliceID <.> "hs"
 
 -- | The name we give to the module generated for a slice with the given ID.
 sliceModuleName :: SliceID -> String
 sliceModuleName sliceID = "F" ++ unpack sliceID
-
--- | The module name of the module that reexports all instances.
-allInstancesModuleName :: ModuleName ()
-allInstancesModuleName = ModuleName () "ALLINSTANCES"
 
 -- | Is the module name from a fragnix generated module
 isSliceModule :: ModuleName a -> Bool
@@ -401,7 +394,7 @@ writeFileStrict filePath content = (do
 loadSlicesTransitive :: SliceID -> IO [Slice]
 loadSlicesTransitive sliceID = do
     sliceIDs <- loadSliceIDsTransitive sliceID
-    forM sliceIDs readSlice
+    forM sliceIDs (readSlice slicesPath)
 
 
 -- | Given a slice ID find all IDs of all the slices needed
@@ -417,7 +410,7 @@ loadSliceIDsStateful sliceID = do
     seenSliceIDs <- get
     unless (elem sliceID seenSliceIDs) (do
         put (sliceID : seenSliceIDs)
-        slice <- liftIO (readSlice sliceID)
+        slice <- liftIO (readSlice slicesPath sliceID)
         let recursiveSliceIDs = usedSliceIDs slice
             recursiveInstanceSliceIDs = sliceInstanceIDs slice
         forM_ recursiveSliceIDs loadSliceIDsStateful

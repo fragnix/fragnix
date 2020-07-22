@@ -4,13 +4,15 @@ module CreateEnv
 
 import Fragnix.Environment (
   persistEnvironment)
+import Fragnix.Paths (
+  builtinEnvironmentPath,cbitsPath,includePath)
 
 import Language.Haskell.Exts (
-    Module,parseFileContentsWithMode,defaultParseMode,ParseMode(..),baseFixities,
-    ParseResult(ParseOk,ParseFailed),
-    SrcSpan,srcInfoSpan,SrcLoc(SrcLoc),
-    Extension(EnableExtension),KnownExtension(..),
-    ModuleName(ModuleName), Name(Ident))
+  Module,parseFileContentsWithMode,defaultParseMode,ParseMode(..),baseFixities,
+  ParseResult(ParseOk,ParseFailed),
+  SrcSpan,srcInfoSpan,SrcLoc(SrcLoc),
+  Extension(EnableExtension),KnownExtension(..),
+  ModuleName(ModuleName), Name(Ident))
 import Language.Haskell.Names (
   resolve, Environment, Symbol(Value, symbolModule, Data, Constructor))
 
@@ -47,10 +49,10 @@ createCbits :: IO ()
 createCbits = do
   putStrLn "Initializing .fragnix/cbits ..."
   cfiles <- getCFiles
-  createDirectoryIfMissing True ("fragnix" </> "cbits")
+  createDirectoryIfMissing True cbitsPath
   forM cfiles $ \file -> do
     putStrLn $ "   Copying " ++ file ++ "..."
-    copyFile ("builtins" </> "cbits" </> file) ("fragnix" </> "cbits" </> file)
+    copyFile ("builtins" </> "cbits" </> file) (cbitsPath </> file)
   return ()
 
 -- Include the correct includes in the fragnix folder
@@ -65,10 +67,10 @@ createInclude :: IO ()
 createInclude = do
   putStrLn "Initializing .fragnix/include ..."
   hfiles <- getHFiles
-  createDirectoryIfMissing True ("fragnix" </> "include")
+  createDirectoryIfMissing True includePath
   forM hfiles $ \file -> do
     putStrLn $ "   Copying " ++ file ++ "..."
-    copyFile ("builtins" </> "include" </> file) ("fragnix" </> "include" </> file)
+    copyFile ("builtins" </> "include" </> file) (includePath </> file)
   return ()
 
 -- Include the correct Builtin environment
@@ -87,7 +89,7 @@ createPackageEnv = do
   let builtinEnvironment = resolve (baseModules ++ ghcPrimModules ++ integerGmpModules) Map.empty
       patchedBuiltinEnvironment = patchBuiltinEnvironment builtinEnvironment
 
-  persistEnvironment "fragnix/builtin_environment" patchedBuiltinEnvironment
+  persistEnvironment builtinEnvironmentPath patchedBuiltinEnvironment
 
 
 parse :: FilePath -> IO (Module SrcSpan)

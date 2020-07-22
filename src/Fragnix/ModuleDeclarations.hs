@@ -8,7 +8,9 @@ module Fragnix.ModuleDeclarations
 import Fragnix.Declaration (
     Declaration(Declaration),Genre(..))
 import Fragnix.Environment (
-    loadEnvironment,environmentPath,builtinEnvironmentPath)
+    loadEnvironment)
+import Fragnix.Paths (
+    environmentPath,builtinEnvironmentPath)
 
 import Language.Haskell.Exts (
     Module,ModuleName,QName(Qual,UnQual),Decl(..),

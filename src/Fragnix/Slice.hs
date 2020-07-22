@@ -29,7 +29,7 @@ import Data.Aeson.Encode.Pretty (encodePretty)
 import GHC.Generics (Generic)
 import Data.Hashable (Hashable)
 
-import Data.Text (Text, unpack)
+import Data.Text (Text)
 import qualified Data.Text as Text
 
 import Control.Applicative ((<|>),empty)
@@ -273,38 +273,31 @@ instance Exception SliceParseError
 
 -- Reading and writing slices to disk
 
-sliceDirectory :: FilePath
-sliceDirectory = "fragnix" </> "slices"
-
-writeSlice :: Slice -> IO ()
-writeSlice slice@(Slice sliceID _ _ _ _) = writeSliceToPath (sliceDefaultPath sliceID) slice
-
-writeSliceToPath :: FilePath -> Slice -> IO ()
-writeSliceToPath slicePath slice = do
+-- | Write the given slice to the given directory
+writeSlice :: FilePath -> Slice -> IO ()
+writeSlice slicesPath slice@(Slice sliceID _ _ _ _) = do
+  let slicePath = slicesPath </> sliceNestedPath sliceID
   createDirectoryIfMissing True (dropFileName slicePath)
   writeFile slicePath (encodePretty slice)
 
-readSlice :: SliceID -> IO Slice
-readSlice sliceID = readSliceFromPath (sliceDefaultPath sliceID)
-
-readSliceFromPath :: FilePath -> IO Slice
-readSliceFromPath slicePath = do
+-- | Read the slice with the given slice ID from the given directory
+readSlice :: FilePath -> SliceID -> IO Slice
+readSlice slicesPath sliceID = do
+  let slicePath = slicesPath </> sliceNestedPath sliceID
   sliceFile <- readFile slicePath
   either (throwIO . SliceParseError slicePath) return (eitherDecode sliceFile)
 
--- | Map the SliceID "12345" to the FilePath "sliceDirectory </> 1 </> 2 </> 12345"
-sliceDefaultPath :: SliceID -> FilePath
-sliceDefaultPath sliceID | Text.length sliceID < 2 = error $ "sliceID \"" <> unpack sliceID <> "\" has less than 2 characters"
-                         | otherwise =
-                             let
-                                 a = Text.head sliceID
-                                 b = Text.head (Text.tail sliceID)
-                             in
-                               sliceDirectory </> [a] </> [b] </> (unpack sliceID)
+-- | Return all slices in the given directory
+getSlices :: FilePath -> IO [Slice]
+getSlices path = do
+  slicePaths <- listFilesRecursive path
+  forM slicePaths (\slicePath -> do
+    sliceFile <- readFile slicePath
+    either (throwIO . SliceParseError slicePath) return (eitherDecode sliceFile))
 
--- | Return all slices in sliceDirectory
-getSlices :: IO [Slice]
-getSlices = do
-  slicePaths <- listFilesRecursive sliceDirectory
-  forM slicePaths readSliceFromPath
+-- | Map the SliceID "12345" to the FilePath "1 </> 2 </> 12345"
+sliceNestedPath :: SliceID -> FilePath
+sliceNestedPath sliceID
+  | Text.length sliceID < 2 = error $ "sliceID \"" <> Text.unpack sliceID <> "\" has less than 2 characters"
+  | otherwise = [Text.index sliceID 0] </> [Text.index sliceID 1] </> (Text.unpack sliceID)
 
