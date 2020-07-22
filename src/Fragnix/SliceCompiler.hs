@@ -61,7 +61,7 @@ import Data.List (isSuffixOf)
 -- Assumes that all necessary compilation units have been written to disk.
 invokeGHC :: SliceID -> IO ExitCode
 invokeGHC sliceID = rawSystem "ghc-8.0.2" [
-    "-v0","-w",
+    "-w",
     "-i" ++ compilationunitsPath,
     "-outputdir",buildPath,
     sliceModulePath sliceID]

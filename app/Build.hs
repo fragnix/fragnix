@@ -18,7 +18,7 @@ import Fragnix.HashLocalSlices (
 import Fragnix.SliceSymbols (
     lookupLocalIDs)
 import Fragnix.SliceCompiler (
-    writeSliceModules, invokeGHCMain)
+    writeSliceModules, invokeGHCMain, invokeGHC)
 import Fragnix.Utils (
     listFilesRecursive)
 import Fragnix.Paths (
@@ -28,7 +28,7 @@ import Fragnix.Paths (
 
 import System.Clock (
     getTime, Clock(Monotonic), toNanoSecs, diffTimeSpec)
-import qualified Data.Map as Map (union)
+import qualified Data.Map as Map (union,elems)
 
 import Data.Foldable (for_)
 import Control.Monad (forM)
@@ -91,21 +91,29 @@ build shouldPreprocess directory = do
 
     let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
     let (localSliceIDMap, slices) = hashLocalSlices localSlices
-    let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
     timeIt (for_ slices (\slice -> writeSlice slicesPath slice))
 
     putStrLn "Updating environment ..."
 
+    let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
     let updatedEnvironment = updateEnvironment symbolSliceIDs (moduleSymbols environment modules)
     timeIt (persistEnvironment environmentPath updatedEnvironment)
 
     case findMainSliceIDs symbolSliceIDs of
-        [] -> putStrLn "No main symbol in modules."
+        [] -> do
+            putStrLn "No main symbol in modules."
+            putStrLn "Compiling all slices."
+            let sliceIDs = Map.elems symbolSliceIDs
+            putStrLn "Generating compilation units..."
+            timeIt (for_ sliceIDs writeSliceModules)
+            putStrLn "Invoking GHC"
+            _ <- timeIt (for_ sliceIDs invokeGHC)
+            return ()
         [mainSliceID] -> do
             putStrLn ("Compiling " ++ show mainSliceID)
-            putStrLn ("Generating compilation units...")
+            putStrLn "Generating compilation units..."
             timeIt (writeSliceModules mainSliceID)
-            putStrLn ("Invoking GHC")
+            putStrLn "Invoking GHC"
             _ <- timeIt (invokeGHCMain mainSliceID)
             return ()
         _ -> putStrLn "Multiple main symbols in modules."
