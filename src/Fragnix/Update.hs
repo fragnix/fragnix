@@ -20,7 +20,7 @@ import Data.Hashable (hash)
 import qualified Data.Text as Text
 import GHC.Generics (Generic)
 import Data.ByteString.Lazy (writeFile,readFile)
-import System.FilePath ((</>))
+import System.FilePath ((</>), takeFileName)
 import System.Directory (createDirectoryIfMissing)
 import Control.Monad (forM)
 import Control.Exception (Exception,throwIO)
@@ -126,5 +126,5 @@ createUpdate desc upd = PersistedUpdate upid desc upd
 -- | Return all updates available in the fragnix folder.
 getUpdates :: IO [PersistedUpdate]
 getUpdates = do
-  files <- listFilesRecursive updatePath
+  files <- fmap takeFileName <$> listFilesRecursive updatePath
   forM files $ \file -> readUpdate (Text.pack file)
