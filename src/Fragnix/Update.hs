@@ -14,12 +14,13 @@ import GHC.Generics (Generic)
 import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>))
 import System.Directory (createDirectoryIfMissing)
+import Control.Monad (forM)
 import Control.Exception (Exception,throwIO)
 import Data.Typeable(Typeable)
 
 import Fragnix.Paths (updatePath)
 import Fragnix.Slice (SliceID)
-
+import Fragnix.Utils (listFilesRecursive)
 type UpdateID = Text
 data Update = Update
   { updateID :: UpdateID
@@ -66,8 +67,6 @@ createUpdate desc upd = Update upid desc upd
 
 -- | Return all updates available in the fragnix folder. (Dummy implementation)
 getUpdates :: IO [Update]
-getUpdates = return [upd1, upd2, upd3]
-  where
-    upd1 = createUpdate "containers-4.2.13-to-containers-4.12.14" [("123123123","141241241")]
-    upd2 = createUpdate "containers-4.2.14-to-containers-4.12.15" [("123122354","141241241")]
-    upd3 = createUpdate "base-4.2.13-to-base-4.12.14" [("123123123","141241241")]
+getUpdates = do
+  files <- listFilesRecursive updatePath
+  forM files $ \file -> readUpdate (Text.pack file)
