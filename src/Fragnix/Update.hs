@@ -14,8 +14,10 @@ import Fragnix.Environment (loadEnvironment, persistEnvironment)
 import Data.Aeson (ToJSON, FromJSON, eitherDecode)
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Map.Strict (Map)
+import Data.Char (isDigit)
 import qualified Data.Map.Strict as Map ()
 import Data.Text (Text)
+import Data.List (find)
 import Data.Hashable (hash)
 import qualified Data.Text as Text
 import GHC.Generics (Generic)
@@ -69,9 +71,9 @@ data PersistedUpdate = PersistedUpdate
   , updateContent :: Update
   }
 
-applyUpdate :: UpdateID -> IO ()
-applyUpdate upid = do
-  update <- readUpdate upid
+applyUpdate :: PersistedUpdate -> IO ()
+applyUpdate update = do
+  putStrLn ("Applying update: " <> (Text.unpack $ updateDescription update))
   env <- loadEnvironment environmentPath
   let env' = applyUpdatePure (updateContent update) env
   persistEnvironment environmentPath env'
@@ -118,6 +120,14 @@ readUpdate upid = do
   updateFile <- readFile filepath
   either (throwIO . UpdateParseError filepath) return (eitherDecode updateFile)
 
+-- | Try to interpret the argument as a the prefix of a hash, or a description otherwise.
+findUpdateFuzzy :: Text -> IO (Maybe PersistedUpdate)
+findUpdateFuzzy desc | Text.all isDigit desc = do
+                         updates <- getUpdates
+                         return $ find (\update -> Text.isPrefixOf desc (updateID update)) updates
+                     | otherwise = do
+                         updates <- getUpdates
+                         return $ find (\update -> Text.isPrefixOf desc (updateDescription update)) updates
 
 createUpdate :: Text -> [(SliceID, SliceID)] -> PersistedUpdate
 createUpdate desc upd = PersistedUpdate upid desc upd

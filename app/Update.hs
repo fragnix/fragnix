@@ -10,7 +10,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 import Control.Monad (forM_)
 import Fragnix.Slice (SliceID)
-import Fragnix.Update (getUpdates, PersistedUpdate(..), UpdateID, applyUpdate, createUpdate, writeUpdate)
+import Fragnix.Update (getUpdates, PersistedUpdate(..), UpdateID, applyUpdate, createUpdate, writeUpdate, findUpdateFuzzy)
 
 import Options.Applicative (
   ParserInfo, Parser, execParser,
@@ -33,7 +33,11 @@ update List = do
 update (Create desc sliceID sliceID') = do
   let update = createUpdate desc [(sliceID, sliceID')]
   writeUpdate update
-update (Apply updateID) = applyUpdate updateID
+update (Apply desc) = do
+  maybeUpdate <- findUpdateFuzzy desc
+  case maybeUpdate of
+    Nothing -> putStrLn "Couldn't find an update matching the description."
+    Just upd -> applyUpdate upd
 
 
 updateParser :: Parser UpdateCommand
@@ -47,4 +51,4 @@ updateParser = subparser (mconcat [
       <$> argument str (metavar "DESC")
       <*> argument str (metavar "SLICEID")
       <*> argument str (metavar "SLICEID")
-    applyParser = Apply <$> argument str (metavar "UPDATEID")
+    applyParser = Apply <$> argument str (metavar "ID/DESC")
