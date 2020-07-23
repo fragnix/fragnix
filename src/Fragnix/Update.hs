@@ -113,6 +113,7 @@ writeUpdate upd = do
 -- | Read the update with given ID from .fragnix folder.
 readUpdate :: UpdateID -> IO PersistedUpdate
 readUpdate upid = do
+  createDirectoryIfMissing True updatePath
   let filepath = updatePath </> Text.unpack upid
   updateFile <- readFile filepath
   either (throwIO . UpdateParseError filepath) return (eitherDecode updateFile)
@@ -126,5 +127,6 @@ createUpdate desc upd = PersistedUpdate upid desc upd
 -- | Return all updates available in the fragnix folder.
 getUpdates :: IO [PersistedUpdate]
 getUpdates = do
+  createDirectoryIfMissing True updatePath
   files <- fmap takeFileName <$> listFilesRecursive updatePath
   forM files $ \file -> readUpdate (Text.pack file)
