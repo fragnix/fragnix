@@ -10,3 +10,5 @@ fragnix/*
 gui-src/elm/elm-stuff
 tests/*/*/fragnix/*
 tests/quick/**/out
+*.dot
+*.svg
