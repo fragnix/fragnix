@@ -15,8 +15,10 @@ module Fragnix.Slice
   , InstanceID
   , sliceModuleName
   , moduleNameSliceID
+  , usedSliceIDs
   , readSlice
   , writeSlice
+  , loadSlicesTransitive
   , getSlices
   ) where
 
@@ -34,9 +36,12 @@ import Data.Hashable (Hashable)
 import Data.Text (Text)
 import qualified Data.Text as Text (unpack,pack,length,index)
 
+import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put)
+import Control.Monad.IO.Class (liftIO)
+
 import Control.Applicative ((<|>),empty)
 
-import Control.Monad (forM)
+import Control.Monad (forM, forM_, unless)
 import Control.Exception (Exception,throwIO)
 import Data.Typeable(Typeable)
 
@@ -300,6 +305,42 @@ readSlice slicesPath sliceID = do
   let slicePath = slicesPath </> sliceNestedPath sliceID
   sliceFile <- readFile slicePath
   either (throwIO . SliceParseError slicePath) return (eitherDecode sliceFile)
+
+-- | Given slice IDs load all slices and all instance slices nedded
+-- for compilation.
+loadSlicesTransitive :: FilePath -> [SliceID] -> IO [Slice]
+loadSlicesTransitive slicesPath sliceIDs = do
+    sliceIDs <- loadSliceIDsTransitive slicesPath sliceIDs
+    forM sliceIDs (readSlice slicesPath)
+
+-- | Given slice IDs find all IDs of all the slices needed
+-- for compilation.
+loadSliceIDsTransitive :: FilePath -> [SliceID] -> IO [SliceID]
+loadSliceIDsTransitive slicesPath sliceIDs = execStateT (forM sliceIDs (loadSliceIDsStateful slicesPath)) []
+
+-- | Given a slice ID load all IDs of all the slices needed for
+-- compilation. Keep track of visited slice IDs to avoid loops.
+loadSliceIDsStateful :: FilePath -> SliceID -> StateT [SliceID] IO ()
+loadSliceIDsStateful slicesPath sliceID = do
+    seenSliceIDs <- get
+    unless (elem sliceID seenSliceIDs) (do
+        put (sliceID : seenSliceIDs)
+        slice <- liftIO (readSlice slicesPath sliceID)
+        let recursiveSliceIDs = usedSliceIDs slice
+            recursiveInstanceSliceIDs = sliceInstanceIDs slice
+        forM_ recursiveSliceIDs (loadSliceIDsStateful slicesPath)
+        forM_ recursiveInstanceSliceIDs (loadSliceIDsStateful slicesPath))
+
+usedSliceIDs :: Slice -> [SliceID]
+usedSliceIDs (Slice _ _ _ uses _) = do
+    Use _ _ (OtherSlice sliceID) <- uses
+    return sliceID
+
+sliceInstanceIDs :: Slice -> [InstanceID]
+sliceInstanceIDs (Slice _ _ _ _ instances) = do
+    Instance _ instanceID <- instances
+    return instanceID
+
 
 -- | Return all slices in the given directory
 getSlices :: FilePath -> IO [Slice]
