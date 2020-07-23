@@ -13,7 +13,7 @@ import Options.Applicative (
 
 
 data Command
-  = Build ShouldPreprocess FilePath
+  = Build ShouldPreprocess [FilePath]
   | CreateEnv
 
 commandParserInfo :: ParserInfo Command
@@ -22,7 +22,7 @@ commandParserInfo =
 
 commandParser :: Parser Command
 commandParser = subparser (mconcat [
-    command "build" (info (buildParser <**> helper) (progDesc "Build all Haskell files in the given directory and subdirectories.")),
+    command "build" (info (buildParser <**> helper) (progDesc "Build all Haskell files in the given files and directories and their subdirectories.")),
     command "create-env" (info (createEnvParser <**> helper) (progDesc "Create the builtin environment."))])
 
 versionOption :: Parser (a -> a)
@@ -33,7 +33,7 @@ versionOption = infoOption versionText (long "version" <> help "Show version")
 buildParser :: Parser Command
 buildParser = Build <$>
   flag NoPreprocess DoPreprocess (long "preprocess" <> help "Run preprocessor on source files") <*>
-  strArgument (metavar "TARGET")
+  many (strArgument (metavar "TARGET"))
 
 createEnvParser :: Parser Command
 createEnvParser = pure CreateEnv
@@ -43,6 +43,6 @@ main :: IO ()
 main = do
    command <- execParser commandParserInfo
    case command of
-     Build shouldPreprocess path -> build shouldPreprocess path
+     Build shouldPreprocess paths -> build shouldPreprocess paths
      CreateEnv -> createEnv
 

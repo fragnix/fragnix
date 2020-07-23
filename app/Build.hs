@@ -41,8 +41,13 @@ import Text.Printf (printf)
 
 -- | Take a list of module paths on the command line and compile the 'main' symbol
 -- to an executable.
-build :: ShouldPreprocess -> FilePath -> IO ()
-build shouldPreprocess directory = do
+build :: ShouldPreprocess -> [FilePath] -> IO ()
+build shouldPreprocess directories = do
+    putStrLn "Finding targets ..."
+
+    filePaths <- timeIt (do
+        concat <$> forM directories listFilesRecursive)
+
     putStrLn "Loading environment ..."
 
     environment <- timeIt (do
@@ -58,7 +63,6 @@ build shouldPreprocess directory = do
           createDirectoryIfMissing True preprocessedPath
           removeDirectoryRecursive preprocessedPath
           createDirectoryIfMissing True preprocessedPath
-          filePaths <- listFilesRecursive directory
           let modulePaths = filter isHaskellFile filePaths
           forM modulePaths (\path -> do
             rawSystem "ghc-8.0.2" [
@@ -71,7 +75,6 @@ build shouldPreprocess directory = do
             return (modulePreprocessedPath path)))
 
       NoPreprocess -> do
-        filePaths <- listFilesRecursive directory
         return (filter isHaskellFile filePaths)
 
     putStrLn "Parsing modules ..."
