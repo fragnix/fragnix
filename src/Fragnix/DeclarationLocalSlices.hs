@@ -9,7 +9,8 @@ import Fragnix.Declaration (
 import Fragnix.Slice (
     Language(Language),Fragment(Fragment),
     UsedName(..),Name(Identifier,Operator),
-    InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass))
+    InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass),
+    moduleNameSliceID)
 import Fragnix.LocalSlice (
     LocalSlice(LocalSlice),LocalSliceID(LocalSliceID),
     LocalUse(LocalUse),LocalReference(OtherLocalSlice,OtherSlice,Builtin),
@@ -299,11 +300,9 @@ arrange declarations = arrangements ++ (declarations \\ arrangements) where
 -- digits.
 moduleReference :: ModuleName () -> LocalReference
 moduleReference (ModuleName () moduleName) =
-  case moduleName of
-    'F' : rest -> if all isDigit rest
-      then OtherSlice (read rest)
-      else Builtin (pack moduleName)
-    _ -> Builtin (pack moduleName)
+  case moduleNameSliceID moduleName of
+    Nothing -> Builtin (pack moduleName)
+    Just sliceID -> OtherSlice sliceID
 
 
 -- | Finds for each instance maybe the local ID of the class it is of and maybe

@@ -10,8 +10,8 @@ import Fragnix.Slice (Slice(Slice),writeSlice)
 import Fragnix.LocalSlice (LocalSliceID(LocalSliceID))
 import Fragnix.Environment (loadEnvironment)
 import Fragnix.SliceSymbols (updateEnvironment,lookupLocalIDs)
-import Fragnix.SliceCompiler (writeSliceModules,invokeGHC)
-import Fragnix.Paths (slicesPath,builtinEnvironmentPath,compilationunitsPath)
+import Fragnix.SliceCompiler (writeSlicesModules,invokeGHC)
+import Fragnix.Paths (slicesPath,builtinEnvironmentPath,compilationunitsPath,declarationsPath)
 
 import Test.Tasty (testGroup,TestTree)
 import Test.Tasty.Golden (goldenVsFileDiff)
@@ -66,7 +66,7 @@ testModules folder = do
     modules <- forM modulepaths parse
 
     let declarations = moduleDeclarationsWithEnvironment builtinEnvironment modules
-    writeDeclarations "fragnix/temp/declarations/declarations.json" declarations
+    writeDeclarations declarationsPath declarations
 
     let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
     let (localSliceIDMap, slices) = hashLocalSlices localSlices
@@ -82,9 +82,9 @@ testModules folder = do
     when sliceModuleDirectoryExists (removeDirectoryRecursive compilationunitsPath)
 
     let sliceIDs = [sliceID | Slice sliceID _ _ _ _ <- toList slices]
+    writeSlicesModules sliceIDs
     exitCodes <- forM sliceIDs (\sliceID -> do
-        writeSliceModules sliceID
-        invokeGHC sliceID)
+        invokeGHC [sliceID])
     let successes = length [() | ExitSuccess   <- exitCodes]
         failures  = length [() | ExitFailure _ <- exitCodes]
 

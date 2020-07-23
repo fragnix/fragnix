@@ -57,7 +57,6 @@ executable fragnix
   main-is:             Main.hs
   other-modules:       Build,
                        CreateEnv,
-                       Preprocess,
                        Update,
                        Paths_fragnix
   build-depends:       clock >=0.8 && <0.9,

@@ -13,6 +13,8 @@ module Fragnix.Slice
   , Instance(..)
   , InstancePart(..)
   , InstanceID
+  , sliceModuleName
+  , moduleNameSliceID
   , readSlice
   , writeSlice
   , getSlices
@@ -30,7 +32,7 @@ import GHC.Generics (Generic)
 import Data.Hashable (Hashable)
 
 import Data.Text (Text)
-import qualified Data.Text as Text
+import qualified Data.Text as Text (unpack,pack,length,index)
 
 import Control.Applicative ((<|>),empty)
 
@@ -41,6 +43,7 @@ import Data.Typeable(Typeable)
 import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>),dropFileName)
 import System.Directory (createDirectoryIfMissing)
+import Data.Char (isDigit)
 import Fragnix.Utils (listFilesRecursive)
 
 
@@ -272,6 +275,17 @@ deriving instance Show SliceParseError
 instance Exception SliceParseError
 
 -- Reading and writing slices to disk
+
+-- | The name we give to the module generated for a slice with the given ID.
+sliceModuleName :: SliceID -> String
+sliceModuleName sliceID = "F" ++ Text.unpack sliceID
+
+-- | Is the module name from a fragnix generated module
+moduleNameSliceID :: String -> Maybe SliceID
+moduleNameSliceID ('F':rest)
+  | all isDigit rest = Just (Text.pack rest)
+  | otherwise = Nothing
+moduleNameSliceID _ = Nothing
 
 -- | Write the given slice to the given directory
 writeSlice :: FilePath -> Slice -> IO ()
