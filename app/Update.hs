@@ -4,7 +4,7 @@ module Update (update) where
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 import Control.Monad (forM_)
-import Fragnix.Update (getUpdates, Update(..))
+import Fragnix.Update (getUpdates, PersistedUpdate(..))
 
 update :: IO ()
 update = do

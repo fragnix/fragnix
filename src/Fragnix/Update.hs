@@ -5,8 +5,16 @@ module Fragnix.Update where
 
 import Prelude hiding (writeFile,readFile)
 
+import Fragnix.Slice (Slice, SliceID)
+import Fragnix.LocalSlice (LocalSlice, LocalSliceID)
+import Fragnix.Paths (updatePath)
+import Fragnix.Utils (listFilesRecursive)
+
+
 import Data.Aeson (ToJSON, FromJSON, eitherDecode)
 import Data.Aeson.Encode.Pretty (encodePretty)
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map ()
 import Data.Text (Text)
 import Data.Hashable (hash)
 import qualified Data.Text as Text
@@ -16,26 +24,56 @@ import System.FilePath ((</>))
 import System.Directory (createDirectoryIfMissing)
 import Control.Monad (forM)
 import Control.Exception (Exception,throwIO)
-import Data.Typeable(Typeable)
+import Data.Typeable (Typeable)
 
-import Fragnix.Paths (updatePath)
-import Fragnix.Slice (SliceID)
-import Fragnix.Utils (listFilesRecursive)
+
+type Update = [(SliceID, SliceID)]
+
+-- | Given a global list of slices, an update and a slice ID,
+-- computes the result of deeply applying the update to the slice
+-- with the given slice ID. The result is the local slice ID that
+-- corresponds to the given sliceID. Also produces additional local slices in
+-- the process.
+-- apply :: Map SliceID Slice -> Update -> SliceID -> ([LocalSlice], LocalSliceID)
+-- apply slices update sliceID = undefined
+
+-- | Given a global list of slices, and a pair of slice IDs, computes
+-- the difference between the two corresponding slices. The result should
+-- be minimal.
+-- diff :: Map SliceID Slice -> SliceID -> SliceID -> Update
+-- diff = undefined
+
+-- Law1
+
+-- forall slices sliceID1 sliceID2 .
+-- let update = diff slices sliceID1 sliceID2
+-- let (localSlices, localSliceID) = apply slices update sliceID1
+-- let (localSliceMap, slices2) = hashLocalSlices localSlices
+-- (sliceID2 == localSliceMap !! localSliceID) && (all (`elem` slices) slices2)
+
+-- Law2 only holds up to typical pseudo-inverse normalization stuff
+
+-- forall slices update sliceID .
+-- let (localSlices, localSliceID) = apply slices update sliceID
+-- let (localSliceMap, slices2) = hashLocalSlices localSlices
+-- let sliceID2 = localSliceMap !! localSliceID
+-- diff (slices ++ slices2) sliceID sliceID2 == update
+
 type UpdateID = Text
-data Update = Update
+
+data PersistedUpdate = PersistedUpdate
   { updateID :: UpdateID
   , updateDescription :: Text
-  , updateContent :: [(SliceID, SliceID)]
+  , updateContent :: Update
   }
 
+-- Instances for PersistedUpdate
 
--- Instances for Update
-
-deriving instance Show Update
-deriving instance Eq Update
-deriving instance Generic Update
-instance ToJSON Update
-instance FromJSON Update
+deriving instance Show PersistedUpdate
+deriving instance Eq PersistedUpdate
+deriving instance Generic PersistedUpdate
+instance ToJSON PersistedUpdate
+instance FromJSON PersistedUpdate
 
 data UpdateParseError = UpdateParseError FilePath String
 
@@ -45,7 +83,7 @@ deriving instance Show UpdateParseError
 instance Exception UpdateParseError
 
 -- | Write the update into .fragnix folder.
-writeUpdate :: Update -> IO ()
+writeUpdate :: PersistedUpdate -> IO ()
 writeUpdate upd = do
   let filepath = updatePath </> (Text.unpack $ updateID upd)
   createDirectoryIfMissing True updatePath
@@ -53,20 +91,20 @@ writeUpdate upd = do
 
 
 -- | Read the update with given ID from .fragnix folder.
-readUpdate :: UpdateID -> IO Update
+readUpdate :: UpdateID -> IO PersistedUpdate
 readUpdate upid = do
   let filepath = updatePath </> Text.unpack upid
   updateFile <- readFile filepath
   either (throwIO . UpdateParseError filepath) return (eitherDecode updateFile)
 
 
-createUpdate :: Text -> [(SliceID, SliceID)] -> Update
-createUpdate desc upd = Update upid desc upd
+createUpdate :: Text -> [(SliceID, SliceID)] -> PersistedUpdate
+createUpdate desc upd = PersistedUpdate upid desc upd
   where
     upid = (Text.pack . show . abs . hash) (desc, upd)
 
 -- | Return all updates available in the fragnix folder. (Dummy implementation)
-getUpdates :: IO [Update]
+getUpdates :: IO [PersistedUpdate]
 getUpdates = do
   files <- listFilesRecursive updatePath
   forM files $ \file -> readUpdate (Text.pack file)
