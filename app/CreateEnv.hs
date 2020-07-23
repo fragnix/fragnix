@@ -151,7 +151,7 @@ rewriteSymbolModuleInModules fromModuleName toModuleName inModules =
         else symbol
 
 rewriteDataList :: Environment -> Environment
-rewriteDataList = rewriteSymbolModuleInModules "Data.OldList" "Data.List" ["Data.List"]
+rewriteDataList = rewriteSymbolModuleInModules "Data.OldList" "Data.List" ["Data.List","Prelude","Data.String"]
 
 rewriteGHCIntegerType :: Environment -> Environment
 rewriteGHCIntegerType = rewriteSymbolModuleInModules "GHC.Integer.Type" "GHC.Integer" ["Prelude", "GHC.Num", "GHC.Integer"]
