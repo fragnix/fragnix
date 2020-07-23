@@ -7,32 +7,34 @@ import Prelude hiding (writeFile,readFile)
 
 import Fragnix.Slice (
   Slice(Slice), SliceID,
-  Use(Use), Reference(OtherSlice, Builtin), Instance(Instance))
+  Use(Use), Reference(OtherSlice, Builtin), Instance(Instance),
+  moduleNameSliceID, loadSlicesTransitive, writeSlice)
 import Fragnix.LocalSlice (
   LocalSlice(LocalSlice), LocalSliceID(LocalSliceID),
   LocalUse(LocalUse), LocalInstance(LocalInstance, GlobalInstance))
 import qualified Fragnix.LocalSlice as Local (
   LocalReference(OtherSlice,Builtin,OtherLocalSlice))
+import Fragnix.HashLocalSlices (hashLocalSlices)
 import Fragnix.Environment (loadEnvironment, persistEnvironment)
-import Fragnix.Paths (updatePath, environmentPath)
+import Fragnix.Paths (updatePath, environmentPath, slicesPath)
 import Fragnix.Utils (listFilesRecursive)
 
 import Data.Aeson (ToJSON, FromJSON, eitherDecode)
 import Data.Aeson.Encode.Pretty (encodePretty)
-import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map (lookup, insert)
+import Data.Map (Map)
+import qualified Data.Map as Map (lookup, insert, fromList, toList, elems, empty)
 import Data.Char (isDigit)
 import Data.Text (Text)
-import qualified Data.Text as Text (unpack, pack, cons)
+import qualified Data.Text as Text (unpack, pack, cons, isPrefixOf, all)
 import Data.Hashable (hash)
 import GHC.Generics (Generic)
 import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>), takeFileName)
 import System.Directory (createDirectoryIfMissing)
-import Control.Monad.Trans.State.Strict (State, get, put)
-import Control.Monad (forM)
+import Control.Monad.Trans.State.Strict (State, execState, get, put)
+import Control.Monad (forM, forM_)
+import Data.Maybe (fromMaybe, maybeToList)
 import Data.List (find)
-import Data.Maybe (fromMaybe)
 import Control.Exception (Exception,throwIO)
 import Data.Typeable (Typeable)
 import Language.Haskell.Names (Environment, Symbol(..))
@@ -126,20 +128,44 @@ data PersistedUpdate = PersistedUpdate
   , updateContent :: Update
   }
 
+
 applyUpdate :: PersistedUpdate -> IO ()
-applyUpdate update = do
-  putStrLn ("Applying update: " <> (Text.unpack $ updateDescription update))
+applyUpdate persistedUpdate = do
+  putStrLn ("Applying update: " <> (Text.unpack $ updateDescription persistedUpdate))
+  let PersistedUpdate _ _ update = persistedUpdate
   env <- loadEnvironment environmentPath
-  let env' = applyUpdatePure (updateContent update) env
+  let sliceIDs = do
+        symbols <- Map.elems env
+        symbol <- symbols
+        let ModuleName () moduleName = symbolModule symbol
+        maybeToList (moduleNameSliceID moduleName)
+  slices <- loadSlicesTransitive slicesPath sliceIDs
+  let slicesMap = sliceMap slices
+  let sliceIDLocalSliceMap = flip execState Map.empty (do
+        forM_ sliceIDs (\sliceID -> apply slicesMap update sliceID))
+  let localSlices = Map.elems sliceIDLocalSliceMap
+  let (localSliceIDMap, newSlices) = hashLocalSlices localSlices
+  let derivedUpdate = do
+        (sliceID, LocalSlice localSliceID _ _ _ _) <- Map.toList sliceIDLocalSliceMap
+        let newSliceID = fromMaybe (error "no") (Map.lookup localSliceID localSliceIDMap)
+        return (sliceID, newSliceID)
+  let env' = updateEnvironment (update ++ derivedUpdate) env
+  forM_ newSlices (\slice -> writeSlice slicesPath slice)
   persistEnvironment environmentPath env'
 
+-- | Build up a map from slice ID to corresponding slice for better lookup.
+sliceMap :: [Slice] -> Map SliceID Slice
+sliceMap slices = Map.fromList (do
+    slice@(Slice sliceID _ _ _ _) <- slices
+    return (sliceID, slice))
+
 -- | Apply all the replacements contained in the update to the environment.
-applyUpdatePure :: Update -> Environment -> Environment
-applyUpdatePure upd env = (fmap . fmap) updateSymbol env
+updateEnvironment :: Update -> Environment -> Environment
+updateEnvironment update environment = (fmap . fmap) updateSymbol environment
   where
     updateSymbol :: Symbol -> Symbol
     updateSymbol s = let sliceID = case (symbolModule s) of (ModuleName _ n) -> Text.pack (tail n) in
-          case lookup sliceID upd of
+          case lookup sliceID update of
             Nothing -> s
             Just sliceID' -> s { symbolModule = ModuleName () ('F' : Text.unpack sliceID') }
 

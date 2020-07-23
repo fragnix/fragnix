@@ -10,7 +10,9 @@ import Fragnix.Slice (
     UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
     InstanceID,Instance(Instance),
     InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass),
-    sliceModuleName,moduleNameSliceID,readSlice)
+    usedSliceIDs,
+    sliceModuleName,moduleNameSliceID,readSlice,
+    loadSlicesTransitive)
 import Fragnix.Paths (
     slicesPath,cbitsPath,includePath,compilationunitsPath,buildPath)
 
@@ -42,8 +44,6 @@ import System.Process (rawSystem)
 import System.Exit (ExitCode)
 import Control.Exception (SomeException,catch,evaluate)
 
-import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put)
-import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
 import qualified Data.Map.Strict as Map (
     fromList,toList,(!),keys,map,mapWithKey)
@@ -98,7 +98,7 @@ getCFiles = do
 writeSlicesModules :: [SliceID] -> IO ()
 writeSlicesModules sliceIDs = do
     createDirectoryIfMissing True compilationunitsPath
-    slices <- loadSlicesTransitive sliceIDs
+    slices <- loadSlicesTransitive slicesPath sliceIDs
     let sliceModules = map (sliceModule sliceInstancesMap) slices
         sliceHSBoots = map bootModule sliceModules
         sliceInstancesMap = sliceInstances slices
@@ -381,44 +381,6 @@ writeFileStrict filePath content = (do
     writeFile filePath evaluatedContent)
         `catch` (print :: SomeException -> IO ())
 
-
--- | Given slice IDs load all slices and all instance slices nedded
--- for compilation.
-loadSlicesTransitive :: [SliceID] -> IO [Slice]
-loadSlicesTransitive sliceIDs = do
-    sliceIDs <- loadSliceIDsTransitive sliceIDs
-    forM sliceIDs (readSlice slicesPath)
-
-
--- | Given slice IDs find all IDs of all the slices needed
--- for compilation.
-loadSliceIDsTransitive :: [SliceID] -> IO [SliceID]
-loadSliceIDsTransitive sliceIDs = execStateT (forM sliceIDs loadSliceIDsStateful) []
-
-
--- | Given a slice ID load all IDs of all the slices needed for
--- compilation. Keep track of visited slice IDs to avoid loops.
-loadSliceIDsStateful :: SliceID -> StateT [SliceID] IO ()
-loadSliceIDsStateful sliceID = do
-    seenSliceIDs <- get
-    unless (elem sliceID seenSliceIDs) (do
-        put (sliceID : seenSliceIDs)
-        slice <- liftIO (readSlice slicesPath sliceID)
-        let recursiveSliceIDs = usedSliceIDs slice
-            recursiveInstanceSliceIDs = sliceInstanceIDs slice
-        forM_ recursiveSliceIDs loadSliceIDsStateful
-        forM_ recursiveInstanceSliceIDs loadSliceIDsStateful)
-
-
-usedSliceIDs :: Slice -> [SliceID]
-usedSliceIDs (Slice _ _ _ uses _) = do
-    Use _ _ (OtherSlice sliceID) <- uses
-    return sliceID
-
-sliceInstanceIDs :: Slice -> [InstanceID]
-sliceInstanceIDs (Slice _ _ _ _ instances) = do
-    Instance _ instanceID <- instances
-    return instanceID
 
 doesSliceModuleExist :: SliceID -> IO Bool
 doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)
