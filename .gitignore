@@ -1,4 +1,5 @@
 .cabal-sandbox/*
+env/
 dist/*
 dist-newstyle/
 .stack-work/

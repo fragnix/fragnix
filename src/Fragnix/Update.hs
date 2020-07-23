@@ -7,9 +7,9 @@ import Prelude hiding (writeFile,readFile)
 
 import Fragnix.Slice (Slice, SliceID)
 import Fragnix.LocalSlice (LocalSlice, LocalSliceID)
-import Fragnix.Paths (updatePath)
+import Fragnix.Paths (updatePath, environmentPath)
 import Fragnix.Utils (listFilesRecursive)
-
+import Fragnix.Environment (loadEnvironment, persistEnvironment)
 
 import Data.Aeson (ToJSON, FromJSON, eitherDecode)
 import Data.Aeson.Encode.Pretty (encodePretty)
@@ -25,6 +25,8 @@ import System.Directory (createDirectoryIfMissing)
 import Control.Monad (forM)
 import Control.Exception (Exception,throwIO)
 import Data.Typeable (Typeable)
+import Language.Haskell.Names (Environment(..), Symbol(..))
+import Language.Haskell.Exts.Syntax (ModuleName(..))
 
 
 type Update = [(SliceID, SliceID)]
@@ -67,6 +69,24 @@ data PersistedUpdate = PersistedUpdate
   , updateContent :: Update
   }
 
+applyUpdate :: UpdateID -> IO ()
+applyUpdate upid = do
+  update <- readUpdate upid
+  env <- loadEnvironment environmentPath
+  let env' = applyUpdatePure (updateContent update) env
+  persistEnvironment environmentPath env'
+
+-- | Apply all the replacements contained in the update to the environment.
+applyUpdatePure :: Update -> Environment -> Environment
+applyUpdatePure upd env = (fmap . fmap) updateSymbol env
+  where
+    updateSymbol :: Symbol -> Symbol
+    updateSymbol s = let sliceID = case (symbolModule s) of (ModuleName _ n) -> Text.pack (tail n) in
+          case lookup sliceID upd of
+            Nothing -> s
+            Just sliceID' -> s { symbolModule = ModuleName () ('F' : Text.unpack sliceID') }
+
+
 -- Instances for PersistedUpdate
 
 deriving instance Show PersistedUpdate
@@ -103,7 +123,7 @@ createUpdate desc upd = PersistedUpdate upid desc upd
   where
     upid = (Text.pack . show . abs . hash) (desc, upd)
 
--- | Return all updates available in the fragnix folder. (Dummy implementation)
+-- | Return all updates available in the fragnix folder.
 getUpdates :: IO [PersistedUpdate]
 getUpdates = do
   files <- listFilesRecursive updatePath
