@@ -1,5 +1,6 @@
 module Main where
 
+import Update (update)
 import Build (build,ShouldPreprocess(DoPreprocess,NoPreprocess))
 import CreateEnv (createEnv)
 import Paths_fragnix
@@ -15,6 +16,7 @@ import Options.Applicative (
 data Command
   = Build ShouldPreprocess [FilePath]
   | CreateEnv
+  | Update
 
 commandParserInfo :: ParserInfo Command
 commandParserInfo =
@@ -23,7 +25,8 @@ commandParserInfo =
 commandParser :: Parser Command
 commandParser = subparser (mconcat [
     command "build" (info (buildParser <**> helper) (progDesc "Build all Haskell files in the given files and directories and their subdirectories.")),
-    command "create-env" (info (createEnvParser <**> helper) (progDesc "Create the builtin environment."))])
+    command "create-env" (info (createEnvParser <**> helper) (progDesc "Create the builtin environment.")),
+    command "update" (info (updateParser <**> helper) (progDesc "List all available updates."))])
 
 versionOption :: Parser (a -> a)
 versionOption = infoOption versionText (long "version" <> help "Show version")
@@ -39,10 +42,14 @@ createEnvParser :: Parser Command
 createEnvParser = pure CreateEnv
 
 
+updateParser :: Parser Command
+updateParser = pure Update
+
 main :: IO ()
 main = do
    command <- execParser commandParserInfo
    case command of
      Build shouldPreprocess paths -> build shouldPreprocess paths
      CreateEnv -> createEnv
+     Update -> update
 

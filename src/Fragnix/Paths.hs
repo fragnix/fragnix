@@ -30,5 +30,10 @@ compilationunitsPath = fragnixBasePath </> "temp" </> "compilationunits"
 buildPath :: FilePath
 buildPath = fragnixBasePath </> "temp" </> "build"
 
+-- | Directory for updates
+updatePath :: FilePath
+updatePath = fragnixBasePath </> "updates"
+
 declarationsPath :: FilePath
 declarationsPath = fragnixBasePath </> "temp" </> "declarations/declarations.json"
+
