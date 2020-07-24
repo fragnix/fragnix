@@ -45,7 +45,10 @@ library
                        Fragnix.SliceCompiler,
                        Fragnix.SliceInstanceResolution,
                        Fragnix.Environment,
-                       Fragnix.SliceSymbols
+                       Fragnix.SliceSymbols,
+                       Fragnix.Paths,
+                       Fragnix.Utils,
+                       Fragnix.Update
   hs-source-dirs:      src
   ghc-options:         -O2 -Wall
 
@@ -54,6 +57,8 @@ executable fragnix
   import:              shared-build-depends
   main-is:             Main.hs
   other-modules:       Build,
+                       CreateEnv,
+                       Update,
                        Paths_fragnix
   build-depends:       clock >=0.8 && <0.9,
                        optparse-applicative >=0.15 && <0.16,
@@ -75,15 +80,6 @@ executable fragnix
 --                        fragnix
 --   hs-source-dirs:      gui-src
 --   ghc-options:         -O2 -threaded -rtsopts
-
-
-executable create_builtin_environment
-  import:              shared-build-depends
-  main-is:             create_builtin_environment.hs
-  build-depends:       fragnix
-  hs-source-dirs:      utilities-src
-  ghc-options:         -O2 -threaded -rtsopts -Wall
-
 
 test-suite test
   import:              shared-build-depends

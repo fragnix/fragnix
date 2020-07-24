@@ -1,1 +1,0 @@
-[{"name":"QSemN","module":"Control.Concurrent.QSemN","entity":"data"},{"name":"newQSemN","module":"Control.Concurrent.QSemN","entity":"value"},{"name":"waitQSemN","module":"Control.Concurrent.QSemN","entity":"value"},{"name":"signalQSemN","module":"Control.Concurrent.QSemN","entity":"value"}]

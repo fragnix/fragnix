@@ -5,8 +5,7 @@ import Fragnix.Declaration (
 import Fragnix.Slice (
     writeSlice)
 import Fragnix.Environment (
-    loadEnvironment,persistEnvironment,
-    environmentPath,builtinEnvironmentPath)
+    loadEnvironment,persistEnvironment)
 import Fragnix.SliceSymbols (
     updateEnvironment,findMainSliceIDs)
 import Fragnix.ModuleDeclarations (
@@ -19,23 +18,36 @@ import Fragnix.HashLocalSlices (
 import Fragnix.SliceSymbols (
     lookupLocalIDs)
 import Fragnix.SliceCompiler (
-    writeSliceModules, invokeGHCMain)
+    writeSlicesModules, invokeGHCMain, invokeGHC)
+import Fragnix.Utils (
+    listFilesRecursive)
+import Fragnix.Paths (
+    slicesPath,builtinEnvironmentPath,environmentPath,declarationsPath,preprocessedPath)
 
 -- import Language.Haskell.Names (ppError)
 
 import System.Clock (
     getTime, Clock(Monotonic), toNanoSecs, diffTimeSpec)
-import qualified Data.Map as Map (union)
+import qualified Data.Map as Map (union,elems)
 
 import Data.Foldable (for_)
 import Control.Monad (forM)
+import Data.List (intersperse,nub)
+import System.Directory (removeDirectoryRecursive, createDirectoryIfMissing)
+import System.FilePath ((</>), takeExtension, splitDirectories, joinPath)
+import System.Process (rawSystem)
 import Text.Printf (printf)
 
 
 -- | Take a list of module paths on the command line and compile the 'main' symbol
 -- to an executable.
-build :: [FilePath] -> IO ()
-build modulePaths = do
+build :: ShouldPreprocess -> [FilePath] -> IO ()
+build shouldPreprocess directories = do
+    putStrLn "Finding targets ..."
+
+    filePaths <- timeIt (do
+        concat <$> forM directories listFilesRecursive)
+
     putStrLn "Loading environment ..."
 
     environment <- timeIt (do
@@ -43,14 +55,37 @@ build modulePaths = do
         userEnvironment <- loadEnvironment environmentPath
         return (Map.union builtinEnvironment userEnvironment))
 
+    modulePaths <- case shouldPreprocess of
+
+      DoPreprocess -> do
+        putStrLn "Preprocessing ..."
+        timeIt (do
+          createDirectoryIfMissing True preprocessedPath
+          removeDirectoryRecursive preprocessedPath
+          createDirectoryIfMissing True preprocessedPath
+          let modulePaths = filter isHaskellFile filePaths
+          forM modulePaths (\path -> do
+            rawSystem "ghc-8.0.2" [
+              "-E",
+              "-optP","-P",
+              "-optL","-P",
+              "-Iinclude",
+              "-o", modulePreprocessedPath path,
+              path]
+            return (modulePreprocessedPath path)))
+
+      NoPreprocess -> do
+        return (filter isHaskellFile filePaths)
+
     putStrLn "Parsing modules ..."
 
-    modules <- timeIt (forM modulePaths parse)
+    modules <- timeIt (do
+        forM modulePaths parse)
 
     putStrLn "Extracting declarations ..."
 
     let declarations = moduleDeclarationsWithEnvironment environment modules
-    timeIt (writeDeclarations "fragnix/temp/declarations/declarations.json" declarations)
+    timeIt (writeDeclarations declarationsPath declarations)
 
 --    let nameErrors = moduleNameErrors environment modules
 --    forM_ nameErrors (\nameError -> putStrLn ("Warning: " ++ ppError nameError))
@@ -59,38 +94,47 @@ build modulePaths = do
 
     let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
     let (localSliceIDMap, slices) = hashLocalSlices localSlices
-    let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
-    timeIt (for_ slices writeSlice)
+    timeIt (for_ slices (\slice -> writeSlice slicesPath slice))
 
     putStrLn "Updating environment ..."
 
+    let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
     let updatedEnvironment = updateEnvironment symbolSliceIDs (moduleSymbols environment modules)
     timeIt (persistEnvironment environmentPath updatedEnvironment)
 
     case findMainSliceIDs symbolSliceIDs of
-        [] -> putStrLn "No main symbol in modules."
+        [] -> do
+            putStrLn "No main symbol in modules."
+            putStrLn "Compiling all slices."
+            let sliceIDs = Map.elems symbolSliceIDs
+            putStrLn "Generating compilation units..."
+            timeIt (writeSlicesModules sliceIDs)
+            putStrLn "Invoking GHC"
+            _ <- timeIt (invokeGHC (nub sliceIDs))
+            return ()
         [mainSliceID] -> do
             putStrLn ("Compiling " ++ show mainSliceID)
-            putStrLn ("Generating compilation units...")
-            timeIt (writeSliceModules mainSliceID)
-            putStrLn ("Invoking GHC")
+            putStrLn "Generating compilation units..."
+            timeIt (writeSlicesModules [mainSliceID])
+            putStrLn "Invoking GHC"
             _ <- timeIt (invokeGHCMain mainSliceID)
             return ()
         _ -> putStrLn "Multiple main symbols in modules."
 
     return ()
 
-{- Zum Kompilieren:
-putStrLn ("Compiling " ++ show mainSliceID)
-putStrLn ("Generating compilation units...")
-timeIt (writeSliceModules mainSliceID)
-putStrLn ("Invoking GHC")
-_ <- timeIt (invokeGHCMain mainSliceID)
-return ()
--}
+data ShouldPreprocess
+  = DoPreprocess
+  | NoPreprocess
 
-{- Zum Slicen: Alles bis aufs Kompilieren -}
+-- | Replace slashes by dots.
+modulePreprocessedPath :: FilePath -> FilePath
+modulePreprocessedPath path = joinPath [
+  preprocessedPath,
+  concat (intersperse "." (splitDirectories path))]
 
+isHaskellFile :: FilePath -> Bool
+isHaskellFile path = takeExtension path == ".hs"
 
 -- | Execute the given action and print the time it took.
 timeIt :: IO a -> IO a

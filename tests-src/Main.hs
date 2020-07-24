@@ -6,12 +6,12 @@ import Fragnix.ModuleDeclarations (
 import Fragnix.Declaration (writeDeclarations)
 import Fragnix.DeclarationLocalSlices (declarationLocalSlices)
 import Fragnix.HashLocalSlices (hashLocalSlices,replaceSliceID)
-import Fragnix.Slice (Slice(Slice),writeSliceDefault)
+import Fragnix.Slice (Slice(Slice),writeSlice)
 import Fragnix.LocalSlice (LocalSliceID(LocalSliceID))
-import Fragnix.Environment (
-    loadEnvironment,builtinEnvironmentPath)
+import Fragnix.Environment (loadEnvironment)
 import Fragnix.SliceSymbols (updateEnvironment,lookupLocalIDs)
-import Fragnix.SliceCompiler (writeSliceModules,invokeGHC,sliceModuleDirectory)
+import Fragnix.SliceCompiler (writeSlicesModules,invokeGHC)
+import Fragnix.Paths (slicesPath,builtinEnvironmentPath,compilationunitsPath,declarationsPath)
 
 import Test.Tasty (testGroup,TestTree)
 import Test.Tasty.Golden (goldenVsFileDiff)
@@ -66,25 +66,25 @@ testModules folder = do
     modules <- forM modulepaths parse
 
     let declarations = moduleDeclarationsWithEnvironment builtinEnvironment modules
-    writeDeclarations "fragnix/temp/declarations/declarations.json" declarations
+    writeDeclarations declarationsPath declarations
 
     let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
     let (localSliceIDMap, slices) = hashLocalSlices localSlices
     let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
-    forM_ slices writeSliceDefault
+    forM_ slices (\slice -> writeSlice slicesPath slice)
 
     let environment = updateEnvironment symbolSliceIDs (moduleSymbols builtinEnvironment modules)
         moduleSymbolResults = do
             (moduleName,symbols) <- Map.toList environment
             return (prettyPrint moduleName ++ " " ++ unwords (map (prettyPrint . symbolName) symbols))
 
-    sliceModuleDirectoryExists <- doesDirectoryExist sliceModuleDirectory
-    when sliceModuleDirectoryExists (removeDirectoryRecursive sliceModuleDirectory)
+    sliceModuleDirectoryExists <- doesDirectoryExist compilationunitsPath
+    when sliceModuleDirectoryExists (removeDirectoryRecursive compilationunitsPath)
 
     let sliceIDs = [sliceID | Slice sliceID _ _ _ _ <- toList slices]
+    writeSlicesModules sliceIDs
     exitCodes <- forM sliceIDs (\sliceID -> do
-        writeSliceModules sliceID
-        invokeGHC sliceID)
+        invokeGHC [sliceID])
     let successes = length [() | ExitSuccess   <- exitCodes]
         failures  = length [() | ExitFailure _ <- exitCodes]
 

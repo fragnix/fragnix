@@ -1,5 +1,6 @@
 module Fragnix.SliceCompiler
-  ( writeSliceModules
+  ( writeSlicesModules
+  , invokeGHC
   , invokeGHCMain
   ) where
 
@@ -8,7 +9,13 @@ import Fragnix.Slice (
     Reference(OtherSlice,Builtin),
     UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
     InstanceID,Instance(Instance),
-    readSlice)
+    InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass),
+    usedSliceIDs,
+    sliceModuleName,moduleNameSliceID,readSlice,
+    loadSlicesTransitive)
+import Fragnix.Paths (
+    slicesPath,cbitsPath,includePath,compilationunitsPath,buildPath)
+
 import Fragnix.SliceInstanceResolution ( resolveSlices)
 
 import Prelude hiding (writeFile)
@@ -34,48 +41,68 @@ import Data.Text.IO (writeFile)
 import Data.Text (Text,pack,unpack)
 
 import System.FilePath ((</>),(<.>))
-import System.Directory (createDirectoryIfMissing,doesFileExist)
+import System.Directory (createDirectoryIfMissing,doesFileExist,listDirectory)
 import System.Process (rawSystem)
 import System.Exit (ExitCode)
 import Control.Exception (SomeException,catch,evaluate)
 
-import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put)
-import Control.Monad.IO.Class (liftIO)
-import Control.Monad (forM,forM_,unless)
+import Data.Map (Map)
+import qualified Data.Map.Strict as Map (
+    fromList,toList,(!),keys,map,mapWithKey)
+import Data.Set (Set)
+import qualified Data.Set as Set (
+    fromList,toList,map,filter,delete,
+    empty,singleton,union,intersection,unions,difference)
+import Control.Monad (forM,forM_,unless,filterM)
 import Data.Maybe (mapMaybe, isJust)
-import Data.Char (isDigit)
+import Data.List (isSuffixOf)
 
 
--- | Compile the slice with the given slice ID. Set verbosity to zero and
--- turn all warnings off.
+-- | Compile all slices with the given slice IDs. Turn all warnings off.
 -- Assumes that all necessary compilation units have been written to disk.
-invokeGHC :: SliceID -> IO ExitCode
-invokeGHC sliceID = rawSystem "ghc" [
-    "-v0","-w",
-    "-ifragnix/temp/compilationunits",
-    sliceModulePath sliceID]
+invokeGHC :: [SliceID] -> IO ExitCode
+invokeGHC sliceIDs = rawSystem "ghc-8.0.2" ([
+    "-w",
+    "-i" ++ compilationunitsPath,
+    "-outputdir",buildPath] ++
+    map sliceModulePath sliceIDs)
 
 -- | Invoke GHC to compile the slice with the given ID. The slice with the
 -- given ID has to contain a definition for 'main :: IO ()'.
 -- Asssumes that all necessary compilation units have been generated.
 invokeGHCMain :: SliceID -> IO ExitCode
-invokeGHCMain sliceID = rawSystem "ghc" ([
+invokeGHCMain sliceID = do
+  cfiles <- getCFiles
+  rawSystem "ghc-8.0.2" ([
     "-o","main",
-    "-ifragnix/temp/compilationunits",
+    "-i" ++ compilationunitsPath,
     "-main-is",sliceModuleName sliceID,
-    "-Ifragnix/include"] ++
-    (map (\filename -> "fragnix/cbits/" ++ filename) cFiles) ++ [
+    "-I" ++ includePath] ++
+    cfiles ++ [
     "-lpthread","-lz","-lutil",
+    "-outputdir",buildPath,
     sliceModulePath sliceID])
 
 
--- | Generate and write all modules necessary to compile the slice with the given ID.
-writeSliceModules :: SliceID -> IO ()
-writeSliceModules sliceID = do
-    createDirectoryIfMissing True sliceModuleDirectory
-    slices <- loadSlicesTransitive sliceID
+-- | Return a list of all files of a given directory
+getDirFiles :: FilePath -> IO [FilePath]
+getDirFiles fp = do
+  filesAndDirs <- map (fp </>) <$> listDirectory fp
+  filterM doesFileExist filesAndDirs
+
+-- | Return a list of all the files ending in "*.c" in .fragnix/cbits/
+getCFiles :: IO [FilePath]
+getCFiles = do
+  files <- getDirFiles cbitsPath
+  return (filter (isSuffixOf ".c") files)
+
+
+writeSlicesModules :: [SliceID] -> IO ()
+writeSlicesModules sliceIDs = do
+    createDirectoryIfMissing True compilationunitsPath
+    slices <- loadSlicesTransitive slicesPath sliceIDs
     let slicesI = resolveSlices slices
-        sliceModules = map sliceModule slicesI
+    let sliceModules = map sliceModule slicesI
         sliceHSBoots = map bootModule sliceModules
     forM_ sliceModules writeModule
     forM_ sliceHSBoots writeHSBoot
@@ -204,44 +231,31 @@ bootDecl decl =
 
 
 
--- | Directory for generated modules
-sliceModuleDirectory :: FilePath
-sliceModuleDirectory = "fragnix" </> "temp" </> "compilationunits"
-
 -- | The path where we put a generated module for GHC to find it.
 modulePath :: Module a -> FilePath
 modulePath (Module _ (Just (ModuleHead _ (ModuleName _ moduleName) _ _)) _ _ _) =
-    sliceModuleDirectory </> moduleName <.> "hs"
+    compilationunitsPath </> moduleName <.> "hs"
 modulePath (Module _ Nothing _ _ _) =
-    sliceModuleDirectory </> "Main" <.> "hs"
+    compilationunitsPath </> "Main" <.> "hs"
 modulePath _ =
     error "XML module not supported."
 
 -- | The path where we put a generated boot module for GHC to find it.
 moduleHSBootPath :: Module a -> FilePath
 moduleHSBootPath (Module _ (Just (ModuleHead _ (ModuleName _ moduleName) _ _)) _ _ _) =
-    sliceModuleDirectory </> moduleName <.> "hs-boot"
+    compilationunitsPath </> moduleName <.> "hs-boot"
 moduleHSBootPath (Module _ Nothing _ _ _) =
-    sliceModuleDirectory </> "Main" <.> "hs-boot"
+    compilationunitsPath </> "Main" <.> "hs-boot"
 moduleHSBootPath _ =
     error "XML module not supported."
 
 -- | The path for the module generated for the slice with the given ID
 sliceModulePath :: SliceID -> FilePath
-sliceModulePath sliceID = sliceModuleDirectory </> sliceModuleName sliceID <.> "hs"
-
--- | The name we give to the module generated for a slice with the given ID.
-sliceModuleName :: SliceID -> String
-sliceModuleName sliceID = "F" ++ unpack sliceID
-
--- | The module name of the module that reexports all instances.
-allInstancesModuleName :: ModuleName ()
-allInstancesModuleName = ModuleName () "ALLINSTANCES"
+sliceModulePath sliceID = compilationunitsPath </> sliceModuleName sliceID <.> "hs"
 
 -- | Is the module name from a fragnix generated module
 isSliceModule :: ModuleName a -> Bool
-isSliceModule (ModuleName _ ('F':rest)) = all isDigit rest
-isSliceModule _ = False
+isSliceModule (ModuleName _ moduleName) = isJust (moduleNameSliceID moduleName)
 
 
 writeModule :: Module a -> IO ()
@@ -269,65 +283,7 @@ writeFileStrict filePath content = (do
         `catch` (print :: SomeException -> IO ())
 
 
--- | Given a slice ID load all slices and all instance slices nedded
--- for compilation.
-loadSlicesTransitive :: SliceID -> IO [Slice]
-loadSlicesTransitive sliceID = do
-    sliceIDs <- loadSliceIDsTransitive sliceID
-    forM sliceIDs readSlice
-
-
--- | Given a slice ID find all IDs of all the slices needed
--- for compilation.
-loadSliceIDsTransitive :: SliceID -> IO [SliceID]
-loadSliceIDsTransitive sliceID = execStateT (loadSliceIDsStateful sliceID) []
-
-
--- | Given a slice ID load all IDs of all the slices needed for
--- compilation. Keep track of visited slice IDs to avoid loops.
-loadSliceIDsStateful :: SliceID -> StateT [SliceID] IO ()
-loadSliceIDsStateful sliceID = do
-    seenSliceIDs <- get
-    unless (elem sliceID seenSliceIDs) (do
-        put (sliceID : seenSliceIDs)
-        slice <- liftIO (readSlice sliceID)
-        let recursiveSliceIDs = usedSliceIDs slice
-            recursiveInstanceSliceIDs = sliceInstanceIDs slice
-        forM_ recursiveSliceIDs loadSliceIDsStateful
-        forM_ recursiveInstanceSliceIDs loadSliceIDsStateful)
-
-
-usedSliceIDs :: Slice -> [SliceID]
-usedSliceIDs (Slice _ _ _ uses _) = do
-    Use _ _ (OtherSlice sliceID) <- uses
-    return sliceID
-
-sliceInstanceIDs :: Slice -> [InstanceID]
-sliceInstanceIDs (Slice _ _ _ _ instances) = do
-    Instance _ instanceID <- instances
-    return instanceID
-
 doesSliceModuleExist :: SliceID -> IO Bool
 doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)
 
 
--- | List of gathered C-files.
-cFiles :: [FilePath]
-cFiles = [
-    "ancilData.c",
-    "conv.c",
-    "fnv.c",
-    "HsNet.c",
-    "HsUnix.c",
-    "itoa.c",
-    "primitive-memops.c",
-    "text-helper.c",
-    "zlib-helper.c",
-    "cbits.c",
-    "execvpe.c",
-    "fpstring.c",
-    "HsTime.c",
-    "HsUnixCompat.c",
-    "myfree.c",
-    "runProcess.c",
-    "timeUtils.c"]

@@ -1,1 +1,0 @@
-[{"name":"Signal","module":"GHC.Conc.Signal","entity":"type"},{"name":"HandlerFun","module":"GHC.Conc.Signal","entity":"type"},{"name":"setHandler","module":"GHC.Conc.Signal","entity":"value"},{"name":"runHandlers","module":"GHC.Conc.Signal","entity":"value"},{"name":"runHandlersPtr","module":"GHC.Conc.Signal","entity":"value"}]

@@ -1,1 +1,0 @@
-[{"name":"Functor","module":"GHC.Base","entity":"class"},{"name":"fmap","module":"GHC.Base","entity":"method","class":"Functor"},{"name":"<$","module":"GHC.Base","entity":"method","class":"Functor"},{"name":"$>","module":"Data.Functor","entity":"value"},{"name":"<$>","module":"Data.Functor","entity":"value"},{"name":"void","module":"Data.Functor","entity":"value"}]

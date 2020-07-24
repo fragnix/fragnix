@@ -4,8 +4,9 @@ import Fragnix.LocalSlice (
     LocalSlice(LocalSlice),LocalSliceID(LocalSliceID),LocalUse(LocalUse),
     LocalReference(OtherSlice,Builtin,OtherLocalSlice))
 import Fragnix.Slice (
-    SliceID,Language(Language),Fragment(Fragment),
-    UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator))
+    Language(Language),Fragment(Fragment),
+    UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
+    sliceModuleName)
 
 import Prelude hiding (writeFile)
 
@@ -72,11 +73,6 @@ useImport (LocalUse maybeQualification usedName symbolSource) =
         toName (Operator name) = Symbol () (unpack name)
 
     in ImportDecl () moduleName qualified False False Nothing maybeAlias importSpecList
-
-
--- | The name we give to the module generated for a slice with the given ID.
-sliceModuleName :: SliceID -> String
-sliceModuleName sliceID = "F" ++ unpack sliceID
 
 localSliceModuleName :: LocalSliceID -> String
 localSliceModuleName (LocalSliceID localSliceID) = unpack localSliceID

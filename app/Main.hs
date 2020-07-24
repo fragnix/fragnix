@@ -1,6 +1,8 @@
 module Main where
 
-import Build (build)
+import Update (update, UpdateCommand, updateParser)
+import Build (build,ShouldPreprocess(DoPreprocess,NoPreprocess))
+import CreateEnv (createEnv)
 import Paths_fragnix
 import Data.Version (showVersion)
 
@@ -8,10 +10,13 @@ import Options.Applicative (
   ParserInfo, Parser, execParser,
   subparser, command, info, infoOption, long, help,
   progDesc, header, metavar, helper, (<**>),
-  many, argument, str, auto, fullDesc)
+  many, strArgument, flag, auto, fullDesc)
 
 
-data Command = Build [FilePath]
+data Command
+  = Build ShouldPreprocess [FilePath]
+  | CreateEnv
+  | Update UpdateCommand
 
 commandParserInfo :: ParserInfo Command
 commandParserInfo =
@@ -19,9 +24,9 @@ commandParserInfo =
 
 commandParser :: Parser Command
 commandParser = subparser (mconcat [
-  command "build" (info (buildParser <**> helper) (
-    progDesc "Build the given list of modules."))
-  ])
+    command "build" (info (buildParser <**> helper) (progDesc "Build all Haskell files in the given files and directories and their subdirectories.")),
+    command "create-env" (info (createEnvParser <**> helper) (progDesc "Create the builtin environment.")),
+    command "update" (info ((Update <$> updateParser) <**> helper) (progDesc "List all available updates."))])
 
 versionOption :: Parser (a -> a)
 versionOption = infoOption versionText (long "version" <> help "Show version")
@@ -29,11 +34,19 @@ versionOption = infoOption versionText (long "version" <> help "Show version")
     versionText = "Version " <> showVersion version
 
 buildParser :: Parser Command
-buildParser = Build <$> many (argument str (metavar "TARGET"))
+buildParser = Build <$>
+  flag NoPreprocess DoPreprocess (long "preprocess" <> help "Run preprocessor on source files") <*>
+  many (strArgument (metavar "TARGET"))
+
+createEnvParser :: Parser Command
+createEnvParser = pure CreateEnv
 
 
 main :: IO ()
 main = do
    command <- execParser commandParserInfo
    case command of
-     Build modulePaths -> build modulePaths
+     Build shouldPreprocess paths -> build shouldPreprocess paths
+     CreateEnv -> createEnv
+     Update cmd -> update cmd
+

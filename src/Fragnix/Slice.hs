@@ -14,8 +14,13 @@ module Fragnix.Slice
   , Instance(..)
   , InstancePart(..)
   , InstanceID
+  , sliceModuleName
+  , moduleNameSliceID
+  , usedSliceIDs
   , readSlice
   , writeSlice
+  , loadSlicesTransitive
+  , loadSliceIDsTransitive
   , getSlices
   ) where
 
@@ -30,18 +35,24 @@ import Data.Aeson.Encode.Pretty (encodePretty)
 import GHC.Generics (Generic)
 import Data.Hashable (Hashable)
 
-import Data.Text (Text, unpack)
-import qualified Data.Text as Text
+import Data.Text (Text)
+import qualified Data.Text as Text (unpack,pack,length,index)
 
-import Control.Applicative ((<$>),(<*>),(<|>),empty)
+import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put)
+import Control.Monad.IO.Class (liftIO)
 
-import Control.Monad (forM, filterM)
+import Control.Applicative ((<|>),empty)
+
+import Control.Monad (forM, forM_, unless)
 import Control.Exception (Exception,throwIO)
 import Data.Typeable(Typeable)
 
 import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>),dropFileName)
-import System.Directory (createDirectoryIfMissing, doesFileExist, doesDirectoryExist, listDirectory)
+import System.Directory (createDirectoryIfMissing)
+import Data.Char (isDigit)
+import Fragnix.Utils (listFilesRecursive)
+
 
 data Slice = Slice SliceID Language Fragment [Use] [Instance]
 
@@ -274,56 +285,78 @@ instance Exception SliceParseError
 
 -- Reading and writing slices to disk
 
-sliceDirectory :: FilePath
-sliceDirectory = "fragnix" </> "slices"
+-- | The name we give to the module generated for a slice with the given ID.
+sliceModuleName :: SliceID -> String
+sliceModuleName sliceID = "F" ++ Text.unpack sliceID
 
-writeSlice :: Slice -> IO ()
-writeSlice slice@(Slice sliceID _ _ _ _) = writeSlice' (sliceDefaultPath sliceID) slice
-  where
-    writeSlice' slicePath slice = do
-      createDirectoryIfMissing True (dropFileName slicePath)
-      writeFile slicePath (encodePretty slice)
+-- | Is the module name from a fragnix generated module
+moduleNameSliceID :: String -> Maybe SliceID
+moduleNameSliceID ('F':rest)
+  | all isDigit rest = Just (Text.pack rest)
+  | otherwise = Nothing
+moduleNameSliceID _ = Nothing
 
-readSlice :: SliceID -> IO Slice
-readSlice sliceID = readSlice' (sliceDefaultPath sliceID)
-  where
-    readSlice' slicePath = do
-      sliceFile <- readFile slicePath
-      either (throwIO . SliceParseError slicePath) return (eitherDecode sliceFile)
+-- | Write the given slice to the given directory
+writeSlice :: FilePath -> Slice -> IO ()
+writeSlice slicesPath slice@(Slice sliceID _ _ _ _) = do
+  let slicePath = slicesPath </> sliceNestedPath sliceID
+  createDirectoryIfMissing True (dropFileName slicePath)
+  writeFile slicePath (encodePretty slice)
 
--- Map the SliceID "12345" to the FilePath "sliceDirectory </> 1 </> 2 </> 12345"
-sliceDefaultPath :: SliceID -> FilePath
-sliceDefaultPath sliceID | Text.length sliceID < 2 = error $ "sliceID \"" <> unpack sliceID <> "\" has less than 2 characters"
-                         | otherwise =
-                             let
-                                 a = Text.head sliceID
-                                 b = Text.head (Text.tail sliceID)
-                             in
-                               sliceDirectory </> [a] </> [b] </> (unpack sliceID)
+-- | Read the slice with the given slice ID from the given directory
+readSlice :: FilePath -> SliceID -> IO Slice
+readSlice slicesPath sliceID = do
+  let slicePath = slicesPath </> sliceNestedPath sliceID
+  sliceFile <- readFile slicePath
+  either (throwIO . SliceParseError slicePath) return (eitherDecode sliceFile)
 
--- | Return all slices in sliceDirectory
-getSlices :: IO [Slice]
-getSlices = do
-  sliceIDs <- getSliceIDs
-  forM sliceIDs readSlice
+-- | Given slice IDs load all slices and all instance slices nedded
+-- for compilation.
+loadSlicesTransitive :: FilePath -> [SliceID] -> IO [Slice]
+loadSlicesTransitive slicesPath sliceIDs = do
+    transitiveSliceIDs <- loadSliceIDsTransitive slicesPath sliceIDs
+    forM transitiveSliceIDs (readSlice slicesPath)
 
--- | Return a list of all subdirectories of a given directory.
-getSubDirs :: FilePath -> IO [FilePath]
-getSubDirs fp = do
-  filesAndDirs <- map (fp </>) <$> listDirectory fp
-  filterM doesDirectoryExist filesAndDirs
+-- | Given slice IDs find all IDs of all the slices needed
+-- for compilation.
+loadSliceIDsTransitive :: FilePath -> [SliceID] -> IO [SliceID]
+loadSliceIDsTransitive slicesPath sliceIDs = execStateT (forM sliceIDs (loadSliceIDsStateful slicesPath)) []
 
--- | Return a list of all files of a given directory
-getDirFiles :: FilePath -> IO [FilePath]
-getDirFiles fp = do
-  filesAndDirs <- map (fp </>) <$> listDirectory fp
-  filterM doesFileExist filesAndDirs
+-- | Given a slice ID load all IDs of all the slices needed for
+-- compilation. Keep track of visited slice IDs to avoid loops.
+loadSliceIDsStateful :: FilePath -> SliceID -> StateT [SliceID] IO ()
+loadSliceIDsStateful slicesPath sliceID = do
+    seenSliceIDs <- get
+    unless (elem sliceID seenSliceIDs) (do
+        put (sliceID : seenSliceIDs)
+        slice <- liftIO (readSlice slicesPath sliceID)
+        let recursiveSliceIDs = usedSliceIDs slice
+            recursiveInstanceSliceIDs = sliceInstanceIDs slice
+        forM_ recursiveSliceIDs (loadSliceIDsStateful slicesPath)
+        forM_ recursiveInstanceSliceIDs (loadSliceIDsStateful slicesPath))
 
--- | Return all sliceIDs in the sliceDirectory
-getSliceIDs :: IO [SliceID]
-getSliceIDs = do
-  fstLvlDirs <- getSubDirs sliceDirectory
-  sndLvlDirs <- concat <$> forM fstLvlDirs getSubDirs
-  files <- concat <$> forM sndLvlDirs getDirFiles
-  return $ map Text.pack files
+usedSliceIDs :: Slice -> [SliceID]
+usedSliceIDs (Slice _ _ _ uses _) = do
+    Use _ _ (OtherSlice sliceID) <- uses
+    return sliceID
+
+sliceInstanceIDs :: Slice -> [InstanceID]
+sliceInstanceIDs (Slice _ _ _ _ instances) = do
+    Instance _ instanceID <- instances
+    return instanceID
+
+
+-- | Return all slices in the given directory
+getSlices :: FilePath -> IO [Slice]
+getSlices path = do
+  slicePaths <- listFilesRecursive path
+  forM slicePaths (\slicePath -> do
+    sliceFile <- readFile slicePath
+    either (throwIO . SliceParseError slicePath) return (eitherDecode sliceFile))
+
+-- | Map the SliceID "12345" to the FilePath "1 </> 2 </> 12345"
+sliceNestedPath :: SliceID -> FilePath
+sliceNestedPath sliceID
+  | Text.length sliceID < 2 = error $ "sliceID \"" <> Text.unpack sliceID <> "\" has less than 2 characters"
+  | otherwise = [Text.index sliceID 0] </> [Text.index sliceID 1] </> (Text.unpack sliceID)
 

@@ -1,1 +1,0 @@
-[{"name":"Arr","module":"GHC.Event.Arr","entity":"data"},{"name":"Arr","module":"GHC.Event.Arr","type":"Arr","entity":"constructor"},{"name":"new","module":"GHC.Event.Arr","entity":"value"},{"name":"size","module":"GHC.Event.Arr","entity":"value"},{"name":"read","module":"GHC.Event.Arr","entity":"value"},{"name":"write","module":"GHC.Event.Arr","entity":"value"}]
