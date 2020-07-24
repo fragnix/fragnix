@@ -7,38 +7,34 @@ import Prelude hiding (writeFile,readFile)
 
 import Fragnix.Slice (
   Slice(Slice), SliceID,
-  Use(Use), Reference(OtherSlice, Builtin), Instance(Instance),
-  moduleNameSliceID, loadSlicesTransitive, writeSlice)
+  Use(Use), Reference(OtherSlice, Builtin), Instance(Instance))
 import Fragnix.LocalSlice (
   LocalSlice(LocalSlice), LocalSliceID(LocalSliceID),
   LocalUse(LocalUse), LocalInstance(LocalInstance, GlobalInstance))
 import qualified Fragnix.LocalSlice as Local (
   LocalReference(OtherSlice,Builtin,OtherLocalSlice))
-import Fragnix.HashLocalSlices (hashLocalSlices)
-import Fragnix.Environment (loadEnvironment, persistEnvironment)
-import Fragnix.Paths (updatePath, environmentPath, slicesPath)
+import Fragnix.Paths (updatePath)
 import Fragnix.Utils (listFilesRecursive)
 
 import Data.Aeson (ToJSON, FromJSON, eitherDecode)
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Map (Map)
-import qualified Data.Map as Map (lookup, insert, fromList, toList, elems, empty)
-import Data.Char (isDigit)
+import qualified Data.Map as Map (lookup, insert)
+import Data.ByteString.Lazy (writeFile,readFile)
 import Data.Text (Text)
 import qualified Data.Text as Text (unpack, pack, cons, isPrefixOf, all)
 import Data.Hashable (hash)
-import GHC.Generics (Generic)
-import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>), takeFileName)
 import System.Directory (createDirectoryIfMissing)
-import Control.Monad.Trans.State.Strict (State, execState, get, put)
-import Control.Monad (forM, forM_)
-import Data.Maybe (fromMaybe, maybeToList)
+
+import Data.Char (isDigit)
+import Control.Monad.Trans.State.Strict (State, get, put)
+import Control.Monad (forM)
+import Data.Maybe (fromMaybe)
 import Data.List (find)
 import Control.Exception (Exception,throwIO)
 import Data.Typeable (Typeable)
-import Language.Haskell.Names (Environment, Symbol(..))
-import Language.Haskell.Exts.Syntax (ModuleName(..))
+import GHC.Generics (Generic)
 
 
 type Update = [(SliceID, SliceID)]
@@ -103,18 +99,21 @@ applySliceID update sliceID = lookup sliceID update
 -- be minimal.
 diff :: Map SliceID Slice -> SliceID -> SliceID -> Update
 diff slicesMap sliceID1 sliceID2 = do
-  let slice1 = fromMaybe (error "sliceID not found") (Map.lookup sliceID1 slicesMap)
-  let Slice _ language1 fragment1 uses1 instances1 = slice1
-  let slice2 = fromMaybe (error "sliceID not found") (Map.lookup sliceID2 slicesMap)
-  let Slice _ language2 fragment2 uses2 instances2 = slice2
-  case language1 == language2 && fragment1 == fragment2 of
-    False -> [(sliceID1, sliceID2)]
-    True ->
-      case diffUses slicesMap uses1 uses2 of
-        Nothing -> [(sliceID1, sliceID2)]
-        Just usesUpdate -> case diffInstances slicesMap instances1 instances2 of
-          Nothing -> [(sliceID1, sliceID2)]
-          Just instancesUpdate -> usesUpdate ++ instancesUpdate
+  case sliceID1 == sliceID2 of
+    True -> []
+    False -> do
+      let slice1 = fromMaybe (error "sliceID not found") (Map.lookup sliceID1 slicesMap)
+      let Slice _ language1 fragment1 uses1 instances1 = slice1
+      let slice2 = fromMaybe (error "sliceID not found") (Map.lookup sliceID2 slicesMap)
+      let Slice _ language2 fragment2 uses2 instances2 = slice2
+      case language1 == language2 && fragment1 == fragment2 of
+        False -> [(sliceID1, sliceID2)]
+        True ->
+          case diffUses slicesMap uses1 uses2 of
+            Nothing -> [(sliceID1, sliceID2)]
+            Just usesUpdate -> case diffInstances slicesMap instances1 instances2 of
+              Nothing -> [(sliceID1, sliceID2)]
+              Just instancesUpdate -> usesUpdate ++ instancesUpdate
 
 diffUses :: Map SliceID Slice -> [Use] -> [Use] -> Maybe Update
 diffUses _ [] [] = return []
@@ -184,47 +183,6 @@ data PersistedUpdate = PersistedUpdate
   , updateDescription :: Text
   , updateContent :: Update
   }
-
-
-applyUpdate :: PersistedUpdate -> IO ()
-applyUpdate persistedUpdate = do
-  putStrLn ("Applying update: " <> (Text.unpack $ updateDescription persistedUpdate))
-  let PersistedUpdate _ _ update = persistedUpdate
-  env <- loadEnvironment environmentPath
-  let sliceIDs = do
-        symbols <- Map.elems env
-        symbol <- symbols
-        let ModuleName () moduleName = symbolModule symbol
-        maybeToList (moduleNameSliceID moduleName)
-  slices <- loadSlicesTransitive slicesPath sliceIDs
-  let slicesMap = sliceMap slices
-  let sliceIDLocalSliceMap = flip execState Map.empty (do
-        forM_ sliceIDs (\sliceID -> apply slicesMap update sliceID))
-  let localSlices = Map.elems sliceIDLocalSliceMap
-  let (localSliceIDMap, newSlices) = hashLocalSlices localSlices
-  let derivedUpdate = do
-        (sliceID, LocalSlice localSliceID _ _ _ _) <- Map.toList sliceIDLocalSliceMap
-        let newSliceID = fromMaybe (error "no") (Map.lookup localSliceID localSliceIDMap)
-        return (sliceID, newSliceID)
-  let env' = updateEnvironment (update ++ derivedUpdate) env
-  forM_ newSlices (\slice -> writeSlice slicesPath slice)
-  persistEnvironment environmentPath env'
-
--- | Build up a map from slice ID to corresponding slice for better lookup.
-sliceMap :: [Slice] -> Map SliceID Slice
-sliceMap slices = Map.fromList (do
-    slice@(Slice sliceID _ _ _ _) <- slices
-    return (sliceID, slice))
-
--- | Apply all the replacements contained in the update to the environment.
-updateEnvironment :: Update -> Environment -> Environment
-updateEnvironment update environment = (fmap . fmap) updateSymbol environment
-  where
-    updateSymbol :: Symbol -> Symbol
-    updateSymbol s = let sliceID = case (symbolModule s) of (ModuleName _ n) -> Text.pack (tail n) in
-          case lookup sliceID update of
-            Nothing -> s
-            Just sliceID' -> s { symbolModule = ModuleName () ('F' : Text.unpack sliceID') }
 
 
 -- Instances for PersistedUpdate
