@@ -102,7 +102,64 @@ applySliceID update sliceID = lookup sliceID update
 -- the difference between the two corresponding slices. The result should
 -- be minimal.
 diff :: Map SliceID Slice -> SliceID -> SliceID -> Update
-diff = undefined
+diff slicesMap sliceID1 sliceID2 = do
+  let slice1 = fromMaybe (error "sliceID not found") (Map.lookup sliceID1 slicesMap)
+  let Slice _ language1 fragment1 uses1 instances1 = slice1
+  let slice2 = fromMaybe (error "sliceID not found") (Map.lookup sliceID2 slicesMap)
+  let Slice _ language2 fragment2 uses2 instances2 = slice2
+  case language1 == language2 && fragment1 == fragment2 of
+    False -> [(sliceID1, sliceID2)]
+    True ->
+      case diffUses slicesMap uses1 uses2 of
+        Nothing -> [(sliceID1, sliceID2)]
+        Just usesUpdate -> case diffInstances slicesMap instances1 instances2 of
+          Nothing -> [(sliceID1, sliceID2)]
+          Just instancesUpdate -> usesUpdate ++ instancesUpdate
+
+diffUses :: Map SliceID Slice -> [Use] -> [Use] -> Maybe Update
+diffUses _ [] [] = return []
+diffUses _ (_ : _) [] = Nothing
+diffUses _ [] (_ : _) = Nothing
+diffUses slicesMap (use1 : uses1) (use2 : uses2) = do
+  useUpdate <- diffUse slicesMap use1 use2
+  usesUpdate <- diffUses slicesMap uses1 uses2
+  return (useUpdate ++ usesUpdate)
+
+diffUse :: Map SliceID Slice -> Use -> Use -> Maybe Update
+diffUse slicesMap use1 use2 = do
+  let Use qualification1 usedName1 reference1 = use1
+  let Use qualification2 usedName2 reference2 = use2
+  case qualification1 == qualification2 && usedName1 == usedName2 of
+    False -> Nothing
+    True -> diffReference slicesMap reference1 reference2
+
+diffReference :: Map SliceID Slice -> Reference -> Reference -> Maybe Update
+diffReference _ (Builtin moduleName1) (Builtin moduleName2) =
+  case moduleName1 == moduleName2 of
+    False -> Nothing
+    True -> return []
+diffReference _ (Builtin _) (OtherSlice _) = Nothing
+diffReference _ (OtherSlice _) (Builtin _) = Nothing
+diffReference slicesMap (OtherSlice sliceID1) (OtherSlice sliceID2) =
+  case sliceID1 == sliceID2 of
+    False -> return (diff slicesMap sliceID1 sliceID2)
+    True -> return []
+
+diffInstances :: Map SliceID Slice -> [Instance] -> [Instance] -> Maybe Update
+diffInstances _ [] [] = return []
+diffInstances _ (_ : _) [] = Nothing
+diffInstances _ [] (_ : _) = Nothing
+diffInstances slicesMap (instance1 : instances1) (instance2 : instances2) = do
+  instanceUpdate <- diffInstance slicesMap instance1 instance2
+  instancesUpdate <- diffInstances slicesMap instances1 instances2
+  return (instanceUpdate ++ instancesUpdate)
+
+diffInstance :: Map SliceID Slice -> Instance -> Instance -> Maybe Update
+diffInstance slicesMap (Instance instancePart1 instanceID1) (Instance instancePart2 instanceID2) =
+  case instancePart1 == instancePart2 of
+    False -> Nothing
+    True -> return (diff slicesMap instanceID1 instanceID2)
+
 
 -- Law1
 
