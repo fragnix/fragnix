@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE OverloadedStrings #-}
 module GraphViz
   ( visualize
   ) where
@@ -18,21 +19,36 @@ import qualified Data.Map as Map (lookup, insert, fromList, toList, elems, empty
 import Language.Haskell.Exts.Syntax (ModuleName(..))
 import Fragnix.Paths (updatePath, environmentPath, slicesPath)
 import Fragnix.Slice (
-  Slice(Slice), SliceID,
+  Slice(Slice), SliceID, UsedName(..), Name(..),
   Use(Use), Reference(OtherSlice, Builtin), Instance(Instance),
   moduleNameSliceID, loadSlicesTransitive, writeSlice)
 import Data.Maybe (fromMaybe, maybeToList)
 import Fragnix.Environment (loadEnvironment, persistEnvironment)
 import Language.Haskell.Names (Environment, Symbol(..))
 
+textToInt :: Text.Text -> Int
+textToInt = read . Text.unpack
+
+strictToLazy :: Text.Text -> TextL.Text
+strictToLazy = TextL.pack . Text.unpack
+
+printUsedName :: UsedName -> TextL.Text
+printUsedName (ValueName n) = "Value: " <> printName n
+printUsedName (TypeName n) = "Type: " <> printName n
+printUsedName (ConstructorName n1 n2) = "Constructor: " <> printName n1 <> "." <> printName n2
+
+printName :: Name -> TextL.Text
+printName (Identifier n) = strictToLazy n
+printName (Operator n) = strictToLazy n
+
 edgemap :: Slice -> [(Int, Int, TextL.Text)]
 edgemap (Slice id _ _ uses instances) = do
   Use _ usedName (OtherSlice id') <- uses
-  return (read (Text.unpack id), read (Text.unpack id'), TextL.pack $ show usedName)
+  return (textToInt id, textToInt id', printUsedName usedName)
 
-visualize :: IO ()
-visualize = do
-  -- Get all transitively reachable slices from the environment
+
+getGraph :: IO (Gr TextL.Text TextL.Text)
+getGraph = do
   env <- loadEnvironment environmentPath
   let sliceIDs = do
         symbols <- Map.elems env
@@ -41,9 +57,14 @@ visualize = do
         maybeToList (moduleNameSliceID moduleName)
   slices <- loadSlicesTransitive slicesPath sliceIDs
   -- Transform them into a graph.
-  let nodes = fmap (\(Slice id _ _ uses instances) -> (read (Text.unpack id),TextL.pack (Text.unpack id))) slices
+  let nodes = fmap (\(Slice id _ _ uses instances) -> (textToInt id, strictToLazy ("F" <> id <> ".hs"))) slices
   let edges = concat $ fmap edgemap slices
-  let graph = mkGraph @Gr nodes edges
+  return $ mkGraph @Gr nodes edges
+
+visualize :: IO ()
+visualize = do
+  graph <- getGraph
+
   let labelledNodesParams = nonClusteredParams { fmtNode = \(_,label) -> [Label (StrLabel label)]
                                                , fmtEdge = \(_,_,label) -> [Label (StrLabel label)]}
   let dotgraph = graphToDot labelledNodesParams graph
