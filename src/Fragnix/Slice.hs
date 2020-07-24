@@ -19,6 +19,7 @@ module Fragnix.Slice
   , readSlice
   , writeSlice
   , loadSlicesTransitive
+  , loadSliceIDsTransitive
   , getSlices
   ) where
 
@@ -310,8 +311,8 @@ readSlice slicesPath sliceID = do
 -- for compilation.
 loadSlicesTransitive :: FilePath -> [SliceID] -> IO [Slice]
 loadSlicesTransitive slicesPath sliceIDs = do
-    sliceIDs <- loadSliceIDsTransitive slicesPath sliceIDs
-    forM sliceIDs (readSlice slicesPath)
+    transitiveSliceIDs <- loadSliceIDsTransitive slicesPath sliceIDs
+    forM transitiveSliceIDs (readSlice slicesPath)
 
 -- | Given slice IDs find all IDs of all the slices needed
 -- for compilation.
