@@ -41,8 +41,8 @@ import Text.Printf (printf)
 
 -- | Take a list of module paths on the command line and compile the 'main' symbol
 -- to an executable.
-build :: ShouldPreprocess -> [FilePath] -> IO ()
-build shouldPreprocess directories = do
+build :: ShouldDist -> ShouldPreprocess -> [FilePath] -> IO ()
+build shouldDist shouldPreprocess directories = do
     putStrLn "Finding targets ..."
 
     filePaths <- timeIt (do
@@ -96,36 +96,55 @@ build shouldPreprocess directories = do
     let (localSliceIDMap, slices) = hashLocalSlices localSlices
     timeIt (for_ slices (\slice -> writeSlice slicesPath slice))
 
-    putStrLn "Updating environment ..."
+    case shouldDist of
 
-    let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
-    let updatedEnvironment = updateEnvironment symbolSliceIDs (moduleSymbols environment modules)
-    timeIt (persistEnvironment environmentPath updatedEnvironment)
+      ShouldCompile -> do
 
-    case findMainSliceIDs symbolSliceIDs of
-        [] -> do
-            putStrLn "No main symbol in modules."
-            putStrLn "Compiling all slices."
-            let sliceIDs = Map.elems symbolSliceIDs
-            putStrLn "Generating compilation units..."
-            timeIt (writeSlicesModules sliceIDs)
-            putStrLn "Invoking GHC"
-            _ <- timeIt (invokeGHC (nub sliceIDs))
-            return ()
-        [mainSliceID] -> do
-            putStrLn ("Compiling " ++ show mainSliceID)
-            putStrLn "Generating compilation units..."
-            timeIt (writeSlicesModules [mainSliceID])
-            putStrLn "Invoking GHC"
-            _ <- timeIt (invokeGHCMain mainSliceID)
-            return ()
-        _ -> putStrLn "Multiple main symbols in modules."
+        putStrLn "Updating environment ..."
 
-    return ()
+        let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
+        let updatedEnvironment = updateEnvironment symbolSliceIDs (moduleSymbols environment modules)
+        timeIt (persistEnvironment environmentPath updatedEnvironment)
+
+        case findMainSliceIDs symbolSliceIDs of
+            [] -> do
+                putStrLn "No main symbol in modules."
+            [mainSliceID] -> do
+                putStrLn ("Compiling " ++ show mainSliceID)
+                putStrLn "Generating compilation units..."
+                timeIt (writeSlicesModules [mainSliceID])
+                putStrLn "Invoking GHC"
+                _ <- timeIt (invokeGHCMain mainSliceID)
+                return ()
+            _ -> putStrLn "Multiple main symbols in modules."
+
+      ShouldDist outputDirectory -> do
+
+        putStrLn "Writing environment ..."
+
+        let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
+        let updatedEnvironment = updateEnvironment symbolSliceIDs (moduleSymbols environment modules)
+        createDirectoryIfMissing True outputDirectory
+        timeIt (persistEnvironment outputDirectory updatedEnvironment)
+
+        putStrLn "Generating compilation units..."
+
+        let sliceIDs = Map.elems symbolSliceIDs
+        timeIt (writeSlicesModules sliceIDs)
+
+        putStrLn "Invoking GHC"
+
+        _ <- timeIt (invokeGHC (nub sliceIDs))
+        return ()
+
 
 data ShouldPreprocess
   = DoPreprocess
   | NoPreprocess
+
+data ShouldDist
+  = ShouldCompile
+  | ShouldDist FilePath
 
 -- | Replace slashes by dots.
 modulePreprocessedPath :: FilePath -> FilePath
