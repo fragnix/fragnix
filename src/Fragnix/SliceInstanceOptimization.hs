@@ -1,17 +1,11 @@
-module Fragnix.SliceInstanceResolution
-  ( resolveSlices
+module Fragnix.SliceInstanceOptimization
+  ( sliceInstancesOptimized
   ) where
 
-import Fragnix.Slice
-  ( Slice(Slice)
-  , SliceI(SliceI)
-  , SliceID
-  , Use(Use)
-  , Reference(OtherSlice)
-  , InstanceID
-  , Instance(Instance)
-  , InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass)
-  )
+import Fragnix.Slice (
+    Slice(Slice), SliceID, InstanceID, Instance(Instance),
+    InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass),
+    usedSliceIDs)
 
 import Data.Map (Map)
 import qualified Data.Map.Strict as Map (
@@ -21,17 +15,12 @@ import qualified Data.Set as Set (
     fromList,toList,map,filter,delete,
     empty,singleton,union,intersection,unions,difference)
 
-resolveSlices :: [Slice] -> [SliceI]
-resolveSlices slices = map annotSlice slices
-  where
-    annotSlice slice@(Slice sliceID _ _ _ _) = SliceI slice (Set.toList (sliceInstancesMap Map.! sliceID))
-    sliceInstancesMap = sliceInstances slices
 
 -- | Given a list of slices, find for each slice the list of relevant
 -- instances. Then reduce these lists to only those instances that have
 -- to be imported explicitly and put them into a Map for easy lookup.
-sliceInstances :: [Slice] -> Map SliceID (Set InstanceID)
-sliceInstances slices = sliceInstancesMap where
+sliceInstancesOptimized :: [Slice] -> Map SliceID (Set InstanceID)
+sliceInstancesOptimized slices = sliceInstancesMap where
 
     -- Map from slice ID to set of all instances that have to be imported explicitly
     sliceInstancesMap = Map.fromList (do
@@ -125,7 +114,3 @@ instancesPlayingPart desiredInstancePart =
         playsDesiredInstancePart (Instance instancePart _) = instancePart == desiredInstancePart
         getInstanceID (Instance _ instanceID) = instanceID
 
-usedSliceIDs :: Slice -> [SliceID]
-usedSliceIDs (Slice _ _ _ uses _) = do
-    Use _ _ (OtherSlice sliceID) <- uses
-    return sliceID

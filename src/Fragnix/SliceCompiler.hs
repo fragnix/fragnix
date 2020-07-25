@@ -4,21 +4,19 @@ module Fragnix.SliceCompiler
   , invokeGHCMain
   ) where
 
+import Prelude hiding (writeFile)
+
 import Fragnix.Slice (
-    Slice(Slice),SliceI(SliceI),SliceID,Language(Language),Fragment(Fragment),Use(Use),
-    Reference(OtherSlice,Builtin),
+    Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
+    Use(Use),Reference(OtherSlice,Builtin),Instance(Instance),
     UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
-    InstanceID,Instance(Instance),
-    InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass),
-    usedSliceIDs,
-    sliceModuleName,moduleNameSliceID,readSlice,
+    InstanceID,
+    sliceModuleName,moduleNameSliceID,
     loadSlicesTransitive)
 import Fragnix.Paths (
     slicesPath,cbitsPath,includePath,compilationunitsPath,buildPath)
 
-import Fragnix.SliceInstanceResolution ( resolveSlices)
-
-import Prelude hiding (writeFile)
+import Fragnix.SliceInstanceOptimization (sliceInstancesOptimized)
 
 import Language.Haskell.Exts.Syntax (
     Module(Module),ModuleHead(ModuleHead),
@@ -47,13 +45,10 @@ import System.Exit (ExitCode)
 import Control.Exception (SomeException,catch,evaluate)
 
 import Data.Map (Map)
-import qualified Data.Map.Strict as Map (
-    fromList,toList,(!),keys,map,mapWithKey)
+import qualified Data.Map.Strict as Map ((!))
 import Data.Set (Set)
-import qualified Data.Set as Set (
-    fromList,toList,map,filter,delete,
-    empty,singleton,union,intersection,unions,difference)
-import Control.Monad (forM,forM_,unless,filterM)
+import qualified Data.Set as Set (toList)
+import Control.Monad (forM_,unless,filterM)
 import Data.Maybe (mapMaybe, isJust)
 import Data.List (isSuffixOf)
 
@@ -101,18 +96,42 @@ writeSlicesModules :: [SliceID] -> IO ()
 writeSlicesModules sliceIDs = do
     createDirectoryIfMissing True compilationunitsPath
     slices <- loadSlicesTransitive slicesPath sliceIDs
-    let slicesI = resolveSlices slices
-    let sliceModules = map sliceModule slicesI
-        sliceHSBoots = map bootModule sliceModules
+    let sliceInstanceMap = sliceInstancesOptimized slices
+    let sliceModules = map (sliceModuleOptimized sliceInstanceMap) slices
+    let sliceHSBoots = map bootModule sliceModules
     forM_ sliceModules writeModule
     forM_ sliceHSBoots writeHSBoot
 
 -- | Given a slice generate the corresponding module.
-sliceModule :: SliceI -> Module ()
-sliceModule (SliceI (Slice sliceID language fragment uses _) instanceIDs) =
+sliceModule :: Slice -> Module ()
+sliceModule (Slice sliceID language fragment uses instances) =
     let Fragment declarations = fragment
         moduleHead = ModuleHead () moduleName Nothing maybeExportSpecList
         pragmas = [LanguagePragma () languagepragmas]
+        instanceIDs = map (\(Instance _ instanceID) -> instanceID) instances
+        imports =
+            map useImport uses ++
+            map instanceImport instanceIDs
+        decls = map (parseDeclaration sliceID ghcextensions) declarations
+        moduleName = ModuleName () (sliceModuleName sliceID)
+        -- We need an export list to export the data family even
+        -- though a slice only contains the data family instance
+        maybeExportSpecList = dataFamilyInstanceExports decls imports
+        languagepragmas =
+            [Ident () "NoImplicitPrelude"] ++
+            (map (Ident () . unpack) ghcextensions)
+        Language ghcextensions = language
+    in Module () (Just moduleHead) pragmas imports decls
+
+-- | Given a slice generate the corresponding module.
+-- Uses the set of instances from the given Map, which is smaller than
+-- what we would naively get.
+sliceModuleOptimized :: Map SliceID (Set InstanceID) -> Slice -> Module ()
+sliceModuleOptimized sliceInstancesMap (Slice sliceID language fragment uses _) =
+    let Fragment declarations = fragment
+        moduleHead = ModuleHead () moduleName Nothing maybeExportSpecList
+        pragmas = [LanguagePragma () languagepragmas]
+        instanceIDs = Set.toList (sliceInstancesMap Map.! sliceID)
         imports =
             map useImport uses ++
             map instanceImport instanceIDs
