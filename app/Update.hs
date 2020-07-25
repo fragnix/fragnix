@@ -138,7 +138,7 @@ updateEnvironment update environment = (fmap . fmap) updateSymbol environment
       ModuleName () moduleName -> case moduleNameReference moduleName of
         OtherSlice sliceID -> case lookup sliceID update of
           Nothing -> symbol
-          Just sliceID' -> symbol { symbolModule = sliceIDModuleName sliceID' }
+          Just sliceID' -> symbol { symbolModule = ModuleName () (sliceIDModuleName sliceID') }
         Builtin _ -> symbol
 
 updateParser :: Parser UpdateCommand
