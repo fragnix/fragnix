@@ -6,7 +6,7 @@ import Fragnix.LocalSlice (
 import Fragnix.Slice (
     Language(Language),Fragment(Fragment),
     UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
-    sliceModuleName)
+    sliceIDModuleName)
 
 import Prelude hiding (writeFile)
 
@@ -56,7 +56,7 @@ parseDeclaration localSliceID ghcextensions declaration = fmap (const ()) decl w
 useImport :: LocalUse -> ImportDecl ()
 useImport (LocalUse maybeQualification usedName symbolSource) =
     let moduleName = case symbolSource of
-            OtherSlice sliceID -> ModuleName () (sliceModuleName sliceID)
+            OtherSlice sliceID -> ModuleName () (sliceIDModuleName sliceID)
             Builtin originalModule -> ModuleName () (unpack originalModule)
             OtherLocalSlice localSliceID -> ModuleName () (localSliceModuleName localSliceID)
         qualified = isJust maybeQualification

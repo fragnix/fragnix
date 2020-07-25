@@ -13,8 +13,8 @@ module Fragnix.Slice
   , Instance(..)
   , InstancePart(..)
   , InstanceID
-  , sliceModuleName
-  , moduleNameSliceID
+  , sliceIDModuleName
+  , moduleNameReference
   , usedSliceIDs
   , readSlice
   , writeSlice
@@ -283,15 +283,20 @@ instance Exception SliceParseError
 -- Reading and writing slices to disk
 
 -- | The name we give to the module generated for a slice with the given ID.
-sliceModuleName :: SliceID -> String
-sliceModuleName sliceID = "F" ++ Text.unpack sliceID
+sliceIDModuleName :: SliceID -> String
+sliceIDModuleName sliceID = "F" ++ Text.unpack sliceID
 
--- | Is the module name from a fragnix generated module
-moduleNameSliceID :: String -> Maybe SliceID
-moduleNameSliceID ('F':rest)
-  | all isDigit rest = Just (Text.pack rest)
-  | otherwise = Nothing
-moduleNameSliceID _ = Nothing
+-- | We abuse module names to either refer to builtin modules or to a slice.
+-- If the module name refers to a slice it starts with F followed by
+-- digits.
+moduleNameReference :: String -> Reference
+moduleNameReference moduleName =
+  case moduleName of
+    ('F':rest)
+      | all isDigit rest -> OtherSlice (Text.pack rest)
+      | otherwise -> Builtin (Text.pack moduleName)
+    _ -> Builtin (Text.pack moduleName)
+
 
 -- | Write the given slice to the given directory
 writeSlice :: FilePath -> Slice -> IO ()

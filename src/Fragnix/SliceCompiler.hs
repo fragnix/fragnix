@@ -11,7 +11,7 @@ import Fragnix.Slice (
     Use(Use),Reference(OtherSlice,Builtin),Instance(Instance),
     UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
     InstanceID,
-    sliceModuleName,moduleNameSliceID,
+    sliceIDModuleName,moduleNameReference,
     loadSlicesTransitive)
 import Fragnix.Paths (
     slicesPath,cbitsPath,includePath,compilationunitsPath,buildPath)
@@ -71,7 +71,7 @@ invokeGHCMain sliceID = do
   rawSystem "ghc-8.0.2" ([
     "-o","main",
     "-i" ++ compilationunitsPath,
-    "-main-is",sliceModuleName sliceID,
+    "-main-is",sliceIDModuleName sliceID,
     "-I" ++ includePath] ++
     cfiles ++ [
     "-lpthread","-lz","-lutil",
@@ -113,7 +113,7 @@ sliceModule (Slice sliceID language fragment uses instances) =
             map useImport uses ++
             map instanceImport instanceIDs
         decls = map (parseDeclaration sliceID ghcextensions) declarations
-        moduleName = ModuleName () (sliceModuleName sliceID)
+        moduleName = ModuleName () (sliceIDModuleName sliceID)
         -- We need an export list to export the data family even
         -- though a slice only contains the data family instance
         maybeExportSpecList = dataFamilyInstanceExports decls imports
@@ -136,7 +136,7 @@ sliceModuleOptimized sliceInstancesMap (Slice sliceID language fragment uses _) 
             map useImport uses ++
             map instanceImport instanceIDs
         decls = map (parseDeclaration sliceID ghcextensions) declarations
-        moduleName = ModuleName () (sliceModuleName sliceID)
+        moduleName = ModuleName () (sliceIDModuleName sliceID)
         -- We need an export list to export the data family even
         -- though a slice only contains the data family instance
         maybeExportSpecList = dataFamilyInstanceExports decls imports
@@ -162,7 +162,7 @@ parseDeclaration sliceID ghcextensions declaration = fmap (const ()) decl where
 useImport :: Use -> ImportDecl ()
 useImport (Use maybeQualification usedName symbolSource) =
     let moduleName = case symbolSource of
-            OtherSlice sliceID -> ModuleName () (sliceModuleName sliceID)
+            OtherSlice sliceID -> ModuleName () (sliceIDModuleName sliceID)
             Builtin originalModule -> ModuleName () (unpack originalModule)
         qualified = isJust maybeQualification
         maybeAlias = fmap (ModuleName () . unpack) maybeQualification
@@ -184,7 +184,7 @@ useImport (Use maybeQualification usedName symbolSource) =
 -- are source imports.
 instanceImport :: SliceID -> ImportDecl ()
 instanceImport sliceID =
-    ImportDecl () (ModuleName () (sliceModuleName sliceID)) False True False Nothing Nothing Nothing
+    ImportDecl () (ModuleName () (sliceIDModuleName sliceID)) False True False Nothing Nothing Nothing
 
 
 -- | We export every type that we import in a data family instance slice
@@ -270,11 +270,14 @@ moduleHSBootPath _ =
 
 -- | The path for the module generated for the slice with the given ID
 sliceModulePath :: SliceID -> FilePath
-sliceModulePath sliceID = compilationunitsPath </> sliceModuleName sliceID <.> "hs"
+sliceModulePath sliceID = compilationunitsPath </> sliceIDModuleName sliceID <.> "hs"
 
 -- | Is the module name from a fragnix generated module
 isSliceModule :: ModuleName a -> Bool
-isSliceModule (ModuleName _ moduleName) = isJust (moduleNameSliceID moduleName)
+isSliceModule (ModuleName _ moduleName) =
+  case moduleNameReference moduleName of
+    OtherSlice _ -> True
+    Builtin _ -> False
 
 
 writeModule :: Module a -> IO ()

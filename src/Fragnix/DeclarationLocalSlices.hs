@@ -10,7 +10,8 @@ import Fragnix.Slice (
     Language(Language),Fragment(Fragment),
     UsedName(..),Name(Identifier,Operator),
     InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass),
-    moduleNameSliceID)
+    moduleNameReference)
+import qualified Fragnix.Slice as Slice (Reference(Builtin,OtherSlice))
 import Fragnix.LocalSlice (
     LocalSlice(LocalSlice),LocalSliceID(LocalSliceID),
     LocalUse(LocalUse),LocalReference(OtherLocalSlice,OtherSlice,Builtin),
@@ -31,7 +32,6 @@ import Data.Tree (flatten)
 
 import Control.Monad (guard)
 import Data.Text (pack)
-import Data.Char (isDigit)
 import Data.Map (Map)
 import qualified Data.Map as Map (
     lookup,fromList,fromListWith,(!))
@@ -185,7 +185,7 @@ buildTempSlice localEnvironment constructorMap instanceLocalIDs (node,declaratio
                 -- if it fails the symbol must be from the environment
                 maybeReference = case Map.lookup mentionedsymbol localEnvironment of
                     -- If the symbol is from the environment it is either builtin or refers to an existing slice
-                    Nothing -> Just (moduleReference (symbolModule (mentionedsymbol)))
+                    Nothing -> Just (moduleLocalReference (symbolModule (mentionedsymbol)))
                     -- If the symbol is from this fragment we generate no reference
                     Just referenceNode -> if referenceNode == node
                         then Nothing
@@ -259,7 +259,7 @@ needsConstructors (Declaration _ _ _ _ mentionedSymbols) =
 symbolConstructorUses :: Map Symbol LocalSliceID -> Map Symbol [Symbol] -> Symbol -> [LocalUse]
 symbolConstructorUses localEnvironment constructorMap symbol =
     case Map.lookup symbol localEnvironment of
-        Nothing -> case moduleReference (symbolModule symbol) of
+        Nothing -> case moduleLocalReference (symbolModule symbol) of
             builtinReference@(Builtin _) -> case symbol of
                 NewType _ symbolname -> do
                     let symbolTypeName = fromName symbolname
@@ -295,15 +295,11 @@ arrange declarations = arrangements ++ (declarations \\ arrangements) where
         return signature
 
 
--- | We abuse module names to either refer to builtin modules or to a slice.
--- If the module name refers to a slice it starts with F followed by
--- digits.
-moduleReference :: ModuleName () -> LocalReference
-moduleReference (ModuleName () moduleName) =
-  case moduleNameSliceID moduleName of
-    Nothing -> Builtin (pack moduleName)
-    Just sliceID -> OtherSlice sliceID
-
+moduleLocalReference :: ModuleName () -> LocalReference
+moduleLocalReference (ModuleName () moduleName) =
+  case moduleNameReference moduleName of
+    Slice.Builtin originalModule -> Builtin originalModule
+    Slice.OtherSlice sliceID -> OtherSlice sliceID
 
 -- | Finds for each instance maybe the local ID of the class it is of and maybe
 -- the local ID of the type it is for. Needs a map from symbol to ID of the

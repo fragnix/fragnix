@@ -6,8 +6,8 @@ module Update
   ) where
 
 import Fragnix.Slice (
-  Slice(..), SliceID, Fragment(..),
-  readSlice, writeSlice, moduleNameSliceID, loadSliceIDsTransitive)
+  Slice(..), SliceID, Fragment(..), Reference(OtherSlice, Builtin),
+  readSlice, writeSlice, moduleNameReference, sliceIDModuleName, loadSliceIDsTransitive)
 import Fragnix.Update (
   Update, apply, diff, getUpdates, PersistedUpdate(..),
   UpdateID, createUpdate, writeUpdate, findUpdateFuzzy)
@@ -86,8 +86,8 @@ update (Diff environmentPath1 environmentPath2 description) = do
         guard (symbolName symbol1 == symbolName symbol2)
         let ModuleName () moduleName1 = symbolModule symbol1
         let ModuleName () moduleName2 = symbolModule symbol2
-        sliceID1 <- maybeToList (moduleNameSliceID moduleName1)
-        sliceID2 <- maybeToList (moduleNameSliceID moduleName2)
+        OtherSlice sliceID1 <- [moduleNameReference moduleName1]
+        OtherSlice sliceID2 <- [moduleNameReference moduleName2]
         diff slicesMap sliceID1 sliceID2) environment1 environment2)))
   let persistedUpdate = createUpdate description update
   writeUpdate persistedUpdate
@@ -118,7 +118,8 @@ loadEnvironmentSliceIDs environment = do
         symbols <- Map.elems environment
         symbol <- symbols
         let ModuleName () moduleName = symbolModule symbol
-        maybeToList (moduleNameSliceID moduleName)
+        OtherSlice sliceID <- [moduleNameReference moduleName]
+        return sliceID
   loadSliceIDsTransitive slicesPath sliceIDs
 
 
@@ -133,10 +134,12 @@ updateEnvironment :: Update -> Environment -> Environment
 updateEnvironment update environment = (fmap . fmap) updateSymbol environment
   where
     updateSymbol :: Symbol -> Symbol
-    updateSymbol s = let sliceID = case (symbolModule s) of (ModuleName _ n) -> Text.pack (tail n) in
-          case lookup sliceID update of
-            Nothing -> s
-            Just sliceID' -> s { symbolModule = ModuleName () ('F' : Text.unpack sliceID') }
+    updateSymbol symbol = case symbolModule symbol of
+      ModuleName () moduleName -> case moduleNameReference moduleName of
+        OtherSlice sliceID -> case lookup sliceID update of
+          Nothing -> symbol
+          Just sliceID' -> symbol { symbolModule = sliceIDModuleName sliceID' }
+        Builtin _ -> symbol
 
 updateParser :: Parser UpdateCommand
 updateParser = subparser (mconcat [
