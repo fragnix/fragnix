@@ -43,6 +43,7 @@ library
                        Fragnix.HashLocalSlices,
                        Fragnix.LocalSliceModule,
                        Fragnix.SliceCompiler,
+                       Fragnix.SliceInstanceResolution,
                        Fragnix.Environment,
                        Fragnix.SliceSymbols,
                        Fragnix.Paths,

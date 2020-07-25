@@ -2,6 +2,7 @@
 module Fragnix.Slice
   ( SliceID
   , Slice(..)
+  , SliceI(..)
   , Use(..)
   , Reference(..)
   , OriginalModule
@@ -54,6 +55,8 @@ import Fragnix.Utils (listFilesRecursive)
 
 
 data Slice = Slice SliceID Language Fragment [Use] [Instance]
+
+data SliceI = SliceI Slice [InstanceID]
 
 data Language = Language [GHCExtension]
 
