@@ -26,7 +26,9 @@ import qualified Data.Text.IO as Text
 import Data.Map (Map)
 import qualified Data.Map as Map (
   lookup, fromList, toList, elems, empty, intersectionWith)
-import Control.Monad.Trans.State.Strict (execState)
+import qualified Data.Set as Set (
+  empty)
+import Control.Monad.Trans.State.Strict (execState, evalState)
 
 import Control.Monad (forM, forM_, guard)
 import Data.Maybe (fromMaybe, maybeToList)
@@ -88,7 +90,7 @@ update (Diff environmentPath1 environmentPath2 description) = do
         let ModuleName () moduleName2 = symbolModule symbol2
         OtherSlice sliceID1 <- [moduleNameReference moduleName1]
         OtherSlice sliceID2 <- [moduleNameReference moduleName2]
-        diff slicesMap sliceID1 sliceID2) environment1 environment2)))
+        evalState (diff slicesMap sliceID1 sliceID2) Set.empty) environment1 environment2)))
   let persistedUpdate = createUpdate description update
   writeUpdate persistedUpdate
 

@@ -20,6 +20,8 @@ import Data.Aeson (ToJSON, FromJSON, eitherDecode)
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Map (Map)
 import qualified Data.Map as Map (lookup, insert)
+import Data.Set (Set)
+import qualified Data.Set as Set (member, insert)
 import Data.ByteString.Lazy (writeFile,readFile)
 import Data.Text (Text)
 import qualified Data.Text as Text (unpack, pack, cons, isPrefixOf, all)
@@ -28,8 +30,10 @@ import System.FilePath ((</>), takeFileName)
 import System.Directory (createDirectoryIfMissing)
 
 import Data.Char (isDigit)
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Strict (State, get, put)
-import Control.Monad (forM)
+import Control.Monad.Trans.Maybe (MaybeT, runMaybeT)
+import Control.Monad (forM, mzero)
 import Data.Maybe (fromMaybe)
 import Data.List (find)
 import Control.Exception (Exception,throwIO)
@@ -97,67 +101,74 @@ applySliceID update sliceID = lookup sliceID update
 -- | Given a global list of slices, and a pair of slice IDs, computes
 -- the difference between the two corresponding slices. The result should
 -- be minimal.
-diff :: Map SliceID Slice -> SliceID -> SliceID -> Update
+diff :: Map SliceID Slice -> SliceID -> SliceID -> State (Set (SliceID, SliceID)) Update
 diff slicesMap sliceID1 sliceID2 = do
-  case sliceID1 == sliceID2 of
-    True -> []
-    False -> do
-      let slice1 = fromMaybe (error "sliceID not found") (Map.lookup sliceID1 slicesMap)
-      let Slice _ language1 fragment1 uses1 instances1 = slice1
-      let slice2 = fromMaybe (error "sliceID not found") (Map.lookup sliceID2 slicesMap)
-      let Slice _ language2 fragment2 uses2 instances2 = slice2
-      case language1 == language2 && fragment1 == fragment2 of
-        False -> [(sliceID1, sliceID2)]
-        True ->
-          case diffUses slicesMap uses1 uses2 of
-            Nothing -> [(sliceID1, sliceID2)]
-            Just usesUpdate -> case diffInstances slicesMap instances1 instances2 of
-              Nothing -> [(sliceID1, sliceID2)]
-              Just instancesUpdate -> usesUpdate ++ instancesUpdate
+  seenSliceIDs <- get
+  if (Set.member (sliceID1, sliceID2) seenSliceIDs)
+    then return []
+    else do
+      put (Set.insert (sliceID1, sliceID2) seenSliceIDs)
+      case sliceID1 == sliceID2 of
+        True -> return []
+        False -> do
+          let slice1 = fromMaybe (error "sliceID not found") (Map.lookup sliceID1 slicesMap)
+          let Slice _ language1 fragment1 uses1 instances1 = slice1
+          let slice2 = fromMaybe (error "sliceID not found") (Map.lookup sliceID2 slicesMap)
+          let Slice _ language2 fragment2 uses2 instances2 = slice2
+          case language1 == language2 && fragment1 == fragment2 of
+            False -> return [(sliceID1, sliceID2)]
+            True -> do
+              maybeUpdate <- runMaybeT (do
+                usesUpdate <- diffUses slicesMap uses1 uses2
+                instancesUpdate <- diffInstances slicesMap instances1 instances2
+                return (usesUpdate ++ instancesUpdate))
+              case maybeUpdate of
+                Nothing -> return [(sliceID1, sliceID2)]
+                Just update -> return update
 
-diffUses :: Map SliceID Slice -> [Use] -> [Use] -> Maybe Update
+diffUses :: Map SliceID Slice -> [Use] -> [Use] -> MaybeT (State (Set (SliceID, SliceID))) Update
 diffUses _ [] [] = return []
-diffUses _ (_ : _) [] = Nothing
-diffUses _ [] (_ : _) = Nothing
+diffUses _ (_ : _) [] = mzero
+diffUses _ [] (_ : _) = mzero
 diffUses slicesMap (use1 : uses1) (use2 : uses2) = do
   useUpdate <- diffUse slicesMap use1 use2
   usesUpdate <- diffUses slicesMap uses1 uses2
   return (useUpdate ++ usesUpdate)
 
-diffUse :: Map SliceID Slice -> Use -> Use -> Maybe Update
+diffUse :: Map SliceID Slice -> Use -> Use -> MaybeT (State (Set (SliceID, SliceID))) Update
 diffUse slicesMap use1 use2 = do
   let Use qualification1 usedName1 reference1 = use1
   let Use qualification2 usedName2 reference2 = use2
   case qualification1 == qualification2 && usedName1 == usedName2 of
-    False -> Nothing
+    False -> mzero
     True -> diffReference slicesMap reference1 reference2
 
-diffReference :: Map SliceID Slice -> Reference -> Reference -> Maybe Update
+diffReference :: Map SliceID Slice -> Reference -> Reference -> MaybeT (State (Set (SliceID, SliceID))) Update
 diffReference _ (Builtin moduleName1) (Builtin moduleName2) =
   case moduleName1 == moduleName2 of
-    False -> Nothing
+    False -> mzero
     True -> return []
-diffReference _ (Builtin _) (OtherSlice _) = Nothing
-diffReference _ (OtherSlice _) (Builtin _) = Nothing
-diffReference slicesMap (OtherSlice sliceID1) (OtherSlice sliceID2) =
+diffReference _ (Builtin _) (OtherSlice _) = mzero
+diffReference _ (OtherSlice _) (Builtin _) = mzero
+diffReference slicesMap (OtherSlice sliceID1) (OtherSlice sliceID2) = do
   case sliceID1 == sliceID2 of
-    False -> return (diff slicesMap sliceID1 sliceID2)
+    False -> lift (diff slicesMap sliceID1 sliceID2)
     True -> return []
 
-diffInstances :: Map SliceID Slice -> [Instance] -> [Instance] -> Maybe Update
+diffInstances :: Map SliceID Slice -> [Instance] -> [Instance] -> MaybeT (State (Set (SliceID, SliceID))) Update
 diffInstances _ [] [] = return []
-diffInstances _ (_ : _) [] = Nothing
-diffInstances _ [] (_ : _) = Nothing
+diffInstances _ (_ : _) [] = mzero
+diffInstances _ [] (_ : _) = mzero
 diffInstances slicesMap (instance1 : instances1) (instance2 : instances2) = do
   instanceUpdate <- diffInstance slicesMap instance1 instance2
   instancesUpdate <- diffInstances slicesMap instances1 instances2
   return (instanceUpdate ++ instancesUpdate)
 
-diffInstance :: Map SliceID Slice -> Instance -> Instance -> Maybe Update
+diffInstance :: Map SliceID Slice -> Instance -> Instance -> MaybeT (State (Set (SliceID, SliceID))) Update
 diffInstance slicesMap (Instance instancePart1 instanceID1) (Instance instancePart2 instanceID2) =
   case instancePart1 == instancePart2 of
-    False -> Nothing
-    True -> return (diff slicesMap instanceID1 instanceID2)
+    False -> mzero
+    True -> lift (diff slicesMap instanceID1 instanceID2)
 
 
 -- Law1
