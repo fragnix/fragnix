@@ -28,7 +28,7 @@ import qualified Data.Map as Map (
   lookup, fromList, toList, elems, empty, intersectionWith)
 import qualified Data.Set as Set (
   empty)
-import Control.Monad.Trans.State.Strict (execState, evalState)
+import Control.Monad.Trans.State.Strict (execStateT, evalState, runState)
 
 import Control.Monad (forM, forM_, guard)
 import Data.Maybe (fromMaybe, maybeToList)
@@ -102,12 +102,12 @@ applyUpdate persistedUpdate = do
   sliceIDs <- loadEnvironmentSliceIDs environment
   slices <- forM sliceIDs (readSlice slicesPath)
   let slicesMap = sliceMap slices
-  let sliceIDLocalSliceMap = flip execState Map.empty (do
-        forM_ slices (\(Slice sliceID _ _ _ _) -> apply slicesMap update sliceID))
-  let localSlices = Map.elems sliceIDLocalSliceMap
+  let (sliceIDLocalSliceIDMap, localSlices) =
+        flip runState [] (flip execStateT Map.empty (do
+          forM_ slices (\(Slice sliceID _ _ _ _) -> apply slicesMap update sliceID)))
   let (localSliceIDMap, newSlices) = hashLocalSlices localSlices
   let derivedUpdate = do
-        (sliceID, LocalSlice localSliceID _ _ _ _) <- Map.toList sliceIDLocalSliceMap
+        (sliceID, localSliceID) <- Map.toList sliceIDLocalSliceIDMap
         let newSliceID = fromMaybe (error "no") (Map.lookup localSliceID localSliceIDMap)
         return (sliceID, newSliceID)
   let environment' = updateEnvironment (update ++ derivedUpdate) environment

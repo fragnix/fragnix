@@ -31,7 +31,7 @@ import System.Directory (createDirectoryIfMissing)
 
 import Data.Char (isDigit)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.State.Strict (State, get, put)
+import Control.Monad.Trans.State.Strict (State, StateT, get, put, modify)
 import Control.Monad.Trans.Maybe (MaybeT, runMaybeT)
 import Control.Monad (forM, mzero)
 import Data.Maybe (fromMaybe)
@@ -50,7 +50,7 @@ type Update = [(SliceID, SliceID)]
 -- with the given slice ID. The result is the local slice ID that
 -- corresponds to the given sliceID. Also produces additional local slices in
 -- the process.
-apply :: Map SliceID Slice -> Update -> SliceID -> State (Map SliceID LocalSlice) (Either SliceID LocalSliceID)
+apply :: Map SliceID Slice -> Update -> SliceID -> StateT (Map SliceID LocalSliceID) (State [LocalSlice]) (Either SliceID LocalSliceID)
 apply slicesMap update sliceID =
   case applySliceID update sliceID of
     Just newSliceID -> do
@@ -58,24 +58,25 @@ apply slicesMap update sliceID =
     Nothing -> do
       seenIDMap <- get
       case Map.lookup sliceID seenIDMap of
-        Just (LocalSlice localSliceID _ _ _ _) -> do
+        Just localSliceID -> do
           return (Right localSliceID)
         Nothing -> do
+          let localSliceID = LocalSliceID (Text.cons 'T' sliceID)
+          put (Map.insert sliceID localSliceID seenIDMap)
           let slice = fromMaybe (error "sliceID not found") (Map.lookup sliceID slicesMap)
           let Slice _ language fragment uses instances = slice
-          let localSliceID = LocalSliceID (Text.cons 'T' sliceID)
           localUses <- mapM (applyUse slicesMap update) uses
           localInstances <- mapM (applyInstance slicesMap update) instances
           let localSlice = LocalSlice localSliceID language fragment localUses localInstances
-          put (Map.insert sliceID localSlice seenIDMap)
+          lift (modify (localSlice :))
           return (Right localSliceID)
 
-applyUse :: Map SliceID Slice -> Update -> Use -> State (Map SliceID LocalSlice) LocalUse
+applyUse :: Map SliceID Slice -> Update -> Use -> StateT (Map SliceID LocalSliceID) (State [LocalSlice]) LocalUse
 applyUse slicesMap update (Use qualification usedName reference) = do
   localReference <- applyReference slicesMap update reference
   return (LocalUse qualification usedName localReference)
 
-applyReference :: Map SliceID Slice -> Update -> Reference -> State (Map SliceID LocalSlice) Local.LocalReference
+applyReference :: Map SliceID Slice -> Update -> Reference -> StateT (Map SliceID LocalSliceID) (State [LocalSlice]) Local.LocalReference
 applyReference slicesMap update (OtherSlice sliceID) = do
   someID <- apply slicesMap update sliceID
   case someID of
@@ -86,7 +87,7 @@ applyReference slicesMap update (OtherSlice sliceID) = do
 applyReference _ _ (Builtin originalModule) = do
   return (Local.Builtin originalModule)
 
-applyInstance :: Map SliceID Slice -> Update -> Instance -> State (Map SliceID LocalSlice) LocalInstance
+applyInstance :: Map SliceID Slice -> Update -> Instance -> StateT (Map SliceID LocalSliceID) (State [LocalSlice]) LocalInstance
 applyInstance slicesMap update (Instance instancePart instanceID) = do
   someID <- apply slicesMap update instanceID
   case someID of
@@ -156,20 +157,10 @@ diffReference slicesMap (OtherSlice sliceID1) (OtherSlice sliceID2) = do
     True -> return []
 
 diffInstances :: Map SliceID Slice -> [Instance] -> [Instance] -> MaybeT (State (Set (SliceID, SliceID))) Update
-diffInstances _ [] [] = return []
-diffInstances _ (_ : _) [] = mzero
-diffInstances _ [] (_ : _) = mzero
-diffInstances slicesMap (instance1 : instances1) (instance2 : instances2) = do
-  instanceUpdate <- diffInstance slicesMap instance1 instance2
-  instancesUpdate <- diffInstances slicesMap instances1 instances2
-  return (instanceUpdate ++ instancesUpdate)
-
-diffInstance :: Map SliceID Slice -> Instance -> Instance -> MaybeT (State (Set (SliceID, SliceID))) Update
-diffInstance slicesMap (Instance instancePart1 instanceID1) (Instance instancePart2 instanceID2) =
-  case instancePart1 == instancePart2 of
+diffInstances _ instances1 instances2 =
+  case instances1 == instances2 of
     False -> mzero
-    True -> lift (diff slicesMap instanceID1 instanceID2)
-
+    True -> return []
 
 -- Law1
 
