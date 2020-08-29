@@ -45,6 +45,7 @@ library
                        Fragnix.HashLocalSlices,
                        Fragnix.LocalSliceModule,
                        Fragnix.SliceCompiler,
+                       Fragnix.SliceInstanceOptimization,
                        Fragnix.Environment,
                        Fragnix.SliceSymbols,
                        Fragnix.Paths,

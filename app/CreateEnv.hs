@@ -130,6 +130,7 @@ globalExtensions = [
 patchBuiltinEnvironment :: Environment -> Environment
 patchBuiltinEnvironment =
    rewriteFloat .
+   rewriteDataTypeable .
    rewriteLazyST .
    rewriteForeignPtr .
    rewriteGHCIntegerType .
@@ -161,6 +162,9 @@ rewriteForeignPtr = rewriteSymbolModuleInModules "Foreign.ForeignPtr.Imp" "Forei
 
 rewriteLazyST :: Environment -> Environment
 rewriteLazyST = rewriteSymbolModuleInModules "Control.Monad.ST.Lazy.Imp" "Control.Monad.ST.Lazy"  ["Control.Monad.ST.Lazy", "Control.Monad.ST.Lazy.Safe", "Control.Monad.ST.Lazy.Unsafe"]
+
+rewriteDataTypeable :: Environment -> Environment
+rewriteDataTypeable = rewriteSymbolModuleInModules "Data.Typeable.Internal" "Data.Typeable"  ["Data.Typeable", "Data.Dynamic", "Data.Data"]
 
 rewriteSymbolInModules :: Symbol -> Symbol -> [String] -> Environment -> Environment
 rewriteSymbolInModules fromSymbol toSymbol inModules =

@@ -1,7 +1,9 @@
 module Main where
 
 import Update (update, UpdateCommand, updateParser)
-import Build (build,ShouldPreprocess(DoPreprocess,NoPreprocess))
+import Build (
+  build,ShouldPreprocess(DoPreprocess,NoPreprocess),
+  ShouldDist(ShouldCompile,ShouldDist))
 import CreateEnv (createEnv)
 import GraphViz (visualize)
 import Paths_fragnix
@@ -9,9 +11,9 @@ import Data.Version (showVersion)
 
 import Options.Applicative (
   ParserInfo, Parser, execParser,
-  subparser, command, info, infoOption, long, help,
+  subparser, command, info, infoOption, long, short, help, value,
   progDesc, header, metavar, helper, (<**>),
-  many, strArgument, flag, auto, fullDesc)
+  many, strArgument, strOption, flag, auto, fullDesc)
 
 
 data Command
@@ -19,6 +21,7 @@ data Command
   | CreateEnv
   | Update UpdateCommand
   | Visualize
+  | Dist FilePath ShouldPreprocess [FilePath]
 
 commandParserInfo :: ParserInfo Command
 commandParserInfo =
@@ -30,6 +33,7 @@ commandParser = subparser (mconcat [
     command "create-env" (info (createEnvParser <**> helper) (progDesc "Create the builtin environment.")),
     command "update" (info ((Update <$> updateParser) <**> helper) (progDesc "List all available updates.")),
     command "visualize" (info (visualizeParser <**> helper) (progDesc "Visualize the current environment."))])
+    command "dist" (info (distParser <**> helper) (progDesc "Serialize the environment that correspond to the given targets."))])
 
 versionOption :: Parser (a -> a)
 versionOption = infoOption versionText (long "version" <> help "Show version")
@@ -44,15 +48,24 @@ buildParser = Build <$>
 createEnvParser :: Parser Command
 createEnvParser = pure CreateEnv
 
+
 visualizeParser :: Parser Command
 visualizeParser = pure Visualize
+
+distParser :: Parser Command
+distParser = Dist <$>
+  strOption (short 'o' <> value "dist" <> metavar "DIR" <> help "Write output to directory DIR") <*>
+  flag NoPreprocess DoPreprocess (long "preprocess" <> help "Run preprocessor on source files") <*>
+  many (strArgument (metavar "TARGET"))
+
 
 main :: IO ()
 main = do
    command <- execParser commandParserInfo
    case command of
-     Build shouldPreprocess paths -> build shouldPreprocess paths
+     Build shouldPreprocess paths -> build ShouldCompile shouldPreprocess paths
      CreateEnv -> createEnv
      Update cmd -> update cmd
      Visualize -> visualize
+     Dist outputDirectory shouldPreprocess paths -> build (ShouldDist outputDirectory) shouldPreprocess paths
 

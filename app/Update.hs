@@ -6,8 +6,8 @@ module Update
   ) where
 
 import Fragnix.Slice (
-  Slice(..), SliceID, Fragment(..),
-  readSlice, writeSlice, moduleNameSliceID, loadSliceIDsTransitive)
+  Slice(..), SliceID, Fragment(..), Reference(OtherSlice, Builtin),
+  readSlice, writeSlice, moduleNameReference, sliceIDModuleName, loadSliceIDsTransitive)
 import Fragnix.Update (
   Update, apply, diff, getUpdates, PersistedUpdate(..),
   UpdateID, createUpdate, writeUpdate, findUpdateFuzzy)
@@ -26,7 +26,9 @@ import qualified Data.Text.IO as Text
 import Data.Map (Map)
 import qualified Data.Map as Map (
   lookup, fromList, toList, elems, empty, intersectionWith)
-import Control.Monad.Trans.State.Strict (execState)
+import qualified Data.Set as Set (
+  empty)
+import Control.Monad.Trans.State.Strict (execStateT, evalState, runState)
 
 import Control.Monad (forM, forM_, guard)
 import Data.Maybe (fromMaybe, maybeToList)
@@ -86,9 +88,9 @@ update (Diff environmentPath1 environmentPath2 description) = do
         guard (symbolName symbol1 == symbolName symbol2)
         let ModuleName () moduleName1 = symbolModule symbol1
         let ModuleName () moduleName2 = symbolModule symbol2
-        sliceID1 <- maybeToList (moduleNameSliceID moduleName1)
-        sliceID2 <- maybeToList (moduleNameSliceID moduleName2)
-        diff slicesMap sliceID1 sliceID2) environment1 environment2)))
+        OtherSlice sliceID1 <- [moduleNameReference moduleName1]
+        OtherSlice sliceID2 <- [moduleNameReference moduleName2]
+        evalState (diff slicesMap sliceID1 sliceID2) Set.empty) environment1 environment2)))
   let persistedUpdate = createUpdate description update
   writeUpdate persistedUpdate
 
@@ -100,12 +102,12 @@ applyUpdate persistedUpdate = do
   sliceIDs <- loadEnvironmentSliceIDs environment
   slices <- forM sliceIDs (readSlice slicesPath)
   let slicesMap = sliceMap slices
-  let sliceIDLocalSliceMap = flip execState Map.empty (do
-        forM_ slices (\(Slice sliceID _ _ _ _) -> apply slicesMap update sliceID))
-  let localSlices = Map.elems sliceIDLocalSliceMap
+  let (sliceIDLocalSliceIDMap, localSlices) =
+        flip runState [] (flip execStateT Map.empty (do
+          forM_ slices (\(Slice sliceID _ _ _ _) -> apply slicesMap update sliceID)))
   let (localSliceIDMap, newSlices) = hashLocalSlices localSlices
   let derivedUpdate = do
-        (sliceID, LocalSlice localSliceID _ _ _ _) <- Map.toList sliceIDLocalSliceMap
+        (sliceID, localSliceID) <- Map.toList sliceIDLocalSliceIDMap
         let newSliceID = fromMaybe (error "no") (Map.lookup localSliceID localSliceIDMap)
         return (sliceID, newSliceID)
   let environment' = updateEnvironment (update ++ derivedUpdate) environment
@@ -118,7 +120,8 @@ loadEnvironmentSliceIDs environment = do
         symbols <- Map.elems environment
         symbol <- symbols
         let ModuleName () moduleName = symbolModule symbol
-        maybeToList (moduleNameSliceID moduleName)
+        OtherSlice sliceID <- [moduleNameReference moduleName]
+        return sliceID
   loadSliceIDsTransitive slicesPath sliceIDs
 
 
@@ -133,10 +136,12 @@ updateEnvironment :: Update -> Environment -> Environment
 updateEnvironment update environment = (fmap . fmap) updateSymbol environment
   where
     updateSymbol :: Symbol -> Symbol
-    updateSymbol s = let sliceID = case (symbolModule s) of (ModuleName _ n) -> Text.pack (tail n) in
-          case lookup sliceID update of
-            Nothing -> s
-            Just sliceID' -> s { symbolModule = ModuleName () ('F' : Text.unpack sliceID') }
+    updateSymbol symbol = case symbolModule symbol of
+      ModuleName () moduleName -> case moduleNameReference moduleName of
+        OtherSlice sliceID -> case lookup sliceID update of
+          Nothing -> symbol
+          Just sliceID' -> symbol { symbolModule = ModuleName () (sliceIDModuleName sliceID') }
+        Builtin _ -> symbol
 
 updateParser :: Parser UpdateCommand
 updateParser = subparser (mconcat [
