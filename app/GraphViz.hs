@@ -21,7 +21,7 @@ import Fragnix.Paths (updatePath, environmentPath, slicesPath)
 import Fragnix.Slice (
   Slice(Slice), SliceID, UsedName(..), Name(..),
   Use(Use), Reference(OtherSlice, Builtin), Instance(Instance),
-  moduleNameSliceID, loadSlicesTransitive, writeSlice)
+  loadSlicesTransitive, writeSlice, moduleNameReference)
 import Data.Maybe (fromMaybe, maybeToList)
 import Fragnix.Environment (loadEnvironment, persistEnvironment)
 import Language.Haskell.Names (Environment, Symbol(..))
@@ -54,7 +54,8 @@ getGraph = do
         symbols <- Map.elems env
         symbol <- symbols
         let ModuleName () moduleName = symbolModule symbol
-        maybeToList (moduleNameSliceID moduleName)
+        OtherSlice sliceID <- [moduleNameReference moduleName]
+        return sliceID
   slices <- loadSlicesTransitive slicesPath sliceIDs
   -- Transform them into a graph.
   let nodes = fmap (\(Slice id _ _ uses instances) -> (textToInt id, strictToLazy ("F" <> id <> ".hs"))) slices

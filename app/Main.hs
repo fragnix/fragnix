@@ -32,7 +32,7 @@ commandParser = subparser (mconcat [
     command "build" (info (buildParser <**> helper) (progDesc "Build all Haskell files in the given files and directories and their subdirectories.")),
     command "create-env" (info (createEnvParser <**> helper) (progDesc "Create the builtin environment.")),
     command "update" (info ((Update <$> updateParser) <**> helper) (progDesc "List all available updates.")),
-    command "visualize" (info (visualizeParser <**> helper) (progDesc "Visualize the current environment."))])
+    command "visualize" (info (visualizeParser <**> helper) (progDesc "Visualize the current environment.")),
     command "dist" (info (distParser <**> helper) (progDesc "Serialize the environment that correspond to the given targets."))])
 
 versionOption :: Parser (a -> a)
