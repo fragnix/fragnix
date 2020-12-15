@@ -1,8 +1,10 @@
-{-# LANGUAGE TypeFamilies,GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeFamilies,GeneralizedNewtypeDeriving,FlexibleInstances #-}
 module Fragnix.ModuleDeclarations
   ( parse
+  , parseWithComments
   , moduleDeclarationsWithEnvironment
   , moduleSymbols
+  , moduleComments
   ) where
 
 import Fragnix.Declaration (
@@ -14,11 +16,12 @@ import Fragnix.Paths (
 
 import Language.Haskell.Exts (
     Module,ModuleName,QName(Qual,UnQual),Decl(..),
-    parseFileContentsWithMode,defaultParseMode,ParseMode(..),baseFixities,
+    parseFileContentsWithComments,defaultParseMode,ParseMode(..),baseFixities,
     ParseResult(ParseOk,ParseFailed),
-    SrcSpan,srcInfoSpan,SrcLoc(SrcLoc),
+    SrcSpanInfo,SrcLoc(SrcLoc),ann,
     prettyPrint,
-    readExtensions,Extension(EnableExtension,UnknownExtension),KnownExtension(..))
+    readExtensions,Extension(EnableExtension,UnknownExtension),KnownExtension(..),
+    Comment(Comment),associateHaddock)
 import Language.Haskell.Names (
     resolve,annotate,
     Environment,Symbol,Error,Scoped(Scoped),
@@ -33,10 +36,12 @@ import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (
 
 import qualified Data.Map.Strict as Map (
     union,(!),fromList)
-import Control.Monad (forM)
+import Control.Monad (forM,guard)
+import Data.List (intercalate)
 import Data.Maybe (mapMaybe)
 import Data.Text (pack)
 import Data.Foldable (toList)
+import Data.Data (Data)
 
 -- | Given a list of filepaths to valid Haskell modules produces a list of all
 -- declarations in those modules. The default environment loaded and used.
@@ -50,7 +55,7 @@ moduleDeclarations modulepaths = do
 
 -- | Use the given environment to produce a list of all declarations from the given list
 -- of modules.
-moduleDeclarationsWithEnvironment :: Environment -> [Module SrcSpan] -> [Declaration]
+moduleDeclarationsWithEnvironment :: Environment -> [Module SrcSpanInfo] -> [Declaration]
 moduleDeclarationsWithEnvironment environment modules = declarations where
     declarations = do
         annotatedModule <- annotatedModules
@@ -61,7 +66,7 @@ moduleDeclarationsWithEnvironment environment modules = declarations where
     annotatedModules = map (annotate environment') modules
 
 
-moduleNameErrors :: Environment -> [Module SrcSpan] -> [Error SrcSpan]
+moduleNameErrors :: Environment -> [Module SrcSpanInfo] -> [Error SrcSpanInfo]
 moduleNameErrors environment modules = errors where
     errors = do
         Scoped (ScopeError errorInfo) _ <- concatMap toList annotatedModules
@@ -71,24 +76,41 @@ moduleNameErrors environment modules = errors where
 
 
 -- | Get the exports of the given modules resolved against the given environment.
-moduleSymbols :: Environment -> [Module SrcSpan] -> Environment
+moduleSymbols :: Environment -> [Module SrcSpanInfo] -> Environment
 moduleSymbols environment modules = Map.fromList (do
     let environment' = resolve modules environment
     moduleName <- map (dropAnn . getModuleName) modules
     return (moduleName,environment' Map.! moduleName))
 
 
-parse :: FilePath -> IO (Module SrcSpan)
+-- | For each top-level declaration the pair of symbols it binds and haddocks comments.
+moduleComments :: Module SrcSpanInfo -> [Comment] -> [([Symbol], String)]
+moduleComments modul comments = do
+  let moduleWithComments = associateHaddock (modul, comments)
+  declWithComments <- getModuleDecls moduleWithComments
+  let declSymbols = declaredSymbols (getModuleName moduleWithComments) declWithComments
+  let declComments = snd (ann declWithComments)
+  guard (not (null declComments))
+  let comment = intercalate "\n" (map (\(Comment _ _ c) -> c) declComments)
+  return (declSymbols, comment)
+
+
+parse :: FilePath -> IO (Module SrcSpanInfo)
 parse path = do
+  (modul, _) <- parseWithComments path
+  return modul
+
+parseWithComments :: FilePath -> IO (Module SrcSpanInfo, [Comment])
+parseWithComments path = do
     fileContents <- readFile path
     let parseMode = defaultParseMode {
             parseFilename = path,
             extensions = globalExtensions ++ perhapsTemplateHaskell moduleExtensions,
             fixities = Just baseFixities}
-        parseresult = parseFileContentsWithMode parseMode fileContents
+        parseresult = parseFileContentsWithComments parseMode fileContents
         moduleExtensions = maybe [] snd (readExtensions fileContents)
     case parseresult of
-        ParseOk ast -> return (fmap srcInfoSpan ast)
+        ParseOk (ast, comments) -> return (ast, comments)
         ParseFailed (SrcLoc filename line column) message -> error (unlines [
             "failed to parse module.",
             "filename: " ++ filename,
@@ -112,7 +134,7 @@ perhapsTemplateHaskell extensions =
     then [EnableExtension TemplateHaskell]
     else []
 
-extractDeclarations :: [Extension] -> Module (Scoped SrcSpan) -> [Declaration]
+extractDeclarations :: [Extension] -> Module (Scoped SrcSpanInfo) -> [Declaration]
 extractDeclarations declarationExtensions annotatedast =
     mapMaybe (declToDeclaration declarationExtensions modulnameast) (getModuleDecls annotatedast) where
         modulnameast = getModuleName annotatedast
@@ -120,8 +142,8 @@ extractDeclarations declarationExtensions annotatedast =
 -- | Make a 'Declaration' from a 'haskell-src-exts' 'Decl'.
 declToDeclaration ::
     [Extension] ->
-    ModuleName (Scoped SrcSpan) ->
-    Decl (Scoped SrcSpan) ->
+    ModuleName (Scoped SrcSpanInfo) ->
+    Decl (Scoped SrcSpanInfo) ->
     Maybe Declaration
 declToDeclaration declarationExtensions modulnameast annotatedast = do
     let genre = declGenre annotatedast
@@ -135,7 +157,7 @@ declToDeclaration declarationExtensions modulnameast annotatedast = do
             (mentionedSymbols annotatedast))
 
 -- | The genre of a declaration, for example Type, Value, TypeSignature, ...
-declGenre :: Decl (Scoped SrcSpan) -> Genre
+declGenre :: Decl (Scoped SrcSpanInfo) -> Genre
 declGenre (TypeDecl _ _ _) = Type
 declGenre (TypeFamDecl _ _ _ _) = Type
 declGenre (DataDecl _ _ _ _ _ _) = Type
@@ -155,17 +177,17 @@ declGenre (InfixDecl _ _ _ _) = InfixFixity
 declGenre _ = Other
 
 -- | All symbols the given declaration in a module with the given name binds.
-declaredSymbols :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> [Symbol]
+declaredSymbols :: (Eq l, Data l) => ModuleName l -> Decl l -> [Symbol]
 declaredSymbols modulnameast annotatedast =
   getTopDeclSymbols GlobalTable.empty modulnameast annotatedast
 
 -- | All symbols the given declaration mentions together with a qualifiaction
 -- if they are used qualified.
-mentionedSymbols :: Decl (Scoped SrcSpan) -> [(Symbol,Maybe (ModuleName ()))]
+mentionedSymbols :: Decl (Scoped SrcSpanInfo) -> [(Symbol,Maybe (ModuleName ()))]
 mentionedSymbols decl = concatMap scopeSymbol (toList decl)
 
 -- | Get all references to global symbols from the given scope annotation.
-scopeSymbol :: Scoped SrcSpan -> [(Symbol,Maybe (ModuleName ()))]
+scopeSymbol :: Scoped SrcSpanInfo -> [(Symbol,Maybe (ModuleName ()))]
 scopeSymbol (Scoped (GlobalSymbol symbol (Qual _ modulname _)) _) =
   [(symbol,Just (dropAnn modulname))]
 scopeSymbol (Scoped (GlobalSymbol symbol (UnQual _ _)) _) =

@@ -2,8 +2,10 @@ module Main where
 
 import Update (update, UpdateCommand, updateParser)
 import Build (
-  build,ShouldPreprocess(DoPreprocess,NoPreprocess),
-  ShouldDist(ShouldCompile,ShouldDist))
+  build,
+  ShouldPreprocess(DoPreprocess,NoPreprocess),
+  ShouldDist(ShouldCompile,ShouldDist),
+  ShouldExtractComments(DoExtractComments,NoExtractComments))
 import CreateEnv (createEnv)
 import Paths_fragnix
 import Data.Version (showVersion)
@@ -20,6 +22,7 @@ data Command
   | CreateEnv
   | Update UpdateCommand
   | Dist FilePath ShouldPreprocess [FilePath]
+  | Extract ShouldPreprocess [FilePath]
 
 
 commandParserInfo :: ParserInfo Command
@@ -31,7 +34,8 @@ commandParser = subparser (mconcat [
     command "build" (info (buildParser <**> helper) (progDesc "Build all Haskell files in the given files and directories and their subdirectories.")),
     command "create-env" (info (createEnvParser <**> helper) (progDesc "Create the builtin environment.")),
     command "update" (info ((Update <$> updateParser) <**> helper) (progDesc "List all available updates.")),
-    command "dist" (info (distParser <**> helper) (progDesc "Serialize the environment that correspond to the given targets."))])
+    command "dist" (info (distParser <**> helper) (progDesc "Serialize the environment that correspond to the given targets.")),
+    command "extract" (info (extractParser <**> helper) (progDesc "Extract comments."))])
 
 versionOption :: Parser (a -> a)
 versionOption = infoOption versionText (long "version" <> help "Show version")
@@ -52,13 +56,19 @@ distParser = Dist <$>
   flag NoPreprocess DoPreprocess (long "preprocess" <> help "Run preprocessor on source files") <*>
   many (strArgument (metavar "TARGET"))
 
+extractParser :: Parser Command
+extractParser = Extract <$>
+  flag NoPreprocess DoPreprocess (long "preprocess" <> help "Run preprocessor on source files") <*>
+  many (strArgument (metavar "TARGET"))
+
 
 main :: IO ()
 main = do
    command <- execParser commandParserInfo
    case command of
-     Build shouldPreprocess paths -> build ShouldCompile shouldPreprocess paths
+     Build shouldPreprocess paths -> build ShouldCompile shouldPreprocess NoExtractComments paths
      CreateEnv -> createEnv
      Update cmd -> update cmd
-     Dist outputDirectory shouldPreprocess paths -> build (ShouldDist outputDirectory) shouldPreprocess paths
+     Dist outputDirectory shouldPreprocess paths -> build (ShouldDist outputDirectory) shouldPreprocess NoExtractComments paths
+     Extract shouldPreprocess paths -> build ShouldCompile shouldPreprocess DoExtractComments paths
 

@@ -9,8 +9,8 @@ import Fragnix.Environment (
 import Fragnix.SliceSymbols (
     updateEnvironment,findMainSliceIDs)
 import Fragnix.ModuleDeclarations (
-    parse, moduleDeclarationsWithEnvironment,
-    moduleSymbols)
+    parseWithComments, moduleDeclarationsWithEnvironment,
+    moduleSymbols, moduleComments)
 import Fragnix.DeclarationLocalSlices (
     declarationLocalSlices)
 import Fragnix.HashLocalSlices (
@@ -28,11 +28,13 @@ import Fragnix.Paths (
 
 import System.Clock (
     getTime, Clock(Monotonic), toNanoSecs, diffTimeSpec)
-import qualified Data.Map as Map (union,elems)
+import qualified Data.Map as Map (union,elems,lookup)
+import Data.Text (unpack)
 
 import Data.Foldable (for_)
 import Control.Monad (forM)
 import Data.List (intersperse,nub)
+import Data.Maybe (mapMaybe,maybeToList,listToMaybe)
 import System.Directory (removeDirectoryRecursive, createDirectoryIfMissing)
 import System.FilePath ((</>), takeExtension, splitDirectories, joinPath)
 import System.Process (rawSystem)
@@ -41,8 +43,8 @@ import Text.Printf (printf)
 
 -- | Take a list of module paths on the command line and compile the 'main' symbol
 -- to an executable.
-build :: ShouldDist -> ShouldPreprocess -> [FilePath] -> IO ()
-build shouldDist shouldPreprocess directories = do
+build :: ShouldDist -> ShouldPreprocess -> ShouldExtractComments -> [FilePath] -> IO ()
+build shouldDist shouldPreprocess shouldExtractComments directories = do
     putStrLn "Finding targets ..."
 
     filePaths <- timeIt (do
@@ -79,11 +81,12 @@ build shouldDist shouldPreprocess directories = do
 
     putStrLn "Parsing modules ..."
 
-    modules <- timeIt (do
-        forM modulePaths parse)
+    modulesWithComments <- timeIt (do
+        forM modulePaths parseWithComments)
 
     putStrLn "Extracting declarations ..."
 
+    let modules = map fst modulesWithComments
     let declarations = moduleDeclarationsWithEnvironment environment modules
     timeIt (writeDeclarations declarationsPath declarations)
 
@@ -96,14 +99,33 @@ build shouldDist shouldPreprocess directories = do
     let (localSliceIDMap, slices) = hashLocalSlices localSlices
     timeIt (for_ slices (\slice -> writeSlice slicesPath slice))
 
+    let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
+    let updatedEnvironment = updateEnvironment symbolSliceIDs (moduleSymbols environment modules)
+
+    case shouldExtractComments of
+      NoExtractComments -> do
+        return ()
+      DoExtractComments -> do
+        for_ modulesWithComments (\(modul, comments) -> do
+          let symbolsComments = moduleComments modul comments
+          let sliceIDComments = do
+                (symbols, comment) <- symbolsComments
+                -- TODO what if a slice id maps to multiple lists of comments?
+                let sliceIDs = mapMaybe (\symbol -> Map.lookup symbol symbolSliceIDs) symbols
+                -- TODO make sure slice IDs are all the same
+                sliceID <- maybeToList (listToMaybe sliceIDs)
+                return (sliceID, comment)
+          -- TODO define this in module Paths
+          createDirectoryIfMissing True "comments"
+          for_ sliceIDComments (\(sliceID, comment) ->
+            writeFile ("comments/" ++ unpack sliceID) comment))
+
     case shouldDist of
 
       ShouldCompile -> do
 
         putStrLn "Updating environment ..."
 
-        let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
-        let updatedEnvironment = updateEnvironment symbolSliceIDs (moduleSymbols environment modules)
         timeIt (persistEnvironment environmentPath updatedEnvironment)
 
         case findMainSliceIDs symbolSliceIDs of
@@ -122,8 +144,6 @@ build shouldDist shouldPreprocess directories = do
 
         putStrLn "Writing environment ..."
 
-        let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
-        let updatedEnvironment = updateEnvironment symbolSliceIDs (moduleSymbols environment modules)
         createDirectoryIfMissing True outputDirectory
         timeIt (persistEnvironment outputDirectory updatedEnvironment)
 
@@ -145,6 +165,11 @@ data ShouldPreprocess
 data ShouldDist
   = ShouldCompile
   | ShouldDist FilePath
+
+data ShouldExtractComments
+  = DoExtractComments
+  | NoExtractComments
+
 
 -- | Replace slashes by dots.
 modulePreprocessedPath :: FilePath -> FilePath
