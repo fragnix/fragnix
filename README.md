@@ -1,5 +1,5 @@
 
-# Fragnix [![Build Status](https://travis-ci.org/phischu/fragnix.svg?branch=master)](https://travis-ci.org/phischu/fragnix)
+# Fragnix
 
 Fragnix is an experimental code package manager for Haskell. The central idea is that we should share and reuse code in units of small code fragments instead of in units of packages. The current state of development is technology preview, not even alpha.
 
