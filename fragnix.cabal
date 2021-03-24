@@ -11,9 +11,6 @@ maintainer:          pschuster@uni-koblenz.de
 category:            Distribution
 build-type:          Simple
 extra-source-files:  README.md
-                     , gui-src/elm/dist/index.html
-                     , gui-src/elm/dist/elm.min.js
-                     , gui-src/elm/README.md
 tested-with: GHC == 7.8.4, GHC == 7.10.1, GHC == 8.0.1
 
 common shared-build-depends
