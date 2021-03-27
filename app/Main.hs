@@ -5,6 +5,7 @@ import Build (
   build,ShouldPreprocess(DoPreprocess,NoPreprocess),
   ShouldDist(ShouldCompile,ShouldDist))
 import CreateEnv (createEnv)
+import GraphViz (visualize)
 import Paths_fragnix
 import Data.Version (showVersion)
 
@@ -19,8 +20,8 @@ data Command
   = Build ShouldPreprocess [FilePath]
   | CreateEnv
   | Update UpdateCommand
+  | Visualize
   | Dist FilePath ShouldPreprocess [FilePath]
-
 
 commandParserInfo :: ParserInfo Command
 commandParserInfo =
@@ -31,6 +32,7 @@ commandParser = subparser (mconcat [
     command "build" (info (buildParser <**> helper) (progDesc "Build all Haskell files in the given files and directories and their subdirectories.")),
     command "create-env" (info (createEnvParser <**> helper) (progDesc "Create the builtin environment.")),
     command "update" (info ((Update <$> updateParser) <**> helper) (progDesc "List all available updates.")),
+    command "visualize" (info (visualizeParser <**> helper) (progDesc "Visualize the current environment.")),
     command "dist" (info (distParser <**> helper) (progDesc "Serialize the environment that correspond to the given targets."))])
 
 versionOption :: Parser (a -> a)
@@ -46,6 +48,10 @@ buildParser = Build <$>
 createEnvParser :: Parser Command
 createEnvParser = pure CreateEnv
 
+
+visualizeParser :: Parser Command
+visualizeParser = pure Visualize
+
 distParser :: Parser Command
 distParser = Dist <$>
   strOption (short 'o' <> value "dist" <> metavar "DIR" <> help "Write output to directory DIR") <*>
@@ -60,5 +66,6 @@ main = do
      Build shouldPreprocess paths -> build ShouldCompile shouldPreprocess paths
      CreateEnv -> createEnv
      Update cmd -> update cmd
+     Visualize -> visualize
      Dist outputDirectory shouldPreprocess paths -> build (ShouldDist outputDirectory) shouldPreprocess paths
 
