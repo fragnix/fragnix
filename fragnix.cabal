@@ -38,7 +38,6 @@ library
                        Fragnix.ModuleDeclarations,
                        Fragnix.DeclarationLocalSlices,
                        Fragnix.HashLocalSlices,
-                       Fragnix.LocalSliceModule,
                        Fragnix.SliceCompiler,
                        Fragnix.SliceInstanceOptimization,
                        Fragnix.Environment,
@@ -46,6 +45,8 @@ library
                        Fragnix.Paths,
                        Fragnix.Utils,
                        Fragnix.Update
+                       Fragnix.Core.Slice
+                       Fragnix.Core.Update
   hs-source-dirs:      src
   ghc-options:         -O2 -Wall
 
