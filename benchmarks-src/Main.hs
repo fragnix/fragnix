@@ -1,8 +1,10 @@
 {-# LANGUAGE StandaloneDeriving, DeriveGeneric #-}
 module Main where
 
+import Fragnix.Paths (
+    builtinEnvironmentPath, slicesPath, compilationunitsPath)
 import Fragnix.Environment (
-    loadEnvironment, builtinEnvironmentPath)
+    loadEnvironment)
 import Fragnix.ModuleDeclarations (
     parse, moduleDeclarationsWithEnvironment)
 import Fragnix.DeclarationLocalSlices (
@@ -13,13 +15,15 @@ import Fragnix.HashLocalSlices (
 import Fragnix.SliceSymbols (
     findMainSliceIDs)
 import Fragnix.SliceCompiler (
-    writeSliceModules, sliceInstances, invokeGHCMain)
+    writeSlicesModules, invokeGHCMain)
+import Fragnix.SliceInstanceOptimization (
+    sliceInstancesOptimized)
 import Fragnix.Declaration (
     Declaration, Genre)
 import Fragnix.Slice (
     Slice, Language, Fragment, Use, Reference, UsedName, Name,
     Instance, InstancePart,
-    writeSliceDefault)
+    writeSlice)
 import Fragnix.LocalSlice (
     LocalSlice, LocalSliceID, LocalUse, LocalReference, LocalInstance)
 import Fragnix.SliceSymbols (
@@ -44,7 +48,8 @@ import Control.DeepSeq (NFData)
 import GHC.Generics (Generic)
 import Control.Monad (forM)
 import Data.Foldable (for_, toList)
-import System.Directory (getDirectoryContents, removeDirectoryRecursive)
+import System.Directory (
+    getDirectoryContents, removeDirectoryRecursive, createDirectoryIfMissing)
 
 
 main :: IO ()
@@ -95,19 +100,21 @@ main = do
                 nf fragmentLocalSlices fragmentNodes),
             bench "hashSlices2" (
                 nf hashSlices2 tempSliceMap)],
-        env (for_ slices writeSliceDefault) (\_ ->
+        env (for_ slices (writeSlice slicesPath)) (\_ ->
             bgroup "sliceCompiler" [
                 bench "sliceCompiler" (
                     whnfIO (do
-                        removeDirectoryRecursive "fragnix/temp/compilationunits/"
-                        writeSliceModules mainSliceID
+                        createDirectoryIfMissing True compilationunitsPath
+                        removeDirectoryRecursive compilationunitsPath
+                        writeSlicesModules [mainSliceID]
                         invokeGHCMain mainSliceID)),
-                bench "sliceInstances" (
-                    nf sliceInstances (toList slices)),
-                bench "writeSliceModules" (
+                bench "sliceInstancesOptimized" (
+                    nf sliceInstancesOptimized (toList slices)),
+                bench "writeSlicesModules" (
                     nfIO (do
-                        removeDirectoryRecursive "fragnix/temp/compilationunits/"
-                        writeSliceModules mainSliceID))])]
+                        createDirectoryIfMissing True compilationunitsPath
+                        removeDirectoryRecursive compilationunitsPath
+                        writeSlicesModules [mainSliceID]))])]
 
 
 instance NFData Symbol
@@ -145,7 +152,6 @@ instance NFData LocalInstance
 
 deriving instance Generic (Error a)
 deriving instance Generic (NameInfo a)
-deriving instance Generic SrcSpan
 deriving instance Generic (Scoped a)
 deriving instance Generic KnownExtension
 deriving instance Generic Extension

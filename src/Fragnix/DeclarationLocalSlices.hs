@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Fragnix.DeclarationLocalSlices
   ( declarationLocalSlices
+  , fragmentLocalSlices
+  , declarationSCCs
   ) where
 
 import Fragnix.Declaration (
