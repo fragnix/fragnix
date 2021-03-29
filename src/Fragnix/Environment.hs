@@ -10,7 +10,7 @@ import Language.Haskell.Exts (
     ModuleName(ModuleName),prettyPrint)
 
 import Data.Aeson.Encode.Pretty (encodePretty)
-import qualified Data.ByteString.Lazy as BS (readFile, writeFile, pack)
+import qualified Data.ByteString.Lazy as BS (writeFile, pack)
 import Data.Char (ord)
 import qualified Data.Map as Map (
     fromList,toList)
