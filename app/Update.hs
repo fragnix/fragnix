@@ -9,13 +9,14 @@ import Fragnix.Slice (
   Slice(..), SliceID, Fragment(..), Reference(OtherSlice, Builtin),
   readSlice, writeSlice, moduleNameReference, sliceIDModuleName, loadSliceIDsTransitive)
 import Fragnix.Update (
-  Update, apply, diff, getUpdates, PersistedUpdate(..),
-  UpdateID, createUpdate, writeUpdate, findUpdateFuzzy)
+  apply, diff, getUpdates,
+  createUpdate, writeUpdate, findUpdateFuzzy)
 import Fragnix.LocalSlice (
   LocalSlice(LocalSlice))
 import Fragnix.HashLocalSlices (hashLocalSlices)
 import Fragnix.Environment (loadEnvironment, persistEnvironment)
 import Fragnix.Paths (environmentPath, slicesPath)
+import Fragnix.Core.Update
 
 import Options.Applicative (
   Parser, subparser, command, info, progDesc, metavar, helper, (<**>), argument, str)
