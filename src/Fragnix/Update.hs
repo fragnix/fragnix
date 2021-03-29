@@ -5,6 +5,7 @@ module Fragnix.Update where
 
 import Prelude hiding (writeFile,readFile)
 
+import Fragnix.Core.Update
 import Fragnix.Slice (
   Slice(Slice), SliceID,
   Use(Use), Reference(OtherSlice, Builtin), Instance(Instance))
@@ -16,7 +17,7 @@ import qualified Fragnix.LocalSlice as Local (
 import Fragnix.Paths (updatePath)
 import Fragnix.Utils (listFilesRecursive)
 
-import Data.Aeson (ToJSON, FromJSON, eitherDecode)
+import Data.Aeson (eitherDecode)
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Map (Map)
 import qualified Data.Map as Map (lookup, insert)
@@ -38,10 +39,6 @@ import Data.Maybe (fromMaybe)
 import Data.List (find)
 import Control.Exception (Exception,throwIO)
 import Data.Typeable (Typeable)
-import GHC.Generics (Generic)
-
-
-type Update = [(SliceID, SliceID)]
 
 -- TODO optimize the case where nothing changes
 
@@ -177,23 +174,6 @@ diffInstances _ instances1 instances2 =
 -- let (localSliceMap, slices2) = hashLocalSlices localSlices
 -- let sliceID2 = localSliceMap !! localSliceID
 -- diff (slices ++ slices2) sliceID sliceID2 == update
-
-type UpdateID = Text
-
-data PersistedUpdate = PersistedUpdate
-  { updateID :: UpdateID
-  , updateDescription :: Text
-  , updateContent :: Update
-  }
-
-
--- Instances for PersistedUpdate
-
-deriving instance Show PersistedUpdate
-deriving instance Eq PersistedUpdate
-deriving instance Generic PersistedUpdate
-instance ToJSON PersistedUpdate
-instance FromJSON PersistedUpdate
 
 data UpdateParseError = UpdateParseError FilePath String
 

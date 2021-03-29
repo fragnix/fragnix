@@ -12,12 +12,8 @@ import Fragnix.Slice (
     SliceID, OriginalModule, Language, Fragment, Qualification, UsedName,
     InstancePart, InstanceID)
 
-import Data.Aeson (
-    ToJSON(toJSON),object,(.=),
-    FromJSON(parseJSON),withObject,(.:),
-    ToJSONKey,FromJSONKey)
+import Data.Aeson (FromJSON, ToJSON, ToJSONKey, FromJSONKey)
 
-import Control.Applicative ((<|>))
 import Data.Text (Text)
 import GHC.Generics (Generic)
 
@@ -26,116 +22,77 @@ import GHC.Generics (Generic)
 -- It has to be a valid Haskell module name.
 newtype LocalSliceID = LocalSliceID Text
 
--- | A Slice with a local ID that may use slices with local IDs as well as global
--- slices with slice IDs.
-data LocalSlice = LocalSlice LocalSliceID Language Fragment [LocalUse] [LocalInstance]
-
--- | A local use may refer to local slices and global slices.
-data LocalUse = LocalUse (Maybe Qualification) UsedName LocalReference
-
-data LocalReference =
-    OtherSlice SliceID |
-    Builtin OriginalModule |
-    OtherLocalSlice LocalSliceID
-
-data LocalInstance =
-    LocalInstance InstancePart LocalInstanceID |
-    GlobalInstance InstancePart InstanceID
-
-type LocalInstanceID = LocalSliceID
-
-
--- LocalSliceID instances
-
 deriving instance Show LocalSliceID
 deriving instance Eq LocalSliceID
 deriving instance Ord LocalSliceID
 deriving instance Generic LocalSliceID
 
-instance ToJSON LocalSliceID where
-    toJSON (LocalSliceID localSliceID) = toJSON localSliceID
-
-instance FromJSON LocalSliceID where
-    parseJSON x = LocalSliceID <$> parseJSON x
+instance ToJSON LocalSliceID
+instance FromJSON LocalSliceID
 
 deriving instance ToJSONKey LocalSliceID
 deriving instance FromJSONKey LocalSliceID
 
--- LocalSlice instances
+-- | A Slice with a local ID that may use slices with local IDs as well as global
+-- slices with slice IDs.
+data LocalSlice = LocalSlice
+  { localSliceID :: LocalSliceID
+  , language :: Language
+  , fragment :: Fragment
+  , localUses :: [LocalUse]
+  , localInstances :: [LocalInstance]
+  }
 
 deriving instance Show LocalSlice
 deriving instance Eq LocalSlice
 deriving instance Ord LocalSlice
 deriving instance Generic LocalSlice
 
-instance ToJSON LocalSlice where
-    toJSON (LocalSlice localSliceID language fragment localUses localInstances) = object [
-        "localSliceID" .= localSliceID,
-        "language" .= language,
-        "fragment" .= fragment,
-        "localUses" .= localUses,
-        "localInstances" .= localInstances]
+instance ToJSON LocalSlice
+instance FromJSON LocalSlice
 
-instance FromJSON LocalSlice where
-    parseJSON = withObject "localSlice" (\o ->
-        LocalSlice <$>
-            o .: "localSliceID" <*>
-            o .: "language" <*>
-            o .: "fragment" <*>
-            o .: "localUses" <*>
-            o .: "localInstances")
-
--- LocalUseInstances
+-- | A local use may refer to local slices and global slices.
+data LocalUse = LocalUse
+  { qualification :: Maybe Qualification
+  , usedName :: UsedName
+  , localReference :: LocalReference
+  }
 
 deriving instance Show LocalUse
 deriving instance Eq LocalUse
 deriving instance Ord LocalUse
 deriving instance Generic LocalUse
 
-instance ToJSON LocalUse where
-    toJSON (LocalUse qualification usedName localReference) = object [
-        "qualification" .= qualification,
-        "usedName" .= usedName,
-        "localReference" .= localReference]
+instance ToJSON LocalUse
+instance FromJSON LocalUse
 
-instance FromJSON LocalUse where
-    parseJSON = withObject "localUse" (\o ->
-        LocalUse <$> o .: "qualification" <*> o .: "usedName" <*> o .: "localReference")
-
--- LocalReference instances
+data LocalReference =
+    OtherSlice SliceID |
+    Builtin OriginalModule |
+    OtherLocalSlice LocalSliceID
 
 deriving instance Show LocalReference
 deriving instance Eq LocalReference
 deriving instance Ord LocalReference
 deriving instance Generic LocalReference
 
-instance ToJSON LocalReference where
-    toJSON (OtherSlice sliceID) = object ["otherSlice" .= sliceID]
-    toJSON (Builtin originalModule) = object ["builtinModule" .= originalModule]
-    toJSON (OtherLocalSlice sliceID) = object ["otherLocalSlice" .= sliceID]
+instance ToJSON LocalReference
+instance FromJSON LocalReference
 
-instance FromJSON LocalReference where
-    parseJSON = withObject "localReference" (\o ->
-        OtherSlice <$> o .: "otherSlice" <|>
-        Builtin <$> o .: "builtinModule" <|>
-        OtherLocalSlice <$> o .: "otherLocalSlice")
 
--- LocalInstance instances
+-- TODO: Reorganize in order to avoid partial record labels.
+data LocalInstance =
+    LocalInstance { instancePart :: InstancePart, localInstanceID :: LocalInstanceID } |
+    GlobalInstance { instancePart :: InstancePart, globalInstanceID :: InstanceID }
+
+type LocalInstanceID = LocalSliceID
+
 
 deriving instance Show LocalInstance
 deriving instance Eq LocalInstance
 deriving instance Ord LocalInstance
 deriving instance Generic LocalInstance
 
-instance ToJSON LocalInstance where
-    toJSON (LocalInstance instancePart localInstanceID) =
-        object ["instancePart" .= instancePart,"localInstanceID" .= localInstanceID]
-    toJSON (GlobalInstance instancePart globalInstanceID) =
-        object ["instancePart" .= instancePart,"globalInstanceID" .= globalInstanceID]
-
-instance FromJSON LocalInstance where
-    parseJSON = withObject "localInstance" (\o ->
-        LocalInstance <$> o .: "instancePart" <*> o .: "localInstanceID" <|>
-        GlobalInstance <$> o .: "instancePart" <*> o .: "globalInstanceID")
-
+instance ToJSON LocalInstance
+instance FromJSON LocalInstance
 
