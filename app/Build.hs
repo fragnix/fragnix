@@ -22,7 +22,7 @@ import Fragnix.SliceCompiler (
 import Fragnix.Utils (
     listFilesRecursive)
 import Fragnix.Paths (
-    slicesPath,builtinEnvironmentPath,environmentPath,declarationsPath,preprocessedPath)
+    slicesPath,builtinEnvironmentPath,environmentPath,declarationsPath,preprocessedPath, cbitsPath)
 
 -- import Language.Haskell.Names (ppError)
 
@@ -95,6 +95,8 @@ build shouldDist shouldPreprocess directories = do
     let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
     let (localSliceIDMap, slices) = hashLocalSlices localSlices
     timeIt (for_ slices (\slice -> writeSlice slicesPath slice))
+
+    createDirectoryIfMissing True cbitsPath
 
     case shouldDist of
 
