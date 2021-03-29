@@ -56,7 +56,7 @@ import Data.List (isSuffixOf)
 -- | Compile all slices with the given slice IDs. Turn all warnings off.
 -- Assumes that all necessary compilation units have been written to disk.
 invokeGHC :: [SliceID] -> IO ExitCode
-invokeGHC sliceIDs = rawSystem "ghc-8.0.2" ([
+invokeGHC sliceIDs = rawSystem "ghc" ([
     "-w",
     "-i" ++ compilationunitsPath,
     "-outputdir",buildPath] ++
@@ -68,7 +68,7 @@ invokeGHC sliceIDs = rawSystem "ghc-8.0.2" ([
 invokeGHCMain :: SliceID -> IO ExitCode
 invokeGHCMain sliceID = do
   cfiles <- getCFiles
-  rawSystem "ghc-8.0.2" ([
+  rawSystem "ghc" ([
     "-o","main",
     "-i" ++ compilationunitsPath,
     "-main-is",sliceIDModuleName sliceID,

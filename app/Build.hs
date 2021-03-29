@@ -65,7 +65,7 @@ build shouldDist shouldPreprocess directories = do
           createDirectoryIfMissing True preprocessedPath
           let modulePaths = filter isHaskellFile filePaths
           forM modulePaths (\path -> do
-            rawSystem "ghc-8.0.2" [
+            rawSystem "ghc" [
               "-E",
               "-optP","-P",
               "-optL","-P",
