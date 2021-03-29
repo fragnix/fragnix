@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings,StandaloneDeriving,DeriveGeneric,DeriveDataTypeable #-}
+{-# LANGUAGE OverloadedStrings,StandaloneDeriving,DeriveGeneric,DeriveDataTypeable, NamedFieldPuns #-}
 module Fragnix.Slice
   ( SliceID
   , Slice(..)
@@ -202,7 +202,7 @@ instance Exception SliceParseError
 
 -- | The name we give to the module generated for a slice with the given ID.
 sliceIDModuleName :: SliceID -> String
-sliceIDModuleName sliceID = "F" ++ Text.unpack sliceID
+sliceIDModuleName sid = "F" ++ Text.unpack sid
 
 -- | We abuse module names to either refer to builtin modules or to a slice.
 -- If the module name refers to a slice it starts with F followed by
@@ -218,7 +218,7 @@ moduleNameReference moduleName =
 
 -- | Write the given slice to the given directory
 writeSlice :: FilePath -> Slice -> IO ()
-writeSlice slicesPath slice@(Slice sliceID _ _ _ _) = do
+writeSlice slicesPath slice@Slice { sliceID } = do
   let slicePath = slicesPath </> sliceNestedPath sliceID
   createDirectoryIfMissing True (dropFileName slicePath)
   writeFile slicePath (encodePretty slice)

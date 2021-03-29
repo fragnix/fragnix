@@ -141,10 +141,10 @@ sliceConstructors :: [(LocalSliceID,[Declaration])] -> Map Symbol [Symbol]
 sliceConstructors fragmentNodes = Map.fromListWith (++) (do
     (_,declarations) <- fragmentNodes
     Declaration _ _ _ boundSymbols _ <- declarations
-    constructor@(Constructor _ _ typeName) <- boundSymbols
+    constructor@(Constructor _ _ typename) <- boundSymbols
     typeSymbol <- boundSymbols
     guard (isType typeSymbol)
-    guard (symbolName typeSymbol == typeName)
+    guard (symbolName typeSymbol == typename)
     return (typeSymbol,[constructor]))
 
 
@@ -265,8 +265,8 @@ symbolConstructorUses localEnvironment constructorMap symbol =
             builtinReference@(Builtin _) -> case symbol of
                 NewType _ symbolname -> do
                     let symbolTypeName = fromName symbolname
-                        constructorName = ConstructorName symbolTypeName symbolTypeName
-                    return (LocalUse Nothing constructorName builtinReference)
+                        constructorname = ConstructorName symbolTypeName symbolTypeName
+                    return (LocalUse Nothing constructorname builtinReference)
                 _ -> []
             _ -> []
         Just referenceNode -> do
@@ -345,8 +345,8 @@ instanceSymbols fragmentNodes = do
 
 
 symbolUsedName :: Symbol -> UsedName
-symbolUsedName (Constructor _ constructorName typeName) =
-    ConstructorName (fromName typeName) (fromName constructorName)
+symbolUsedName (Constructor _ constructorname typename) =
+    ConstructorName (fromName typename) (fromName constructorname)
 symbolUsedName symbol
     | isValue symbol = ValueName (fromName (symbolName symbol))
     | otherwise = TypeName (fromName (symbolName symbol))
