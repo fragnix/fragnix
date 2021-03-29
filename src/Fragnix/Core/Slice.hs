@@ -6,26 +6,24 @@ import Data.Hashable (Hashable)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 
--- Type Synonyms
-
-type InstanceID = SliceID
-type TypeName = Name
-type SliceID = Text
-type SourceCode = Text
-type Qualification = Text
-type OriginalModule = Text
-type GHCExtension = Text
-
-
 -- Slices
+
+type SliceID = Text
 
 data Slice = Slice
   { sliceID :: SliceID
+    -- ^ The hash by which this slice is identified.
   , language :: Language
+    -- ^ The language extensions which have to be enabled in order to
+    -- be able to compile this slice.
   , fragment :: Fragment
+    -- ^ The actual source code contained in this slice.
   , uses :: [Use]
+    -- ^ The dependencies of this slice.
   , instances :: [Instance]
+    -- ^ The typeclass instances that this slide provides.
   }
+
 deriving instance Show Slice
 deriving instance Eq Slice
 deriving instance Ord Slice
@@ -35,6 +33,9 @@ instance FromJSON Slice
 
 -- Language
 
+type GHCExtension = Text
+
+-- | A list of GHC language extensions.
 data Language = Language { extensions :: [GHCExtension] }
 
 deriving instance Show Language
@@ -47,6 +48,9 @@ instance Hashable Language
 
 -- Fragment
 
+type SourceCode = Text
+
+-- | Haskell source code fragments.
 data Fragment = Fragment [SourceCode]
 
 deriving instance Show Fragment
@@ -59,6 +63,8 @@ instance FromJSON Fragment
 instance Hashable Fragment
 
 -- Use
+
+type Qualification = Text
 
 data Use = Use
   { qualification :: (Maybe Qualification)
@@ -76,6 +82,8 @@ instance FromJSON Use
 instance Hashable Use
 
 -- Instance
+
+type InstanceID = SliceID
 
 data Instance = Instance
   { instancePart :: InstancePart
@@ -110,6 +118,8 @@ instance Hashable InstancePart
 
 -- UsedName
 
+type TypeName = Name
+
 data UsedName =
     ValueName { valueName :: Name } |
     TypeName { typeName :: Name } |
@@ -125,6 +135,8 @@ instance FromJSON UsedName
 instance Hashable UsedName
 
 -- Reference
+
+type OriginalModule = Text
 
 data Reference = OtherSlice SliceID | Builtin OriginalModule
 
