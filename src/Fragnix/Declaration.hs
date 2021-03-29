@@ -12,14 +12,13 @@ import Language.Haskell.Names (
 
 import Data.Aeson (
     ToJSON(toJSON),object,(.=),
-    FromJSON(parseJSON),withObject,(.:),decode)
+    FromJSON(parseJSON),withObject,(.:))
 import Data.Aeson.Encode.Pretty (encodePretty)
-import qualified Data.ByteString.Lazy as ByteString (readFile,writeFile)
+import qualified Data.ByteString.Lazy as ByteString (writeFile)
 import Data.Text (Text)
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath (dropFileName)
 
-import Data.Maybe (fromMaybe)
 import GHC.Generics (Generic)
 
 data Declaration = Declaration Genre [Extension] DeclarationAST DeclaredSymbols MentionedSymbols
@@ -42,10 +41,10 @@ type DeclarationAST   = Text
 type DeclaredSymbols  = [Symbol]
 type MentionedSymbols = [(Symbol, Maybe (ModuleName ()))]
 
-readDeclarations :: FilePath -> IO [Declaration]
-readDeclarations declarationspath = do
-    declarationsfile <- ByteString.readFile declarationspath
-    return (fromMaybe (error "Failed to parse declarations") (decode declarationsfile))
+-- readDeclarations :: FilePath -> IO [Declaration]
+-- readDeclarations declarationspath = do
+--     declarationsfile <- ByteString.readFile declarationspath
+--     return (fromMaybe (error "Failed to parse declarations") (decode declarationsfile))
 
 writeDeclarations :: FilePath -> [Declaration] -> IO ()
 writeDeclarations declarationspath declarations = do

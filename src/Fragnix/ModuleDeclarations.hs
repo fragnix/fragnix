@@ -7,10 +7,6 @@ module Fragnix.ModuleDeclarations
 
 import Fragnix.Declaration (
     Declaration(Declaration),Genre(..))
-import Fragnix.Environment (
-    loadEnvironment)
-import Fragnix.Paths (
-    environmentPath,builtinEnvironmentPath)
 
 import Language.Haskell.Exts (
     Module,ModuleName,QName(Qual,UnQual),Decl(..),
@@ -21,8 +17,8 @@ import Language.Haskell.Exts (
     readExtensions,Extension(EnableExtension,UnknownExtension),KnownExtension(..))
 import Language.Haskell.Names (
     resolve,annotate,
-    Environment,Symbol,Error,Scoped(Scoped),
-    NameInfo(GlobalSymbol,RecPatWildcard,ScopeError))
+    Environment,Symbol,Scoped(Scoped),
+    NameInfo(GlobalSymbol,RecPatWildcard))
 import Language.Haskell.Names.SyntaxUtils (
     getModuleDecls,getModuleName,getModuleExtensions,dropAnn)
 import Language.Haskell.Names.ModuleSymbols (
@@ -32,20 +28,19 @@ import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (
 
 
 import qualified Data.Map.Strict as Map (
-    union,(!),fromList)
-import Control.Monad (forM)
+    (!),fromList)
 import Data.Maybe (mapMaybe)
 import Data.Text (pack)
 import Data.Foldable (toList)
 
--- | Given a list of filepaths to valid Haskell modules produces a list of all
--- declarations in those modules. The default environment loaded and used.
-moduleDeclarations :: [FilePath] -> IO [Declaration]
-moduleDeclarations modulepaths = do
-    builtinEnvironment <- loadEnvironment builtinEnvironmentPath
-    environment <- loadEnvironment environmentPath
-    modules <- forM modulepaths parse
-    return (moduleDeclarationsWithEnvironment (Map.union builtinEnvironment environment) modules)
+-- -- | Given a list of filepaths to valid Haskell modules produces a list of all
+-- -- declarations in those modules. The default environment loaded and used.
+-- moduleDeclarations :: [FilePath] -> IO [Declaration]
+-- moduleDeclarations modulepaths = do
+--     builtinEnvironment <- loadEnvironment builtinEnvironmentPath
+--     environment <- loadEnvironment environmentPath
+--     modules <- forM modulepaths parse
+--     return (moduleDeclarationsWithEnvironment (Map.union builtinEnvironment environment) modules)
 
 
 -- | Use the given environment to produce a list of all declarations from the given list
@@ -61,13 +56,13 @@ moduleDeclarationsWithEnvironment environment modules = declarations where
     annotatedModules = map (annotate environment') modules
 
 
-moduleNameErrors :: Environment -> [Module SrcSpan] -> [Error SrcSpan]
-moduleNameErrors environment modules = errors where
-    errors = do
-        Scoped (ScopeError errorInfo) _ <- concatMap toList annotatedModules
-        return errorInfo
-    annotatedModules = map (annotate environment') modules
-    environment' = resolve modules environment
+-- moduleNameErrors :: Environment -> [Module SrcSpan] -> [Error SrcSpan]
+-- moduleNameErrors environment modules = errors where
+--     errors = do
+--         Scoped (ScopeError errorInfo) _ <- concatMap toList annotatedModules
+--         return errorInfo
+--     annotatedModules = map (annotate environment') modules
+--     environment' = resolve modules environment
 
 
 -- | Get the exports of the given modules resolved against the given environment.
@@ -107,8 +102,8 @@ globalExtensions = [
 -- TemplateHaskell when we encounter it.
 -- See https://github.com/haskell-suite/haskell-src-exts/issues/357
 perhapsTemplateHaskell :: [Extension] -> [Extension]
-perhapsTemplateHaskell extensions =
-  if any (== UnknownExtension "TemplateHaskellQuotes") extensions
+perhapsTemplateHaskell exts =
+  if any (== UnknownExtension "TemplateHaskellQuotes") exts
     then [EnableExtension TemplateHaskell]
     else []
 
