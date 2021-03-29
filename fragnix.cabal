@@ -45,6 +45,7 @@ library
                        Fragnix.Paths,
                        Fragnix.Utils,
                        Fragnix.Update
+                       Fragnix.Core.Slice
   hs-source-dirs:      src
   ghc-options:         -O2 -Wall
 
