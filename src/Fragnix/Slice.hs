@@ -25,10 +25,7 @@ module Fragnix.Slice
 
 import Prelude hiding (writeFile,readFile)
 
-import Data.Aeson (
-    ToJSON(toJSON),object,(.=),
-    FromJSON(parseJSON),withObject,(.:),withText,
-    eitherDecode)
+import Data.Aeson (FromJSON, ToJSON, eitherDecode)
 import Data.Aeson.Encode.Pretty (encodePretty)
 
 import GHC.Generics (Generic)
@@ -39,9 +36,6 @@ import qualified Data.Text as Text (unpack,pack,length,index)
 
 import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put)
 import Control.Monad.IO.Class (liftIO)
-
-import Control.Applicative ((<|>),empty)
-
 import Control.Monad (forM, forM_, unless)
 import Control.Exception (Exception,throwIO)
 import Data.Typeable(Typeable)
@@ -52,16 +46,81 @@ import System.Directory (createDirectoryIfMissing)
 import Data.Char (isDigit)
 import Fragnix.Utils (listFilesRecursive)
 
+-- Slices
 
-data Slice = Slice SliceID Language Fragment [Use] [Instance]
+data Slice = Slice
+  { sliceID :: SliceID
+  , language :: Language
+  , fragment :: Fragment
+  , uses :: [Use]
+  , instances :: [Instance]
+  }
+deriving instance Show Slice
+deriving instance Eq Slice
+deriving instance Ord Slice
+deriving instance Generic Slice
+instance ToJSON Slice
+instance FromJSON Slice
 
-data Language = Language [GHCExtension]
+-- Language
+
+data Language = Language { extensions :: [GHCExtension] }
+
+deriving instance Show Language
+deriving instance Eq Language
+deriving instance Ord Language
+deriving instance Generic Language
+instance ToJSON Language
+instance FromJSON Language
+instance Hashable Language
+
+-- Fragment
 
 data Fragment = Fragment [SourceCode]
 
-data Use = Use (Maybe Qualification) UsedName Reference
+deriving instance Show Fragment
+deriving instance Eq Fragment
+deriving instance Ord Fragment
+deriving instance Generic Fragment
 
-data Instance = Instance InstancePart InstanceID
+instance ToJSON Fragment
+instance FromJSON Fragment
+instance Hashable Fragment
+
+-- Use
+
+data Use = Use
+  { qualification :: (Maybe Qualification)
+  , usedName :: UsedName
+  , reference :: Reference
+  }
+
+deriving instance Show Use
+deriving instance Eq Use
+deriving instance Ord Use
+deriving instance Generic Use
+
+instance ToJSON Use
+instance FromJSON Use
+instance Hashable Use
+
+-- Instance
+
+data Instance = Instance
+  { instancePart :: InstancePart
+  , instanceID :: InstanceID
+  }
+
+deriving instance Show Instance
+deriving instance Eq Instance
+deriving instance Ord Instance
+deriving instance Generic Instance
+
+instance ToJSON Instance
+instance FromJSON Instance
+instance Hashable Instance
+
+-- Instance Part
 
 data InstancePart =
     OfThisClass |
@@ -69,147 +128,47 @@ data InstancePart =
     ForThisType |
     ForThisTypeOfUnknownClass
 
-type InstanceID = SliceID
+deriving instance Show InstancePart
+deriving instance Eq InstancePart
+deriving instance Ord InstancePart
+deriving instance Generic InstancePart
 
-data Reference = OtherSlice SliceID | Builtin OriginalModule
+instance ToJSON InstancePart
+instance FromJSON InstancePart
+instance Hashable InstancePart
+
+-- UsedName
 
 data UsedName =
-    ValueName Name |
-    TypeName Name |
-    ConstructorName TypeName Name
-
-data Name = Identifier Text | Operator Text
-
-type TypeName = Name
-
-type SliceID = Text
-type SourceCode = Text
-type Qualification = Text
-type OriginalModule = Text
-type GHCExtension = Text
-
-
--- Slice instances
-
-deriving instance Show Slice
-deriving instance Eq Slice
-deriving instance Ord Slice
-deriving instance Generic Slice
-
-instance ToJSON Slice where
-    toJSON (Slice sliceID language fragment uses instances) = object [
-        "sliceID" .= sliceID,
-        "language" .= language,
-        "fragment" .= fragment,
-        "uses" .= uses,
-        "instances" .= instances]
-
-instance FromJSON Slice where
-    parseJSON = withObject "slice" (\o ->
-        Slice <$>
-            o .: "sliceID" <*>
-            o .: "language" <*>
-            o .: "fragment" <*>
-            o .: "uses" <*>
-            o .: "instances")
-
-
--- Language instances
-
-deriving instance Show Language
-deriving instance Eq Language
-deriving instance Ord Language
-deriving instance Generic Language
-
-instance ToJSON Language where
-    toJSON (Language ghcExtensions) = object [
-        "extensions" .= toJSON ghcExtensions]
-
-instance FromJSON Language where
-    parseJSON = withObject "language" (\o ->
-        Language <$>
-            o .: "extensions")
-
-instance Hashable Language
-
-
--- Fragment instances
-
-deriving instance Show Fragment
-deriving instance Eq Fragment
-deriving instance Ord Fragment
-deriving instance Generic Fragment
-
-instance ToJSON Fragment where
-    toJSON (Fragment declarations) = toJSON declarations
-
-instance FromJSON Fragment where
-    parseJSON = fmap Fragment . parseJSON
-
-instance Hashable Fragment
-
-
--- Use instances
-
-deriving instance Show Use
-deriving instance Eq Use
-deriving instance Ord Use
-deriving instance Generic Use
-
-instance ToJSON Use where
-    toJSON (Use qualification usedName reference) = object [
-        "qualification" .= qualification,
-        "usedName" .= usedName,
-        "reference" .= reference]
-
-instance FromJSON Use where
-    parseJSON = withObject "use" (\o ->
-        Use <$> o .: "qualification" <*> o .: "usedName" <*> o .: "reference")
-
-instance Hashable Use
-
-
--- Used name instances
+    ValueName { valueName :: Name } |
+    TypeName { typeName :: Name } |
+    ConstructorName { constructorTypeName :: TypeName, constructorName :: Name }
 
 deriving instance Show UsedName
 deriving instance Eq UsedName
 deriving instance Ord UsedName
 deriving instance Generic UsedName
 
-instance ToJSON UsedName  where
-    toJSON (ValueName name) = object ["valueName" .= name]
-    toJSON (TypeName name) = object ["typeName" .= name]
-    toJSON (ConstructorName typeName name) = object [
-        "constructorTypeName" .= typeName,
-        "constructorName" .= name]
-
-instance FromJSON UsedName where
-    parseJSON = withObject "used name" (\o ->
-        ValueName <$> o .: "valueName" <|>
-        TypeName <$> o .: "typeName" <|>
-        ConstructorName <$> o .: "constructorTypeName" <*> o .: "constructorName")
-
+instance ToJSON UsedName
+instance FromJSON UsedName
 instance Hashable UsedName
 
+-- Reference
 
--- Reference instances
+data Reference = OtherSlice SliceID | Builtin OriginalModule
 
 deriving instance Show Reference
 deriving instance Eq Reference
 deriving instance Ord Reference
 deriving instance Generic Reference
 
-instance ToJSON Reference where
-    toJSON (OtherSlice sliceID) = object ["otherSlice" .= sliceID]
-    toJSON (Builtin originalModule) = object ["builtinModule" .= originalModule]
-
-instance FromJSON Reference where
-    parseJSON = withObject "reference" (\o ->
-        OtherSlice <$> o .: "otherSlice" <|>
-        Builtin <$> o .: "builtinModule")
-
+instance ToJSON Reference
+instance FromJSON Reference
 instance Hashable Reference
 
+-- Name
+
+data Name = Identifier Text | Operator Text
 
 -- Name instances
 
@@ -218,58 +177,17 @@ deriving instance Eq Name
 deriving instance Ord Name
 deriving instance Generic Name
 
-instance ToJSON Name where
-    toJSON (Identifier name) = object ["identifier" .= name]
-    toJSON (Operator name) = object ["operator" .= name]
-
-instance FromJSON Name where
-    parseJSON = withObject "name" (\o ->
-        Identifier <$> o .: "identifier" <|>
-        Operator <$> o .: "operator")
-
+instance ToJSON Name
+instance FromJSON Name
 instance Hashable Name
 
-
--- Instance instances
-
-deriving instance Show Instance
-deriving instance Eq Instance
-deriving instance Ord Instance
-deriving instance Generic Instance
-
-instance ToJSON Instance where
-    toJSON (Instance instancePart instanceID) =
-        object ["instancePart" .= instancePart,"instanceID" .= instanceID]
-
-instance FromJSON Instance where
-    parseJSON = withObject "instance" (\o ->
-        Instance <$> o .: "instancePart" <*> o .: "instanceID")
-
-instance Hashable Instance
-
-
--- InstancePart instances
-
-deriving instance Show InstancePart
-deriving instance Eq InstancePart
-deriving instance Ord InstancePart
-deriving instance Generic InstancePart
-
-instance ToJSON InstancePart where
-    toJSON OfThisClass = toJSON ("OfThisClass" :: Text)
-    toJSON OfThisClassForUnknownType = toJSON ("OfThisClassForUnknownType" :: Text)
-    toJSON ForThisType = toJSON ("ForThisType" :: Text)
-    toJSON ForThisTypeOfUnknownClass = toJSON ("ForThisTypeOfUnknownClass" :: Text)
-
-instance FromJSON InstancePart where
-    parseJSON = withText "instancePart" (\s -> case s of
-        "OfThisClass" -> return OfThisClass
-        "OfThisClassForUnknownType" -> return OfThisClassForUnknownType
-        "ForThisType" -> return ForThisType
-        "ForThisTypeOfUnknownClass" -> return ForThisTypeOfUnknownClass
-        _ -> empty)
-
-instance Hashable InstancePart
+type InstanceID = SliceID
+type TypeName = Name
+type SliceID = Text
+type SourceCode = Text
+type Qualification = Text
+type OriginalModule = Text
+type GHCExtension = Text
 
 -- Slice parse errors
 
