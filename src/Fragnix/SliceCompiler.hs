@@ -8,7 +8,7 @@ import Prelude hiding (writeFile)
 
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
-    Use(Use),Reference(OtherSlice,Builtin),Instance(Instance),
+    Use(Use),Reference(OtherSlice,Builtin),
     UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
     InstanceID,
     sliceIDModuleName,moduleNameReference,
@@ -102,26 +102,26 @@ writeSlicesModules sliceIDs = do
     forM_ sliceModules writeModule
     forM_ sliceHSBoots writeHSBoot
 
--- | Given a slice generate the corresponding module.
-sliceModule :: Slice -> Module ()
-sliceModule (Slice sliceID language fragment uses instances) =
-    let Fragment declarations = fragment
-        moduleHead = ModuleHead () moduleName Nothing maybeExportSpecList
-        pragmas = [LanguagePragma () languagepragmas]
-        instanceIDs = map (\(Instance _ instanceID) -> instanceID) instances
-        imports =
-            map useImport uses ++
-            map instanceImport instanceIDs
-        decls = map (parseDeclaration sliceID ghcextensions) declarations
-        moduleName = ModuleName () (sliceIDModuleName sliceID)
-        -- We need an export list to export the data family even
-        -- though a slice only contains the data family instance
-        maybeExportSpecList = dataFamilyInstanceExports decls imports
-        languagepragmas =
-            [Ident () "NoImplicitPrelude"] ++
-            (map (Ident () . unpack) ghcextensions)
-        Language ghcextensions = language
-    in Module () (Just moduleHead) pragmas imports decls
+-- -- | Given a slice generate the corresponding module.
+-- sliceModule :: Slice -> Module ()
+-- sliceModule (Slice sliceID language fragment uses instances) =
+--     let Fragment declarations = fragment
+--         moduleHead = ModuleHead () moduleName Nothing maybeExportSpecList
+--         pragmas = [LanguagePragma () languagepragmas]
+--         instanceIDs = map (\(Instance _ instanceID) -> instanceID) instances
+--         imports =
+--             map useImport uses ++
+--             map instanceImport instanceIDs
+--         decls = map (parseDeclaration sliceID ghcextensions) declarations
+--         moduleName = ModuleName () (sliceIDModuleName sliceID)
+--         -- We need an export list to export the data family even
+--         -- though a slice only contains the data family instance
+--         maybeExportSpecList = dataFamilyInstanceExports decls imports
+--         languagepragmas =
+--             [Ident () "NoImplicitPrelude"] ++
+--             (map (Ident () . unpack) ghcextensions)
+--         Language ghcextensions = language
+--     in Module () (Just moduleHead) pragmas imports decls
 
 -- | Given a slice generate the corresponding module.
 -- Uses the set of instances from the given Map, which is smaller than
@@ -305,7 +305,7 @@ writeFileStrict filePath content = (do
         `catch` (print :: SomeException -> IO ())
 
 
-doesSliceModuleExist :: SliceID -> IO Bool
-doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)
+-- doesSliceModuleExist :: SliceID -> IO Bool
+-- doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)
 
 
