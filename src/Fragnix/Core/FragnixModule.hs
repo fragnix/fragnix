@@ -4,21 +4,22 @@ module Fragnix.Core.FragnixModule where
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Data
 import Data.Map (Map)
+import Data.Text (Text)
 import GHC.Generics (Generic)
 
 -- The definition of FragnixModule is a copy of the definition of Environment from the haskell-names package.
 
 -- | This type is used to represent variables, and also constructors.
 data Name
-    = Ident String   -- ^ /varid/ or /conid/.
-    | Symbol String   -- ^ /varsym/ or /consym/
+    = Ident Text   -- ^ /varid/ or /conid/.
+    | Symbol Text   -- ^ /varsym/ or /consym/
   deriving (Eq,Ord,Show,Typeable,Data,Generic)
 
 instance FromJSON Name
 instance ToJSON Name
 
 -- | The name of a Haskell module.
-data ModuleName = ModuleName String
+data ModuleName = ModuleName Text
   deriving (Eq,Ord,Show,Typeable,Data,Generic)
 
 instance FromJSON ModuleName
@@ -101,5 +102,15 @@ data Symbol
 instance FromJSON Symbol
 instance ToJSON Symbol
 
--- | A map from module name to list of symbols it exports.
-type Environment = Map ModuleName [Symbol]
+type ModuleID = Text
+
+data FragnixModule = FragnixModule
+  { moduleName :: ModuleName
+  , moduleId :: ModuleID
+  , moduleExports :: [Symbol]
+  }
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance FromJSON FragnixModule
+instance ToJSON FragnixModule
+
