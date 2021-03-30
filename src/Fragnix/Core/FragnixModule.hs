@@ -3,7 +3,6 @@ module Fragnix.Core.FragnixModule where
 
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Data
-import Data.Map (Map)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 
