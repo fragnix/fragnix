@@ -22,7 +22,7 @@ import Fragnix.SliceCompiler (
 import Fragnix.Utils (
     listFilesRecursive)
 import Fragnix.Paths (
-    slicesPath,builtinEnvironmentPath,environmentPath,declarationsPath,preprocessedPath)
+    slicesPath,builtinEnvironmentPath,environmentPath,declarationsPath,preprocessedPath, cbitsPath)
 
 -- import Language.Haskell.Names (ppError)
 
@@ -65,7 +65,7 @@ build shouldDist shouldPreprocess directories = do
           createDirectoryIfMissing True preprocessedPath
           let modulePaths = filter isHaskellFile filePaths
           forM modulePaths (\path -> do
-            rawSystem "ghc-8.0.2" [
+            rawSystem "ghc" [
               "-E",
               "-optP","-P",
               "-optL","-P",
@@ -95,6 +95,8 @@ build shouldDist shouldPreprocess directories = do
     let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
     let (localSliceIDMap, slices) = hashLocalSlices localSlices
     timeIt (for_ slices (\slice -> writeSlice slicesPath slice))
+
+    createDirectoryIfMissing True cbitsPath
 
     case shouldDist of
 

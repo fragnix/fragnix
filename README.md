@@ -1,4 +1,3 @@
-
 # Fragnix [![CI](https://github.com/phischu/fragnix/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/phischu/fragnix/actions/workflows/ci.yml)
 
 Fragnix is an experimental code package manager for Haskell. The central idea is that we should share and reuse code in units of small code fragments instead of in units of packages. The current state of development is technology preview, not even alpha.
@@ -8,23 +7,26 @@ Fragnix is an experimental code package manager for Haskell. The central idea is
 Follow the following steps to get a development version of fragnix. You need at least GHC 8.0.
 
 ```console
-git clone https://github.com/phischu/fragnix
+git clone https://github.com/fragnix/fragnix
 cd fragnix
 ```
+
 ### Building with cabal < 3.0
 
 ```console
 cabal new-build
 cabal new-run fragnix
 ```
+
 You can install fragnix on your system with:
 
 ```console
 cabal new-install exe:fragnix
 ```
+
 This should place a `fragnix` executable in `~/.cabal/bin`.
 
-###  Building with cabal >= 3.0
+### Building with cabal >= 3.0
 
 You can use the same cabal instructions as above, omitting the "new-" prefixes.
 
@@ -34,6 +36,7 @@ You can use the same cabal instructions as above, omitting the "new-" prefixes.
 stack build
 stack exec fragnix
 ```
+
 You can install fragnix on your system with:
 
 ```console
@@ -48,7 +51,7 @@ If you have completed the installation you have a `fragnix` executable. The foll
 
 In `tests/quick/HelloFragnix/` we have two Haskell module files: `Greet.hs` and `Main.hs`.
 
-``` haskell
+```haskell
 module Greet where
 
 putHello :: String -> IO ()
@@ -58,7 +61,7 @@ putHi :: String -> IO ()
 putHi x = putStrLn ("Hi " ++ x)
 ```
 
-``` haskell
+```haskell
 module Main where
 
 import Greet (putHello)
@@ -98,9 +101,7 @@ We can then invoke the produced executable `main`:
 Hello Fragnix!
 ```
 
-
-Vision
-------
+## Vision
 
 Fragnix is an experiment to find out if the advantages of fragment-based code distribution can be realized. This is my vision of modern code distribution.
 
@@ -164,9 +165,7 @@ We will use text-based formats to make it possible to use existing source contro
 
 The online platform will make it possible to annotate code fragments with comments, upvotes, tags, supported platforms, deprecation, benchmarks, tests, ... This enables crowd-sourced documentation.
 
-
-Related work
-------------
+## Related work
 
 Rich Hickey [has similar thoughts](https://www.youtube.com/watch?v=oyLBGkS5ICk).
 
@@ -185,5 +184,3 @@ Some people use [`npm`](https://www.npmjs.com/) the way you would use `fragnix`.
 [This project](https://llogiq.github.io/2016/04/24/nsa.html) dumps the call graph of installed [rust](https://www.rust-lang.org/) packages. [This project](https://github.com/alexkehayias/cargo-safety) walks the call graph to find uses of unsafe features.
 
 [Interlisp](http://www.ics.uci.edu/~andre/ics228s2006/teitelmanmasinter.pdf) had a tool called masterscope to analyse the static call graph of your program.
-
-
