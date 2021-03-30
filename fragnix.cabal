@@ -45,6 +45,7 @@ library
                        Fragnix.Paths,
                        Fragnix.Utils,
                        Fragnix.Update
+                       Fragnix.Core.FragnixModule
                        Fragnix.Core.Slice
                        Fragnix.Core.Update
   hs-source-dirs:      src
