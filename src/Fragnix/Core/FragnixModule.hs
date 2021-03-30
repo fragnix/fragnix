@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable, DeriveGeneric #-}
 module Fragnix.Core.FragnixModule where
 
+import Fragnix.Core.Slice (Reference(..))
+
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Data
 import Data.Text (Text)
@@ -17,80 +19,74 @@ data Name
 instance FromJSON Name
 instance ToJSON Name
 
--- | The name of a Haskell module.
-data ModuleName = ModuleName Text
-  deriving (Eq,Ord,Show,Typeable,Data,Generic)
-
-instance FromJSON ModuleName
-instance ToJSON ModuleName
 
 -- | Information about an entity. Carries at least the module it was originally
 -- declared in and its name.
 data Symbol
     = Value
-      { symbolModule :: ModuleName
+      { symbolModule :: Reference
       , symbolName :: Name
       }
       -- ^ value or function
     | Method
-      { symbolModule :: ModuleName
+      { symbolModule :: Reference
       , symbolName :: Name
       , className :: Name
       }
       -- ^ class method
     | Selector
-      { symbolModule :: ModuleName
+      { symbolModule :: Reference
       , symbolName :: Name
       , typeName :: Name
       , constructors :: [Name]
       }
       -- ^ record field selector
     | Constructor
-      { symbolModule :: ModuleName
+      { symbolModule :: Reference
       , symbolName :: Name
       , typeName :: Name
       }
       -- ^ data constructor
     | Type
-      { symbolModule :: ModuleName
+      { symbolModule :: Reference
       , symbolName :: Name
       }
       -- ^ type synonym
     | Data
-      { symbolModule :: ModuleName
+      { symbolModule :: Reference
       , symbolName :: Name
       }
       -- ^ data type
     | NewType
-      { symbolModule :: ModuleName
+      { symbolModule :: Reference
       , symbolName :: Name
       }
       -- ^ newtype
     | TypeFam
-      { symbolModule :: ModuleName
+      { symbolModule :: Reference
       , symbolName :: Name
       , associate :: Maybe Name
       }
       -- ^ type family
     | DataFam
-      { symbolModule :: ModuleName
+      { symbolModule :: Reference
       , symbolName :: Name
       , associate :: Maybe Name
       }
       -- ^ data family
     | Class
-      { symbolModule :: ModuleName
+      { symbolModule :: Reference
       , symbolName :: Name
       }
       -- ^ type class
     | PatternConstructor
-      { symbolModule :: ModuleName
+      { symbolModule :: Reference
       , symbolName :: Name
       , patternTypeName :: Maybe Name
       }
       -- ^ pattern synonym constructor
     | PatternSelector
-      { symbolModule :: ModuleName
+      { symbolModule :: Reference
       , symbolName :: Name
       , patternTypeName :: Maybe Name
       , patternConstructorName :: Name
@@ -104,7 +100,7 @@ instance ToJSON Symbol
 type ModuleID = Text
 
 data FragnixModule = FragnixModule
-  { moduleName :: ModuleName
+  { moduleName :: Text
   , moduleId :: ModuleID
   , moduleExports :: [Symbol]
   }

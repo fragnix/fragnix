@@ -1,7 +1,8 @@
-{-# LANGUAGE StandaloneDeriving, DeriveGeneric #-}
+{-# LANGUAGE StandaloneDeriving, DeriveGeneric, DeriveDataTypeable #-}
 module Fragnix.Core.Slice where
 
 import Data.Aeson (FromJSON, ToJSON)
+import Data.Data
 import Data.Hashable (Hashable)
 import Data.Text (Text)
 import GHC.Generics (Generic)
@@ -28,6 +29,9 @@ deriving instance Show Slice
 deriving instance Eq Slice
 deriving instance Ord Slice
 deriving instance Generic Slice
+deriving instance Data Slice
+deriving instance Typeable Slice
+
 instance ToJSON Slice
 instance FromJSON Slice
 
@@ -42,6 +46,9 @@ deriving instance Show Language
 deriving instance Eq Language
 deriving instance Ord Language
 deriving instance Generic Language
+deriving instance Data Language
+deriving instance Typeable Language
+
 instance ToJSON Language
 instance FromJSON Language
 instance Hashable Language
@@ -57,6 +64,8 @@ deriving instance Show Fragment
 deriving instance Eq Fragment
 deriving instance Ord Fragment
 deriving instance Generic Fragment
+deriving instance Data Fragment
+deriving instance Typeable Fragment
 
 instance ToJSON Fragment
 instance FromJSON Fragment
@@ -76,6 +85,8 @@ deriving instance Show Use
 deriving instance Eq Use
 deriving instance Ord Use
 deriving instance Generic Use
+deriving instance Data Use
+deriving instance Typeable Use
 
 instance ToJSON Use
 instance FromJSON Use
@@ -94,6 +105,8 @@ deriving instance Show Instance
 deriving instance Eq Instance
 deriving instance Ord Instance
 deriving instance Generic Instance
+deriving instance Data Instance
+deriving instance Typeable Instance
 
 instance ToJSON Instance
 instance FromJSON Instance
@@ -111,6 +124,8 @@ deriving instance Show InstancePart
 deriving instance Eq InstancePart
 deriving instance Ord InstancePart
 deriving instance Generic InstancePart
+deriving instance Data InstancePart
+deriving instance Typeable InstancePart
 
 instance ToJSON InstancePart
 instance FromJSON InstancePart
@@ -129,6 +144,8 @@ deriving instance Show UsedName
 deriving instance Eq UsedName
 deriving instance Ord UsedName
 deriving instance Generic UsedName
+deriving instance Data UsedName
+deriving instance Typeable UsedName
 
 instance ToJSON UsedName
 instance FromJSON UsedName
@@ -144,6 +161,8 @@ deriving instance Show Reference
 deriving instance Eq Reference
 deriving instance Ord Reference
 deriving instance Generic Reference
+deriving instance Data Reference
+deriving instance Typeable Reference
 
 instance ToJSON Reference
 instance FromJSON Reference
@@ -157,6 +176,8 @@ deriving instance Show Name
 deriving instance Eq Name
 deriving instance Ord Name
 deriving instance Generic Name
+deriving instance Data Name
+deriving instance Typeable Name
 
 instance ToJSON Name
 instance FromJSON Name
