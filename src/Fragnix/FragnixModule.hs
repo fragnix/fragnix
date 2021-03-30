@@ -26,9 +26,9 @@ referenceToModuleName :: S.Reference -> E.ModuleName ()
 referenceToModuleName (S.OtherSlice t) = E.ModuleName () ("F" <> T.unpack t)
 referenceToModuleName (S.Builtin t) = E.ModuleName () (T.unpack t)
 
-moduleNameToReference :: E.ModuleName () -> S.Reference
-moduleNameToReference (E.ModuleName () ('F':rest)) | all isDigit rest = S.OtherSlice (T.pack rest)
-moduleNameToReference (E.ModuleName () moduleName) = S.Builtin (T.pack moduleName)
+moduleNameToReference :: E.ModuleName a -> S.Reference
+moduleNameToReference (E.ModuleName _ ('F':rest)) | all isDigit rest = S.OtherSlice (T.pack rest)
+moduleNameToReference (E.ModuleName _ moduleName) = S.Builtin (T.pack moduleName)
 
 -- Isomorphism between Symbols
 

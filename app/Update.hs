@@ -7,7 +7,7 @@ module Update
 
 import Fragnix.Slice (
   Slice(..), SliceID, Fragment(..), Reference(OtherSlice, Builtin),
-  readSlice, writeSlice, moduleNameReference, sliceIDModuleName, loadSliceIDsTransitive)
+  readSlice, writeSlice, loadSliceIDsTransitive)
 import Fragnix.Update (
   apply, diff, getUpdates,
   createUpdate, writeUpdate, findUpdateFuzzy)
@@ -17,6 +17,7 @@ import Fragnix.HashLocalSlices (hashLocalSlices)
 import Fragnix.Environment (loadEnvironment, persistEnvironment)
 import Fragnix.Paths (environmentPath, slicesPath)
 import Fragnix.Core.Update
+import Fragnix.FragnixModule (moduleNameToReference, referenceToModuleName)
 
 import Options.Applicative (
   Parser, subparser, command, info, progDesc, metavar, helper, (<**>), argument, str)
@@ -87,10 +88,8 @@ update (Diff environmentPath1 environmentPath2 description) = do
         symbol1 <- symbols1
         symbol2 <- symbols2
         guard (symbolName symbol1 == symbolName symbol2)
-        let ModuleName () moduleName1 = symbolModule symbol1
-        let ModuleName () moduleName2 = symbolModule symbol2
-        OtherSlice sliceID1 <- [moduleNameReference moduleName1]
-        OtherSlice sliceID2 <- [moduleNameReference moduleName2]
+        OtherSlice sliceID1 <- [moduleNameToReference (symbolModule symbol1)]
+        OtherSlice sliceID2 <- [moduleNameToReference (symbolModule symbol2)]
         evalState (diff slicesMap sliceID1 sliceID2) Set.empty) environment1 environment2)))
   let persistedUpdate = createUpdate description update
   writeUpdate persistedUpdate
@@ -120,8 +119,7 @@ loadEnvironmentSliceIDs environment = do
   let sliceIDs = do
         symbols <- Map.elems environment
         symbol <- symbols
-        let ModuleName () moduleName = symbolModule symbol
-        OtherSlice sliceID <- [moduleNameReference moduleName]
+        OtherSlice sliceID <- [moduleNameToReference (symbolModule symbol)]
         return sliceID
   loadSliceIDsTransitive slicesPath sliceIDs
 
@@ -137,11 +135,10 @@ updateEnvironment :: Update -> Environment -> Environment
 updateEnvironment update environment = (fmap . fmap) updateSymbol environment
   where
     updateSymbol :: Symbol -> Symbol
-    updateSymbol symbol = case symbolModule symbol of
-      ModuleName () moduleName -> case moduleNameReference moduleName of
+    updateSymbol symbol = case moduleNameToReference (symbolModule symbol) of
         OtherSlice sliceID -> case lookup sliceID update of
           Nothing -> symbol
-          Just sliceID' -> symbol { symbolModule = ModuleName () (sliceIDModuleName sliceID') }
+          Just sliceID' -> symbol { symbolModule = referenceToModuleName (OtherSlice sliceID') }
         Builtin _ -> symbol
 
 updateParser :: Parser UpdateCommand

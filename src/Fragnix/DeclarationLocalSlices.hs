@@ -11,9 +11,9 @@ import Fragnix.Declaration (
 import Fragnix.Slice (
     Language(Language),Fragment(Fragment),
     UsedName(..),Name(Identifier,Operator),
-    InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass),
-    moduleNameReference)
+    InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass))
 import qualified Fragnix.Slice as Slice (Reference(Builtin,OtherSlice))
+import Fragnix.FragnixModule (moduleNameToReference)
 import Fragnix.LocalSlice (
     LocalSlice(LocalSlice),LocalSliceID(LocalSliceID),
     LocalUse(LocalUse),LocalReference(OtherLocalSlice,OtherSlice,Builtin),
@@ -25,7 +25,7 @@ import Language.Haskell.Names (
 import qualified Language.Haskell.Exts as Name (
     Name(Ident,Symbol))
 import Language.Haskell.Exts (
-    ModuleName(ModuleName),prettyExtension,prettyPrint,
+    ModuleName,prettyExtension,prettyPrint,
     Extension(EnableExtension,UnknownExtension),
     KnownExtension(Safe,CPP,Trustworthy))
 
@@ -298,8 +298,8 @@ arrange declarations = arrangements ++ (declarations \\ arrangements) where
 
 
 moduleLocalReference :: ModuleName () -> LocalReference
-moduleLocalReference (ModuleName () moduleName) =
-  case moduleNameReference moduleName of
+moduleLocalReference moduleName =
+  case moduleNameToReference moduleName of
     Slice.Builtin originalModule -> Builtin originalModule
     Slice.OtherSlice sliceID -> OtherSlice sliceID
 

@@ -4,14 +4,15 @@ module Fragnix.SliceSymbols
   , lookupLocalIDs
   ) where
 
-import Fragnix.Slice (SliceID,sliceIDModuleName)
+import Fragnix.Slice (SliceID)
 import Fragnix.LocalSlice (LocalSliceID)
 
 import Language.Haskell.Names (
     Environment, Symbol(symbolName,symbolModule))
-import Language.Haskell.Exts (
-    ModuleName(ModuleName),Name(Ident))
+import Language.Haskell.Exts (Name(Ident))
 
+import Fragnix.Core.Slice (Reference(OtherSlice))
+import Fragnix.FragnixModule (referenceToModuleName)
 import Data.Map (
     Map)
 import qualified Data.Map as Map (
@@ -38,7 +39,7 @@ updateEnvironment symbolSlices environment =
 updateSymbol :: Map Symbol SliceID -> Symbol -> Symbol
 updateSymbol symbolSlices symbol = case Map.lookup symbol symbolSlices of
     Nothing -> symbol
-    Just sliceID -> symbol { symbolModule = ModuleName () (sliceIDModuleName sliceID) }
+    Just sliceID -> symbol { symbolModule = referenceToModuleName (OtherSlice sliceID) }
 
 -- | Look up the slice IDs for all symbols in the given Map.
 lookupLocalIDs :: Map Symbol LocalSliceID -> Map LocalSliceID SliceID -> Map Symbol SliceID
