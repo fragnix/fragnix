@@ -13,8 +13,6 @@ module Fragnix.Slice
   , Instance(..)
   , InstancePart(..)
   , InstanceID
-  , sliceIDModuleName
-  , moduleNameReference
   , usedSliceIDs
   , readSlice
   , writeSlice
@@ -28,7 +26,7 @@ import Prelude hiding (writeFile,readFile)
 import Data.Aeson (eitherDecode)
 import Data.Aeson.Encode.Pretty (encodePretty)
 
-import qualified Data.Text as Text (unpack,pack,length,index)
+import qualified Data.Text as Text (unpack,length,index)
 
 import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put)
 import Control.Monad.IO.Class (liftIO)
@@ -39,7 +37,6 @@ import Data.Typeable(Typeable)
 import Data.ByteString.Lazy (writeFile,readFile)
 import System.FilePath ((</>),dropFileName)
 import System.Directory (createDirectoryIfMissing)
-import Data.Char (isDigit)
 import Fragnix.Core.Slice
 import Fragnix.Utils (listFilesRecursive)
 
@@ -51,24 +48,6 @@ deriving instance Typeable SliceParseError
 deriving instance Show SliceParseError
 
 instance Exception SliceParseError
-
--- Reading and writing slices to disk
-
--- | The name we give to the module generated for a slice with the given ID.
-sliceIDModuleName :: SliceID -> String
-sliceIDModuleName sid = "F" ++ Text.unpack sid
-
--- | We abuse module names to either refer to builtin modules or to a slice.
--- If the module name refers to a slice it starts with F followed by
--- digits.
-moduleNameReference :: String -> Reference
-moduleNameReference moduleName =
-  case moduleName of
-    ('F':rest)
-      | all isDigit rest -> OtherSlice (Text.pack rest)
-      | otherwise -> Builtin (Text.pack moduleName)
-    _ -> Builtin (Text.pack moduleName)
-
 
 -- | Write the given slice to the given directory
 writeSlice :: FilePath -> Slice -> IO ()
