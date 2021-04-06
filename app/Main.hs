@@ -7,6 +7,7 @@ import Build (
 import CreateEnv (createEnv)
 import Show (showInformation)
 import Get (get)
+import qualified Init (init)
 import Utils (IDType(EnvID, SliceID))
 import Paths_fragnix
 import Data.Version (showVersion)
@@ -26,6 +27,7 @@ data Command
   | Dist FilePath ShouldPreprocess [FilePath]
   | Get IDType String Bool
   | Show IDType String
+  | Init
 
 
 commandParserInfo :: ParserInfo Command
@@ -39,7 +41,8 @@ commandParser = subparser (mconcat [
     command "update" (info ((Update <$> updateParser) <**> helper) (progDesc "List all available updates.")),
     command "dist" (info (distParser <**> helper) (progDesc "Serialize the environment that correspond to the given targets.")),
     command "show" (info (showParser <**> helper) (progDesc "Show fragment information and metadata.")),
-    command "get" (info (getParser <**> helper) (progDesc "Download a slice/environment into project."))])
+    command "get" (info (getParser <**> helper) (progDesc "Download a slice/environment into project.")),
+    command "init" (info (initParser <**> helper) (progDesc "Initialize project folder structure and builtin environment."))])
 
 versionOption :: Parser (a -> a)
 versionOption = infoOption versionText (long "version" <> help "Show version")
@@ -64,7 +67,9 @@ showParser :: Parser Command
 showParser = Show <$>
   flag SliceID EnvID (long "env" <> help "Treat ID as environment.") <*>
   strArgument (metavar "ID")
-  
+
+initParser :: Parser Command
+initParser = pure Init
 
 getParser :: Parser Command
 getParser = Get <$>
@@ -84,4 +89,5 @@ main = do
      Dist outputDirectory shouldPreprocess paths -> build (ShouldDist outputDirectory) shouldPreprocess paths
      Show idType id -> showInformation idType id
      Get idType id nodeps -> get idType id nodeps
+     Init -> Init.init
 
