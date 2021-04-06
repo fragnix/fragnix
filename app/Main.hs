@@ -5,14 +5,18 @@ import Build (
   build,ShouldPreprocess(DoPreprocess,NoPreprocess),
   ShouldDist(ShouldCompile,ShouldDist))
 import CreateEnv (createEnv)
+import Show (showInformation)
+import Get (get)
+import Utils (IDType(EnvID, SliceID))
 import Paths_fragnix
 import Data.Version (showVersion)
+import Data.Text (pack)
 
 import Options.Applicative (
   ParserInfo, Parser, execParser,
   subparser, command, info, infoOption, long, short, help, value,
   progDesc, header, metavar, helper, (<**>),
-  many, strArgument, strOption, flag, auto, fullDesc)
+  many, strArgument, strOption, flag, auto, fullDesc, switch)
 
 
 data Command
@@ -20,6 +24,8 @@ data Command
   | CreateEnv
   | Update UpdateCommand
   | Dist FilePath ShouldPreprocess [FilePath]
+  | Get IDType String Bool
+  | Show IDType String
 
 
 commandParserInfo :: ParserInfo Command
@@ -31,7 +37,9 @@ commandParser = subparser (mconcat [
     command "build" (info (buildParser <**> helper) (progDesc "Build all Haskell files in the given files and directories and their subdirectories.")),
     command "create-env" (info (createEnvParser <**> helper) (progDesc "Create the builtin environment.")),
     command "update" (info ((Update <$> updateParser) <**> helper) (progDesc "List all available updates.")),
-    command "dist" (info (distParser <**> helper) (progDesc "Serialize the environment that correspond to the given targets."))])
+    command "dist" (info (distParser <**> helper) (progDesc "Serialize the environment that correspond to the given targets.")),
+    command "show" (info (showParser <**> helper) (progDesc "Show fragment information and metadata.")),
+    command "get" (info (getParser <**> helper) (progDesc "Download a slice/environment into project."))])
 
 versionOption :: Parser (a -> a)
 versionOption = infoOption versionText (long "version" <> help "Show version")
@@ -52,6 +60,19 @@ distParser = Dist <$>
   flag NoPreprocess DoPreprocess (long "preprocess" <> help "Run preprocessor on source files") <*>
   many (strArgument (metavar "TARGET"))
 
+showParser :: Parser Command
+showParser = Show <$>
+  flag SliceID EnvID (long "env" <> help "Treat ID as environment.") <*>
+  strArgument (metavar "ID")
+  
+
+getParser :: Parser Command
+getParser = Get <$>
+  flag SliceID EnvID (long "env" <> help "Treat ID as environment.") <*>
+  strArgument (metavar "NO-DEPS") <*>
+  switch (long "no-deps" <> help "Don't download dependencies.")
+  
+
 
 main :: IO ()
 main = do
@@ -61,4 +82,6 @@ main = do
      CreateEnv -> createEnv
      Update cmd -> update cmd
      Dist outputDirectory shouldPreprocess paths -> build (ShouldDist outputDirectory) shouldPreprocess paths
+     Show idType id -> showInformation idType id
+     Get idType id nodeps -> get idType id nodeps
 
