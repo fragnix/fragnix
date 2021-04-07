@@ -21,6 +21,7 @@ module Fragnix.Slice
   , loadSlicesTransitive
   , loadSliceIDsTransitive
   , getSlices
+  , sliceNestedPath
   ) where
 
 import Prelude hiding (writeFile,readFile)

@@ -57,9 +57,13 @@ executable fragnix
   other-modules:       Build,
                        CreateEnv,
                        Update,
-                       Paths_fragnix
+                       Paths_fragnix,
+                       Utils,
+                       Get,
+                       Show
   build-depends:       clock >=0.8 && <0.9,
                        optparse-applicative >=0.15 && <0.16,
+                       req >= 3.2.0 && < 3.10,
                        fragnix
   hs-source-dirs:      app
   default-language:    Haskell2010

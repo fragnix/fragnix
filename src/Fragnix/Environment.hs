@@ -1,6 +1,7 @@
 module Fragnix.Environment
  ( loadEnvironment
  , persistEnvironment
+ , writeSymbols
  ) where
 
 import Language.Haskell.Names (Symbol)
