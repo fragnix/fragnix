@@ -6,12 +6,16 @@ module Utils
   , sliceRequest
   , envRequest
   , archiveRequest
+  , extract
   ) where
 
 import Fragnix.Slice (Slice)
 import Network.HTTP.Req
 import Language.Haskell.Names (Symbol)
 import Data.Text (Text, index, pack)
+import Data.ByteString.Lazy (ByteString)
+import qualified Codec.Archive.Tar as Tar
+import qualified Codec.Compression.GZip as GZip
 
 data IDType = EnvID Text | SliceID Text
 
@@ -48,3 +52,7 @@ archiveRequest archive = runReq defaultHttpConfig $ do
     NoReqBody
     lbsResponse
     mempty
+
+
+extract :: FilePath -> ByteString -> IO ()
+extract path = Tar.unpack path . Tar.read . GZip.decompress

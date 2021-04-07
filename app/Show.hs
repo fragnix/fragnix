@@ -35,14 +35,14 @@ languageToString :: Language -> String
 languageToString (Language exts) = intercalate "\n" (map (\e -> "    " ++ unpack e) exts)
 
 usesToString :: [Use] -> String
-usesToString uses = intercalate "\n" (map (\e -> "    " ++ useToString e) uses)
+usesToString us = intercalate "\n" (map (\e -> "    " ++ useToString e) us)
 
 useToString :: Use -> String
 useToString (Use Nothing name ref) = usedNameToString name ++ " from " ++ refToString ref
 useToString (Use (Just qual) name ref) = usedNameToString name ++ " as " ++ unpack qual ++ " from " ++ refToString ref
 
 usedNameToString :: UsedName -> String
-usedNameToString (ConstructorName t n) = nameToString n
+usedNameToString (ConstructorName _ n) = nameToString n
 usedNameToString (ValueName n) = nameToString n
 usedNameToString (TypeName n) = nameToString n
 
