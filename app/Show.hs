@@ -1,23 +1,21 @@
 module Show (showInformation) where
 
-import Control.Monad.IO.Class
 import Data.Text (Text, unpack)
 import Data.List (intercalate)
-import Data.Aeson
 import Network.HTTP.Req
-import Fragnix.Slice (Slice(..), Fragment(..), Language (..), Use(..), UsedName(..), Reference(..), writeSlice)
+import Fragnix.Slice (Slice(..), Fragment(..), Language (..), Use(..), UsedName(..), Reference(..))
 import qualified Fragnix.Slice as F (Name(..)) 
 import Language.Haskell.Names (Symbol, symbolName, symbolModule)
 import Language.Haskell.Exts.Syntax (ModuleName(..), Name(..))
 import Utils (IDType (SliceID, EnvID), sliceRequest, envRequest)
 
 showInformation :: IDType -> IO ()
-showInformation (SliceID id) = do
-  r <- sliceRequest id
+showInformation (SliceID sliceId) = do
+  r <- sliceRequest sliceId
   putStrLn $ prettyPrintSlice (responseBody r :: Slice)
-showInformation (EnvID id) = do
-  r <- envRequest id
-  putStrLn $ prettyPrintEnv id (responseBody r :: [Symbol])
+showInformation (EnvID envId) = do
+  r <- envRequest envId
+  putStrLn $ prettyPrintEnv envId (responseBody r :: [Symbol])
 
 
 prettyPrintSlice :: Slice -> String
