@@ -16,8 +16,10 @@ module Fragnix.Slice
   , sliceIDModuleName
   , moduleNameReference
   , usedSliceIDs
+  , sliceInstanceIDs
   , readSlice
   , writeSlice
+  , deleteSlice
   , loadSlicesTransitive
   , loadSliceIDsTransitive
   , getSlices
@@ -42,7 +44,7 @@ import System.FilePath ((</>),dropFileName)
 import System.Directory (createDirectoryIfMissing)
 import Data.Char (isDigit)
 import Fragnix.Core.Slice
-import Fragnix.Utils (listFilesRecursive)
+import Fragnix.Utils (listFilesRecursive, deleteFileIfExists)
 
 -- Slice parse errors
 
@@ -84,6 +86,12 @@ readSlice slicesPath sliceID = do
   let slicePath = slicesPath </> sliceNestedPath sliceID
   sliceFile <- readFile slicePath
   either (throwIO . SliceParseError slicePath) return (eitherDecode sliceFile)
+
+-- | Delete slice file from the given directory
+deleteSlice :: FilePath -> SliceID -> IO ()
+deleteSlice slicesPath sliceID = do
+  let slicePath = slicesPath </> sliceNestedPath sliceID
+  deleteFileIfExists slicePath 
 
 -- | Given slice IDs load all slices and all instance slices nedded
 -- for compilation.

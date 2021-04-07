@@ -6,7 +6,7 @@ import Control.Monad.IO.Class
 import Data.Text (Text, pack, unpack)
 import Data.Aeson
 import Network.HTTP.Req
-import Fragnix.Slice (Slice, writeSlice, sliceNestedPath, moduleNameReference)
+import Fragnix.Slice (Slice, writeSlice, sliceNestedPath, moduleNameReference, usedSliceIDs, sliceInstanceIDs, loadSliceIDsTransitive)
 import Fragnix.Core.Slice (uses, reference, Reference(OtherSlice, Builtin))
 import Fragnix.Environment (writeSymbols)
 import Fragnix.Paths (slicesPath, environmentPath)
@@ -14,7 +14,7 @@ import Language.Haskell.Names (Symbol, symbolModule)
 import Language.Haskell.Exts (ModuleName (..), prettyPrint)
 import Data.Maybe (isJust)
 import Text.Read (readMaybe)
-import Control.Monad (forM_, filterM)
+import Control.Monad (forM_, filterM, unless)
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath ((</>))
 import Utils (IDType (SliceID, EnvID), sliceRequest, envRequest)
@@ -22,6 +22,7 @@ import Utils (IDType (SliceID, EnvID), sliceRequest, envRequest)
 get :: IDType -> String -> Bool -> IO ()
 get SliceID = fetchSlice
 get EnvID = fetchEnv
+
 
 fetchSlice :: String -> Bool -> IO ()
 fetchSlice id nodeps = do
@@ -33,13 +34,10 @@ fetchSlice id nodeps = do
       r <- sliceRequest id
       let slice = responseBody r :: Slice
       writeSlice slicesPath slice
-      if nodeps
-        then 
-          return ()
-        else do
-          let references = fmap reference $ uses slice
-          let slicesToDownload = [sliceID | (OtherSlice sliceID) <- references]
-          forM_ slicesToDownload (\slice -> fetchSlice (unpack slice) False)
+      unless nodeps $ do
+        slicesToDownload <- loadSliceIDsTransitive slicesPath [pack id]
+        forM_ slicesToDownload (\slice -> fetchSlice (unpack slice) False)
+
 
 fetchEnv :: String -> Bool -> IO ()
 fetchEnv id nodeps = do
@@ -53,13 +51,11 @@ fetchEnv id nodeps = do
       let symbols = (responseBody r :: [Symbol])
       createDirectoryIfMissing True environmentPath
       writeSymbols modulePath symbols
-      if nodeps
-        then return ()
-        else do
-          let slices = filter isSlice symbols
-          forM_ slices (\slice -> liftIO $ do
-            let sliceID = tail $ symbolModuleName slice
-            fetchSlice sliceID False)
+      unless nodeps $ do
+        let slices = filter isSlice symbols
+        forM_ slices (\slice -> liftIO $ do
+          let sliceID = tail $ symbolModuleName slice
+          fetchSlice sliceID False)
 
 
 isSlice :: Symbol -> Bool
@@ -67,9 +63,11 @@ isSlice s = case moduleNameReference (symbolModuleName s) of
   OtherSlice _ -> True
   Builtin _ -> False
 
+
 symbolModuleName :: Symbol -> String
 symbolModuleName s = getName (symbolModule s)
   where getName (ModuleName () s) = s
+
 
 doesSliceExist :: String -> IO Bool
 doesSliceExist slice = doesFileExist (slicesPath </> sliceNestedPath (pack slice))

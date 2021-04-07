@@ -1,8 +1,10 @@
 module Fragnix.Utils where
 
 import Control.Monad (forM, filterM)
-import System.Directory (listDirectory,doesDirectoryExist,doesFileExist)
+import Control.Exception (catch, throwIO)
+import System.Directory (listDirectory,doesDirectoryExist,doesFileExist, removeFile)
 import System.FilePath ((</>))
+import System.IO.Error (isDoesNotExistError)
 
 
 -- | Find all files in the given directory and subdirectories.
@@ -21,3 +23,10 @@ listFilesRecursive path = do
       subChildrenFiles <- forM childrenDirectories listFilesRecursive
       return (childrenFiles ++ concat subChildrenFiles)
 
+
+-- | Delete file if it exists at path.
+deleteFileIfExists :: FilePath -> IO ()
+deleteFileIfExists file = removeFile file `catch` handleException
+  where handleException e
+          | isDoesNotExistError e = return ()
+          | otherwise = throwIO e

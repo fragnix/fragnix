@@ -61,7 +61,8 @@ executable fragnix
                        Utils,
                        Get,
                        Show,
-                       Init
+                       Init,
+                       Remove
   build-depends:       clock >=0.8 && <0.9,
                        optparse-applicative >=0.15 && <0.16,
                        req >= 3.2.0 && < 3.10,

@@ -8,6 +8,7 @@ import CreateEnv (createEnv)
 import Show (showInformation)
 import Get (get)
 import qualified Init (init)
+import Remove (remove)
 import Utils (IDType(EnvID, SliceID))
 import Paths_fragnix
 import Data.Version (showVersion)
@@ -28,6 +29,7 @@ data Command
   | Get IDType String Bool
   | Show IDType String
   | Init
+  | Remove IDType String Bool
 
 
 commandParserInfo :: ParserInfo Command
@@ -42,7 +44,8 @@ commandParser = subparser (mconcat [
     command "dist" (info (distParser <**> helper) (progDesc "Serialize the environment that correspond to the given targets.")),
     command "show" (info (showParser <**> helper) (progDesc "Show fragment information and metadata.")),
     command "get" (info (getParser <**> helper) (progDesc "Download a slice/environment into project.")),
-    command "init" (info (initParser <**> helper) (progDesc "Initialize project folder structure and builtin environment."))])
+    command "init" (info (initParser <**> helper) (progDesc "Initialize project folder structure and builtin environment.")),
+    command "remove" (info (removeParser <**> helper) (progDesc "Remove slice or environment from project."))])
 
 versionOption :: Parser (a -> a)
 versionOption = infoOption versionText (long "version" <> help "Show version")
@@ -74,8 +77,14 @@ initParser = pure Init
 getParser :: Parser Command
 getParser = Get <$>
   flag SliceID EnvID (long "env" <> help "Treat ID as environment.") <*>
-  strArgument (metavar "NO-DEPS") <*>
+  strArgument (metavar "ID") <*>
   switch (long "no-deps" <> help "Don't download dependencies.")
+
+removeParser :: Parser Command
+removeParser = Remove <$>
+  flag SliceID EnvID (long "env" <> help "Treat ID as environment.") <*>
+  strArgument (metavar "ID") <*>
+  switch (long "no-deps" <> help "Don't remove dependencies.")
   
 
 
@@ -90,4 +99,5 @@ main = do
      Show idType id -> showInformation idType id
      Get idType id nodeps -> get idType id nodeps
      Init -> Init.init
+     Remove idType id nodeps -> remove idType id nodeps
 
