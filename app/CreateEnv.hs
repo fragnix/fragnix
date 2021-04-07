@@ -23,7 +23,7 @@ import System.Directory (
   listDirectory, doesFileExist, copyFile, createDirectoryIfMissing)
 import System.FilePath ((</>), takeFileName)
 import Control.Monad (
-  forM, filterM)
+  forM, forM_, filterM)
 
 createEnv :: IO ()
 createEnv = do
@@ -50,7 +50,7 @@ createCbits = do
   putStrLn "Initializing .fragnix/cbits ..."
   cfiles <- getCFiles
   createDirectoryIfMissing True cbitsPath
-  forM cfiles $ \file -> do
+  forM_ cfiles $ \file -> do
     putStrLn $ "   Copying " ++ file ++ "..."
     copyFile ("builtins" </> "cbits" </> file) (cbitsPath </> file)
   return ()
@@ -68,7 +68,7 @@ createInclude = do
   putStrLn "Initializing .fragnix/include ..."
   hfiles <- getHFiles
   createDirectoryIfMissing True includePath
-  forM hfiles $ \file -> do
+  forM_ hfiles $ \file -> do
     putStrLn $ "   Copying " ++ file ++ "..."
     copyFile ("builtins" </> "include" </> file) (includePath </> file)
   return ()

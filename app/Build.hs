@@ -34,7 +34,7 @@ import Data.Foldable (for_)
 import Control.Monad (forM)
 import Data.List (intersperse,nub)
 import System.Directory (removeDirectoryRecursive, createDirectoryIfMissing)
-import System.FilePath ((</>), takeExtension, splitDirectories, joinPath)
+import System.FilePath (takeExtension, splitDirectories, joinPath)
 import System.Process (rawSystem)
 import Text.Printf (printf)
 
@@ -65,7 +65,7 @@ build shouldDist shouldPreprocess directories = do
           createDirectoryIfMissing True preprocessedPath
           let modulePaths = filter isHaskellFile filePaths
           forM modulePaths (\path -> do
-            rawSystem "ghc" [
+            _ <- rawSystem "ghc" [
               "-E",
               "-optP","-P",
               "-optL","-P",

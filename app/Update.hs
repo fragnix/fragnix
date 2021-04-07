@@ -11,8 +11,6 @@ import Fragnix.Slice (
 import Fragnix.Update (
   apply, diff, getUpdates,
   createUpdate, writeUpdate, findUpdateFuzzy)
-import Fragnix.LocalSlice (
-  LocalSlice(LocalSlice))
 import Fragnix.HashLocalSlices (hashLocalSlices)
 import Fragnix.Environment (loadEnvironment, persistEnvironment)
 import Fragnix.Paths (environmentPath, slicesPath)
@@ -32,7 +30,7 @@ import qualified Data.Set as Set (
 import Control.Monad.Trans.State.Strict (execStateT, evalState, runState)
 
 import Control.Monad (forM, forM_, guard)
-import Data.Maybe (fromMaybe, maybeToList)
+import Data.Maybe (fromMaybe)
 import Data.List (nub)
 import Language.Haskell.Names (Environment, Symbol(..))
 
@@ -48,9 +46,9 @@ update :: UpdateCommand -> IO ()
 update List = do
   Text.putStrLn "Available updates:"
   updates <- getUpdates
-  forM_ updates $ \update -> do
-    Text.putStr (Text.justifyLeft 25 ' ' (updateID update))
-    Text.putStrLn (updateDescription update)
+  forM_ updates $ \updt -> do
+    Text.putStr (Text.justifyLeft 25 ' ' (updateID updt))
+    Text.putStrLn (updateDescription updt)
 update (Create description sliceID1 sliceID2) = do
   let persistedUpdate = createUpdate description [(sliceID1, sliceID2)]
   writeUpdate persistedUpdate
@@ -67,12 +65,12 @@ update (Inspect desc) = do
       Text.putStrLn $ "Description: " <> updateDescription upd
       Text.putStrLn $ "Hash:        " <> updateID upd
       Text.putStrLn $ " ---"
-      forM_ (updateContent upd) $ \(sliceID, sliceID') -> do
-        Text.putStrLn $ "Replacing content from slice: " <> sliceID <> "\n"
-        (Slice _ _ (Fragment code) _ _) <- readSlice slicesPath sliceID
+      forM_ (updateContent upd) $ \(sliceId, sliceId') -> do
+        Text.putStrLn $ "Replacing content from slice: " <> sliceId <> "\n"
+        (Slice _ _ (Fragment code) _ _) <- readSlice slicesPath sliceId
         Text.putStrLn (Text.unlines code)
-        Text.putStrLn $ "By content from slice:        " <> sliceID' <> "\n"
-        (Slice _ _ (Fragment code') _ _) <- readSlice slicesPath sliceID'
+        Text.putStrLn $ "By content from slice:        " <> sliceId' <> "\n"
+        (Slice _ _ (Fragment code') _ _) <- readSlice slicesPath sliceId'
         Text.putStrLn (Text.unlines code')
         Text.putStrLn $ " ---"
 update (Diff environmentPath1 environmentPath2 description) = do
@@ -83,7 +81,7 @@ update (Diff environmentPath1 environmentPath2 description) = do
   let sliceIDs = nub (sliceIDs1 ++ sliceIDs2)
   slices <- forM sliceIDs (readSlice slicesPath)
   let slicesMap = sliceMap slices
-  let update = nub (concat (Map.elems (Map.intersectionWith (\symbols1 symbols2 -> do
+  let updt = nub (concat (Map.elems (Map.intersectionWith (\symbols1 symbols2 -> do
         symbol1 <- symbols1
         symbol2 <- symbols2
         guard (symbolName symbol1 == symbolName symbol2)
@@ -92,26 +90,26 @@ update (Diff environmentPath1 environmentPath2 description) = do
         OtherSlice sliceID1 <- [moduleNameReference moduleName1]
         OtherSlice sliceID2 <- [moduleNameReference moduleName2]
         evalState (diff slicesMap sliceID1 sliceID2) Set.empty) environment1 environment2)))
-  let persistedUpdate = createUpdate description update
+  let persistedUpdate = createUpdate description updt
   writeUpdate persistedUpdate
 
 applyUpdate :: PersistedUpdate -> IO ()
 applyUpdate persistedUpdate = do
   putStrLn ("Applying update: " <> (Text.unpack $ updateDescription persistedUpdate))
-  let PersistedUpdate _ _ update = persistedUpdate
+  let PersistedUpdate _ _ updt = persistedUpdate
   environment <- loadEnvironment environmentPath
   sliceIDs <- loadEnvironmentSliceIDs environment
   slices <- forM sliceIDs (readSlice slicesPath)
   let slicesMap = sliceMap slices
   let (sliceIDLocalSliceIDMap, localSlices) =
         flip runState [] (flip execStateT Map.empty (do
-          forM_ slices (\(Slice sliceID _ _ _ _) -> apply slicesMap update sliceID)))
+          forM_ slices (\(Slice sliceId _ _ _ _) -> apply slicesMap updt sliceId)))
   let (localSliceIDMap, newSlices) = hashLocalSlices localSlices
   let derivedUpdate = do
-        (sliceID, localSliceID) <- Map.toList sliceIDLocalSliceIDMap
+        (sliceId, localSliceID) <- Map.toList sliceIDLocalSliceIDMap
         let newSliceID = fromMaybe (error "no") (Map.lookup localSliceID localSliceIDMap)
-        return (sliceID, newSliceID)
-  let environment' = updateEnvironment (update ++ derivedUpdate) environment
+        return (sliceId, newSliceID)
+  let environment' = updateEnvironment (updt ++ derivedUpdate) environment
   forM_ newSlices (\slice -> writeSlice slicesPath slice)
   persistEnvironment environmentPath environment'
 
@@ -121,25 +119,25 @@ loadEnvironmentSliceIDs environment = do
         symbols <- Map.elems environment
         symbol <- symbols
         let ModuleName () moduleName = symbolModule symbol
-        OtherSlice sliceID <- [moduleNameReference moduleName]
-        return sliceID
+        OtherSlice sliceId <- [moduleNameReference moduleName]
+        return sliceId
   loadSliceIDsTransitive slicesPath sliceIDs
 
 
 -- | Build up a map from slice ID to corresponding slice for better lookup.
 sliceMap :: [Slice] -> Map SliceID Slice
 sliceMap slices = Map.fromList (do
-    slice@(Slice sliceID _ _ _ _) <- slices
-    return (sliceID, slice))
+    slice@(Slice sliceId _ _ _ _) <- slices
+    return (sliceId, slice))
 
 -- | Apply all the replacements contained in the update to the environment.
 updateEnvironment :: Update -> Environment -> Environment
-updateEnvironment update environment = (fmap . fmap) updateSymbol environment
+updateEnvironment updt environment = (fmap . fmap) updateSymbol environment
   where
     updateSymbol :: Symbol -> Symbol
     updateSymbol symbol = case symbolModule symbol of
       ModuleName () moduleName -> case moduleNameReference moduleName of
-        OtherSlice sliceID -> case lookup sliceID update of
+        OtherSlice sliceId -> case lookup sliceId updt of
           Nothing -> symbol
           Just sliceID' -> symbol { symbolModule = ModuleName () (sliceIDModuleName sliceID') }
         Builtin _ -> symbol
