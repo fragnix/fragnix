@@ -1,62 +1,82 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Get where
+module Get (get) where
 
 import Control.Monad.IO.Class
 import Data.Text (Text, pack, unpack)
 import Data.Aeson
 import Network.HTTP.Req
-import Fragnix.Slice (Slice, writeSlice, sliceNestedPath, moduleNameReference, usedSliceIDs, sliceInstanceIDs, loadSliceIDsTransitive)
+import Fragnix.Slice (Slice, readSlice, writeSlice, sliceNestedPath, moduleNameReference, usedSliceIDs, sliceInstanceIDs, loadSliceIDsTransitive)
 import Fragnix.Core.Slice (uses, reference, Reference(OtherSlice, Builtin))
 import Fragnix.Environment (writeSymbols)
 import Fragnix.Paths (slicesPath, environmentPath)
-import Language.Haskell.Names (Symbol, symbolModule)
+import Language.Haskell.Names (Symbol, symbolModule, readSymbols)
 import Language.Haskell.Exts (ModuleName (..), prettyPrint)
 import Data.Maybe (isJust)
 import Text.Read (readMaybe)
-import Control.Monad (forM_, filterM, unless)
+import Control.Monad (forM_, filterM, unless, when)
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath ((</>))
-import Utils (IDType (SliceID, EnvID), sliceRequest, envRequest)
+import Utils (IDType(..), WithDeps(..), sliceRequest, envRequest)
 
-get :: IDType -> String -> Bool -> IO ()
-get SliceID = fetchSlice
-get EnvID = fetchEnv
+get :: IDType -> WithDeps -> IO ()
+get (SliceID id) = getSlice id
+get (EnvID id) = getEnv id
 
 
-fetchSlice :: String -> Bool -> IO ()
-fetchSlice id nodeps = do
+getSlice :: Text -> WithDeps -> IO ()
+getSlice id nodeps = do
+  slice <- fetchSlice id
+  case nodeps of 
+    WithDeps -> do
+      slicesToDownload <- loadSliceIDsTransitive slicesPath [id]
+      forM_ slicesToDownload (\slice -> do
+        when (slice /= id) $ getSlice slice WithDeps)
+    WithoutDeps -> return ()
+
+
+fetchSlice :: Text -> IO Slice
+fetchSlice id = do
   sliceExists <- doesSliceExist id
   if sliceExists
-    then putStrLn $ "Slice " ++ id ++ " already fetched."
+    then do
+      putStrLn $ "Slice " ++ unpack id ++ " already fetched."
+      readSlice slicesPath id
     else do
-      putStrLn $ "Fetching slice " ++ id
+      putStrLn $ "Fetching slice " ++ unpack id
       r <- sliceRequest id
       let slice = responseBody r :: Slice
       writeSlice slicesPath slice
-      unless nodeps $ do
-        slicesToDownload <- loadSliceIDsTransitive slicesPath [pack id]
-        forM_ slicesToDownload (\slice -> fetchSlice (unpack slice) False)
+      return slice
 
 
-fetchEnv :: String -> Bool -> IO ()
-fetchEnv id nodeps = do
-  let modulePath = environmentPath </> id
+getEnv :: Text -> WithDeps -> IO ()
+getEnv id nodeps = do
+  env <- fetchEnv id
+  case nodeps of
+    WithDeps -> do
+      let slices = filter isSlice env
+      forM_ slices (\slice -> liftIO $ do
+        let sliceID = pack . tail $ symbolModuleName slice
+        getSlice sliceID WithDeps)
+    WithoutDeps -> return ()
+        
+
+fetchEnv :: Text -> IO [Symbol]
+fetchEnv id = do
+  let modulePath = environmentPath </> unpack id
   envExists <- doesFileExist modulePath
   if envExists
-    then putStrLn $ "Environment " ++ id ++ " already fetched."
+    then do
+      putStrLn $ "Environment " ++ unpack id ++ " already fetched."
+      readSymbols modulePath
     else do
-      putStrLn $ "Fetching environment " ++ id
+      putStrLn $ "Fetching environment " ++ unpack id
       r <- envRequest id
       let symbols = (responseBody r :: [Symbol])
       createDirectoryIfMissing True environmentPath
       writeSymbols modulePath symbols
-      unless nodeps $ do
-        let slices = filter isSlice symbols
-        forM_ slices (\slice -> liftIO $ do
-          let sliceID = tail $ symbolModuleName slice
-          fetchSlice sliceID False)
-
+      return symbols
 
 isSlice :: Symbol -> Bool
 isSlice s = case moduleNameReference (symbolModuleName s) of
@@ -69,5 +89,5 @@ symbolModuleName s = getName (symbolModule s)
   where getName (ModuleName () s) = s
 
 
-doesSliceExist :: String -> IO Bool
-doesSliceExist slice = doesFileExist (slicesPath </> sliceNestedPath (pack slice))
+doesSliceExist :: Text -> IO Bool
+doesSliceExist slice = doesFileExist (slicesPath </> sliceNestedPath slice)

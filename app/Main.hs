@@ -9,7 +9,7 @@ import Show (showInformation)
 import Get (get)
 import qualified Init (init)
 import Remove (remove)
-import Utils (IDType(EnvID, SliceID))
+import Utils (IDType(..), WithDeps(..))
 import Paths_fragnix
 import Data.Version (showVersion)
 import Data.Text (pack)
@@ -17,7 +17,7 @@ import Data.Text (pack)
 import Options.Applicative (
   ParserInfo, Parser, execParser,
   subparser, command, info, infoOption, long, short, help, value,
-  progDesc, header, metavar, helper, (<**>),
+  progDesc, header, metavar, helper, (<**>), (<|>),
   many, strArgument, strOption, flag, auto, fullDesc, switch)
 
 
@@ -26,10 +26,10 @@ data Command
   | CreateEnv
   | Update UpdateCommand
   | Dist FilePath ShouldPreprocess [FilePath]
-  | Get IDType String Bool
-  | Show IDType String
+  | Get IDType WithDeps
+  | Show IDType
   | Init
-  | Remove IDType String Bool
+  | Remove IDType WithDeps
 
 
 commandParserInfo :: ParserInfo Command
@@ -67,26 +67,29 @@ distParser = Dist <$>
   many (strArgument (metavar "TARGET"))
 
 showParser :: Parser Command
-showParser = Show <$>
-  flag SliceID EnvID (long "env" <> help "Treat ID as environment.") <*>
-  strArgument (metavar "ID")
+showParser = Show <$> idParser
 
 initParser :: Parser Command
 initParser = pure Init
 
 getParser :: Parser Command
-getParser = Get <$>
-  flag SliceID EnvID (long "env" <> help "Treat ID as environment.") <*>
-  strArgument (metavar "ID") <*>
-  switch (long "no-deps" <> help "Don't download dependencies.")
+getParser = Get <$> idParser <*> depsParser
 
 removeParser :: Parser Command
-removeParser = Remove <$>
-  flag SliceID EnvID (long "env" <> help "Treat ID as environment.") <*>
-  strArgument (metavar "ID") <*>
-  switch (long "no-deps" <> help "Don't remove dependencies.")
-  
+removeParser = Remove <$> idParser <*> depsParser
 
+depsParser :: Parser WithDeps
+depsParser = flag WithDeps WithoutDeps (long "no-deps" <> help "Don't process dependencies.")
+
+idParser :: Parser IDType
+idParser = sliceIdParser <|> envIdParser
+
+sliceIdParser :: Parser IDType
+sliceIdParser = SliceID <$> strArgument (metavar "ID")
+  
+envIdParser :: Parser IDType
+envIdParser = EnvID <$> strOption (long "env" <> metavar "ID" <> help "Treat ID as environment.")
+  
 
 main :: IO ()
 main = do
@@ -96,8 +99,8 @@ main = do
      CreateEnv -> createEnv
      Update cmd -> update cmd
      Dist outputDirectory shouldPreprocess paths -> build (ShouldDist outputDirectory) shouldPreprocess paths
-     Show idType id -> showInformation idType id
-     Get idType id nodeps -> get idType id nodeps
+     Show id -> showInformation id
+     Get id nodeps -> get id nodeps
      Init -> Init.init
-     Remove idType id nodeps -> remove idType id nodeps
+     Remove id nodeps -> remove id nodeps
 

@@ -1,6 +1,13 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings,DataKinds #-}
 
-module Utils where
+module Utils
+  ( IDType(..)
+  , WithDeps(..)
+  , sliceRequest
+  , envRequest
+  , archiveRequest
+  , extract
+  ) where
 
 import Fragnix.Slice (Slice)
 import Fragnix.Paths (builtinEnvironmentPath)
@@ -11,25 +18,28 @@ import Data.ByteString.Lazy (ByteString)
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as GZip
 
-data IDType = EnvID | SliceID
-  
+data IDType = EnvID Text | SliceID Text
+
+data WithDeps = WithDeps | WithoutDeps
+
+url :: Url 'Https
 url = https "raw.github.com" /: "fragnix" /: "fragnix-store" /: "main" 
 
-sliceRequest :: String -> IO (JsonResponse Slice)
+sliceRequest :: Text -> IO (JsonResponse Slice)
 sliceRequest id = runReq defaultHttpConfig $ do
   req
     GET
-    (url /: "slices" /: pack [id !! 0] /: pack [id !! 1] /: pack id)
+    (url /: "slices" /: pack [index id 0] /: pack [index id 1] /: id)
     NoReqBody
     jsonResponse
     mempty
 
 
-envRequest :: String -> IO (JsonResponse [Symbol])
+envRequest :: Text -> IO (JsonResponse [Symbol])
 envRequest id = runReq defaultHttpConfig $ do
   req
     GET
-    (url /: "environments" /: pack id)
+    (url /: "environments" /: id)
     NoReqBody
     jsonResponse
     mempty
