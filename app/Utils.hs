@@ -15,8 +15,6 @@ import Network.HTTP.Req
 import Language.Haskell.Names (Symbol)
 import Data.Text (Text, index, pack)
 import Data.ByteString.Lazy (ByteString)
-import qualified Codec.Archive.Tar as Tar
-import qualified Codec.Compression.GZip as GZip
 
 data IDType = EnvID Text | SliceID Text
 
