@@ -3,7 +3,7 @@ module Fragnix.Paths where
 import System.FilePath ((</>))
 
 environmentPath :: FilePath
-environmentPath = "env"
+environmentPath = fragnixBasePath </> "env"
 
 fragnixBasePath :: FilePath
 fragnixBasePath = "fragnix"
