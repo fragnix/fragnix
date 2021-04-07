@@ -67,7 +67,7 @@ executable fragnix
                        fragnix
   hs-source-dirs:      app
   default-language:    Haskell2010
-  ghc-options:         -O2 -threaded -rtsopts
+  ghc-options:         -O2 -threaded -rtsopts -Wall
 
 test-suite test
   import:              shared-build-depends

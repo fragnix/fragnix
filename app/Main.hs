@@ -16,7 +16,7 @@ import Options.Applicative (
   ParserInfo, Parser, execParser,
   subparser, command, info, infoOption, long, short, help, value,
   progDesc, header, metavar, helper, (<**>),
-  many, strArgument, strOption, flag, auto, fullDesc, switch)
+  many, strArgument, strOption, flag, fullDesc, switch)
 
 
 data Command
@@ -76,8 +76,8 @@ getParser = Get <$>
 
 main :: IO ()
 main = do
-   command <- execParser commandParserInfo
-   case command of
+   com <- execParser commandParserInfo
+   case com of
      Build shouldPreprocess paths -> build ShouldCompile shouldPreprocess paths
      CreateEnv -> createEnv
      Update cmd -> update cmd
