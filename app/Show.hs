@@ -1,4 +1,4 @@
-module Show where
+module Show (showInformation) where
 
 import Control.Monad.IO.Class
 import Data.Text (Text, unpack)
@@ -11,11 +11,11 @@ import Language.Haskell.Names (Symbol, symbolName, symbolModule)
 import Language.Haskell.Exts.Syntax (ModuleName(..), Name(..))
 import Utils (IDType (SliceID, EnvID), sliceRequest, envRequest)
 
-showInformation :: IDType -> String -> IO ()
-showInformation SliceID id = do
+showInformation :: IDType -> IO ()
+showInformation (SliceID id) = do
   r <- sliceRequest id
   putStrLn $ prettyPrintSlice (responseBody r :: Slice)
-showInformation EnvID id = do
+showInformation (EnvID id) = do
   r <- envRequest id
   putStrLn $ prettyPrintEnv id (responseBody r :: [Symbol])
 
@@ -57,8 +57,8 @@ refToString (OtherSlice s) = "Slice " ++ unpack s
 refToString (Builtin m) = unpack m ++ " (builtin)"
 
 
-prettyPrintEnv :: String -> [Symbol] -> String
-prettyPrintEnv name symbols = "Environment " ++ name ++ "\n"
+prettyPrintEnv :: Text -> [Symbol] -> String
+prettyPrintEnv name symbols = "Environment " ++ unpack name ++ "\n"
                             ++ "----------------------------\n"
                             ++ intercalate "\n" (map symbolToString symbols)
 
