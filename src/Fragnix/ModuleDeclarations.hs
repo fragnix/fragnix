@@ -1,37 +1,33 @@
-{-# LANGUAGE TypeFamilies,GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, TypeFamilies #-}
 module Fragnix.ModuleDeclarations
   ( parse
   , moduleDeclarationsWithEnvironment
   , moduleSymbols
   ) where
 
-import Fragnix.Declaration (
-    Declaration(Declaration),Genre(..))
+import Fragnix.Core.MetaEnvironment (MetaEnvironment)
+import Fragnix.Declaration (Declaration (Declaration), Genre (..))
+import Fragnix.MetaEnvironment (resolve)
 
-import Language.Haskell.Exts (
-    Module,ModuleName,QName(Qual,UnQual),Decl(..),
-    parseFileContentsWithMode,defaultParseMode,ParseMode(..),baseFixities,
-    ParseResult(ParseOk,ParseFailed),
-    SrcSpan,srcInfoSpan,SrcLoc(SrcLoc),
-    prettyPrint,
-    readExtensions,Extension(EnableExtension,UnknownExtension),KnownExtension(..))
-import Language.Haskell.Names (
-    resolve,annotate,
-    Environment,Symbol,Scoped(Scoped),
-    NameInfo(GlobalSymbol,RecPatWildcard))
-import Language.Haskell.Names.SyntaxUtils (
-    getModuleDecls,getModuleName,getModuleExtensions,dropAnn)
-import Language.Haskell.Names.ModuleSymbols (
-    getTopDeclSymbols)
-import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (
-    empty)
+import Language.Haskell.Exts
+    (Decl (..), Extension (EnableExtension, UnknownExtension),
+    KnownExtension (..), Module, ModuleName, ParseMode (..),
+    ParseResult (ParseFailed, ParseOk), QName (Qual, UnQual), SrcLoc (SrcLoc),
+    SrcSpan, baseFixities, defaultParseMode, parseFileContentsWithMode,
+    prettyPrint, readExtensions, srcInfoSpan)
+import Language.Haskell.Names
+    (Environment, NameInfo (GlobalSymbol, RecPatWildcard), Scoped (Scoped),
+    Symbol, annotate)
+import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (empty)
+import Language.Haskell.Names.ModuleSymbols (getTopDeclSymbols)
+import Language.Haskell.Names.SyntaxUtils
+    (dropAnn, getModuleDecls, getModuleExtensions, getModuleName)
 
 
-import qualified Data.Map.Strict as Map (
-    (!),fromList)
+import Data.Foldable (toList)
+import qualified Data.Map.Strict as Map (fromList, (!))
 import Data.Maybe (mapMaybe)
 import Data.Text (pack)
-import Data.Foldable (toList)
 
 -- -- | Given a list of filepaths to valid Haskell modules produces a list of all
 -- -- declarations in those modules. The default environment loaded and used.
@@ -45,7 +41,7 @@ import Data.Foldable (toList)
 
 -- | Use the given environment to produce a list of all declarations from the given list
 -- of modules.
-moduleDeclarationsWithEnvironment :: Environment -> [Module SrcSpan] -> [Declaration]
+moduleDeclarationsWithEnvironment :: MetaEnvironment -> [Module SrcSpan] -> [Declaration]
 moduleDeclarationsWithEnvironment environment modules = declarations where
     declarations = do
         annotatedModule <- annotatedModules
@@ -131,23 +127,23 @@ declToDeclaration declarationExtensions modulnameast annotatedast = do
 
 -- | The genre of a declaration, for example Type, Value, TypeSignature, ...
 declGenre :: Decl (Scoped SrcSpan) -> Genre
-declGenre (TypeDecl _ _ _) = Type
-declGenre (TypeFamDecl _ _ _ _) = Type
-declGenre (DataDecl _ _ _ _ _ _) = Type
-declGenre (GDataDecl _ _ _ _ _ _ _) = Type
-declGenre (DataFamDecl _ _ _ _) = Type
-declGenre (TypeInsDecl _ _ _) = FamilyInstance
-declGenre (DataInsDecl _ _ _ _ _) = FamilyInstance
+declGenre (TypeDecl _ _ _)           = Type
+declGenre (TypeFamDecl _ _ _ _)      = Type
+declGenre (DataDecl _ _ _ _ _ _)     = Type
+declGenre (GDataDecl _ _ _ _ _ _ _)  = Type
+declGenre (DataFamDecl _ _ _ _)      = Type
+declGenre (TypeInsDecl _ _ _)        = FamilyInstance
+declGenre (DataInsDecl _ _ _ _ _)    = FamilyInstance
 declGenre (GDataInsDecl _ _ _ _ _ _) = FamilyInstance
-declGenre (ClassDecl _ _ _ _ _) = TypeClass
-declGenre (InstDecl _ _ _ _) = TypeClassInstance
-declGenre (DerivDecl _ _ _ _) = DerivingInstance
-declGenre (TypeSig _ _ _) = TypeSignature
-declGenre (FunBind _ _) = Value
-declGenre (PatBind _ _ _ _) = Value
-declGenre (ForImp _ _ _ _ _ _) = ForeignImport
-declGenre (InfixDecl _ _ _ _) = InfixFixity
-declGenre _ = Other
+declGenre (ClassDecl _ _ _ _ _)      = TypeClass
+declGenre (InstDecl _ _ _ _)         = TypeClassInstance
+declGenre (DerivDecl _ _ _ _)        = DerivingInstance
+declGenre (TypeSig _ _ _)            = TypeSignature
+declGenre (FunBind _ _)              = Value
+declGenre (PatBind _ _ _ _)          = Value
+declGenre (ForImp _ _ _ _ _ _)       = ForeignImport
+declGenre (InfixDecl _ _ _ _)        = InfixFixity
+declGenre _                          = Other
 
 -- | All symbols the given declaration in a module with the given name binds.
 declaredSymbols :: ModuleName (Scoped SrcSpan) -> Decl (Scoped SrcSpan) -> [Symbol]
