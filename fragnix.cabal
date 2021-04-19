@@ -35,6 +35,7 @@ library
   exposed-modules:     Fragnix.Slice,
                        Fragnix.LocalSlice,
                        Fragnix.Declaration,
+                       Fragnix.MetaEnvironment,
                        Fragnix.ModuleDeclarations,
                        Fragnix.DeclarationLocalSlices,
                        Fragnix.HashLocalSlices,
@@ -47,6 +48,8 @@ library
                        Fragnix.Update
                        Fragnix.Core.Slice
                        Fragnix.Core.Update
+                       Fragnix.Core.Environment
+                       Fragnix.Core.MetaEnvironment
   hs-source-dirs:      src
   ghc-options:         -O2 -Wall
 
