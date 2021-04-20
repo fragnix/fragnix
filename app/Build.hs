@@ -5,7 +5,7 @@ import Fragnix.Declaration (
 import Fragnix.Slice (
     writeSlice)
 import Fragnix.Environment (
-    loadEnvironment,persistEnvironment)
+    loadMetaEnvironment,persistMetaEnvironment, convertEnvironment)
 import Fragnix.SliceSymbols (
     updateEnvironment,findMainSliceIDs)
 import Fragnix.ModuleDeclarations (
@@ -48,12 +48,13 @@ build shouldDist shouldPreprocess directories = do
     filePaths <- timeIt (do
         concat <$> forM directories listFilesRecursive)
 
-    putStrLn "Loading environment ..."
+    putStrLn "Loading builtin environment ..."
+    builtinEnvironment <- timeIt (do return loadMetaEnvironment builtinEnvironmentPath)
 
-    environment <- timeIt (do
-        builtinEnvironment <- loadEnvironment builtinEnvironmentPath
-        userEnvironment <- loadEnvironment environmentPath
-        return (Map.union builtinEnvironment userEnvironment))
+    putStrLn "Loading user environment ..."
+    userEnvironment <- timeIt (do return loadMetaEnvironment environmentPath)
+
+    let environment = Map.union builtinEnvironment userEnvironment
 
     modulePaths <- case shouldPreprocess of
 
@@ -84,7 +85,9 @@ build shouldDist shouldPreprocess directories = do
 
     putStrLn "Extracting declarations ..."
 
-    let declarations = moduleDeclarationsWithEnvironment environment modules
+    let environment' = convertEnv environment
+
+    let declarations = moduleDeclarationsWithEnvironment environment' modules
     timeIt (writeDeclarations declarationsPath declarations)
 
 --    let nameErrors = moduleNameErrors environment modules
@@ -106,7 +109,7 @@ build shouldDist shouldPreprocess directories = do
 
         let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
         let updatedEnvironment = updateEnvironment symbolSliceIDs (moduleSymbols environment modules)
-        timeIt (persistEnvironment environmentPath updatedEnvironment)
+        timeIt (persistMetaEnvironment environmentPath updatedEnvironment)
 
         case findMainSliceIDs symbolSliceIDs of
             [] -> do
@@ -127,7 +130,7 @@ build shouldDist shouldPreprocess directories = do
         let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
         let updatedEnvironment = updateEnvironment symbolSliceIDs (moduleSymbols environment modules)
         createDirectoryIfMissing True outputDirectory
-        timeIt (persistEnvironment outputDirectory updatedEnvironment)
+        timeIt (persistMetaEnvironment outputDirectory updatedEnvironment)
 
         putStrLn "Generating compilation units..."
 

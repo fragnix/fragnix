@@ -1,47 +1,43 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Fragnix.Environment
-    ( loadMetaEnvironment
-    , persistMetaEnvironment
-    , writeEnvironment) where
+ ( loadEnvironment
+ , persistEnvironment
+ , writeSymbols
+ ) where
 
-import Fragnix.Core.Environment (Environment)
-import Fragnix.Core.MetaEnvironment (MetaEnvironment)
+import Language.Haskell.Exts (ModuleName (ModuleName), prettyPrint)
+import Language.Haskell.Names (Symbol)
+import Language.Haskell.Names.Environment (Environment, readSymbols)
 
 import Control.Monad (filterM, forM, forM_)
 import Data.Aeson.Encode.Pretty (encodePretty)
 import qualified Data.ByteString.Lazy as BS (pack, writeFile)
 import Data.Char (ord)
 import qualified Data.Map as Map (fromList, toList)
-import Data.Text (pack, unpack)
-
 import System.Directory
     (createDirectoryIfMissing, doesFileExist, getDirectoryContents)
 import System.FilePath ((</>))
 
-loadMetaEnvironment :: FilePath -> IO MetaEnvironment
-loadMetaEnvironment path = do
+
+loadEnvironment :: FilePath -> IO Environment
+loadEnvironment path = do
     createDirectoryIfMissing True path
     filenames <- getDirectoryContents path
-    let pathmodulnames = map (\filename -> (filename, path </> filename)) filenames
+    let pathmodulnames = map (\filename -> (ModuleName () filename,path </> filename)) filenames
     existingPathModulNames <- filterM (doesFileExist . snd) pathmodulnames
     fmap Map.fromList (forM existingPathModulNames (\(modulname,modulpath) -> do
-        env <- readEnvironment modulpath
-        return (pack modulname, env)))
-
-readEnvironment :: FilePath -> IO Environment
-readEnvironment path = do
-    file <- readFile path
-    return $ read file
+        symbols <- readSymbols modulpath
+        return (modulname,symbols)))
 
 -- Replaces "writeSymbols" from haskell-names. Uses encodePretty instead.
-writeEnvironment :: FilePath -> Environment -> IO ()
-writeEnvironment path env =
-    BS.writeFile path $ encodePretty env <> BS.pack [fromIntegral $ ord '\n']
+writeSymbols :: FilePath -> [Symbol] -> IO ()
+writeSymbols path symbols =
+  BS.writeFile path $
+    encodePretty symbols `mappend` BS.pack [fromIntegral $ ord '\n']
 
-persistMetaEnvironment :: FilePath -> MetaEnvironment -> IO ()
-persistMetaEnvironment path meta = do
+persistEnvironment :: FilePath -> Environment -> IO ()
+persistEnvironment path environment = do
     createDirectoryIfMissing True path
-    forM_ (Map.toList meta) (\(name, env) -> do
-        let modulpath = path </> unpack name
-        writeEnvironment modulpath env)
+    forM_ (Map.toList environment) (\(modulname,symbols) -> do
+        let modulpath = path </> prettyPrint modulname
+        writeSymbols modulpath symbols)
+

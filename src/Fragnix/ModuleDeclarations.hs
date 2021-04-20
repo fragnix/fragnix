@@ -5,9 +5,7 @@ module Fragnix.ModuleDeclarations
   , moduleSymbols
   ) where
 
-import Fragnix.Core.MetaEnvironment (MetaEnvironment)
 import Fragnix.Declaration (Declaration (Declaration), Genre (..))
-import Fragnix.MetaEnvironment (resolve)
 
 import Language.Haskell.Exts
     (Decl (..), Extension (EnableExtension, UnknownExtension),
@@ -17,7 +15,7 @@ import Language.Haskell.Exts
     prettyPrint, readExtensions, srcInfoSpan)
 import Language.Haskell.Names
     (Environment, NameInfo (GlobalSymbol, RecPatWildcard), Scoped (Scoped),
-    Symbol, annotate)
+    Symbol, annotate, resolve)
 import qualified Language.Haskell.Names.GlobalSymbolTable as GlobalTable (empty)
 import Language.Haskell.Names.ModuleSymbols (getTopDeclSymbols)
 import Language.Haskell.Names.SyntaxUtils
@@ -41,7 +39,7 @@ import Data.Text (pack)
 
 -- | Use the given environment to produce a list of all declarations from the given list
 -- of modules.
-moduleDeclarationsWithEnvironment :: MetaEnvironment -> [Module SrcSpan] -> [Declaration]
+moduleDeclarationsWithEnvironment :: Environment -> [Module SrcSpan] -> [Declaration]
 moduleDeclarationsWithEnvironment environment modules = declarations where
     declarations = do
         annotatedModule <- annotatedModules
