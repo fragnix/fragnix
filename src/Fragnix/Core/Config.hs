@@ -1,9 +1,7 @@
 {-# LANGUAGE DeriveGeneric, StandaloneDeriving #-}
 module Fragnix.Core.Config where
 
-import Fragnix.Core.Environment (Environment)
-import Fragnix.Core.ForeignSlice (ForeignSlice)
-import Fragnix.Core.Slice (Slice)
+import Fragnix.Core.Slice (SliceID)
 
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Text (Text)
@@ -13,9 +11,9 @@ data Config = Config
   { name          :: Text
   , authors       :: Text
   , description   :: Text
-  , environments  :: [Environment]
-  , slices        :: [Slice]
-  , foreignSlices :: [ForeignSlice]
+  , environments  :: [Text]           -- Placeholder
+  , slices        :: [SliceID]
+  --, foreignSlices :: [ForeignSlice]
   , mainIs        :: [FilePath]
   , license       :: Text
   , categories    :: [Text]
