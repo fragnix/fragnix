@@ -138,7 +138,7 @@ instance Hashable UsedName
 
 type OriginalModule = Text
 
-data Reference = OtherSlice SliceID | Builtin OriginalModule
+data Reference = OtherSlice SliceID | Builtin OriginalModule | ForeignSlice SliceID
 
 deriving instance Show Reference
 deriving instance Eq Reference

@@ -5,6 +5,7 @@ module Fragnix.Loaf where
 import Prelude hiding (readFile, writeFile)
 
 import Fragnix.Core.Loaf (Loaf (..), LoafID)
+import Fragnix.Core.Slice (SliceID)
 import Fragnix.Paths (environmentPath)
 import Fragnix.SliceSymbols (slicesToSymbols)
 import Fragnix.Utils (listFilesRecursive)
@@ -15,7 +16,7 @@ import Data.Aeson (eitherDecode)
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.ByteString.Lazy (readFile, writeFile)
 import qualified Data.Hashable as Hashable (hash)
-import Data.Text (pack, unpack)
+import Data.Text (Text, pack, unpack)
 import Data.Typeable (Typeable)
 import Language.Haskell.Names (Symbol)
 import System.Directory (createDirectoryIfMissing)
@@ -30,6 +31,12 @@ instance Exception LoafParseError
 
 loafToSymbols :: Loaf -> IO [Symbol]
 loafToSymbols Loaf { slices } = slicesToSymbols slices
+
+symbolsToLoaf :: [Symbol] -> Text -> Loaf
+symbolsToLoaf symbols loafID = Loaf {loafID, slices = symbolsToSliceIDs symbols}
+
+symbolsToSliceIDs :: [Symbol] -> [SliceID]
+symbolsToSliceIDs = error "not implemented"
 
 pickLoaf :: [LoafID] -> IO Loaf
 pickLoaf = readLoaf environmentPath . head

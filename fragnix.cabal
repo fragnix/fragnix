@@ -47,10 +47,14 @@ library
                        Fragnix.Utils,
                        Fragnix.Update,
                        Fragnix.Loaf,
+                       Fragnix.Basket,
+                       Fragnix.Config,
                        Fragnix.Core.Slice,
                        Fragnix.Core.Update,
                        Fragnix.Core.Loaf,
-                       Fragnix.Core.Basket
+                       Fragnix.Core.Basket,
+                       Fragnix.Core.Config,
+                       Fragnix.Core.ForeignSlice
   hs-source-dirs:      src
   ghc-options:         -O2 -Wall
 

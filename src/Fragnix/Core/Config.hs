@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric, StandaloneDeriving #-}
 module Fragnix.Core.Config where
 
-import Fragnix.Core.Environment (Environment)
+import Fragnix.Core.Basket (Basket)
 import Fragnix.Core.ForeignSlice (ForeignSlice)
 import Fragnix.Core.Slice (Slice)
 
@@ -13,7 +13,7 @@ data Config = Config
   { name          :: Text
   , authors       :: Text
   , description   :: Text
-  , environments  :: [Environment]
+  , environments  :: Basket
   , slices        :: [Slice]
   , foreignSlices :: [ForeignSlice]
   , mainIs        :: [FilePath]
