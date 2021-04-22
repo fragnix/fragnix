@@ -1,5 +1,8 @@
+{-#LANGUAGE NamedFieldPuns #-}
 module Build where
 
+import Fragnix.Core.Config (Config(..))
+import Fragnix.Config (readConfig)
 import Fragnix.Declaration (
     writeDeclarations)
 import Fragnix.Slice (
@@ -43,6 +46,10 @@ import Text.Printf (printf)
 -- to an executable.
 build :: ShouldDist -> ShouldPreprocess -> [FilePath] -> IO ()
 build shouldDist shouldPreprocess directories = do
+    putStrLn "Reading fragnix.yaml ..."
+
+    Config {environments} <- timeIt (readConfig "fragnix.yaml")
+
     putStrLn "Finding targets ..."
 
     filePaths <- timeIt (do
