@@ -49,6 +49,7 @@ library
                        Fragnix.Loaf,
                        Fragnix.Basket,
                        Fragnix.Config,
+                       Fragnix.ForeignSlice,
                        Fragnix.Core.Slice,
                        Fragnix.Core.Update,
                        Fragnix.Core.Loaf,

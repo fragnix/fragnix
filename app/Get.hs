@@ -2,19 +2,21 @@
 
 module Get (get) where
 
-import Control.Monad.IO.Class
+import Fragnix.Core.ForeignSlice (ForeignSlice)
+import Fragnix.Core.Slice (Slice, Reference(..))
+
 import Data.Text (Text, pack, unpack)
 import Network.HTTP.Req
-import Fragnix.Slice (Slice, writeSlice, sliceNestedPath, moduleNameReference, loadSliceIDsTransitive)
-import Fragnix.Core.Slice (Reference(OtherSlice, Builtin))
+import Fragnix.Slice (readSlice, writeSlice, sliceNestedPath, moduleNameReference, loadSliceIDsTransitive, usedForeignSliceIDs)
+import Fragnix.ForeignSlice (writeForeignSlice)
 import Fragnix.Environment (writeSymbols)
-import Fragnix.Paths (slicesPath, environmentPath)
+import Fragnix.Paths (foreignSlicesPath, slicesPath, environmentPath)
 import Language.Haskell.Names (Symbol, symbolModule, readSymbols)
 import Language.Haskell.Exts (ModuleName (..))
 import Control.Monad (forM_, when)
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath ((</>))
-import Utils (IDType(..), WithDeps(..), sliceRequest, envRequest)
+import Utils (IDType(..), WithDeps(..), foreignSliceRequest, sliceRequest, envRequest)
 
 get :: IDType -> WithDeps -> IO ()
 get (SliceID sliceId) = getSlice sliceId
@@ -23,26 +25,43 @@ get (EnvID envId) = getEnv envId
 
 getSlice :: Text -> WithDeps -> IO ()
 getSlice sliceId nodeps = do
-  fetchSlice sliceId
+  slice <- fetchSlice sliceId
   case nodeps of 
     WithDeps -> do
       slicesToDownload <- loadSliceIDsTransitive slicesPath [sliceId]
       forM_ slicesToDownload (\slice -> do
         when (slice /= sliceId) $ getSlice slice WithDeps)
+      let foreignSlicesToDownload = usedForeignSliceIDs slice
+      forM_ foreignSlicesToDownload fetchForeignSlice
     WithoutDeps -> return ()
 
 
-fetchSlice :: Text -> IO ()
-fetchSlice sliceId = do
+fetchSlice :: Text -> IO Slice
+fetchSlice sliceID = do
+  sliceExists <- doesSliceExist sliceID
+  if sliceExists
+    then do
+      putStrLn $ "Slice " ++ unpack sliceID ++ " already fetched."
+      readSlice slicesPath sliceID
+    else do
+      putStrLn $ "Fetching slice " ++ unpack sliceID
+      r <- sliceRequest sliceID
+      let slice = responseBody r :: Slice
+      writeSlice slicesPath slice
+      return slice
+
+
+fetchForeignSlice :: Text -> IO ()
+fetchForeignSlice sliceId = do
   sliceExists <- doesSliceExist sliceId
   if sliceExists
     then do
       putStrLn $ "Slice " ++ unpack sliceId ++ " already fetched."
     else do
       putStrLn $ "Fetching slice " ++ unpack sliceId
-      r <- sliceRequest sliceId
-      let slice = responseBody r :: Slice
-      writeSlice slicesPath slice
+      r <- foreignSliceRequest sliceId
+      let slice = responseBody r :: ForeignSlice
+      writeForeignSlice foreignSlicesPath slice
 
 
 getEnv :: Text -> WithDeps -> IO ()
@@ -51,9 +70,13 @@ getEnv envId nodeps = do
   case nodeps of
     WithDeps -> do
       let slices = filter isSlice env
-      forM_ slices (\slice -> liftIO $ do
+      let foreignSlices = filter isForeignSlice env
+      forM_ slices (\slice -> do
         let sliceID = pack . tail $ symbolModuleName slice
         getSlice sliceID WithDeps)
+      forM_ foreignSlices (\slice -> do
+        let sliceID = pack . tail $ symbolModuleName slice
+        fetchForeignSlice sliceID)
     WithoutDeps -> return ()
         
 
@@ -76,7 +99,12 @@ fetchEnv envId = do
 isSlice :: Symbol -> Bool
 isSlice s = case moduleNameReference (symbolModuleName s) of
   OtherSlice _ -> True
-  Builtin _ -> False
+  _ -> False
+
+isForeignSlice :: Symbol -> Bool
+isForeignSlice s = case moduleNameReference (symbolModuleName s) of
+  ForeignSlice _ -> True
+  _ -> False
 
 
 symbolModuleName :: Symbol -> String

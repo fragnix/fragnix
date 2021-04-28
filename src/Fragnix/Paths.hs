@@ -14,6 +14,9 @@ builtinEnvironmentPath = fragnixBasePath </> "builtin_environment"
 slicesPath :: FilePath
 slicesPath = fragnixBasePath </> "slices"
 
+foreignSlicesPath :: FilePath
+foreignSlicesPath = fragnixBasePath </> "foreign"
+
 cbitsPath :: FilePath
 cbitsPath = fragnixBasePath </> "cbits"
 
