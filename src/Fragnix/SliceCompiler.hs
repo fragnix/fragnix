@@ -11,7 +11,7 @@ import Fragnix.Paths
     (buildPath, cbitsPath, compilationunitsPath, includePath, slicesPath)
 import Fragnix.Slice
     (Fragment (Fragment), InstanceID, Language (Language),
-    Name (Identifier, Operator), Reference (Builtin, OtherSlice), Slice (Slice),
+    Name (Identifier, Operator), Reference (..), Slice (Slice),
     SliceID, Use (Use), UsedName (ConstructorName, TypeName, ValueName),
     loadSlicesTransitive, moduleNameReference, sliceIDModuleName)
 
@@ -276,12 +276,8 @@ isSliceModule :: ModuleName a -> Bool
 isSliceModule (ModuleName _ moduleName) =
   case moduleNameReference moduleName of
     OtherSlice _ -> True
-<<<<<<< HEAD
-    Builtin _    -> False
-=======
     Builtin _ -> False
     ForeignSlice _ -> False
->>>>>>> foreign-slice
 
 
 writeModule :: Module a -> IO ()

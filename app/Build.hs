@@ -6,8 +6,9 @@ import Fragnix.Config (readConfig)
 import Fragnix.Core.Config (Config (..))
 import Fragnix.Declaration (writeDeclarations)
 import Fragnix.DeclarationLocalSlices (declarationLocalSlices)
-import Fragnix.Environment (loadEnvironment, persistEnvironment)
 import Fragnix.HashLocalSlices (hashLocalSlices)
+import Fragnix.Environment (loadEnvironment)
+import Fragnix.Loaf (loavesToEnv, persistEnvironment, readAllLoaves)
 import Fragnix.ModuleDeclarations
     (moduleDeclarationsWithEnvironment, moduleSymbols, parse)
 import Fragnix.Paths
@@ -50,7 +51,8 @@ build shouldDist shouldPreprocess directories = do
 
     environment <- timeIt (do
         builtinEnvironment <- loadEnvironment builtinEnvironmentPath
-        userEnvironment <- basketToEnvironment environments
+        loaves <- readAllLoaves environmentPath
+        let userEnvironment = loavesToEnv loaves
         return (Map.union builtinEnvironment userEnvironment))
 
     modulePaths <- case shouldPreprocess of
