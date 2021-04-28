@@ -1,40 +1,31 @@
 module Build where
 
-import Fragnix.Declaration (
-    writeDeclarations)
-import Fragnix.Slice (
-    writeSlice)
-import Fragnix.Environment (
-    loadEnvironment,persistEnvironment)
-import Fragnix.SliceSymbols (
-    updateEnvironment,findMainSliceIDs)
-import Fragnix.ModuleDeclarations (
-    parse, moduleDeclarationsWithEnvironment,
-    moduleSymbols)
-import Fragnix.DeclarationLocalSlices (
-    declarationLocalSlices)
-import Fragnix.HashLocalSlices (
-    hashLocalSlices)
-import Fragnix.SliceSymbols (
-    lookupLocalIDs)
-import Fragnix.SliceCompiler (
-    writeSlicesModules, invokeGHCMain, invokeGHC)
-import Fragnix.Utils (
-    listFilesRecursive)
-import Fragnix.Paths (
-    slicesPath,builtinEnvironmentPath,environmentPath,declarationsPath,preprocessedPath, cbitsPath)
+import Fragnix.Declaration (writeDeclarations)
+import Fragnix.DeclarationLocalSlices (declarationLocalSlices)
+import Fragnix.Environment (loadEnvironment)
+import Fragnix.HashLocalSlices (hashLocalSlices)
+import Fragnix.Loaf (loavesToEnv, persistEnvironment, readAllLoaves)
+import Fragnix.ModuleDeclarations
+    (moduleDeclarationsWithEnvironment, moduleSymbols, parse)
+import Fragnix.Paths
+    (builtinEnvironmentPath, cbitsPath, declarationsPath, environmentPath,
+    preprocessedPath, slicesPath)
+import Fragnix.Slice (writeSlice)
+import Fragnix.SliceCompiler (invokeGHC, invokeGHCMain, writeSlicesModules)
+import Fragnix.SliceSymbols
+    (findMainSliceIDs, lookupLocalIDs, updateEnvironment)
+import Fragnix.Utils (listFilesRecursive)
 
 -- import Language.Haskell.Names (ppError)
 
-import System.Clock (
-    getTime, Clock(Monotonic), toNanoSecs, diffTimeSpec)
-import qualified Data.Map as Map (union,elems)
+import qualified Data.Map as Map (elems, union)
+import System.Clock (Clock (Monotonic), diffTimeSpec, getTime, toNanoSecs)
 
-import Data.Foldable (for_)
 import Control.Monad (forM)
-import Data.List (intersperse,nub)
-import System.Directory (removeDirectoryRecursive, createDirectoryIfMissing)
-import System.FilePath (takeExtension, splitDirectories, joinPath)
+import Data.Foldable (for_)
+import Data.List (intersperse, nub)
+import System.Directory (createDirectoryIfMissing, removeDirectoryRecursive)
+import System.FilePath (joinPath, splitDirectories, takeExtension)
 import System.Process (rawSystem)
 import Text.Printf (printf)
 
@@ -52,7 +43,8 @@ build shouldDist shouldPreprocess directories = do
 
     environment <- timeIt (do
         builtinEnvironment <- loadEnvironment builtinEnvironmentPath
-        userEnvironment <- loadEnvironment environmentPath
+        loaves <- readAllLoaves environmentPath
+        let userEnvironment = loavesToEnv loaves
         return (Map.union builtinEnvironment userEnvironment))
 
     modulePaths <- case shouldPreprocess of
