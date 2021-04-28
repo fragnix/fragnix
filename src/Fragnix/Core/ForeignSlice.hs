@@ -10,7 +10,7 @@ import GHC.Generics (Generic)
 data ForeignSlice = ForeignSlice
   { sliceID   :: SliceID
   , code      :: Text
-  , fileType  :: Text
+  , fileName  :: Text
   }
 
 deriving instance Show ForeignSlice

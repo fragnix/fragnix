@@ -4,12 +4,15 @@ module Utils
   ( IDType(..)
   , WithDeps(..)
   , sliceRequest
+  , foreignSliceRequest
   , envRequest
   , archiveRequest
   , extract
   ) where
 
-import Fragnix.Slice (Slice)
+import Fragnix.Core.Slice (Slice)
+import Fragnix.Core.ForeignSlice (ForeignSlice)
+
 import Network.HTTP.Req
 import Language.Haskell.Names (Symbol)
 import Data.Text (Text, index, pack)
@@ -29,6 +32,16 @@ sliceRequest sliceId = runReq defaultHttpConfig $ do
   req
     GET
     (url /: "slices" /: pack [index sliceId 0] /: pack [index sliceId 1] /: sliceId)
+    NoReqBody
+    jsonResponse
+    mempty
+
+
+foreignSliceRequest :: Text -> IO (JsonResponse ForeignSlice)
+foreignSliceRequest sliceId = runReq defaultHttpConfig $ do
+  req
+    GET
+    (url /: "foreign" /: pack [index sliceId 0] /: pack [index sliceId 1] /: sliceId)
     NoReqBody
     jsonResponse
     mempty

@@ -8,7 +8,7 @@ import Prelude hiding (writeFile)
 
 import Fragnix.Slice (
     Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
-    Use(Use),Reference(OtherSlice,Builtin),
+    Use(Use),Reference(..),
     UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
     InstanceID,
     sliceIDModuleName,moduleNameReference,
@@ -278,6 +278,7 @@ isSliceModule (ModuleName _ moduleName) =
   case moduleNameReference moduleName of
     OtherSlice _ -> True
     Builtin _ -> False
+    ForeignSlice _ -> False
 
 
 writeModule :: Module a -> IO ()

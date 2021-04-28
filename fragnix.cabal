@@ -44,8 +44,10 @@ library
                        Fragnix.SliceSymbols,
                        Fragnix.Paths,
                        Fragnix.Utils,
-                       Fragnix.Update
-                       Fragnix.Core.Slice
+                       Fragnix.Update,
+                       Fragnix.ForeignSlice,
+                       Fragnix.Core.ForeignSlice,
+                       Fragnix.Core.Slice,
                        Fragnix.Core.Update
   hs-source-dirs:      src
   ghc-options:         -O2 -Wall

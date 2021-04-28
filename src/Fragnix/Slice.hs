@@ -16,6 +16,7 @@ module Fragnix.Slice
   , sliceIDModuleName
   , moduleNameReference
   , usedSliceIDs
+  , usedForeignSliceIDs
   , readSlice
   , writeSlice
   , loadSlicesTransitive
@@ -113,6 +114,11 @@ loadSliceIDsStateful slicesPath sliceID = do
 usedSliceIDs :: Slice -> [SliceID]
 usedSliceIDs (Slice _ _ _ uses _) = do
     Use _ _ (OtherSlice sliceID) <- uses
+    return sliceID
+
+usedForeignSliceIDs :: Slice -> [SliceID]
+usedForeignSliceIDs (Slice _ _ _ uses _) = do
+    Use _ _ (ForeignSlice sliceID) <- uses
     return sliceID
 
 sliceInstanceIDs :: Slice -> [InstanceID]
