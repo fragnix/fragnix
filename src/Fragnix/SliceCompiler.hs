@@ -11,8 +11,8 @@ import Fragnix.Paths
     (buildPath, cbitsPath, compilationunitsPath, includePath, slicesPath)
 import Fragnix.Slice
     (Fragment (Fragment), InstanceID, Language (Language),
-    Name (Identifier, Operator), Reference (..), Slice (Slice),
-    SliceID, Use (Use), UsedName (ConstructorName, TypeName, ValueName),
+    Name (Identifier, Operator), Reference (..), Slice (Slice), SliceID,
+    Use (Use, reference), UsedName (ConstructorName, TypeName, ValueName),
     loadSlicesTransitive, moduleNameReference, sliceIDModuleName)
 
 import Fragnix.SliceInstanceOptimization (sliceInstancesOptimized)
@@ -131,8 +131,9 @@ sliceModuleOptimized sliceInstancesMap (Slice sliceID language fragment uses _) 
         moduleHead = ModuleHead () moduleName Nothing maybeExportSpecList
         pragmas = [LanguagePragma () languagepragmas]
         instanceIDs = Set.toList (sliceInstancesMap Map.! sliceID)
+        usesWithoutForeign = filter isNoForeignUse uses
         imports =
-            map useImport uses ++
+            map useImport usesWithoutForeign ++
             map instanceImport instanceIDs
         decls = map (parseDeclaration sliceID ghcextensions) declarations
         moduleName = ModuleName () (sliceIDModuleName sliceID)
@@ -144,6 +145,10 @@ sliceModuleOptimized sliceInstancesMap (Slice sliceID language fragment uses _) 
             (map (Ident () . unpack) ghcextensions)
         Language ghcextensions = language
     in Module () (Just moduleHead) pragmas imports decls
+
+isNoForeignUse :: Use -> Bool
+isNoForeignUse Use { reference = ForeignSlice _} = False
+isNoForeignUse _                                 = True
 
 
 -- | Reparse a declaration from its textual representation in a slice.
@@ -275,8 +280,8 @@ sliceModulePath sliceID = compilationunitsPath </> sliceIDModuleName sliceID <.>
 isSliceModule :: ModuleName a -> Bool
 isSliceModule (ModuleName _ moduleName) =
   case moduleNameReference moduleName of
-    OtherSlice _ -> True
-    Builtin _ -> False
+    OtherSlice _   -> True
+    Builtin _      -> False
     ForeignSlice _ -> False
 
 
@@ -307,5 +312,4 @@ writeFileStrict filePath content = (do
 
 -- doesSliceModuleExist :: SliceID -> IO Bool
 -- doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)
-
 

@@ -2,8 +2,7 @@
 module Fragnix.Core.Config where
 
 import Fragnix.Core.Basket (Basket)
-import Fragnix.Core.ForeignSlice (ForeignSlice)
-import Fragnix.Core.Slice (Slice)
+import Fragnix.Core.Slice (SliceID)
 
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Text (Text)
@@ -14,9 +13,10 @@ data Config = Config
   , authors       :: Text
   , description   :: Text
   , environments  :: Basket
-  , slices        :: [Slice]
-  , foreignSlices :: [ForeignSlice]
-  , mainIs        :: [FilePath]
+  , slices        :: [SliceID]
+  , foreignSlices :: [SliceID]
+  , mainIs        :: FilePath
+  , cbitsFolder   :: FilePath
   , license       :: Text
   , categories    :: [Text]
   }

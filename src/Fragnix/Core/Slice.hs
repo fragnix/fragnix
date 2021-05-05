@@ -124,7 +124,8 @@ type TypeName = Name
 data UsedName =
     ValueName { valueName :: Name } |
     TypeName { typeName :: Name } |
-    ConstructorName { constructorTypeName :: TypeName, constructorName :: Name }
+    ConstructorName { constructorTypeName :: TypeName, constructorName :: Name } |
+    FileName { fileName :: Text }
 
 deriving instance Show UsedName
 deriving instance Eq UsedName

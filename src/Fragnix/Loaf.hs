@@ -18,14 +18,14 @@ import Data.ByteString.Lazy (readFile, writeFile)
 import Data.Char (isDigit)
 import qualified Data.Hashable as Hashable (hash)
 import qualified Data.Map as Map (empty, foldrWithKey, insert)
-import qualified Data.Text as T (Text, pack, unpack)
+import Data.Text (Text)
+import qualified Data.Text as T (index, length, pack, unpack)
 import Data.Typeable (Typeable)
 import qualified Language.Haskell.Exts as E
     (ModuleName (..), Name (..), prettyPrint)
 import qualified Language.Haskell.Names as N (Environment, Symbol (..))
-import System.Directory
-    (createDirectoryIfMissing, doesFileExist, getDirectoryContents)
-import System.FilePath ((</>))
+import System.Directory (createDirectoryIfMissing, doesFileExist)
+import System.FilePath (dropFileName, (</>))
 
 data LoafParseError = LoafParseError FilePath String
 
@@ -34,8 +34,8 @@ deriving instance Show LoafParseError
 
 instance Exception LoafParseError
 
-pickLoaf :: [LoafID] -> IO Loaf
-pickLoaf = readLoaf environmentPath . head
+pickLoaf :: (Text, [LoafID]) -> IO Loaf
+pickLoaf (_, loafIDs) = readLoafFile $ environmentPath </> (loafNestedPath . head) loafIDs
 
 -- | Read the loaf with the given ID from the given directory
 readLoaf :: FilePath -> LoafID -> IO Loaf
@@ -44,10 +44,9 @@ readLoaf loavesPath loafId = readLoafFile $ loavesPath </> T.unpack loafId
 readAllLoaves :: FilePath -> IO [Loaf]
 readAllLoaves path = do
     createDirectoryIfMissing True path
-    filenames <- getDirectoryContents path
-    let pathloafnames = map (\filename -> (filename, path </> filename)) filenames
-    existingPathLoafNames <- filterM (doesFileExist . snd) pathloafnames
-    forM existingPathLoafNames (\(_,loafPath) -> do readLoafFile loafPath)
+    filenames <- listFilesRecursive path
+    existingPathLoafNames <- filterM doesFileExist filenames
+    forM existingPathLoafNames readLoafFile
 
 
 readLoaves :: FilePath -> [LoafID] -> IO [Loaf]
@@ -57,8 +56,8 @@ readLoaves path ids = do
 -- | Write the given slice to the given directory
 writeLoaf :: FilePath -> Loaf -> IO ()
 writeLoaf loavesPath loaf@Loaf { loafID } = do
-  let loafPath = loavesPath </> T.unpack loafID
-  createDirectoryIfMissing True environmentPath
+  let loafPath = loavesPath </> loafNestedPath loafID
+  createDirectoryIfMissing True (dropFileName loafPath)
   writeFile loafPath (encodePretty loaf)
 
 getLoaves :: FilePath -> IO [Loaf]
@@ -71,7 +70,7 @@ readLoafFile path = do
   loafFile <- readFile path
   either (throwIO . LoafParseError path) return (eitherDecode loafFile)
 
-hashLoaf :: (T.Text, [F.Symbol]) -> LoafID
+hashLoaf :: (Text, [F.Symbol]) -> LoafID
 hashLoaf a = T.pack (show (abs (fromIntegral (Hashable.hash a) :: Integer)))
 
 
@@ -172,3 +171,8 @@ moduleToLoaf modulname syms loafList = Loaf { name, symbols, loafID} : loafList
 
 addLoafToEnv :: Loaf -> N.Environment -> N.Environment
 addLoafToEnv Loaf{name,symbols} = Map.insert (E.ModuleName () (T.unpack name)) (fmap coreSymbolToSymbol symbols)
+
+loafNestedPath :: LoafID -> FilePath
+loafNestedPath loafID
+  | T.length loafID < 2 = error $ "sliceID \"" <> T.unpack loafID <> "\" has less than 2 characters"
+  | otherwise = [T.index loafID 0] </> [T.index loafID 1] </> T.unpack loafID

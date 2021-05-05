@@ -1,4 +1,5 @@
-{-# LANGUAGE OverloadedStrings,StandaloneDeriving,DeriveGeneric,GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving, OverloadedStrings,
+             StandaloneDeriving #-}
 module Fragnix.LocalSlice
   ( LocalSlice(..)
   , LocalSliceID(..)
@@ -8,11 +9,12 @@ module Fragnix.LocalSlice
   , LocalInstanceID
   ) where
 
-import Fragnix.Slice (
-    SliceID, OriginalModule, Language, Fragment, Qualification, UsedName,
-    InstancePart, InstanceID)
+import Fragnix.Core.ForeignSlice (ForeignSliceID)
+import Fragnix.Slice
+    (Fragment, InstanceID, InstancePart, Language, OriginalModule,
+    Qualification, SliceID, UsedName)
 
-import Data.Aeson (FromJSON, ToJSON, ToJSONKey, FromJSONKey)
+import Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 
 import Data.Text (Text)
 import GHC.Generics (Generic)
@@ -36,10 +38,10 @@ deriving instance FromJSONKey LocalSliceID
 -- | A Slice with a local ID that may use slices with local IDs as well as global
 -- slices with slice IDs.
 data LocalSlice = LocalSlice
-  { localSliceID :: LocalSliceID
-  , language :: Language
-  , fragment :: Fragment
-  , localUses :: [LocalUse]
+  { localSliceID   :: LocalSliceID
+  , language       :: Language
+  , fragment       :: Fragment
+  , localUses      :: [LocalUse]
   , localInstances :: [LocalInstance]
   }
 
@@ -53,8 +55,8 @@ instance FromJSON LocalSlice
 
 -- | A local use may refer to local slices and global slices.
 data LocalUse = LocalUse
-  { qualification :: Maybe Qualification
-  , usedName :: UsedName
+  { qualification  :: Maybe Qualification
+  , usedName       :: UsedName
   , localReference :: LocalReference
   }
 
@@ -69,7 +71,8 @@ instance FromJSON LocalUse
 data LocalReference =
     OtherSlice SliceID |
     Builtin OriginalModule |
-    OtherLocalSlice LocalSliceID
+    OtherLocalSlice LocalSliceID |
+    ForeignSlice ForeignSliceID
 
 deriving instance Show LocalReference
 deriving instance Eq LocalReference

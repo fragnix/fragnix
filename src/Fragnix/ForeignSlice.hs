@@ -5,27 +5,31 @@ module Fragnix.ForeignSlice
   , readForeignSlice
   , extractForeignFile
   , convertFileToForeignSlice
+  , fileToForeignSlice
+  , writeForeignFiles
   ) where
 
-import Prelude hiding (writeFile,readFile)
+import Prelude hiding (readFile, writeFile)
 
 import Fragnix.Core.ForeignSlice
 import Fragnix.Core.Slice (SliceID)
 
-import Fragnix.Paths (foreignSlicesPath, cbitsPath, includePath)
-import Fragnix.Slice (sliceNestedPath)
+import Fragnix.Paths (cbitsPath, foreignSlicesPath, includePath, slicesPath)
+import Fragnix.Slice
+    (loadSlicesTransitive, sliceNestedPath, usedForeignSliceIDs)
 
-import Control.Exception (Exception,throwIO)
+import Control.Exception (Exception, throwIO)
+import Control.Monad (forM, forM_)
 import Data.Aeson (eitherDecode)
 import Data.Aeson.Encode.Pretty (encodePretty)
-import qualified Data.ByteString.Lazy as BS (writeFile,readFile)
+import qualified Data.ByteString.Lazy as BS (readFile, writeFile)
 import Data.Hashable (Hashable)
 import qualified Data.Hashable as Hashable (hash)
-import Data.Typeable(Typeable)
 import qualified Data.Text as T (pack, unpack)
-import qualified Data.Text.IO as T (writeFile, readFile)
-import System.FilePath ((</>), dropFileName, takeExtension, takeFileName)
+import qualified Data.Text.IO as T (readFile, writeFile)
+import Data.Typeable (Typeable)
 import System.Directory (createDirectoryIfMissing)
+import System.FilePath (dropFileName, takeExtension, takeFileName, (</>))
 
 data ForeignSliceParseError = ForeignSliceParseError FilePath String
 
@@ -38,21 +42,30 @@ hashForeignSlice :: Hashable a => a -> SliceID
 hashForeignSlice a = T.pack (show (abs (fromIntegral (Hashable.hash a) :: Integer)))
 
 writeForeignSlice :: FilePath -> ForeignSlice -> IO ()
-writeForeignSlice slicesPath slice@ForeignSlice { sliceID } = do
-  let slicePath = slicesPath </> sliceNestedPath sliceID
+writeForeignSlice path slice@ForeignSlice { sliceID } = do
+  let slicePath = path </> sliceNestedPath sliceID
   createDirectoryIfMissing True (dropFileName slicePath)
   BS.writeFile slicePath (encodePretty slice)
 
+writeForeignFiles :: [SliceID] -> IO ()
+writeForeignFiles sliceIDs = do
+  createDirectoryIfMissing True cbitsPath
+  createDirectoryIfMissing True includePath
+  slices <- loadSlicesTransitive slicesPath sliceIDs
+  let foreignSliceIDs = concatMap usedForeignSliceIDs slices
+  foreignSlices <- forM foreignSliceIDs $ readForeignSlice foreignSlicesPath
+  forM_ foreignSlices extractForeignFile
+
 readForeignSlice :: FilePath -> SliceID -> IO ForeignSlice
 readForeignSlice path sliceID = readForeignSliceFile $ path </> sliceNestedPath sliceID
-  
+
 readForeignSliceFile :: FilePath -> IO ForeignSlice
 readForeignSliceFile path = do
   sliceFile <- BS.readFile path
   either (throwIO . ForeignSliceParseError path) return (eitherDecode sliceFile)
 
 extractForeignFile :: ForeignSlice -> IO ()
-extractForeignFile ForeignSlice {sliceID, code, fileName} = T.writeFile path code
+extractForeignFile ForeignSlice {code, fileName} = T.writeFile path code
   where
     name = T.unpack fileName
     path = case takeExtension name of

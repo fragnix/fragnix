@@ -1,7 +1,9 @@
-module Fragnix.Utils where
+module Fragnix.Utils (listFilesRecursive) where
 
-import Control.Monad (forM, filterM)
-import System.Directory (listDirectory,doesDirectoryExist,doesFileExist)
+import Fragnix.Paths (fragnixBasePath)
+
+import Control.Monad (filterM, forM)
+import System.Directory (doesDirectoryExist, doesFileExist, listDirectory)
 import System.FilePath ((</>))
 
 
@@ -15,7 +17,8 @@ listFilesRecursive path = do
       return [path]
     else do
       children <- listDirectory path
-      let childrenPaths = map (\childPath -> path </> childPath) children
+      let childrenWithoutFragnix = filter (/= fragnixBasePath) children
+      let childrenPaths = map (\childPath -> path </> childPath) childrenWithoutFragnix
       childrenDirectories <- filterM doesDirectoryExist childrenPaths
       childrenFiles <- filterM doesFileExist childrenPaths
       subChildrenFiles <- forM childrenDirectories listFilesRecursive

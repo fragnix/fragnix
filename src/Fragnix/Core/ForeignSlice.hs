@@ -1,16 +1,16 @@
 {-# LANGUAGE DeriveGeneric, StandaloneDeriving #-}
 module Fragnix.Core.ForeignSlice where
 
-import Fragnix.Core.Slice (SliceID)
-
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 
+type ForeignSliceID = Text
+
 data ForeignSlice = ForeignSlice
-  { sliceID   :: SliceID
-  , code      :: Text
-  , fileName  :: Text
+  { sliceID  :: ForeignSliceID
+  , code     :: Text
+  , fileName :: Text
   }
 
 deriving instance Show ForeignSlice

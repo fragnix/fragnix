@@ -1,22 +1,21 @@
 module Main where
 
-import Update (update, UpdateCommand, updateParser)
-import Build (
-  build,ShouldPreprocess(DoPreprocess,NoPreprocess),
-  ShouldDist(ShouldCompile,ShouldDist))
+import Build
+    (ShouldDist (ShouldCompile, ShouldDist),
+    ShouldPreprocess (DoPreprocess, NoPreprocess), build)
 import CreateEnv (createEnv)
-import Show (showInformation)
+import Data.Version (showVersion)
 import Get (get)
 import qualified Init (init)
-import Utils (IDType(..), WithDeps(..))
 import Paths_fragnix
-import Data.Version (showVersion)
+import Show (showInformation)
+import Update (UpdateCommand, update, updateParser)
+import Utils (IDType (..), WithDeps (..))
 
-import Options.Applicative (
-  ParserInfo, Parser, execParser,
-  subparser, command, info, infoOption, long, short, help, value,
-  progDesc, header, metavar, helper, (<**>), (<|>),
-  many, strArgument, strOption, flag, fullDesc)
+import Options.Applicative
+    (Parser, ParserInfo, command, execParser, flag, fullDesc, header, help,
+    helper, info, infoOption, long, many, metavar, progDesc, short, strArgument,
+    strOption, subparser, value, (<**>), (<|>))
 
 
 data Command
@@ -40,7 +39,7 @@ commandParser = subparser (mconcat [
     command "update" (info ((Update <$> updateParser) <**> helper) (progDesc "List all available updates.")),
     command "dist" (info (distParser <**> helper) (progDesc "Serialize the environment that correspond to the given targets.")),
     command "show" (info (showParser <**> helper) (progDesc "Show fragment information and metadata.")),
-    command "get" (info (getParser <**> helper) (progDesc "Download a slice/environment into project.")),
+    command "get" (info (getParser <**> helper) (progDesc "Download a slice/loaf into project.")),
     command "init" (info (initParser <**> helper) (progDesc "Initialize project folder structure and builtin environment."))])
 
 versionOption :: Parser (a -> a)
@@ -72,14 +71,14 @@ depsParser :: Parser WithDeps
 depsParser = flag WithDeps WithoutDeps (long "no-deps" <> help "Don't process dependencies.")
 
 idParser :: Parser IDType
-idParser = sliceIdParser <|> envIdParser
+idParser = sliceIdParser <|> loafIDParser
 
 sliceIdParser :: Parser IDType
 sliceIdParser = SliceID <$> strArgument (metavar "ID")
-  
-envIdParser :: Parser IDType
-envIdParser = EnvID <$> strOption (long "env" <> metavar "ID" <> help "Treat ID as environment.")
-  
+
+loafIDParser :: Parser IDType
+loafIDParser = LoafID <$> strOption (long "loaf" <> metavar "ID" <> help "Treat ID as loaf.")
+
 initParser :: Parser Command
 initParser = pure Init
 

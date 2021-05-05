@@ -1,19 +1,20 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Build where
 
-import Fragnix.Basket (basketToEnvironment)
 import Fragnix.Config (readConfig)
 import Fragnix.Core.Config (Config (..))
 import Fragnix.Declaration (writeDeclarations)
 import Fragnix.DeclarationLocalSlices (declarationLocalSlices)
+import qualified Fragnix.Environment as E (loadEnvironment)
+import Fragnix.ForeignSlice
+    (fileToForeignSlice, writeForeignFiles, writeForeignSlice)
 import Fragnix.HashLocalSlices (hashLocalSlices)
-import Fragnix.Environment (loadEnvironment)
 import Fragnix.Loaf (loavesToEnv, persistEnvironment, readAllLoaves)
 import Fragnix.ModuleDeclarations
     (moduleDeclarationsWithEnvironment, moduleSymbols, parse)
 import Fragnix.Paths
-    (builtinEnvironmentPath, cbitsPath, declarationsPath, environmentPath,
-    preprocessedPath, slicesPath)
+    (builtinEnvironmentPath, configPath, declarationsPath, environmentPath,
+    foreignCodeExtensions, foreignSlicesPath, preprocessedPath, slicesPath)
 import Fragnix.Slice (writeSlice)
 import Fragnix.SliceCompiler (invokeGHC, invokeGHCMain, writeSlicesModules)
 import Fragnix.SliceSymbols
@@ -25,7 +26,7 @@ import Fragnix.Utils (listFilesRecursive)
 import qualified Data.Map as Map (elems, union)
 import System.Clock (Clock (Monotonic), diffTimeSpec, getTime, toNanoSecs)
 
-import Control.Monad (forM)
+import Control.Monad (forM, forM_)
 import Data.Foldable (for_)
 import Data.List (intersperse, nub)
 import System.Directory (createDirectoryIfMissing, removeDirectoryRecursive)
@@ -40,17 +41,20 @@ build :: ShouldDist -> ShouldPreprocess -> [FilePath] -> IO ()
 build shouldDist shouldPreprocess directories = do
     putStrLn "Reading fragnix.yaml ..."
 
-    Config {environments} <- timeIt (readConfig "fragnix.yaml")
+    Config { cbitsFolder } <- timeIt (readConfig configPath)
 
     putStrLn "Finding targets ..."
 
-    filePaths <- timeIt (do
-        concat <$> forM directories listFilesRecursive)
+    (filePaths, foreignFilePaths) <- timeIt (do
+        filePaths <- concat <$> forM directories listFilesRecursive
+        allForeignFilePaths <- listFilesRecursive cbitsFolder
+        let foreignFilePaths = filter isForeignCode allForeignFilePaths
+        return (filePaths, foreignFilePaths))
 
     putStrLn "Loading environment ..."
 
     environment <- timeIt (do
-        builtinEnvironment <- loadEnvironment builtinEnvironmentPath
+        builtinEnvironment <- E.loadEnvironment builtinEnvironmentPath
         loaves <- readAllLoaves environmentPath
         let userEnvironment = loavesToEnv loaves
         return (Map.union builtinEnvironment userEnvironment))
@@ -92,11 +96,11 @@ build shouldDist shouldPreprocess directories = do
 
     putStrLn "Slicing ..."
 
-    let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
+    foreignSlices <- forM foreignFilePaths fileToForeignSlice
+
+    let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations foreignSlices
     let (localSliceIDMap, slices) = hashLocalSlices localSlices
     timeIt (for_ slices (\slice -> writeSlice slicesPath slice))
-
-    createDirectoryIfMissing True cbitsPath
 
     case shouldDist of
 
@@ -108,6 +112,8 @@ build shouldDist shouldPreprocess directories = do
         let updatedEnvironment = updateEnvironment symbolSliceIDs (moduleSymbols environment modules)
         timeIt (persistEnvironment environmentPath updatedEnvironment)
 
+        forM_ foreignSlices $ writeForeignSlice foreignSlicesPath
+
         case findMainSliceIDs symbolSliceIDs of
             [] -> do
                 putStrLn "No main symbol in modules."
@@ -115,6 +121,7 @@ build shouldDist shouldPreprocess directories = do
                 putStrLn ("Compiling " ++ show mainSliceID)
                 putStrLn "Generating compilation units..."
                 timeIt (writeSlicesModules [mainSliceID])
+                timeIt (writeForeignFiles [mainSliceID])
                 putStrLn "Invoking GHC"
                 _ <- timeIt (invokeGHCMain mainSliceID)
                 return ()
@@ -128,6 +135,8 @@ build shouldDist shouldPreprocess directories = do
         let updatedEnvironment = updateEnvironment symbolSliceIDs (moduleSymbols environment modules)
         createDirectoryIfMissing True outputDirectory
         timeIt (persistEnvironment outputDirectory updatedEnvironment)
+
+        forM_ foreignSlices $ writeForeignSlice foreignSlicesPath
 
         putStrLn "Generating compilation units..."
 
@@ -166,3 +175,6 @@ timeIt action = do
     let timeDifference = fromIntegral (toNanoSecs (diffTimeSpec timeBefore timeAfter)) * 1e-9 :: Double
     printf "Took %6.2fs\n" timeDifference
     return result
+
+isForeignCode :: FilePath -> Bool
+isForeignCode filepath = takeExtension filepath `elem` foreignCodeExtensions

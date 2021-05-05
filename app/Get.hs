@@ -1,44 +1,47 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NamedFieldPuns, OverloadedStrings #-}
 
-module Get (get) where
+module Get (get, getSlice, getLoaf, fetchForeignSlice) where
 
 import Fragnix.Core.ForeignSlice (ForeignSlice)
-import Fragnix.Core.Slice (Slice, Reference(..))
+import Fragnix.Core.Loaf (Loaf (..), LoafID, Symbol (..))
+import Fragnix.Core.Slice (Reference (..), Slice (..), SliceID)
 
-import Data.Text (Text, pack, unpack)
-import Network.HTTP.Req
-import Fragnix.Slice (readSlice, writeSlice, sliceNestedPath, moduleNameReference, loadSliceIDsTransitive, usedForeignSliceIDs)
 import Fragnix.ForeignSlice (writeForeignSlice)
-import Fragnix.Environment (writeSymbols)
-import Fragnix.Paths (foreignSlicesPath, slicesPath, environmentPath)
-import Language.Haskell.Names (Symbol, symbolModule, readSymbols)
-import Language.Haskell.Exts (ModuleName (..))
+import Fragnix.Loaf (readLoafFile, writeLoaf)
+import Fragnix.Paths (environmentPath, foreignSlicesPath, slicesPath)
+import Fragnix.Slice
+    (loadSliceIDsTransitive, readSlice, sliceNestedPath, usedForeignSliceIDs,
+    writeSlice)
+
 import Control.Monad (forM_, when)
+import Data.Text (unpack)
+import Network.HTTP.Req (responseBody)
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath ((</>))
-import Utils (IDType(..), WithDeps(..), foreignSliceRequest, sliceRequest, envRequest)
+import Utils
+    (IDType (..), WithDeps (..), foreignSliceRequest, loafRequest, sliceRequest)
 
 get :: IDType -> WithDeps -> IO ()
-get (SliceID sliceId) = getSlice sliceId
-get (EnvID envId) = getEnv envId
+get (SliceID sliceID) = getSlice sliceID
+get (LoafID loafID)   = getLoaf loafID
 
 
-getSlice :: Text -> WithDeps -> IO ()
-getSlice sliceId nodeps = do
-  slice <- fetchSlice sliceId
-  case nodeps of 
+getSlice :: SliceID -> WithDeps -> IO ()
+getSlice sliceID nodeps = do
+  slice <- fetchSlice sliceID
+  case nodeps of
     WithDeps -> do
-      slicesToDownload <- loadSliceIDsTransitive slicesPath [sliceId]
-      forM_ slicesToDownload (\slice -> do
-        when (slice /= sliceId) $ getSlice slice WithDeps)
-      let foreignSlicesToDownload = usedForeignSliceIDs slice
-      forM_ foreignSlicesToDownload fetchForeignSlice
+      slicesToDownload <- loadSliceIDsTransitive slicesPath [sliceID]
+      forM_ slicesToDownload (\idToDownload -> do
+        when (idToDownload /= sliceID) $ getSlice idToDownload WithDeps)
+      let usedForeignSlices = usedForeignSliceIDs slice
+      forM_ usedForeignSlices fetchForeignSlice
     WithoutDeps -> return ()
 
 
-fetchSlice :: Text -> IO Slice
+fetchSlice :: SliceID -> IO Slice
 fetchSlice sliceID = do
-  sliceExists <- doesSliceExist sliceID
+  sliceExists <- doesFileExist (slicesPath </> sliceNestedPath sliceID)
   if sliceExists
     then do
       putStrLn $ "Slice " ++ unpack sliceID ++ " already fetched."
@@ -51,66 +54,55 @@ fetchSlice sliceID = do
       return slice
 
 
-fetchForeignSlice :: Text -> IO ()
-fetchForeignSlice sliceId = do
-  sliceExists <- doesSliceExist sliceId
+fetchForeignSlice :: SliceID -> IO ()
+fetchForeignSlice sliceID = do
+  sliceExists <- doesFileExist (foreignSlicesPath </> sliceNestedPath sliceID)
   if sliceExists
     then do
-      putStrLn $ "Slice " ++ unpack sliceId ++ " already fetched."
+      putStrLn $ "Foreign slice " ++ unpack sliceID ++ " already fetched."
     else do
-      putStrLn $ "Fetching slice " ++ unpack sliceId
-      r <- foreignSliceRequest sliceId
+      putStrLn $ "Fetching foreign slice " ++ unpack sliceID
+      r <- foreignSliceRequest sliceID
       let slice = responseBody r :: ForeignSlice
       writeForeignSlice foreignSlicesPath slice
 
 
-getEnv :: Text -> WithDeps -> IO ()
-getEnv envId nodeps = do
-  env <- fetchEnv envId
+getLoaf :: LoafID -> WithDeps -> IO ()
+getLoaf loafID nodeps = do
+  loaf <- fetchLoaf loafID
   case nodeps of
     WithDeps -> do
-      let slices = filter isSlice env
-      let foreignSlices = filter isForeignSlice env
-      forM_ slices (\slice -> do
-        let sliceID = pack . tail $ symbolModuleName slice
+      let slices = referencedSlices loaf
+      let foreignSlices = referencedForeignSlices loaf
+      forM_ slices (\sliceID -> do
         getSlice sliceID WithDeps)
-      forM_ foreignSlices (\slice -> do
-        let sliceID = pack . tail $ symbolModuleName slice
+      forM_ foreignSlices (\sliceID -> do
         fetchForeignSlice sliceID)
     WithoutDeps -> return ()
-        
 
-fetchEnv :: Text -> IO [Symbol]
-fetchEnv envId = do
-  let modulePath = environmentPath </> unpack envId
-  envExists <- doesFileExist modulePath
+
+fetchLoaf :: LoafID -> IO Loaf
+fetchLoaf loafID = do
+  let loafPath = environmentPath </> unpack loafID
+  envExists <- doesFileExist loafPath
   if envExists
     then do
-      putStrLn $ "Environment " ++ unpack envId ++ " already fetched."
-      readSymbols modulePath
+      putStrLn $ "Loaf " ++ unpack loafID ++ " already fetched."
+      readLoafFile loafPath
     else do
-      putStrLn $ "Fetching environment " ++ unpack envId
-      r <- envRequest envId
-      let symbols = (responseBody r :: [Symbol])
+      putStrLn $ "Fetching loaf " ++ unpack loafID
+      r <- loafRequest loafID
+      let loaf = (responseBody r :: Loaf)
       createDirectoryIfMissing True environmentPath
-      writeSymbols modulePath symbols
-      return symbols
+      writeLoaf environmentPath loaf
+      return loaf
 
-isSlice :: Symbol -> Bool
-isSlice s = case moduleNameReference (symbolModuleName s) of
-  OtherSlice _ -> True
-  _ -> False
+referencedSlices :: Loaf -> [SliceID]
+referencedSlices Loaf{symbols} = do
+  OtherSlice sliceID <- fmap symbolModule symbols
+  return sliceID
 
-isForeignSlice :: Symbol -> Bool
-isForeignSlice s = case moduleNameReference (symbolModuleName s) of
-  ForeignSlice _ -> True
-  _ -> False
-
-
-symbolModuleName :: Symbol -> String
-symbolModuleName s = getName (symbolModule s)
-  where getName (ModuleName () name) = name
-
-
-doesSliceExist :: Text -> IO Bool
-doesSliceExist slice = doesFileExist (slicesPath </> sliceNestedPath slice)
+referencedForeignSlices :: Loaf -> [SliceID]
+referencedForeignSlices Loaf{symbols} = do
+  ForeignSlice sliceID <- fmap symbolModule symbols
+  return sliceID
