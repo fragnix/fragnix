@@ -1,5 +1,8 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, NamedFieldPuns #-}
 module Main where
+
+import Fragnix.Config (readConfig)
+import Fragnix.Core.Config (Config (..))
 
 import Fragnix.ModuleDeclarations (
     parse,moduleDeclarationsWithEnvironment,moduleSymbols)
@@ -11,7 +14,10 @@ import Fragnix.LocalSlice (LocalSliceID(LocalSliceID))
 import Fragnix.Environment (loadEnvironment)
 import Fragnix.SliceSymbols (updateEnvironment,lookupLocalIDs)
 import Fragnix.SliceCompiler (writeSlicesModules,invokeGHC)
-import Fragnix.Paths (slicesPath,builtinEnvironmentPath,compilationunitsPath,declarationsPath)
+import Fragnix.Paths (slicesPath,builtinEnvironmentPath,compilationunitsPath,declarationsPath,configPath,foreignCodeExtensions)
+import Fragnix.Utils (listFilesRecursive)
+import Fragnix.ForeignSlice
+    (fileToForeignSlice)
 
 import Test.Tasty (testGroup,TestTree)
 import Test.Tasty.Golden (goldenVsFileDiff)
@@ -58,17 +64,23 @@ testCase folder testname = goldenVsFileDiff
 testModules :: FilePath -> IO ()
 testModules folder = do
 
+    Config { cbitsFolder } <- readConfig (folder </> configPath)
+
     modulefilenames <- getDirectoryContents folder >>=
         return . filter (\filename -> takeExtension filename == ".hs")
     let modulepaths = map (\filename -> folder </> filename) modulefilenames
 
+    allForeignFilePaths <- listFilesRecursive $ folder </> cbitsFolder
+    let foreignFilePaths = filter isForeignCode allForeignFilePaths
+
     builtinEnvironment <- loadEnvironment builtinEnvironmentPath
     modules <- forM modulepaths parse
+    foreignSlices <- forM foreignFilePaths fileToForeignSlice
 
     let declarations = moduleDeclarationsWithEnvironment builtinEnvironment modules
     writeDeclarations declarationsPath declarations
 
-    let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
+    let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations foreignSlices
     let (localSliceIDMap, slices) = hashLocalSlices localSlices
     let symbolSliceIDs = lookupLocalIDs symbolLocalIDs localSliceIDMap
     forM_ slices (\slice -> writeSlice slicesPath slice)
@@ -103,3 +115,5 @@ testModules folder = do
     writeFile (folder </> "out") result
 
 
+isForeignCode :: FilePath -> Bool
+isForeignCode filepath = takeExtension filepath `elem` foreignCodeExtensions
