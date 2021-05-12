@@ -69,9 +69,9 @@ main = do
 
     let fragmentNodes = declarationSCCs declarations
 
-    let tempSliceMap = sliceMap (fragmentLocalSlices fragmentNodes)
+    let tempSliceMap = sliceMap (fragmentLocalSlices fragmentNodes [])
 
-    let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations
+    let (localSlices, symbolLocalIDs) = declarationLocalSlices declarations []
 
     let (localSliceIDMap, slices) = hashLocalSlices localSlices
 
