@@ -27,7 +27,8 @@ common shared-build-depends
                        aeson-pretty >= 0.8 && <0.9,
                        bytestring >=0.10.4.0 && <0.11,
                        hashable >=1.3 && <1.4,
-                       transformers >=0.3.0.0 && <0.6
+                       transformers >=0.3.0.0 && <0.6,
+                       yaml >= 0.11 && < 0.12
   default-language:    Haskell2010
 
 library
@@ -44,9 +45,17 @@ library
                        Fragnix.SliceSymbols,
                        Fragnix.Paths,
                        Fragnix.Utils,
-                       Fragnix.Update
-                       Fragnix.Core.Slice
-                       Fragnix.Core.Update
+                       Fragnix.Update,
+                       Fragnix.Loaf,
+                       Fragnix.Basket,
+                       Fragnix.Config,
+                       Fragnix.ForeignSlice,
+                       Fragnix.Core.Slice,
+                       Fragnix.Core.Update,
+                       Fragnix.Core.Loaf,
+                       Fragnix.Core.Basket,
+                       Fragnix.Core.Config,
+                       Fragnix.Core.ForeignSlice
   hs-source-dirs:      src
   ghc-options:         -O2 -Wall
 

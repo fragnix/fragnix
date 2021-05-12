@@ -2,17 +2,26 @@ module Fragnix.Paths where
 
 import System.FilePath ((</>))
 
-environmentPath :: FilePath
-environmentPath = fragnixBasePath </> "env"
-
 fragnixBasePath :: FilePath
 fragnixBasePath = "fragnix"
+
+configPath :: FilePath
+configPath = "fragnix.yaml"
+
+environmentPath :: FilePath
+environmentPath = fragnixBasePath </> "env"
 
 builtinEnvironmentPath :: FilePath
 builtinEnvironmentPath = fragnixBasePath </> "builtin_environment"
 
 slicesPath :: FilePath
 slicesPath = fragnixBasePath </> "slices"
+
+foreignSlicesPath :: FilePath
+foreignSlicesPath = fragnixBasePath </> "foreign"
+
+foreignCodeExtensions :: [String]
+foreignCodeExtensions = [".c", ".h", ".js"]
 
 cbitsPath :: FilePath
 cbitsPath = fragnixBasePath </> "cbits"

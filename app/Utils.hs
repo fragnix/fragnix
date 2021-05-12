@@ -1,44 +1,57 @@
-{-# LANGUAGE OverloadedStrings,DataKinds #-}
+{-# LANGUAGE DataKinds, OverloadedStrings #-}
 
 module Utils
   ( IDType(..)
   , WithDeps(..)
   , sliceRequest
-  , envRequest
+  , foreignSliceRequest
+  , loafRequest
   , archiveRequest
   , extract
   ) where
 
-import Fragnix.Slice (Slice)
-import Network.HTTP.Req
-import Language.Haskell.Names (Symbol)
-import Data.Text (Text, index, pack)
-import Data.ByteString.Lazy (ByteString)
+import Fragnix.Core.ForeignSlice (ForeignSlice)
+import Fragnix.Core.Loaf (Loaf)
+import Fragnix.Core.Slice (Slice)
+
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as GZip
+import Data.ByteString.Lazy (ByteString)
+import Data.Text (Text, index, pack)
+import Network.HTTP.Req
 
-data IDType = EnvID Text | SliceID Text
+data IDType = LoafID Text | SliceID Text
 
 data WithDeps = WithDeps | WithoutDeps
 
 url :: Url 'Https
-url = https "raw.github.com" /: "fragnix" /: "fragnix-store" /: "main" 
+url = https "raw.github.com" /: "fragnix" /: "fragnix-store" /: "main"
 
 sliceRequest :: Text -> IO (JsonResponse Slice)
-sliceRequest sliceId = runReq defaultHttpConfig $ do
+sliceRequest sliceID = runReq defaultHttpConfig $ do
   req
     GET
-    (url /: "slices" /: pack [index sliceId 0] /: pack [index sliceId 1] /: sliceId)
+    (url /: "slices" /: pack [index sliceID 0] /: pack [index sliceID 1] /: sliceID)
     NoReqBody
     jsonResponse
     mempty
 
 
-envRequest :: Text -> IO (JsonResponse [Symbol])
-envRequest envId = runReq defaultHttpConfig $ do
+foreignSliceRequest :: Text -> IO (JsonResponse ForeignSlice)
+foreignSliceRequest sliceID = runReq defaultHttpConfig $ do
   req
     GET
-    (url /: "environments" /: envId)
+    (url /: "foreign" /: pack [index sliceID 0] /: pack [index sliceID 1] /: sliceID)
+    NoReqBody
+    jsonResponse
+    mempty
+
+
+loafRequest :: Text -> IO (JsonResponse Loaf)
+loafRequest loafID = runReq defaultHttpConfig $ do
+  req
+    GET
+    (url /: "loaves" /: pack [index loafID 0] /: pack [index loafID 1] /: loafID)
     NoReqBody
     jsonResponse
     mempty

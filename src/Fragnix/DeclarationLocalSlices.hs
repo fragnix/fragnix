@@ -1,54 +1,53 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NamedFieldPuns, OverloadedStrings #-}
 module Fragnix.DeclarationLocalSlices
   ( declarationLocalSlices
   , fragmentLocalSlices
   , declarationSCCs
   ) where
 
-import Fragnix.Declaration (
-    Declaration(Declaration),
-    Genre(TypeSignature,TypeClassInstance,InfixFixity,DerivingInstance,FamilyInstance,ForeignImport))
-import Fragnix.Slice (
-    Language(Language),Fragment(Fragment),
-    UsedName(..),Name(Identifier,Operator),
-    InstancePart(OfThisClass,OfThisClassForUnknownType,ForThisType,ForThisTypeOfUnknownClass),
+import qualified Fragnix.Core.ForeignSlice as FS (ForeignSlice (..))
+
+import Fragnix.Declaration
+    (Declaration (Declaration),
+    Genre (DerivingInstance, FamilyInstance, ForeignImport, InfixFixity, TypeClassInstance, TypeSignature))
+import Fragnix.LocalSlice
+    (LocalInstance (LocalInstance), LocalInstanceID,
+    LocalReference (Builtin, ForeignSlice, OtherLocalSlice, OtherSlice),
+    LocalSlice (LocalSlice), LocalSliceID (LocalSliceID), LocalUse (LocalUse))
+import Fragnix.Slice
+    (Fragment (Fragment),
+    InstancePart (ForThisType, ForThisTypeOfUnknownClass, OfThisClass, OfThisClassForUnknownType),
+    Language (Language), Name (Identifier, Operator), UsedName (..),
     moduleNameReference)
-import qualified Fragnix.Slice as Slice (Reference(Builtin,OtherSlice))
-import Fragnix.LocalSlice (
-    LocalSlice(LocalSlice),LocalSliceID(LocalSliceID),
-    LocalUse(LocalUse),LocalReference(OtherLocalSlice,OtherSlice,Builtin),
-    LocalInstanceID,LocalInstance(LocalInstance))
+import qualified Fragnix.Slice as Slice (Reference (Builtin, OtherSlice))
 
-import Language.Haskell.Names (
-    Symbol(Constructor,Value,Method,Selector,Class,Type,Data,NewType,TypeFam,DataFam,
-        symbolName,symbolModule))
-import qualified Language.Haskell.Exts as Name (
-    Name(Ident,Symbol))
-import Language.Haskell.Exts (
-    ModuleName(ModuleName),prettyExtension,prettyPrint,
-    Extension(EnableExtension,UnknownExtension),
-    KnownExtension(Safe,CPP,Trustworthy))
+import Language.Haskell.Exts
+    (Extension (EnableExtension, UnknownExtension),
+    KnownExtension (CPP, Safe, Trustworthy), ModuleName (ModuleName),
+    prettyExtension, prettyPrint)
+import qualified Language.Haskell.Exts as Name (Name (Ident, Symbol))
+import Language.Haskell.Names
+    (Symbol (Class, Constructor, Data, DataFam, Method, NewType, Selector, Type, TypeFam, Value, symbolModule, symbolName))
 
-import Data.Graph (buildG,scc)
+import Data.Graph (buildG, scc)
 import Data.Tree (flatten)
 
 import Control.Monad (guard)
-import Data.Text (pack)
+import Data.List (nub, (\\))
 import Data.Map (Map)
-import qualified Data.Map as Map (
-    lookup,fromList,fromListWith,(!))
-import Data.Maybe (maybeToList,listToMaybe)
-import Data.List (nub,(\\))
+import qualified Data.Map as Map (fromList, fromListWith, lookup, (!))
+import Data.Maybe (listToMaybe, maybeToList)
+import Data.Text (pack)
 
 
 -- | Extract all slices from the given list of declarations. Also return a map
 -- from a symbol to the sliceID of the slice that binds it now.
-declarationLocalSlices :: [Declaration] -> ([LocalSlice], Map Symbol LocalSliceID)
-declarationLocalSlices declarations = let
+declarationLocalSlices :: [Declaration] -> [FS.ForeignSlice] -> ([LocalSlice], Map Symbol LocalSliceID)
+declarationLocalSlices declarations foreignSlices = let
 
     fragmentNodes = declarationSCCs declarations
 
-    tempSliceList = fragmentLocalSlices fragmentNodes
+    tempSliceList = fragmentLocalSlices fragmentNodes foreignSlices
 
     symbolTempIDs = sliceBindings fragmentNodes
 
@@ -118,9 +117,9 @@ declarationSCCs declarations = zip localSliceIDs declarationSCCList where
 
 -- | Given a list of declaration nodes builds a list of local
 -- slices. One for each declaration node.
-fragmentLocalSlices :: [(LocalSliceID,[Declaration])] -> [LocalSlice]
-fragmentLocalSlices fragmentNodes = map build fragmentNodes where
-    build = buildTempSlice sliceBindingsMap constructorMap instanceLocalIDs
+fragmentLocalSlices :: [(LocalSliceID,[Declaration])] -> [FS.ForeignSlice] -> [LocalSlice]
+fragmentLocalSlices fragmentNodes foreignSlices = map build fragmentNodes where
+    build = buildTempSlice sliceBindingsMap constructorMap instanceLocalIDs foreignSlices
     sliceBindingsMap = sliceBindings fragmentNodes
     constructorMap = sliceConstructors fragmentNodes
     instanceLocalIDs = instanceLocalSliceIDs sliceBindingsMap fragmentNodes
@@ -155,26 +154,27 @@ buildTempSlice ::
     Map Symbol LocalSliceID ->
     Map Symbol [Symbol] ->
     [(LocalInstanceID,Maybe LocalSliceID,Maybe LocalSliceID)] ->
+    [FS.ForeignSlice] ->
     (LocalSliceID,[Declaration]) ->
     LocalSlice
-buildTempSlice localEnvironment constructorMap instanceLocalIDs (node,declarations) =
+buildTempSlice localEnvironment constructorMap instanceLocalIDs foreignSlices (node,declarations) =
     LocalSlice localSliceID language fragments localUses localInstances where
         localSliceID = node
 
         language = Language extensions
 
-        extensions = (nub (do
+        extensions = nub (do
             Declaration _ ghcextensions _ _ _ <- declarations
             ghcextension <- ghcextensions
             -- disregard the Safe, Trustworthy, CPP and roles extensions
             guard (not (ghcextension `elem` unwantedExtensions))
-            return (pack (prettyExtension ghcextension))))
+            return (pack (prettyExtension ghcextension)))
 
         fragments = Fragment (do
             Declaration _ _ ast _ _ <- arrange declarations
             return ast)
 
-        localUses = nub (mentionedUses ++ implicitConstructorUses ++ cTypesConstructorUses)
+        localUses = nub (mentionedUses ++ implicitConstructorUses ++ cTypesConstructorUses ++ foreignUses)
 
         -- A use for every mentioned symbol
         mentionedUses = nub (do
@@ -187,7 +187,7 @@ buildTempSlice localEnvironment constructorMap instanceLocalIDs (node,declaratio
                 -- if it fails the symbol must be from the environment
                 maybeReference = case Map.lookup mentionedsymbol localEnvironment of
                     -- If the symbol is from the environment it is either builtin or refers to an existing slice
-                    Nothing -> Just (moduleLocalReference (symbolModule (mentionedsymbol)))
+                    Nothing -> Just (moduleLocalReference (symbolModule mentionedsymbol))
                     -- If the symbol is from this fragment we generate no reference
                     Just referenceNode -> if referenceNode == node
                         then Nothing
@@ -217,6 +217,13 @@ buildTempSlice localEnvironment constructorMap instanceLocalIDs (node,declaratio
             [LocalUse Nothing cIntName cTypesReference,
              LocalUse Nothing cSizeName cTypesReference,
              LocalUse Nothing cOffName posixTypesReference]
+
+        foreignUses = do
+            Declaration ForeignImport _ _ _ mentionedSymbols <- declarations
+            (mentionedsymbol,_) <- mentionedSymbols
+            let usedName = symbolUsedName mentionedsymbol
+            FS.ForeignSlice{FS.sliceID} <- foreignSlices
+            return (LocalUse Nothing usedName (ForeignSlice sliceID))
 
         -- Add localInstances for this type or class.
         localInstances = classInstances ++ typeInstances
@@ -301,7 +308,7 @@ moduleLocalReference :: ModuleName () -> LocalReference
 moduleLocalReference (ModuleName () moduleName) =
   case moduleNameReference moduleName of
     Slice.Builtin originalModule -> Builtin originalModule
-    Slice.OtherSlice sliceID -> OtherSlice sliceID
+    Slice.OtherSlice sliceID     -> OtherSlice sliceID
 
 -- | Finds for each instance maybe the local ID of the class it is of and maybe
 -- the local ID of the type it is for. Needs a map from symbol to ID of the
@@ -317,10 +324,10 @@ instanceLocalSliceIDs ::
 instanceLocalSliceIDs sliceBindingsMap fragmentNodes = do
     (instanceID,maybeClassSymbol,maybeTypeSymbol) <- instanceSymbols fragmentNodes
     let maybeClassLocalID = case maybeClassSymbol of
-            Nothing -> Nothing
+            Nothing          -> Nothing
             Just classSymbol -> Map.lookup classSymbol sliceBindingsMap
         maybeTypeLocalID = case maybeTypeSymbol of
-            Nothing -> Nothing
+            Nothing         -> Nothing
             Just typeSymbol -> Map.lookup typeSymbol sliceBindingsMap
     return (instanceID,maybeClassLocalID,maybeTypeLocalID)
 
@@ -353,36 +360,36 @@ symbolUsedName symbol
 
 isValue :: Symbol -> Bool
 isValue symbol = case symbol of
-    Value {} -> True
-    Method {} -> True
-    Selector {} -> True
+    Value {}       -> True
+    Method {}      -> True
+    Selector {}    -> True
     Constructor {} -> True
-    _ -> False
+    _              -> False
 
 isClass :: Symbol -> Bool
 isClass symbol = case symbol of
     Class {} -> True
-    _ -> False
+    _        -> False
 
 isType :: Symbol -> Bool
 isType symbol = case symbol of
-    Type {} -> True
-    Data {} -> True
+    Type {}    -> True
+    Data {}    -> True
     NewType {} -> True
     DataFam {} -> True
-    _ -> False
+    _          -> False
 
 isFamily :: Symbol -> Bool
 isFamily symbol = case symbol of
     TypeFam {} -> True
     DataFam {} -> True
-    _ -> False
+    _          -> False
 
 isInstance :: Declaration -> Bool
 isInstance (Declaration TypeClassInstance _ _ _ _) = True
-isInstance (Declaration DerivingInstance _ _ _ _) = True
-isInstance _ = False
+isInstance (Declaration DerivingInstance _ _ _ _)  = True
+isInstance _                                       = False
 
 fromName :: Name.Name () -> Name
-fromName (Name.Ident () name) = Identifier (pack name)
+fromName (Name.Ident () name)  = Identifier (pack name)
 fromName (Name.Symbol () name) = Operator (pack name)

@@ -1,4 +1,5 @@
-{-# LANGUAGE OverloadedStrings,StandaloneDeriving,DeriveGeneric,DeriveDataTypeable, NamedFieldPuns #-}
+{-# LANGUAGE DeriveDataTypeable, DeriveGeneric, NamedFieldPuns,
+             OverloadedStrings, StandaloneDeriving #-}
 module Fragnix.Slice
   ( SliceID
   , Slice(..)
@@ -16,6 +17,7 @@ module Fragnix.Slice
   , sliceIDModuleName
   , moduleNameReference
   , usedSliceIDs
+  , usedForeignSliceIDs
   , readSlice
   , writeSlice
   , loadSlicesTransitive
@@ -24,25 +26,25 @@ module Fragnix.Slice
   , sliceNestedPath
   ) where
 
-import Prelude hiding (writeFile,readFile)
+import Prelude hiding (readFile, writeFile)
 
 import Data.Aeson (eitherDecode)
 import Data.Aeson.Encode.Pretty (encodePretty)
 
-import qualified Data.Text as Text (unpack,pack,length,index)
+import qualified Data.Text as Text (index, length, pack, unpack)
 
-import Control.Monad.Trans.State.Strict (StateT,execStateT,get,put)
-import Control.Monad.IO.Class (liftIO)
+import Control.Exception (Exception, throwIO)
 import Control.Monad (forM, forM_, unless)
-import Control.Exception (Exception,throwIO)
-import Data.Typeable(Typeable)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.State.Strict (StateT, execStateT, get, put)
+import Data.Typeable (Typeable)
 
-import Data.ByteString.Lazy (writeFile,readFile)
-import System.FilePath ((</>),dropFileName)
-import System.Directory (createDirectoryIfMissing)
+import Data.ByteString.Lazy (readFile, writeFile)
 import Data.Char (isDigit)
 import Fragnix.Core.Slice
 import Fragnix.Utils (listFilesRecursive)
+import System.Directory (createDirectoryIfMissing)
+import System.FilePath (dropFileName, (</>))
 
 -- Slice parse errors
 
@@ -113,6 +115,11 @@ loadSliceIDsStateful slicesPath sliceID = do
 usedSliceIDs :: Slice -> [SliceID]
 usedSliceIDs (Slice _ _ _ uses _) = do
     Use _ _ (OtherSlice sliceID) <- uses
+    return sliceID
+
+usedForeignSliceIDs :: Slice -> [SliceID]
+usedForeignSliceIDs (Slice _ _ _ uses _) = do
+    Use _ _ (ForeignSlice sliceID) <- uses
     return sliceID
 
 sliceInstanceIDs :: Slice -> [InstanceID]

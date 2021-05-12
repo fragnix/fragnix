@@ -1,21 +1,26 @@
+{-# LANGUAGE NamedFieldPuns #-}
+
 module Show (showInformation) where
 
-import Data.Text (Text, unpack)
+import Fragnix.Core.Loaf (Loaf (..), Name (..), Symbol (..))
+import Fragnix.Core.Slice
+    (Fragment (..), Language (..), Reference (..), Slice (..), Use (..),
+    UsedName (..))
+import qualified Fragnix.Core.Slice as F (Name (..))
+
 import Data.List (intercalate)
+import Data.Text (unpack)
+
 import Network.HTTP.Req
-import Fragnix.Slice (Slice(..), Fragment(..), Language (..), Use(..), UsedName(..), Reference(..))
-import qualified Fragnix.Slice as F (Name(..)) 
-import Language.Haskell.Names (Symbol, symbolName, symbolModule)
-import Language.Haskell.Exts.Syntax (ModuleName(..), Name(..))
-import Utils (IDType (SliceID, EnvID), sliceRequest, envRequest)
+import Utils (IDType (..), loafRequest, sliceRequest)
 
 showInformation :: IDType -> IO ()
-showInformation (SliceID sliceId) = do
-  r <- sliceRequest sliceId
+showInformation (SliceID sliceID) = do
+  r <- sliceRequest sliceID
   putStrLn $ prettyPrintSlice (responseBody r :: Slice)
-showInformation (EnvID envId) = do
-  r <- envRequest envId
-  putStrLn $ prettyPrintEnv envId (responseBody r :: [Symbol])
+showInformation (LoafID loafID) = do
+  r <- loafRequest loafID
+  putStrLn $ prettyPrintLoaf (responseBody r :: Loaf)
 
 
 prettyPrintSlice :: Slice -> String
@@ -43,29 +48,32 @@ useToString (Use (Just qual) name ref) = usedNameToString name ++ " as " ++ unpa
 
 usedNameToString :: UsedName -> String
 usedNameToString (ConstructorName _ n) = nameToString n
-usedNameToString (ValueName n) = nameToString n
-usedNameToString (TypeName n) = nameToString n
+usedNameToString (ValueName n)         = nameToString n
+usedNameToString (TypeName n)          = nameToString n
 
 nameToString :: F.Name -> String
 nameToString (F.Identifier n) = unpack n
-nameToString (F.Operator n) = "(" ++ unpack n ++ ")"
+nameToString (F.Operator n)   = "(" ++ unpack n ++ ")"
 
 refToString :: Reference -> String
-refToString (OtherSlice s) = "Slice " ++ unpack s
-refToString (Builtin m) = unpack m ++ " (builtin)"
+refToString (OtherSlice s)   = "Slice " ++ unpack s
+refToString (Builtin m)      = unpack m ++ " (builtin)"
+refToString (ForeignSlice f) = unpack f ++ " (foreign)"
 
 
-prettyPrintEnv :: Text -> [Symbol] -> String
-prettyPrintEnv name symbols = "Environment " ++ unpack name ++ "\n"
+prettyPrintLoaf :: Loaf -> String
+prettyPrintLoaf Loaf{name, symbols} = "Loaf " ++ unpack name ++ "\n"
                             ++ "----------------------------\n"
                             ++ intercalate "\n" (map symbolToString symbols)
 
 symbolToString :: Symbol -> String
 symbolToString s = symbolModuleToString (symbolModule s) ++ ": " ++ symbolNameToString (symbolName s)
 
-symbolNameToString :: Name () -> String
-symbolNameToString (Ident () s) = s
-symbolNameToString (Symbol () s) = s
+symbolNameToString :: Name -> String
+symbolNameToString (Ident s)  = unpack s
+symbolNameToString (Symbol s) = unpack s
 
-symbolModuleToString :: ModuleName () -> String
-symbolModuleToString (ModuleName () s) = s
+symbolModuleToString :: Reference -> String
+symbolModuleToString (OtherSlice s)   = unpack s
+symbolModuleToString (Builtin s)      = unpack s
+symbolModuleToString (ForeignSlice s) = unpack s

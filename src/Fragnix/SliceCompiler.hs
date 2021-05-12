@@ -2,55 +2,54 @@ module Fragnix.SliceCompiler
   ( writeSlicesModules
   , invokeGHC
   , invokeGHCMain
+  , sliceModuleOptimized
   ) where
 
 import Prelude hiding (writeFile)
 
-import Fragnix.Slice (
-    Slice(Slice),SliceID,Language(Language),Fragment(Fragment),
-    Use(Use),Reference(OtherSlice,Builtin),
-    UsedName(ValueName,TypeName,ConstructorName),Name(Identifier,Operator),
-    InstanceID,
-    sliceIDModuleName,moduleNameReference,
-    loadSlicesTransitive)
-import Fragnix.Paths (
-    slicesPath,cbitsPath,includePath,compilationunitsPath,buildPath)
+import Fragnix.Paths
+    (buildPath, cbitsPath, compilationunitsPath, includePath, slicesPath)
+import Fragnix.Slice
+    (Fragment (Fragment), InstanceID, Language (Language),
+    Name (Identifier, Operator), Reference (..), Slice (Slice), SliceID,
+    Use (Use, reference), UsedName (ConstructorName, TypeName, ValueName),
+    loadSlicesTransitive, moduleNameReference, sliceIDModuleName)
 
 import Fragnix.SliceInstanceOptimization (sliceInstancesOptimized)
 
-import Language.Haskell.Exts.Syntax (
-    Module(Module),ModuleHead(ModuleHead),
-    ModuleName(ModuleName),ModulePragma(LanguagePragma),
-    Decl(InstDecl,DataDecl,GDataDecl,PatBind,FunBind,
-         ForImp,DerivDecl,TypeSig,TypeInsDecl,DataInsDecl,GDataInsDecl),
-    Name(Ident,Symbol),QName(UnQual),
-    ExportSpecList(ExportSpecList),ExportSpec(EThingWith),EWildcard(EWildcard),
-    ImportSpecList(ImportSpecList),ImportDecl(ImportDecl,importSrc,importModule),
-    ImportSpec(IVar,IAbs,IThingWith),
-    CName(ConName),Namespace(NoNamespace))
-import Language.Haskell.Exts.Parser (
-    parseModuleWithMode,ParseMode(parseFilename,extensions,fixities),defaultParseMode,
-    fromParseResult)
-import Language.Haskell.Exts.Fixity (baseFixities)
-import Language.Haskell.Exts.Pretty (prettyPrint)
 import Language.Haskell.Exts.Extension (parseExtension)
+import Language.Haskell.Exts.Fixity (baseFixities)
+import Language.Haskell.Exts.Parser
+    (ParseMode (extensions, fixities, parseFilename), defaultParseMode,
+    fromParseResult, parseModuleWithMode)
+import Language.Haskell.Exts.Pretty (prettyPrint)
+import Language.Haskell.Exts.Syntax
+    (CName (ConName),
+    Decl (DataDecl, DataInsDecl, DerivDecl, ForImp, FunBind, GDataDecl, GDataInsDecl, InstDecl, PatBind, TypeInsDecl, TypeSig),
+    EWildcard (EWildcard), ExportSpec (EThingWith),
+    ExportSpecList (ExportSpecList),
+    ImportDecl (ImportDecl, importModule, importSrc),
+    ImportSpec (IAbs, IThingWith, IVar), ImportSpecList (ImportSpecList),
+    Module (Module), ModuleHead (ModuleHead), ModuleName (ModuleName),
+    ModulePragma (LanguagePragma), Name (Ident, Symbol),
+    Namespace (NoNamespace), QName (UnQual))
 
+import Data.Text (Text, pack, unpack)
 import Data.Text.IO (writeFile)
-import Data.Text (Text,pack,unpack)
 
-import System.FilePath ((</>),(<.>))
-import System.Directory (createDirectoryIfMissing,doesFileExist,listDirectory)
-import System.Process (rawSystem)
+import Control.Exception (SomeException, catch, evaluate)
+import System.Directory (createDirectoryIfMissing, doesFileExist, listDirectory)
 import System.Exit (ExitCode)
-import Control.Exception (SomeException,catch,evaluate)
+import System.FilePath ((<.>), (</>))
+import System.Process (rawSystem)
 
+import Control.Monad (filterM, forM_, unless)
+import Data.List (isSuffixOf)
 import Data.Map (Map)
 import qualified Data.Map.Strict as Map ((!))
+import Data.Maybe (isJust, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set (toList)
-import Control.Monad (forM_,unless,filterM)
-import Data.Maybe (mapMaybe, isJust)
-import Data.List (isSuffixOf)
 
 
 -- | Compile all slices with the given slice IDs. Turn all warnings off.
@@ -132,8 +131,9 @@ sliceModuleOptimized sliceInstancesMap (Slice sliceID language fragment uses _) 
         moduleHead = ModuleHead () moduleName Nothing maybeExportSpecList
         pragmas = [LanguagePragma () languagepragmas]
         instanceIDs = Set.toList (sliceInstancesMap Map.! sliceID)
+        usesWithoutForeign = filter isNoForeignUse uses
         imports =
-            map useImport uses ++
+            map useImport usesWithoutForeign ++
             map instanceImport instanceIDs
         decls = map (parseDeclaration sliceID ghcextensions) declarations
         moduleName = ModuleName () (sliceIDModuleName sliceID)
@@ -145,6 +145,10 @@ sliceModuleOptimized sliceInstancesMap (Slice sliceID language fragment uses _) 
             (map (Ident () . unpack) ghcextensions)
         Language ghcextensions = language
     in Module () (Just moduleHead) pragmas imports decls
+
+isNoForeignUse :: Use -> Bool
+isNoForeignUse Use { reference = ForeignSlice _} = False
+isNoForeignUse _                                 = True
 
 
 -- | Reparse a declaration from its textual representation in a slice.
@@ -162,7 +166,7 @@ parseDeclaration sliceID ghcextensions declaration = fmap (const ()) decl where
 useImport :: Use -> ImportDecl ()
 useImport (Use maybeQualification usedName symbolSource) =
     let moduleName = case symbolSource of
-            OtherSlice sliceID -> ModuleName () (sliceIDModuleName sliceID)
+            OtherSlice sliceID     -> ModuleName () (sliceIDModuleName sliceID)
             Builtin originalModule -> ModuleName () (unpack originalModule)
         qualified = isJust maybeQualification
         maybeAlias = fmap (ModuleName () . unpack) maybeQualification
@@ -175,7 +179,7 @@ useImport (Use maybeQualification usedName symbolSource) =
                 IThingWith () (toName typeName) [ConName () (toName name)]
         importSpecList = Just (ImportSpecList () False [importSpec])
         toName (Identifier name) = Ident () (unpack name)
-        toName (Operator name) = Symbol () (unpack name)
+        toName (Operator name)   = Symbol () (unpack name)
 
     in ImportDecl () moduleName qualified False False Nothing maybeAlias importSpecList
 
@@ -276,8 +280,9 @@ sliceModulePath sliceID = compilationunitsPath </> sliceIDModuleName sliceID <.>
 isSliceModule :: ModuleName a -> Bool
 isSliceModule (ModuleName _ moduleName) =
   case moduleNameReference moduleName of
-    OtherSlice _ -> True
-    Builtin _ -> False
+    OtherSlice _   -> True
+    Builtin _      -> False
+    ForeignSlice _ -> False
 
 
 writeModule :: Module a -> IO ()
@@ -307,5 +312,4 @@ writeFileStrict filePath content = (do
 
 -- doesSliceModuleExist :: SliceID -> IO Bool
 -- doesSliceModuleExist sliceID = doesFileExist (sliceModulePath sliceID)
-
 

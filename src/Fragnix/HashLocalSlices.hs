@@ -5,26 +5,24 @@ module Fragnix.HashLocalSlices
   , hashSlices2
   ) where
 
-import Fragnix.Slice (
-    Slice(Slice),SliceID,
-    Language, Fragment, Use(Use),Reference(OtherSlice,Builtin),
-    Instance(Instance))
-import Fragnix.LocalSlice (
-    LocalSlice(LocalSlice),LocalSliceID,
-    LocalUse(LocalUse),LocalReference(OtherLocalSlice),
-    LocalInstance(LocalInstance,GlobalInstance))
-import qualified Fragnix.LocalSlice as LocalSlice (
-     LocalReference(Builtin, OtherSlice))
+import Fragnix.LocalSlice
+    (LocalInstance (GlobalInstance, LocalInstance),
+    LocalReference (OtherLocalSlice), LocalSlice (LocalSlice), LocalSliceID,
+    LocalUse (LocalUse))
+import qualified Fragnix.LocalSlice as LocalSlice
+    (LocalReference (Builtin, ForeignSlice, OtherSlice))
+import Fragnix.Slice
+    (Fragment, Instance (Instance), Language,
+    Reference (Builtin, ForeignSlice, OtherSlice), Slice (Slice), SliceID,
+    Use (Use))
 
+import Control.Monad.Trans.State (State, execState, get, put)
 import Data.Foldable (for_)
-import Data.Traversable (for)
-import Control.Monad.Trans.State (State,execState,get,put)
-import Data.Text (pack)
-import Data.Map (Map)
-import qualified Data.Map as Map (
-    lookup,fromList,(!),keys,
-    empty,insert)
 import qualified Data.Hashable as Hashable (hash)
+import Data.Map (Map)
+import qualified Data.Map as Map (empty, fromList, insert, keys, lookup, (!))
+import Data.Text (pack)
+import Data.Traversable (for)
 
 
 -- | A slice ID after the first round of hashing.
@@ -102,6 +100,8 @@ hashUse2 localSliceMap hash1IDMap localUse = case localUse of
         return (Use qualification usedName (OtherSlice sliceID))
     LocalUse qualification usedName (LocalSlice.Builtin originalModule) -> do
         return (Use qualification usedName (Builtin originalModule))
+    LocalUse qualification usedName (LocalSlice.ForeignSlice originalModule) -> do
+        return (Use qualification usedName (ForeignSlice originalModule))
 
 
 -- | Given a map from local ID to local Slice computes a Map
@@ -142,6 +142,8 @@ hash1Use localSliceMap localUse = case localUse of
         return (Use qualification usedName (OtherSlice sliceID))
     LocalUse qualification usedName (LocalSlice.Builtin originalModule) ->
         return (Use qualification usedName (Builtin originalModule))
+    LocalUse qualification usedName (LocalSlice.ForeignSlice originalModule) ->
+        return (Use qualification usedName (ForeignSlice originalModule))
 
 
 -- | Replace every occurence of a local ID in the given slice with its slice ID.
@@ -157,6 +159,8 @@ replaceLocalUseID _ (LocalUse qualification usedName (LocalSlice.OtherSlice slic
     = Use qualification usedName (OtherSlice sliceID)
 replaceLocalUseID _ (LocalUse qualification usedName (LocalSlice.Builtin originalModule))
     = Use qualification usedName (Builtin originalModule)
+replaceLocalUseID _ (LocalUse qualification usedName (LocalSlice.ForeignSlice originalModule))
+    = Use qualification usedName (ForeignSlice originalModule)
 
 -- | Replace every occurence of a local ID in the given Instance with its slice ID.
 replaceLocalInstanceID :: (LocalSliceID -> SliceID) -> LocalInstance -> Instance
@@ -177,6 +181,8 @@ replaceUseID f (Use qualification usedName (OtherSlice sliceID))
     = LocalUse qualification usedName (OtherLocalSlice (f sliceID))
 replaceUseID _ (Use qualification usedName (Builtin originalModule))
     = LocalUse qualification usedName (LocalSlice.Builtin originalModule)
+replaceUseID _ (Use qualification usedName (ForeignSlice originalModule))
+    = LocalUse qualification usedName (LocalSlice.ForeignSlice originalModule)
 
 -- | Replace every occurence of a local ID in the given Instance with its slice ID.
 replaceInstanceID :: (SliceID -> LocalSliceID) -> Instance -> LocalInstance

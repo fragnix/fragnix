@@ -1,7 +1,8 @@
-{-# LANGUAGE StandaloneDeriving, DeriveGeneric #-}
+{-# LANGUAGE DeriveDataTypeable, DeriveGeneric, StandaloneDeriving #-}
 module Fragnix.Core.Slice where
 
 import Data.Aeson (FromJSON, ToJSON)
+import Data.Data (Data)
 import Data.Hashable (Hashable)
 import Data.Text (Text)
 import GHC.Generics (Generic)
@@ -11,14 +12,14 @@ import GHC.Generics (Generic)
 type SliceID = Text
 
 data Slice = Slice
-  { sliceID :: SliceID
+  { sliceID   :: SliceID
     -- ^ The hash by which this slice is identified.
-  , language :: Language
+  , language  :: Language
     -- ^ The language extensions which have to be enabled in order to
     -- be able to compile this slice.
-  , fragment :: Fragment
+  , fragment  :: Fragment
     -- ^ The actual source code contained in this slice.
-  , uses :: [Use]
+  , uses      :: [Use]
     -- ^ The dependencies of this slice.
   , instances :: [Instance]
     -- ^ The typeclass instances that this slide provides.
@@ -68,8 +69,8 @@ type Qualification = Text
 
 data Use = Use
   { qualification :: (Maybe Qualification)
-  , usedName :: UsedName
-  , reference :: Reference
+  , usedName      :: UsedName
+  , reference     :: Reference
   }
 
 deriving instance Show Use
@@ -87,7 +88,7 @@ type InstanceID = SliceID
 
 data Instance = Instance
   { instancePart :: InstancePart
-  , instanceID :: InstanceID
+  , instanceID   :: InstanceID
   }
 
 deriving instance Show Instance
@@ -123,7 +124,8 @@ type TypeName = Name
 data UsedName =
     ValueName { valueName :: Name } |
     TypeName { typeName :: Name } |
-    ConstructorName { constructorTypeName :: TypeName, constructorName :: Name }
+    ConstructorName { constructorTypeName :: TypeName, constructorName :: Name } |
+    FileName { fileName :: Text }
 
 deriving instance Show UsedName
 deriving instance Eq UsedName
@@ -138,12 +140,13 @@ instance Hashable UsedName
 
 type OriginalModule = Text
 
-data Reference = OtherSlice SliceID | Builtin OriginalModule
+data Reference = OtherSlice SliceID | Builtin OriginalModule | ForeignSlice SliceID
 
 deriving instance Show Reference
 deriving instance Eq Reference
 deriving instance Ord Reference
 deriving instance Generic Reference
+deriving instance Data Reference
 
 instance ToJSON Reference
 instance FromJSON Reference

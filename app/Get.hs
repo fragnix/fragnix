@@ -1,88 +1,113 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NamedFieldPuns, OverloadedStrings #-}
 
-module Get (get) where
+module Get (get, getSlice, getLoaf, fetchForeignSlice) where
 
-import Control.Monad.IO.Class
-import Data.Text (Text, pack, unpack)
-import Network.HTTP.Req
-import Fragnix.Slice (Slice, writeSlice, sliceNestedPath, moduleNameReference, loadSliceIDsTransitive)
-import Fragnix.Core.Slice (Reference(OtherSlice, Builtin))
-import Fragnix.Environment (writeSymbols)
-import Fragnix.Paths (slicesPath, environmentPath)
-import Language.Haskell.Names (Symbol, symbolModule, readSymbols)
-import Language.Haskell.Exts (ModuleName (..))
+import Fragnix.Core.Config (Config(Config, loaves))
+import Fragnix.Core.ForeignSlice (ForeignSlice)
+import Fragnix.Core.Loaf (Loaf (..), LoafID, Symbol (..))
+import Fragnix.Core.Slice (Reference (..), Slice (..), SliceID)
+
+import Fragnix.Config (readConfig, writeConfig)
+import Fragnix.ForeignSlice (writeForeignSlice)
+import Fragnix.Loaf (readLoafFile, writeLoaf)
+import Fragnix.Paths (environmentPath, foreignSlicesPath, slicesPath, configPath)
+import Fragnix.Slice
+    (loadSliceIDsTransitive, readSlice, sliceNestedPath, usedForeignSliceIDs,
+    writeSlice)
+
 import Control.Monad (forM_, when)
+import Data.Text (unpack)
+import qualified Data.Map as Map (insert)
+import Network.HTTP.Req (responseBody)
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath ((</>))
-import Utils (IDType(..), WithDeps(..), sliceRequest, envRequest)
+import Utils
+    (IDType (..), WithDeps (..), foreignSliceRequest, loafRequest, sliceRequest)
 
 get :: IDType -> WithDeps -> IO ()
-get (SliceID sliceId) = getSlice sliceId
-get (EnvID envId) = getEnv envId
+get (SliceID sliceID) = getSlice sliceID
+get (LoafID loafID)   = getLoaf loafID
 
 
-getSlice :: Text -> WithDeps -> IO ()
-getSlice sliceId nodeps = do
-  fetchSlice sliceId
-  case nodeps of 
-    WithDeps -> do
-      slicesToDownload <- loadSliceIDsTransitive slicesPath [sliceId]
-      forM_ slicesToDownload (\slice -> do
-        when (slice /= sliceId) $ getSlice slice WithDeps)
-    WithoutDeps -> return ()
-
-
-fetchSlice :: Text -> IO ()
-fetchSlice sliceId = do
-  sliceExists <- doesSliceExist sliceId
-  if sliceExists
-    then do
-      putStrLn $ "Slice " ++ unpack sliceId ++ " already fetched."
-    else do
-      putStrLn $ "Fetching slice " ++ unpack sliceId
-      r <- sliceRequest sliceId
-      let slice = responseBody r :: Slice
-      writeSlice slicesPath slice
-
-
-getEnv :: Text -> WithDeps -> IO ()
-getEnv envId nodeps = do
-  env <- fetchEnv envId
+getSlice :: SliceID -> WithDeps -> IO ()
+getSlice sliceID nodeps = do
+  slice <- fetchSlice sliceID
   case nodeps of
     WithDeps -> do
-      let slices = filter isSlice env
-      forM_ slices (\slice -> liftIO $ do
-        let sliceID = pack . tail $ symbolModuleName slice
-        getSlice sliceID WithDeps)
+      slicesToDownload <- loadSliceIDsTransitive slicesPath [sliceID]
+      forM_ slicesToDownload (\idToDownload -> do
+        when (idToDownload /= sliceID) $ getSlice idToDownload WithDeps)
+      let usedForeignSlices = usedForeignSliceIDs slice
+      forM_ usedForeignSlices fetchForeignSlice
     WithoutDeps -> return ()
-        
 
-fetchEnv :: Text -> IO [Symbol]
-fetchEnv envId = do
-  let modulePath = environmentPath </> unpack envId
-  envExists <- doesFileExist modulePath
+
+fetchSlice :: SliceID -> IO Slice
+fetchSlice sliceID = do
+  sliceExists <- doesFileExist (slicesPath </> sliceNestedPath sliceID)
+  if sliceExists
+    then do
+      putStrLn $ "Slice " ++ unpack sliceID ++ " already fetched."
+      readSlice slicesPath sliceID
+    else do
+      putStrLn $ "Fetching slice " ++ unpack sliceID
+      r <- sliceRequest sliceID
+      let slice = responseBody r :: Slice
+      writeSlice slicesPath slice
+      return slice
+
+
+fetchForeignSlice :: SliceID -> IO ()
+fetchForeignSlice sliceID = do
+  sliceExists <- doesFileExist (foreignSlicesPath </> sliceNestedPath sliceID)
+  if sliceExists
+    then do
+      putStrLn $ "Foreign slice " ++ unpack sliceID ++ " already fetched."
+    else do
+      putStrLn $ "Fetching foreign slice " ++ unpack sliceID
+      r <- foreignSliceRequest sliceID
+      let slice = responseBody r :: ForeignSlice
+      writeForeignSlice foreignSlicesPath slice
+
+
+getLoaf :: LoafID -> WithDeps -> IO ()
+getLoaf loafID nodeps = do
+  loaf@Loaf{name} <- fetchLoaf loafID
+  config@Config{loaves} <- readConfig configPath
+  writeConfig configPath $ config {loaves = Map.insert name [loafID] loaves}
+  case nodeps of
+    WithDeps -> do
+      let slices = referencedSlices loaf
+      let foreignSlices = referencedForeignSlices loaf
+      forM_ slices (\sliceID -> do
+        getSlice sliceID WithDeps)
+      forM_ foreignSlices (\sliceID -> do
+        fetchForeignSlice sliceID)
+    WithoutDeps -> return ()
+
+
+fetchLoaf :: LoafID -> IO Loaf
+fetchLoaf loafID = do
+  let loafPath = environmentPath </> unpack loafID
+  envExists <- doesFileExist loafPath
   if envExists
     then do
-      putStrLn $ "Environment " ++ unpack envId ++ " already fetched."
-      readSymbols modulePath
+      putStrLn $ "Loaf " ++ unpack loafID ++ " already fetched."
+      readLoafFile loafPath
     else do
-      putStrLn $ "Fetching environment " ++ unpack envId
-      r <- envRequest envId
-      let symbols = (responseBody r :: [Symbol])
+      putStrLn $ "Fetching loaf " ++ unpack loafID
+      r <- loafRequest loafID
+      let loaf = (responseBody r :: Loaf)
       createDirectoryIfMissing True environmentPath
-      writeSymbols modulePath symbols
-      return symbols
+      writeLoaf environmentPath loaf
+      return loaf
 
-isSlice :: Symbol -> Bool
-isSlice s = case moduleNameReference (symbolModuleName s) of
-  OtherSlice _ -> True
-  Builtin _ -> False
+referencedSlices :: Loaf -> [SliceID]
+referencedSlices Loaf{symbols} = do
+  OtherSlice sliceID <- fmap symbolModule symbols
+  return sliceID
 
-
-symbolModuleName :: Symbol -> String
-symbolModuleName s = getName (symbolModule s)
-  where getName (ModuleName () name) = name
-
-
-doesSliceExist :: Text -> IO Bool
-doesSliceExist slice = doesFileExist (slicesPath </> sliceNestedPath slice)
+referencedForeignSlices :: Loaf -> [SliceID]
+referencedForeignSlices Loaf{symbols} = do
+  ForeignSlice sliceID <- fmap symbolModule symbols
+  return sliceID

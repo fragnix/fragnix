@@ -2,22 +2,23 @@ module Fragnix.SliceSymbols
   ( updateEnvironment
   , findMainSliceIDs
   , lookupLocalIDs
+  , slicesToSymbols
   ) where
 
-import Fragnix.Slice (SliceID,sliceIDModuleName)
+import Fragnix.Core.Slice (SliceID)
 import Fragnix.LocalSlice (LocalSliceID)
+import Fragnix.Paths (slicesPath)
+import Fragnix.Slice (loadSlicesTransitive, sliceIDModuleName)
+import Fragnix.SliceCompiler (sliceModuleOptimized)
+import Fragnix.SliceInstanceOptimization (sliceInstancesOptimized)
 
-import Language.Haskell.Names (
-    Environment, Symbol(symbolName,symbolModule))
-import Language.Haskell.Exts (
-    ModuleName(ModuleName),Name(Ident))
+import Language.Haskell.Exts (ModuleName (ModuleName), Name (Ident))
+import Language.Haskell.Names
+    (Environment, Symbol (symbolModule, symbolName), resolve)
 
-import Data.Map (
-    Map)
-import qualified Data.Map as Map (
-    toList,lookup,map)
-import Control.Monad (
-    guard)
+import Control.Monad (guard)
+import Data.Map (Map)
+import qualified Data.Map as Map (empty, lookup, map, toList, (!))
 
 
 -- | Find the possible IDs of the main slice in a map from symbol to slice.
@@ -45,5 +46,14 @@ lookupLocalIDs :: Map Symbol LocalSliceID -> Map LocalSliceID SliceID -> Map Sym
 lookupLocalIDs symbolLocalIDs slices =
     Map.map (\localSliceID -> case Map.lookup localSliceID slices of
         Just sliceID -> sliceID
-        Nothing -> error "symbol's local slice id not found") symbolLocalIDs
+        Nothing      -> error "symbol's local slice id not found") symbolLocalIDs
 
+
+slicesToSymbols :: [SliceID] -> IO [Symbol]
+slicesToSymbols sliceIDs = do
+    slices <- loadSlicesTransitive slicesPath sliceIDs
+    let sliceInstanceMap = sliceInstancesOptimized slices
+    let sliceModules = map (sliceModuleOptimized sliceInstanceMap) slices
+    let environment' = resolve sliceModules Map.empty
+    let symbols = fmap (\sliceID -> environment' Map.! ModuleName () (sliceIDModuleName sliceID)) sliceIDs
+    return $ concat symbols
