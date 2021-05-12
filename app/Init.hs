@@ -29,15 +29,15 @@ init = do
   configExists <- doesFileExist configPath
   if configExists
     then do
-      Config {environments, slices, foreignSlices} <- readConfig configPath
+      Config {loaves, slices, foreignSlices} <- readConfig configPath
       forM_ slices (\sliceID -> getSlice sliceID WithDeps)
       forM_ foreignSlices fetchForeignSlice
-      forM_ (basketToLoafIDs environments) (\loafID -> getLoaf loafID WithDeps)
+      forM_ (basketToLoafIDs loaves) (\loafID -> getLoaf loafID WithDeps)
     else do
       writeConfig configPath Config { name = ""
                                     , authors = ""
                                     , description = ""
-                                    , environments = Map.empty
+                                    , loaves = Map.empty
                                     , slices = []
                                     , foreignSlices = []
                                     , mainIs = "Main.hs"

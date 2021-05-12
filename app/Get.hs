@@ -2,19 +2,22 @@
 
 module Get (get, getSlice, getLoaf, fetchForeignSlice) where
 
+import Fragnix.Core.Config (Config(Config, loaves))
 import Fragnix.Core.ForeignSlice (ForeignSlice)
 import Fragnix.Core.Loaf (Loaf (..), LoafID, Symbol (..))
 import Fragnix.Core.Slice (Reference (..), Slice (..), SliceID)
 
+import Fragnix.Config (readConfig, writeConfig)
 import Fragnix.ForeignSlice (writeForeignSlice)
 import Fragnix.Loaf (readLoafFile, writeLoaf)
-import Fragnix.Paths (environmentPath, foreignSlicesPath, slicesPath)
+import Fragnix.Paths (environmentPath, foreignSlicesPath, slicesPath, configPath)
 import Fragnix.Slice
     (loadSliceIDsTransitive, readSlice, sliceNestedPath, usedForeignSliceIDs,
     writeSlice)
 
 import Control.Monad (forM_, when)
 import Data.Text (unpack)
+import qualified Data.Map as Map (insert)
 import Network.HTTP.Req (responseBody)
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath ((</>))
@@ -69,7 +72,9 @@ fetchForeignSlice sliceID = do
 
 getLoaf :: LoafID -> WithDeps -> IO ()
 getLoaf loafID nodeps = do
-  loaf <- fetchLoaf loafID
+  loaf@Loaf{name} <- fetchLoaf loafID
+  config@Config{loaves} <- readConfig configPath
+  writeConfig configPath $ config {loaves = Map.insert name [loafID] loaves}
   case nodeps of
     WithDeps -> do
       let slices = referencedSlices loaf

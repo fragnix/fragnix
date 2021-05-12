@@ -12,7 +12,7 @@ data Config = Config
   { name          :: Text
   , authors       :: Text
   , description   :: Text
-  , environments  :: Basket
+  , loaves        :: Basket
   , slices        :: [SliceID]
   , foreignSlices :: [SliceID]
   , mainIs        :: FilePath
